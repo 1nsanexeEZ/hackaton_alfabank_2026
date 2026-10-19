@@ -1,0 +1,41 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/hackaton_alfabank_2026
+            
+            # Тянем последние изменения кода прямо на сервере
+            git pull --ff-only origin main
+            
+            # Собираем образы (используем кэш, если он есть, для ускорения)
+            docker compose build
+            
+            # Поднимаем контейнеры, удаляя осиротевшие (которых нет в новом compose)
+            docker compose up -d --remove-orphans
+            
+            # Перезапускаем nginx, чтобы он точно подхватил новые конфиги (если они менялись)
+            docker compose restart nginx
+            
+            # Чистим мусор, чтобы не забить диск VPS
+            docker image prune -f
+            
+            # Показываем статус контейнеров в логах GitHub Actions
+            docker compose ps
