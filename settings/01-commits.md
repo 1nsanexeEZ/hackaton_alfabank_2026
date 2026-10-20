@@ -12,7 +12,7 @@
   - `Claude-Session: ...`
   - `Generated with ...`, `🤖 Generated with [Claude Code]` и любые аналоги
 - **В описании PR** — то же самое, без подписей агента.
-- **Имена веток** — без префиксов агентов (`claude/...`, `copilot/...`). Ветки называем по задаче: `feat/scoring-model`, `fix/deploy`.
+- **Имена веток** — без префиксов агентов (`claude/...`, `copilot/...`). Ветки называем по шаблону из [02-branches.md](02-branches.md).
 
 ## Как это обеспечено
 
