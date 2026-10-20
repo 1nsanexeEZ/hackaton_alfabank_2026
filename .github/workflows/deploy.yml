@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Test and Deploy to VPS
 
 on:
   push:
@@ -6,11 +6,27 @@ on:
       - main
 
 jobs:
-  deploy:
+  test-and-deploy:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run tests (Unit, Integration, E2E)
+        run: |
+          uv run pytest -v
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -20,22 +36,17 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
+            
             cd ~/hackaton_alfabank_2026
             
-            # Тянем последние изменения кода прямо на сервере
             git pull --ff-only origin main
             
-            # Собираем образы (используем кэш, если он есть, для ускорения)
             docker compose build
             
-            # Поднимаем контейнеры, удаляя осиротевшие (которых нет в новом compose)
             docker compose up -d --remove-orphans
             
-            # Перезапускаем nginx, чтобы он точно подхватил новые конфиги (если они менялись)
-            docker compose restart nginx
+            docker compose restart nginx || true
             
-            # Чистим мусор, чтобы не забить диск VPS
             docker image prune -f
             
-            # Показываем статус контейнеров в логах GitHub Actions
             docker compose ps
