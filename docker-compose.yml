@@ -93,6 +93,7 @@ services:
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo-2026!}
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-false}
     volumes:
       - jwt-keys:/app/keys
     depends_on:

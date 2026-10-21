@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from seed.demo_data import ACCOUNTS, ACCOUNTS_BY_EMAIL, DemoAccount
 from src.core.access.access_context import AccessContext
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
@@ -67,11 +68,38 @@ class AuthService:
             account.password_hash = self._hasher.hash(password)
             await self._session.commit()
 
-        return self._tokens.issue(
-            subject=account.id,
-            permissions=list(account.role.permissions),
-            policies=dict(account.role.policies),
-        )
+        return issue_token(self._tokens, account)
+
+
+def issue_token(tokens: TokenAdapter, account: Account) -> IssuedToken:
+    return tokens.issue(
+        subject=account.id,
+        permissions=list(account.role.permissions),
+        policies=dict(account.role.policies),
+    )
+
+
+class DemoLoginService:
+    """One-click login into the seeded demo accounts (`seed.demo_data`), without
+    a password. Served only with DEMO_LOGIN_ENABLED, other accounts are never reachable."""
+
+    def __init__(self, accounts: AccountRepository, tokens: TokenAdapter) -> None:
+        self._accounts = accounts
+        self._tokens = tokens
+
+    async def list_accounts(self) -> list[tuple[DemoAccount, Account]]:
+        """Demo accounts that exist, in the order of `seed.demo_data`."""
+        found = {
+            account.email: account
+            for account in await self._accounts.list_active_by_emails(list(ACCOUNTS_BY_EMAIL))
+        }
+        return [(demo, found[demo.email]) for demo in ACCOUNTS if demo.email in found]
+
+    async def login(self, login: str) -> IssuedToken:
+        account = await find_active_by_login(self._accounts, login)
+        if account is None or account.email not in ACCOUNTS_BY_EMAIL:
+            raise NotFoundError("Demo account not found")
+        return issue_token(self._tokens, account)
 
 
 def normalize_role_rules(
