@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,6 +23,24 @@ class Settings(BaseSettings):
     # very first user can log in and create the rest through the API.
     bootstrap_admin_email: str | None = None
     bootstrap_admin_password: str | None = None
+
+    # kafka — real broker (docker compose); in_process — the same handlers are
+    # driven by a background loop without a broker (local runs); manual — nothing
+    # runs by itself, tests call app.state.messaging.drain().
+    messaging_mode: Literal["kafka", "in_process", "manual"] = "in_process"
+    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_topic_partitions: int = 3
+    kafka_create_topics: bool = True
+    outbox_batch_size: int = 100
+
+    minio_endpoint: str = "http://localhost:9000"
+    minio_root_user: str = "minioadmin"
+    minio_root_password: str = "minioadmin"
+    minio_bucket_name: str = "credit-documents"
+
+    # Demo organizations, accounts and products from docs (idempotent).
+    seed_demo_data: bool = False
+    demo_password: str = "Demo-2026!"
 
 
 @lru_cache

@@ -11,3 +11,6 @@ class AccessContext:
     permission: Permissions
     granted_permissions: Sequence[str] = field(default_factory=tuple)
     policies: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    # Filled only when the permission carries the `org_member` policy:
+    # organizations the user is a member of (resolved through the clients module).
+    organization_ids: frozenset[UUID] | None = None
