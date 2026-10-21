@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { FileCheck2, ListChecks, Target, Zap } from 'lucide-vue-next'
+import { Building2, FileCheck2, Laptop, ListChecks, Target, Zap } from 'lucide-vue-next'
 
-import { BaseContainer, SectionHeader } from '@/shared/ui'
+import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
 const BENEFITS = [
   {
@@ -32,28 +32,49 @@ const BENEFITS = [
 </script>
 
 <template>
-  <section class="relative pt-2 pb-4 lg:pt-4">
-    <BaseContainer>
+  <section class="relative -mt-10 rounded-t-[2.5rem] bg-white pt-12 pb-4 lg:-mt-16 lg:rounded-t-sheet lg:pt-20">
+    <BaseContainer class="relative">
+      <DecorSticker
+        class="absolute top-0 right-6"
+        :icon="Building2"
+        tone="sky"
+        title="Данные из ЕГРЮЛ"
+        caption="подтянули сами"
+        :tilt="5"
+      />
+      <DecorSticker
+        class="absolute top-28 right-36"
+        :icon="Laptop"
+        tone="mint"
+        title="Без визита в офис"
+        caption="всё в кабинете"
+        :tilt="-6"
+        :delay="2"
+      />
       <SectionHeader
         title="Весь кредитный путь в одном кабинете"
         description="Кабинет связывает вас и банк: заявка, проверки, решение и подписание проходят в одном месте."
       />
-      <ul class="mt-8 grid gap-4 md:grid-cols-2 lg:mt-12 lg:gap-6">
-        <li
-          v-for="benefit in BENEFITS"
-          :key="benefit.title"
-          class="flex items-start gap-5 rounded-card p-6 lg:p-8"
-          :class="benefit.tone === 'sky' ? 'bg-sky' : 'bg-surface-soft'"
-        >
-          <div class="flex-1">
-            <h3 class="text-subtitle text-ink">{{ benefit.title }}</h3>
-            <p class="mt-2 text-ink-secondary">{{ benefit.text }}</p>
-          </div>
-          <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
-            <component :is="benefit.icon" class="size-7" aria-hidden="true" />
-          </span>
-        </li>
-      </ul>
+      <div class="relative isolate mt-8 lg:mt-12">
+        <PeekSticker art="coin" class="absolute -top-16 right-20 -z-10" :tilt="14" />
+        <PeekSticker art="document" from="left" class="absolute bottom-6 -left-16 -z-10" :tilt="-12" :delay="2" />
+        <ul class="grid gap-4 md:grid-cols-2 lg:gap-6">
+          <li
+            v-for="benefit in BENEFITS"
+            :key="benefit.title"
+            class="flex items-start gap-5 rounded-card p-6 lg:p-8"
+            :class="benefit.tone === 'sky' ? 'bg-sky' : 'bg-surface-soft'"
+          >
+            <div class="flex-1">
+              <h3 class="text-subtitle text-ink">{{ benefit.title }}</h3>
+              <p class="mt-2 text-ink-secondary">{{ benefit.text }}</p>
+            </div>
+            <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
+              <component :is="benefit.icon" class="size-7" aria-hidden="true" />
+            </span>
+          </li>
+        </ul>
+      </div>
     </BaseContainer>
   </section>
 </template>

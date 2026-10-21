@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { MessageCircleQuestion } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import { SECTION_ID } from '@/shared/config'
-import { AccordionItem, BaseContainer, SectionHeader } from '@/shared/ui'
+import { AccordionItem, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
 const QUESTIONS = [
   {
@@ -47,18 +48,31 @@ const openStates = ref(QUESTIONS.map((_, index) => index === 0))
       <SectionHeader
         title="Вопросы и ответы"
         description="Коротко о том, как устроен кредитный процесс."
-        class="lg:sticky lg:top-28 lg:self-start"
-      />
-      <div class="rounded-card bg-white px-6 py-2 lg:px-8">
-        <AccordionItem
-          v-for="(item, index) in QUESTIONS"
-          :key="item.question"
-          v-model:open="openStates[index]"
-          :title="item.question"
-          class="last:border-b-0"
-        >
-          {{ item.answer }}
-        </AccordionItem>
+        class="lg:self-start"
+      >
+        <template #after>
+          <DecorSticker
+            class="mt-10 ml-4 w-max"
+            :icon="MessageCircleQuestion"
+            title="Остались вопросы?"
+            caption="задайте их в кабинете"
+            :tilt="-4"
+          />
+        </template>
+      </SectionHeader>
+      <div class="relative isolate">
+        <PeekSticker art="question" class="absolute -top-16 right-12 -z-10" :tilt="12" :delay="1" />
+        <div class="rounded-card bg-white px-6 py-2 lg:px-8">
+          <AccordionItem
+            v-for="(item, index) in QUESTIONS"
+            :key="item.question"
+            v-model:open="openStates[index]"
+            :title="item.question"
+            class="last:border-b-0"
+          >
+            {{ item.answer }}
+          </AccordionItem>
+        </div>
       </div>
     </BaseContainer>
   </section>
