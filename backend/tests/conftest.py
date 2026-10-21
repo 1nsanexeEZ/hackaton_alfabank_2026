@@ -26,6 +26,7 @@ def settings(tmp_path: Path) -> Settings:
         bootstrap_admin_password=ADMIN_PASSWORD,
         messaging_mode="manual",
         minio_ensure_bucket=False,
+        run_background_jobs=False,
     )
 
 

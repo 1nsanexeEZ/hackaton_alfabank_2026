@@ -84,3 +84,14 @@ def test_in_process_mode_starts_and_stops(settings: Settings) -> None:
     create_schema(in_process.database_url)
     with TestClient(create_app(in_process)) as test_client:
         assert test_client.get("/health").status_code == 200
+
+
+def test_background_jobs_start_and_stop(settings: Settings) -> None:
+    with_jobs = settings.model_copy(update={"run_background_jobs": True})
+    create_schema(with_jobs.database_url)
+    app = create_app(with_jobs)
+    with TestClient(app) as test_client:
+        assert test_client.get("/health").status_code == 200
+        _, task = app.state.applications_jobs
+        assert not task.done()
+    assert task.done()
