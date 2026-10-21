@@ -1,0 +1,592 @@
+{
+  "projector_application_overview": [
+    {
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "number": "КР-2026-000101",
+      "product_code": "UNSECURED",
+      "product_name": "Кредит без залога",
+      "company_name": "ООО «Ромашка»",
+      "inn": "7701158817",
+      "amount": "3000000.00",
+      "term_months": 24,
+      "status": "signing",
+      "client_stage": "Проверяем данные о компании",
+      "action_required": "sign",
+      "offer_amount": "3000000.00",
+      "offer_rate": "23.5000",
+      "submitted_at": "2026-10-20T09:00:00+00:00",
+      "updated_at": "2026-10-20T09:30:00+00:00",
+      "source_version": 5,
+      "decision_outcome": "APPROVE",
+      "decided_by": "auto",
+      "decided_at": "2026-10-20T09:10:00+00:00",
+      "manual_review_at": null,
+      "time_to_decision_sec": 600,
+      "organization_id": "3bcf7c1f-4fc9-530f-933f-d4572cd5b007"
+    },
+    {
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "number": "КР-2026-000102",
+      "product_code": "CREDIT_LINE",
+      "product_name": "Кредитная линия",
+      "company_name": "ООО «Ромашка»",
+      "inn": "7701158817",
+      "amount": "12000000.00",
+      "term_months": 24,
+      "status": "offer_ready",
+      "client_stage": null,
+      "action_required": "offer",
+      "offer_amount": "8000000.00",
+      "offer_rate": "25.0000",
+      "submitted_at": "2026-10-20T10:00:00+00:00",
+      "updated_at": "2026-10-20T12:02:00+00:00",
+      "source_version": 4,
+      "decision_outcome": "COUNTER_OFFER",
+      "decided_by": "underwriter",
+      "decided_at": "2026-10-20T12:01:00+00:00",
+      "manual_review_at": "2026-10-20T10:10:00+00:00",
+      "time_to_decision_sec": 7260,
+      "organization_id": "3bcf7c1f-4fc9-530f-933f-d4572cd5b007"
+    },
+    {
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "number": "КР-2026-000104",
+      "product_code": "UNSECURED",
+      "product_name": "Кредит без залога",
+      "company_name": "ИП Иванов Иван Иванович",
+      "inn": "770669871605",
+      "amount": "2000000.00",
+      "term_months": 36,
+      "status": "rejected",
+      "client_stage": null,
+      "action_required": "none",
+      "offer_amount": null,
+      "offer_rate": null,
+      "submitted_at": "2026-10-21T09:00:00+00:00",
+      "updated_at": "2026-10-21T09:21:00+00:00",
+      "source_version": 4,
+      "decision_outcome": "REJECT",
+      "decided_by": "auto",
+      "decided_at": "2026-10-21T09:20:00+00:00",
+      "manual_review_at": null,
+      "time_to_decision_sec": 1200,
+      "organization_id": "218ceb87-192e-5ac6-b881-fedee6ee1605"
+    },
+    {
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "number": "КР-2026-000103",
+      "product_code": "OVERDRAFT",
+      "product_name": "Овердрафт",
+      "company_name": "ИП Иванов Иван Иванович",
+      "inn": "770669871605",
+      "amount": "1000000.00",
+      "term_months": 12,
+      "status": "in_review",
+      "client_stage": null,
+      "action_required": "none",
+      "offer_amount": null,
+      "offer_rate": null,
+      "submitted_at": "2026-10-21T08:00:00+00:00",
+      "updated_at": "2026-10-21T08:02:00+00:00",
+      "source_version": 3,
+      "decision_outcome": null,
+      "decided_by": null,
+      "decided_at": null,
+      "manual_review_at": "2026-10-21T08:10:00+00:00",
+      "time_to_decision_sec": null,
+      "organization_id": "218ceb87-192e-5ac6-b881-fedee6ee1605"
+    }
+  ],
+  "projector_underwriting_queue": [
+    {
+      "task_id": "ac770ccc-2f7d-5d76-9965-3e77f76e5933",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "task_type": "manual_review",
+      "candidate_role": "underwriter",
+      "status": "done",
+      "assignee_id": "8e558445-82cb-547d-b58b-a43a357ba2ac",
+      "due_at": "2026-10-21T10:11:00+00:00",
+      "created_at": "2026-10-20T10:11:00+00:00",
+      "source_version": 2,
+      "number": "КР-2026-000102",
+      "company_name": "ООО «Ромашка»",
+      "inn": "7701158817",
+      "product_code": "CREDIT_LINE",
+      "amount": "12000000.00",
+      "score": 610,
+      "risk_grade": "C",
+      "cash_gap": true,
+      "routing_reasons": []
+    },
+    {
+      "task_id": "fe1e31f3-e1ea-52ea-b3a7-ed2df2a5446b",
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "task_type": "manual_review",
+      "candidate_role": "underwriter",
+      "status": "open",
+      "assignee_id": null,
+      "due_at": "2026-10-21T12:11:00+00:00",
+      "created_at": "2026-10-21T08:11:00+00:00",
+      "source_version": 0,
+      "number": "КР-2026-000103",
+      "company_name": "ИП Иванов Иван Иванович",
+      "inn": "770669871605",
+      "product_code": "OVERDRAFT",
+      "amount": "1000000.00",
+      "score": 540,
+      "risk_grade": "D",
+      "cash_gap": true,
+      "routing_reasons": [
+        "SHORT_BUSINESS_HISTORY"
+      ]
+    }
+  ],
+  "projector_application_timeline": [
+    {
+      "id": "08c18c30-e3af-52d8-a967-63ae7c33d476",
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "source_event_id": "57948dd3-fcb4-5c29-8cad-0a3a341d5a1e",
+      "at": "2026-10-21T09:21:00+00:00",
+      "kind": "stage",
+      "title": "Маршрут завершён",
+      "audience": "bank",
+      "details": {
+        "outcome": "REJECT",
+        "process_id": "a581ea4b-1f73-502a-8545-7987abb0dd45"
+      }
+    },
+    {
+      "id": "1c85e942-f812-5234-85e5-b5f59be10d1d",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "01791f4e-186a-5ab2-8da8-75c6b20fb4bd",
+      "at": "2026-10-20T09:05:00+00:00",
+      "kind": "stage",
+      "title": "Выполнен шаг «calculate_score»",
+      "audience": "bank",
+      "details": {
+        "node_id": "score",
+        "process_id": "9acaf145-d738-54f5-9458-823f67140eff",
+        "step_code": "calculate_score"
+      }
+    },
+    {
+      "id": "23529c9d-4084-5d01-a316-51ddd24f6d73",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "6dd21a10-d40f-57cf-9189-592f44ea6703",
+      "at": "2026-10-20T09:00:00+00:00",
+      "kind": "status",
+      "title": "Заявка отправлена в банк",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "draft",
+        "to_status": "submitted"
+      }
+    },
+    {
+      "id": "31bb3866-fe69-5a12-aa75-4b7e3bb86554",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "c26b92e4-8b41-52da-b546-58aa4153799e",
+      "at": "2026-10-20T09:11:00+00:00",
+      "kind": "status",
+      "title": "Готово предложение банка",
+      "audience": "client",
+      "details": {
+        "client_stage": "Проверяем данные о компании",
+        "from_status": "in_review",
+        "to_status": "offer_ready"
+      }
+    },
+    {
+      "id": "4b7a2d67-8622-58dd-9b71-c98dad73c2d6",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "f252acc9-16b1-5da7-95ea-ac696d95e651",
+      "at": "2026-10-20T12:02:00+00:00",
+      "kind": "status",
+      "title": "Готово предложение банка",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "in_review",
+        "to_status": "offer_ready"
+      }
+    },
+    {
+      "id": "50529215-1212-5a8d-aae3-f26a8031462c",
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "source_event_id": "589f529c-a1a0-5885-8cf2-7379bd6ff723",
+      "at": "2026-10-21T08:02:00+00:00",
+      "kind": "status",
+      "title": "Заявка на рассмотрении",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "submitted",
+        "to_status": "in_review"
+      }
+    },
+    {
+      "id": "642ff680-64ba-54a3-b08d-41ded15b6667",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "5ce802de-30a8-59ab-83cf-694bae94a506",
+      "at": "2026-10-20T09:01:00+00:00",
+      "kind": "stage",
+      "title": "Запущен маршрут express_v1",
+      "audience": "bank",
+      "details": {
+        "process_id": "9acaf145-d738-54f5-9458-823f67140eff",
+        "workflow_code": "express_v1"
+      }
+    },
+    {
+      "id": "6693a6fc-e287-5c6f-95b7-7a730393f9af",
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "source_event_id": "ae6a28ed-746e-5b9c-9e5f-cbf2adb9fad4",
+      "at": "2026-10-21T08:10:00+00:00",
+      "kind": "decision",
+      "title": "Заявку рассматривает специалист банка",
+      "audience": "client",
+      "details": {
+        "alternative_product_code": null,
+        "client_explanation": "Заявку проверит специалист банка",
+        "decided_by": "auto",
+        "improvement_hints": [],
+        "offer": null,
+        "outcome": "MANUAL_REVIEW",
+        "requested_info": null
+      }
+    },
+    {
+      "id": "66df6215-b234-5ca0-819b-7703bc92593b",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "51461f79-15d2-5dfe-9bbb-1ea726ce175d",
+      "at": "2026-10-20T09:02:00+00:00",
+      "kind": "status",
+      "title": "Заявка на рассмотрении",
+      "audience": "client",
+      "details": {
+        "client_stage": "Проверяем данные о компании",
+        "from_status": "submitted",
+        "to_status": "in_review"
+      }
+    },
+    {
+      "id": "70d35969-2e68-5684-939c-8b656f692255",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "264f6747-9a02-5472-b64d-36f59addfce9",
+      "at": "2026-10-20T10:02:00+00:00",
+      "kind": "status",
+      "title": "Заявка на рассмотрении",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "submitted",
+        "to_status": "in_review"
+      }
+    },
+    {
+      "id": "759385ca-f9d1-588f-8e9f-6b8f2c026e94",
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "source_event_id": "a1db7e8a-9acb-5a5b-bd9b-9a8d2336e475",
+      "at": "2026-10-21T08:11:00+00:00",
+      "kind": "task",
+      "title": "Создана задача «manual_review» для роли underwriter",
+      "audience": "bank",
+      "details": {
+        "candidate_role": "underwriter",
+        "due_at": "2026-10-21T12:11:00Z",
+        "task_id": "fe1e31f3-e1ea-52ea-b3a7-ed2df2a5446b",
+        "task_type": "manual_review"
+      }
+    },
+    {
+      "id": "79730977-8315-5dbe-9fe6-a7c6d72415e0",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "fdcc53d7-c5ba-525f-befa-495ca0411b98",
+      "at": "2026-10-20T09:03:00+00:00",
+      "kind": "stage",
+      "title": "Проверяем данные о компании",
+      "audience": "client",
+      "details": {
+        "step_code": "fetch_enrichment"
+      }
+    },
+    {
+      "id": "7ad29cc6-ef39-5b74-960c-d13c93f5835a",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "d54f12a7-fd56-5ec0-9c44-1833a8a426c7",
+      "at": "2026-10-20T12:01:00+00:00",
+      "kind": "decision",
+      "title": "Банк предложил другие условия",
+      "audience": "client",
+      "details": {
+        "alternative_product_code": null,
+        "client_explanation": "Можем предложить 8 млн ₽",
+        "decided_by": "underwriter",
+        "improvement_hints": [
+          "Подтвердите выручку выпиской — лимит может вырасти"
+        ],
+        "offer": {
+          "amount": "8000000",
+          "conditions": [],
+          "expires_at": "2026-11-19T09:00:00Z",
+          "kind": "counter",
+          "monthly_payment": "158613.29",
+          "rate": "25.0",
+          "schedule_type": "annuity",
+          "term_months": 24
+        },
+        "outcome": "COUNTER_OFFER",
+        "requested_info": null
+      }
+    },
+    {
+      "id": "81c5c67a-b954-5deb-850d-1777359c1da5",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "a54dfa13-51bb-5652-88be-f7dd93252c19",
+      "at": "2026-10-20T09:30:00+00:00",
+      "kind": "status",
+      "title": "Предложение принято, идёт подписание",
+      "audience": "client",
+      "details": {
+        "client_stage": "Проверяем данные о компании",
+        "from_status": "offer_ready",
+        "to_status": "signing"
+      }
+    },
+    {
+      "id": "ae971e6d-6aec-53a5-a268-cdf63617bf69",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "f3bbc659-1308-55c6-a4a8-761ab8f9d503",
+      "at": "2026-10-20T10:11:00+00:00",
+      "kind": "task",
+      "title": "Создана задача «manual_review» для роли underwriter",
+      "audience": "bank",
+      "details": {
+        "candidate_role": "underwriter",
+        "due_at": "2026-10-21T10:11:00Z",
+        "task_id": "ac770ccc-2f7d-5d76-9965-3e77f76e5933",
+        "task_type": "manual_review"
+      }
+    },
+    {
+      "id": "aec8f300-70d8-5cbf-a26b-3132c21e13bc",
+      "application_id": "6daa2587-e338-5556-8b06-3f7541dca1ad",
+      "source_event_id": "19a3da78-24ed-53d9-be8c-ec1a2a3cdc00",
+      "at": "2026-10-21T08:00:00+00:00",
+      "kind": "status",
+      "title": "Заявка отправлена в банк",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "draft",
+        "to_status": "submitted"
+      }
+    },
+    {
+      "id": "c289d18a-2bb2-5e0e-a3cf-676e9dd89318",
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "source_event_id": "e2052ab2-1e05-526d-9aab-bf5e7091a53e",
+      "at": "2026-10-21T09:21:00+00:00",
+      "kind": "status",
+      "title": "Банк отказал в кредите",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "in_review",
+        "to_status": "rejected"
+      }
+    },
+    {
+      "id": "cb0f3284-43f5-5ce4-80f8-650653b2d792",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "2b5ab78f-e5d4-5bc4-a3d4-212384895deb",
+      "at": "2026-10-20T10:10:00+00:00",
+      "kind": "decision",
+      "title": "Заявку рассматривает специалист банка",
+      "audience": "client",
+      "details": {
+        "alternative_product_code": null,
+        "client_explanation": "Заявку проверит специалист банка",
+        "decided_by": "auto",
+        "improvement_hints": [],
+        "offer": null,
+        "outcome": "MANUAL_REVIEW",
+        "requested_info": null
+      }
+    },
+    {
+      "id": "cc661bfd-7a54-537c-85ab-cd9c2a34d2a7",
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "source_event_id": "a35c6889-d61a-5b42-a500-75f87be70d84",
+      "at": "2026-10-21T09:20:00+00:00",
+      "kind": "decision",
+      "title": "Банк отказал в кредите",
+      "audience": "client",
+      "details": {
+        "alternative_product_code": null,
+        "client_explanation": "Сейчас не можем выдать кредит",
+        "decided_by": "auto",
+        "improvement_hints": [
+          "Вернитесь, когда бизнесу будет больше 12 месяцев"
+        ],
+        "offer": null,
+        "outcome": "REJECT",
+        "requested_info": null
+      }
+    },
+    {
+      "id": "ced9f17d-b91d-53de-9c9e-36194dba4d69",
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "source_event_id": "c814d848-e55d-5e8d-81f4-139c5322c507",
+      "at": "2026-10-21T09:00:00+00:00",
+      "kind": "status",
+      "title": "Заявка отправлена в банк",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "draft",
+        "to_status": "submitted"
+      }
+    },
+    {
+      "id": "e8325104-3364-57a3-b607-94c9f8038d90",
+      "application_id": "55f6da29-97fc-5974-984a-6a3fd7057282",
+      "source_event_id": "be0a7f36-4c26-58ef-91d1-cc4a9e1dc54c",
+      "at": "2026-10-21T09:05:00+00:00",
+      "kind": "status",
+      "title": "Заявка на рассмотрении",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "submitted",
+        "to_status": "in_review"
+      }
+    },
+    {
+      "id": "ee0a4731-bf86-5fbf-91d5-95319d87f69c",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "3dfe7ec6-b1fa-53fc-a89b-6cca1b3862c8",
+      "at": "2026-10-20T10:00:00+00:00",
+      "kind": "status",
+      "title": "Заявка отправлена в банк",
+      "audience": "client",
+      "details": {
+        "client_stage": null,
+        "from_status": "draft",
+        "to_status": "submitted"
+      }
+    },
+    {
+      "id": "f57dcc48-d617-5440-850e-7721a292cc46",
+      "application_id": "1d2b813f-2fe6-5b7e-85a1-b54652bdfbd2",
+      "source_event_id": "784b2b0e-c711-5373-a0db-cdf60400b125",
+      "at": "2026-10-20T09:10:00+00:00",
+      "kind": "decision",
+      "title": "Кредит одобрен",
+      "audience": "client",
+      "details": {
+        "alternative_product_code": null,
+        "client_explanation": "Кредит одобрен на запрошенных условиях",
+        "decided_by": "auto",
+        "improvement_hints": [],
+        "offer": {
+          "amount": "3000000",
+          "conditions": [],
+          "expires_at": "2026-11-19T09:00:00Z",
+          "kind": "as_requested",
+          "monthly_payment": "158613.29",
+          "rate": "23.5",
+          "schedule_type": "annuity",
+          "term_months": 24
+        },
+        "outcome": "APPROVE",
+        "requested_info": null
+      }
+    },
+    {
+      "id": "fd6712b7-7b3d-52ce-97a1-6ddfb8348f0c",
+      "application_id": "2e3b812b-fb41-5521-a9f5-78949252dcf1",
+      "source_event_id": "1e4d74e3-c536-587b-a282-60829147deb0",
+      "at": "2026-10-20T12:00:00+00:00",
+      "kind": "task",
+      "title": "Задача выполнена",
+      "audience": "bank",
+      "details": {
+        "completed_by": "8e558445-82cb-547d-b58b-a43a357ba2ac",
+        "result": {
+          "outcome": "COUNTER_OFFER"
+        },
+        "task_id": "ac770ccc-2f7d-5d76-9965-3e77f76e5933"
+      }
+    }
+  ],
+  "projector_organization_dashboard": [
+    {
+      "organization_id": "218ceb87-192e-5ac6-b881-fedee6ee1605",
+      "active_applications": 1,
+      "action_required_count": 0,
+      "pre_approved_max_amount": "5000000.00",
+      "pre_approved_rate_from": "22.5000",
+      "last_activity_at": "2026-10-21T11:00:00+00:00"
+    },
+    {
+      "organization_id": "3bcf7c1f-4fc9-530f-933f-d4572cd5b007",
+      "active_applications": 2,
+      "action_required_count": 2,
+      "pre_approved_max_amount": null,
+      "pre_approved_rate_from": null,
+      "last_activity_at": "2026-10-21T10:00:00+00:00"
+    }
+  ],
+  "projector_backoffice_metrics": [
+    {
+      "day": "2026-10-20",
+      "product_code": "CREDIT_LINE",
+      "submitted": 1,
+      "approved": 0,
+      "counter_offers": 1,
+      "rejected": 0,
+      "manual_reviews": 1,
+      "auto_decisions": 0,
+      "decision_time_total_sec": 7260,
+      "decision_time_count": 1
+    },
+    {
+      "day": "2026-10-20",
+      "product_code": "UNSECURED",
+      "submitted": 1,
+      "approved": 1,
+      "counter_offers": 0,
+      "rejected": 0,
+      "manual_reviews": 0,
+      "auto_decisions": 1,
+      "decision_time_total_sec": 600,
+      "decision_time_count": 1
+    },
+    {
+      "day": "2026-10-21",
+      "product_code": "OVERDRAFT",
+      "submitted": 1,
+      "approved": 0,
+      "counter_offers": 0,
+      "rejected": 0,
+      "manual_reviews": 1,
+      "auto_decisions": 0,
+      "decision_time_total_sec": 0,
+      "decision_time_count": 0
+    },
+    {
+      "day": "2026-10-21",
+      "product_code": "UNSECURED",
+      "submitted": 1,
+      "approved": 0,
+      "counter_offers": 0,
+      "rejected": 1,
+      "manual_reviews": 0,
+      "auto_decisions": 1,
+      "decision_time_total_sec": 1200,
+      "decision_time_count": 1
+    }
+  ]
+}
