@@ -18,18 +18,27 @@ from uuid import UUID, uuid4
 from src.core.domain.clock import Clock
 from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEnrichment
 from src.core.messaging.outbox import OutboxWriter
+from src.enrichment.application.cashflow import CashflowBuilder
 from src.enrichment.application.ports import EnrichmentRepository, SourceError
 from src.enrichment.application.sources import Sources
+from src.enrichment.domain.cashflow import StatementParseError
 from src.enrichment.domain.snapshot import EnrichmentSnapshot, SourceData
 from src.enrichment.domain.snapshot import SourceError as SnapshotError
 from src.enrichment.facade import Source
 
 
 class FetchEnrichmentUseCase:
-    def __init__(self, repository: EnrichmentRepository, sources: Sources, clock: Clock) -> None:
+    def __init__(
+        self,
+        repository: EnrichmentRepository,
+        sources: Sources,
+        clock: Clock,
+        cashflow: CashflowBuilder | None = None,
+    ) -> None:
         self._repository = repository
         self._sources = sources
         self._clock = clock
+        self._cashflow = cashflow
 
     async def execute(
         self, command: FetchEnrichment, *, command_event_id: UUID, outbox: OutboxWriter
@@ -60,9 +69,22 @@ class FetchEnrichmentUseCase:
         if tasks:
             await asyncio.gather(*tasks)
 
+        await self._add_cashflow(command, snapshot)
+
         snapshot.completed_at = self._clock.now()
         await self._repository.add(snapshot)
         await self._publish(outbox, snapshot, command_event_id)
+
+    async def _add_cashflow(self, command: FetchEnrichment, snapshot: EnrichmentSnapshot) -> None:
+        if self._cashflow is None or not command.statement_document_ids:
+            return
+        try:
+            forecast = await self._cashflow.build(command, snapshot.credit_history())
+        except StatementParseError as exc:
+            snapshot.record_cashflow_failed(SnapshotError("bad_response", str(exc)))
+            return
+        if forecast is not None:
+            snapshot.record_cashflow(forecast, fetched_at=self._clock.now())
 
     async def _fetch(
         self, source: Source, snapshot: EnrichmentSnapshot, command: FetchEnrichment
@@ -95,12 +117,14 @@ class FetchEnrichmentUseCase:
     async def _publish(
         self, outbox: OutboxWriter, snapshot: EnrichmentSnapshot, command_event_id: UUID
     ) -> None:
+        cashflow = snapshot.cashflow()
         await outbox.add(
             EnrichmentCompleted(
                 application_id=snapshot.application_id,
                 snapshot_id=snapshot.id,
                 sources_ok=list(snapshot.sources_ok),
                 sources_failed=list(snapshot.sources_failed),
+                cash_gap_detected=cashflow.gap_detected if cashflow is not None else None,
             ),
             key=snapshot.application_id,
             correlation_id=snapshot.application_id,

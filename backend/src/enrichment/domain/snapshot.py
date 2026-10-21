@@ -13,9 +13,15 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from src.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, Source, TaxProfileDTO
+from src.enrichment.facade import (
+    CashflowForecastDTO,
+    CreditHistoryDTO,
+    RegistryExtractDTO,
+    Source,
+    TaxProfileDTO,
+)
 
-SourceData = RegistryExtractDTO | TaxProfileDTO | CreditHistoryDTO
+SourceData = RegistryExtractDTO | TaxProfileDTO | CreditHistoryDTO | CashflowForecastDTO
 SourceStatus = Literal["ok", "failed", "skipped"]
 
 
@@ -91,11 +97,20 @@ class EnrichmentSnapshot:
 
     @property
     def sources_ok(self) -> list[Source]:
-        return [r.source for r in self.results.values() if r.status == "ok"]
+        # Only external sources (egrul/fns/bki); `statement` — внутренний, не считается.
+        return [
+            s
+            for s in self.requested_sources
+            if s in self.results and self.results[s].status == "ok"
+        ]
 
     @property
     def sources_failed(self) -> list[Source]:
-        return [r.source for r in self.results.values() if r.status == "failed"]
+        return [
+            s
+            for s in self.requested_sources
+            if s in self.results and self.results[s].status == "failed"
+        ]
 
     def _data(self, source: Source) -> SourceData | None:
         result = self.results.get(source)
@@ -112,3 +127,15 @@ class EnrichmentSnapshot:
     def credit_history(self) -> CreditHistoryDTO | None:
         data = self._data("bki")
         return data if isinstance(data, CreditHistoryDTO) else None
+
+    def record_cashflow(self, forecast: CashflowForecastDTO, *, fetched_at: datetime) -> None:
+        self.results["statement"] = SourceResult(
+            source="statement", status="ok", fetched_at=fetched_at, data=forecast
+        )
+
+    def record_cashflow_failed(self, error: SourceError) -> None:
+        self.results["statement"] = SourceResult(source="statement", status="failed", error=error)
+
+    def cashflow(self) -> CashflowForecastDTO | None:
+        data = self._data("statement")
+        return data if isinstance(data, CashflowForecastDTO) else None
