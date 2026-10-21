@@ -32,7 +32,7 @@ const BENEFITS = [
 </script>
 
 <template>
-  <section class="relative -mt-10 rounded-t-[2.5rem] bg-white pt-12 pb-4 lg:-mt-16 lg:rounded-t-sheet lg:pt-20">
+  <section class="relative pt-2 pb-4 lg:pt-4">
     <BaseContainer>
       <SectionHeader
         title="Весь кредитный путь в одном кабинете"

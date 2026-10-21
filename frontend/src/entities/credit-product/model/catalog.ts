@@ -15,6 +15,7 @@ export const DEMO_CREDIT_PRODUCTS: ProductCatalog = [
     termMonths: { min: 12, max: 60 },
     collateral: 'none',
     decisionTime: '5 минут',
+    keywords: ['Без залога', 'Быстро', 'На любые цели'],
     tag: 'Популярный',
   },
   {
@@ -27,6 +28,7 @@ export const DEMO_CREDIT_PRODUCTS: ProductCatalog = [
     termMonths: { min: 12, max: 120 },
     collateral: 'required',
     decisionTime: '1 рабочий день',
+    keywords: ['Крупная сумма', 'Надолго', 'Ставка ниже'],
   },
   {
     id: 'credit-line',
@@ -38,6 +40,7 @@ export const DEMO_CREDIT_PRODUCTS: ProductCatalog = [
     termMonths: { min: 12, max: 36 },
     collateral: 'optional',
     decisionTime: '1 рабочий день',
+    keywords: ['Частями', 'Свой лимит', 'Гибко'],
   },
   {
     id: 'overdraft',
@@ -49,6 +52,7 @@ export const DEMO_CREDIT_PRODUCTS: ProductCatalog = [
     termMonths: { min: 3, max: 12 },
     collateral: 'none',
     decisionTime: '5 минут',
+    keywords: ['Кассовый разрыв', 'Сразу', 'Подушка'],
   },
 ]
 

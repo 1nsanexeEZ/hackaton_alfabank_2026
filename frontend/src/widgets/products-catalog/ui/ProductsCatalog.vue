@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Calculator } from 'lucide-vue-next'
+import { ref, watch } from 'vue'
 
-import { ProductCard, type ProductCatalog } from '@/entities/credit-product'
+import { ProductFlexCard, type ProductCatalog } from '@/entities/credit-product'
 import { ProductFilterControl, useProductFilter } from '@/features/filter-products'
 import { SECTION_ID } from '@/shared/config'
 import { BaseButton, BaseContainer, SectionHeader } from '@/shared/ui'
@@ -16,6 +17,14 @@ const emit = defineEmits<{
 }>()
 
 const { filter, filteredProducts } = useProductFilter(() => props.products)
+
+// В ряду всегда раскрыта одна карточка
+const expandedId = ref(props.products[0].id)
+
+watch(filteredProducts, (list) => {
+  const first = list[0]
+  if (first && !list.some((product) => product.id === expandedId.value)) expandedId.value = first.id
+})
 </script>
 
 <template>
@@ -30,19 +39,24 @@ const { filter, filteredProducts } = useProductFilter(() => props.products)
         </template>
       </SectionHeader>
 
-      <ul class="mt-8 grid gap-4 lg:mt-12 lg:grid-cols-2 lg:gap-6">
-        <li v-for="product in filteredProducts" :key="product.id">
-          <ProductCard :product="product" class="h-full">
-            <template #actions>
-              <BaseButton class="sm:flex-1" @click="emit('apply', product.id)">Оформить</BaseButton>
-              <BaseButton variant="secondary" class="sm:flex-1" @click="emit('calculate', product.id)">
-                <Calculator class="size-4" aria-hidden="true" />
-                Рассчитать платёж
-              </BaseButton>
-            </template>
-          </ProductCard>
-        </li>
-      </ul>
+      <div class="mt-8 flex flex-col gap-3 lg:mt-12 lg:h-[28rem] lg:flex-row lg:gap-4">
+        <ProductFlexCard
+          v-for="(product, index) in filteredProducts"
+          :key="product.id"
+          :product="product"
+          :index="index"
+          :expanded="product.id === expandedId"
+          @expand="expandedId = product.id"
+        >
+          <template #actions>
+            <BaseButton variant="inverted" @click="emit('apply', product.id)">Оформить</BaseButton>
+            <BaseButton variant="glass" @click="emit('calculate', product.id)">
+              <Calculator class="size-4" aria-hidden="true" />
+              Рассчитать платёж
+            </BaseButton>
+          </template>
+        </ProductFlexCard>
+      </div>
     </BaseContainer>
   </section>
 </template>
