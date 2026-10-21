@@ -1,19 +1,31 @@
 """Wiring of the clients module into the application."""
 
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.clients.api import router
+from src.clients.facade import ClientsFacade
+from src.clients.infrastructure.facade_impl import ClientsFacadeImpl
+from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.messaging.subscriber import Subscription
 
 NAME = "clients"
 
 
 def register(app: FastAPI) -> None:
-    """Include routers."""
+    app.include_router(router)
 
 
 def wire(app: FastAPI) -> None:
-    """Register facade implementations, e.g.
-    app.state.facades.register(ClientsFacade, lambda session: ...)"""
+    """ClientsFacade for the other modules and the port of the `org_member`
+    policy: one implementation under both keys."""
+
+    def facade(session: AsyncSession) -> ClientsFacadeImpl:
+        # The clock is read per call: tests may swap app.state.clock.
+        return ClientsFacadeImpl(session, app.state.clock)
+
+    app.state.facades.register(ClientsFacade, facade)
+    app.state.facades.register(MemberOrganizationsResolver, facade)
 
 
 def subscribers() -> list[Subscription]:
