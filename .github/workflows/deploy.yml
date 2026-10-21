@@ -47,10 +47,6 @@ jobs:
             git fetch origin
  
             git reset --hard origin/main
-
-            git clean -fd
-            
-            git pull --ff-only origin main
             
             docker-compose build
             
@@ -60,4 +56,4 @@ jobs:
             
             docker image prune -f
             
-            docker compose ps
+            docker-compose ps
