@@ -87,7 +87,8 @@ def position_of(account: DemoAccount) -> str | None:
 async def seed(context: "SeedContext") -> None:
     """Idempotent. Roles are brought to the declared rights on every run;
     an existing account is left as is, its password is not reset."""
-    hasher = PasswordHasher()
+    # Every demo account has the same public DEMO_PASSWORD: one hash is enough.
+    password_hash = PasswordHasher().hash(context.settings.demo_password)
     async with context.session_factory() as session:
         roles_repo = RoleRepository(session)
         accounts = AccountRepository(session)
@@ -106,7 +107,7 @@ async def seed(context: "SeedContext") -> None:
                 Account(
                     email=email,
                     phone=phone,
-                    password_hash=hasher.hash(context.settings.demo_password),
+                    password_hash=password_hash,
                     role=roles[demo.identity_role],
                     profile=Profile(
                         last_name=demo.person.last_name,
