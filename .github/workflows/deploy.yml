@@ -48,9 +48,9 @@ jobs:
  
             git reset --hard origin/main
             
-            docker-compose build
+            docker-compose down
             
-            docker-compose up -d --remove-orphans
+            docker-compose up -d --build --remove-orphans
             
             docker-compose restart nginx || true
             
