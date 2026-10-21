@@ -1,8 +1,8 @@
 """applications: disbursement result and indexed offer expiry
 
 Revision ID: applications_0002
-Revises: applications_0001
-Create Date: 2026-10-21 22:00:00
+Revises: projector_0001
+Create Date: 2026-10-22 14:00:00
 """
 
 from collections.abc import Sequence
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "applications_0002"
-down_revision: str | None = "applications_0001"
+down_revision: str | None = "projector_0001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
