@@ -1,9 +1,14 @@
 <script setup lang="ts" generic="T extends string">
-defineProps<{
-  options: readonly { value: T; label: string }[]
-  /** Подпись группы для скринридеров */
-  label: string
-}>()
+withDefaults(
+  defineProps<{
+    options: readonly { value: T; label: string }[]
+    /** Подпись группы для скринридеров */
+    label: string
+    /** Компактный вариант — для строк настроек */
+    small?: boolean
+  }>(),
+  { small: false },
+)
 
 const model = defineModel<T>({ required: true })
 </script>
@@ -20,7 +25,8 @@ const model = defineModel<T>({ required: true })
       type="button"
       :aria-pressed="model === option.value"
       :class="[
-        'h-10 shrink-0 rounded-full px-4 text-sm font-medium transition-colors sm:px-5',
+        'shrink-0 rounded-full font-medium transition-colors',
+        small ? 'h-8 px-3 text-xs' : 'h-10 px-4 text-sm sm:px-5',
         model === option.value ? 'bg-white text-ink shadow-sm' : 'text-ink-secondary hover:text-ink',
       ]"
       @click="model = option.value"
