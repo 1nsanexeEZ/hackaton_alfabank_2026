@@ -1,0 +1,117 @@
+{
+  "score": 740,
+  "grade": "B",
+  "data_completeness": "0.917",
+  "flags": [],
+  "bank_notes": [],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "72",
+      "bin": ">60",
+      "points": 50,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": "20.0%",
+      "bin": "0…20%",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "debt_load",
+      "value": "0.18",
+      "bin": "<0,2",
+      "points": 50,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": "0",
+      "bin": "0",
+      "points": 40,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "0",
+      "bin": "≤2",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "0",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "56.10",
+      "bin": "высокий",
+      "points": -30,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.63",
+      "bin": ">0,5",
+      "points": -40,
+      "direction": "negative",
+      "client_hint": "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "1.0%",
+      "bin": "≤15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "collateral_coverage",
+      "value": "1.67",
+      "bin": "1–2",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": null,
+      "bin": "нет выписки",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    }
+  ]
+}

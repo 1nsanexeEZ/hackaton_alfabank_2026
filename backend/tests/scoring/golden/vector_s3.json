@@ -1,0 +1,110 @@
+{
+  "score": 620,
+  "grade": "C",
+  "data_completeness": "0.909",
+  "flags": [
+    "verification_mismatch"
+  ],
+  "bank_notes": [],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "48",
+      "bin": "24–60",
+      "points": 30,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": "11.1%",
+      "bin": "0…20%",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "debt_load",
+      "value": "0.37",
+      "bin": "0,2–0,4",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": "0",
+      "bin": "0",
+      "points": 40,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "1",
+      "bin": "≤2",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "0",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "41.20",
+      "bin": "высокий",
+      "points": -30,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.33",
+      "bin": "0,3–0,5",
+      "points": -40,
+      "direction": "negative",
+      "client_hint": "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "3.3%",
+      "bin": "≤15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "mismatch",
+      "bin": "расхождение",
+      "points": -30,
+      "direction": "negative",
+      "client_hint": "Данные компании расходятся с реестром — проверьте профиль.",
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": null,
+      "bin": "нет выписки",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    }
+  ]
+}
