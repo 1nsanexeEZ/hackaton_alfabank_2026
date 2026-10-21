@@ -55,6 +55,7 @@
         <camunda:properties>
           <camunda:property name="step" value="fetch_enrichment"/>
           <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="PT5M"/>
           <camunda:property name="on_failure" value="manual_review"/>
         </camunda:properties>
       </bpmn:extensionElements>
@@ -66,6 +67,7 @@
         <camunda:properties>
           <camunda:property name="step" value="calculate_score"/>
           <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="PT2M"/>
           <camunda:property name="on_failure" value="manual_review"/>
         </camunda:properties>
       </bpmn:extensionElements>
@@ -77,6 +79,7 @@
         <camunda:properties>
           <camunda:property name="step" value="make_decision"/>
           <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="PT2M"/>
           <camunda:property name="on_failure" value="manual_review"/>
         </camunda:properties>
       </bpmn:extensionElements>
@@ -107,6 +110,8 @@
         <camunda:properties>
           <camunda:property name="step" value="record_manual_decision"/>
           <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="PT2M"/>
+          <camunda:property name="on_failure" value="manual_review"/>
         </camunda:properties>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_underwriter_review_record_manual_decision</bpmn:incoming>
