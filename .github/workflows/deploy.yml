@@ -28,6 +28,7 @@ jobs:
       - name: Run tests (Unit, Integration, E2E)
         run: |
           uv run pytest -v
+        working-directory: ./backend
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -39,14 +40,23 @@ jobs:
             set -e
             
             cd ~/hackaton_alfabank_2026
+
+            git remote set-url origin git@github.com:1nsanexeEZ/hackaton_alfabank_2026.git
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/github_deploy_key -o StrictHostKeyChecking=no"
+
+            git fetch origin
+ 
+            git reset --hard origin/main
+
+            git clean -fd
             
             git pull --ff-only origin main
             
-            docker compose build
+            docker-compose build
             
-            docker compose up -d --remove-orphans
+            docker-compose up -d --remove-orphans
             
-            docker compose restart nginx || true
+            docker-compose restart nginx || true
             
             docker image prune -f
             
