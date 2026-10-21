@@ -29,6 +29,18 @@ from src.identity.token_adapter import IssuedToken, TokenAdapter
 INVALID_CREDENTIALS = "Invalid login or password"
 
 
+async def find_active_by_login(accounts: AccountRepository, login: str) -> Account | None:
+    """Email in any case or phone in any format (`8 (999) 123-45-67`)."""
+    login = login.strip()
+    if "@" in login:
+        return await accounts.get_active_by_email(login.lower())
+    try:
+        phone = normalize_phone(login)
+    except ValueError:
+        return None
+    return await accounts.get_active_by_phone(phone)
+
+
 class AuthService:
     def __init__(
         self,
@@ -44,7 +56,7 @@ class AuthService:
 
     async def login(self, data: LoginRequest) -> IssuedToken:
         password = data.password.get_secret_value()
-        account = await self._find_by_login(data.login.strip())
+        account = await find_active_by_login(self._accounts, data.login)
         if account is None:
             self._hasher.verify_dummy(password)
             raise UnauthorizedError(INVALID_CREDENTIALS)
@@ -60,15 +72,6 @@ class AuthService:
             permissions=list(account.role.permissions),
             policies=dict(account.role.policies),
         )
-
-    async def _find_by_login(self, login: str) -> Account | None:
-        if "@" in login:
-            return await self._accounts.get_active_by_email(login.lower())
-        try:
-            phone = normalize_phone(login)
-        except ValueError:
-            return None
-        return await self._accounts.get_active_by_phone(phone)
 
 
 def normalize_role_rules(
