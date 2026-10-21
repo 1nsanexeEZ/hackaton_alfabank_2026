@@ -3,19 +3,23 @@
 from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
+from src.projector.facade import ProjectorFacade
+from src.projector.infrastructure import consumer
+from src.projector.infrastructure.facade_impl import ProjectorFacadeImpl
 
 NAME = "projector"
 
 
 def register(app: FastAPI) -> None:
-    """Include routers."""
+    """No routers: screens read the projector through bff."""
 
 
 def wire(app: FastAPI) -> None:
-    """Register facade implementations, e.g.
-    app.state.facades.register(ProjectorFacade, lambda session: ...)"""
+    app.state.facades.register(
+        ProjectorFacade, lambda session: ProjectorFacadeImpl(session, app.state.clock)
+    )
 
 
 def subscribers() -> list[Subscription]:
-    """Kafka subscriptions; group_id is `projector.<purpose>`."""
-    return []
+    """One consumer group per topic: `projector.read-models.<topic>`."""
+    return consumer.subscriptions()
