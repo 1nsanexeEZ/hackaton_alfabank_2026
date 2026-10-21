@@ -92,6 +92,9 @@ clients.events ──────┘   .apply()           ├─ ScoringFacade.g
 ```bash
 cd backend
 uv run python -m scripts.projector_rebuild
+
+# в docker compose — внутри контейнера backend, с его окружением
+docker compose exec backend python -m scripts.projector_rebuild
 ```
 
 Нужны те же `DATABASE_URL` и `KAFKA_BOOTSTRAP_SERVERS`, что у приложения. Скрипт:
