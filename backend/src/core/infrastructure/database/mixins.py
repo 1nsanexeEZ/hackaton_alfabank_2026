@@ -39,6 +39,27 @@ class DeletedMixin:
         self.deleted_at = utcnow()
 
 
+class VersionMixin:
+    """Optimistic locking: repositories update with `WHERE version = :expected`
+    and bump the value, a concurrent writer gets a ConflictError."""
+
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class OrganizationOwnedMixin:
+    """Row belongs to a client organization. Backs the `org_member` policy:
+    a client sees rows of the organizations the user is a member of.
+
+    No foreign key on purpose: organizations live in the clients module.
+    """
+
+    organization_id: Mapped[UUID] = mapped_column(index=True)
+
+    @classmethod
+    def belongs_to_organizations(cls, organization_ids: frozenset[UUID]) -> ColumnElement[bool]:
+        return cls.organization_id.in_(organization_ids)
+
+
 class OwnableMixin:
     """Row belongs to an account. Backs the `own_only` policy.
 
