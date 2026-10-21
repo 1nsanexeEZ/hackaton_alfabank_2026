@@ -95,6 +95,10 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
         try:
             yield
         finally:
+            for module in reversed(MODULES):
+                shutdown = getattr(module, "shutdown", None)
+                if shutdown is not None:
+                    await shutdown(app)
             await messaging.stop()
             await engine.dispose()
 

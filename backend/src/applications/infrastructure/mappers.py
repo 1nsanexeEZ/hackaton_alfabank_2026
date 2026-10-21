@@ -21,6 +21,7 @@ from src.applications.domain.value_objects import (
     CollateralDeclaration,
     Consents,
     DecisionSummary,
+    Disbursement,
     DocumentRequirement,
     LoanRequest,
     Offer,
@@ -279,6 +280,22 @@ def summary_in(data: dict[str, Any] | None) -> DecisionSummary | None:
     )
 
 
+def disbursement_out(disbursement: Disbursement | None) -> dict[str, Any] | None:
+    if disbursement is None:
+        return None
+    return {
+        "reference": disbursement.reference,
+        "disbursed_at": dt_out(disbursement.disbursed_at),
+        "simulated": disbursement.simulated,
+    }
+
+
+def disbursement_in(data: dict[str, Any] | None) -> Disbursement | None:
+    if data is None:
+        return None
+    return Disbursement(data["reference"], _dt(data["disbursed_at"]), data["simulated"])
+
+
 # --- aggregate ----------------------------------------------------------------
 
 
@@ -302,6 +319,7 @@ def to_domain(record: ApplicationRecord) -> CreditApplication:
         offer=offer_in(record.offer),
         decision_summary=summary_in(record.decision_summary),
         signature=_signature_in(record.signature),
+        disbursement=disbursement_in(record.disbursement),
         client_stage=record.client_stage,
         history=[_history_in(h) for h in record.history],
         version=record.version,
@@ -340,6 +358,8 @@ def apply(application: CreditApplication, record: ApplicationRecord) -> None:
     record.org_snapshot = snapshot_out(application.org_snapshot)
     record.offer = offer_out(application.offer)
     record.decision_summary = summary_out(application.decision_summary)
+    record.disbursement = disbursement_out(application.disbursement)
+    record.offer_expires_at = application.offer.expires_at if application.offer else None
     record.updated_at = application.updated_at
     record.submitted_at = application.submitted_at
     record.closed_at = application.closed_at

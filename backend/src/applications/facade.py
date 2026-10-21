@@ -137,6 +137,8 @@ class ApplicationCardDTO:
     updated_at: datetime
     submitted_at: datetime | None = None
     closed_at: datetime | None = None
+    # Loan contract number from the core banking system once paid out.
+    disbursement_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

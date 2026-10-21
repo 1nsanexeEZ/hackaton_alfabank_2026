@@ -272,6 +272,15 @@ class Signature:
 
 
 @dataclass(frozen=True, slots=True)
+class Disbursement:
+    """The credit is paid out by the core banking system (a mock in the case)."""
+
+    reference: str
+    disbursed_at: datetime
+    simulated: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Violation:
     """One unmet condition of submission, also used for "what is left" hints."""
 
