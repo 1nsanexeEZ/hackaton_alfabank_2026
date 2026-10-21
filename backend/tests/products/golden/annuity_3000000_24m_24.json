@@ -1,0 +1,179 @@
+{
+  "amount": "3000000.00",
+  "term_months": 24,
+  "rate": "24",
+  "repayment": "annuity",
+  "monthly_payment": "158613.29",
+  "total_interest": "806719.03",
+  "total_paid": "3806719.03",
+  "payments": [
+    {
+      "number": 1,
+      "principal": "98613.29",
+      "interest": "60000.00",
+      "total": "158613.29",
+      "balance_after": "2901386.71"
+    },
+    {
+      "number": 2,
+      "principal": "100585.56",
+      "interest": "58027.73",
+      "total": "158613.29",
+      "balance_after": "2800801.15"
+    },
+    {
+      "number": 3,
+      "principal": "102597.27",
+      "interest": "56016.02",
+      "total": "158613.29",
+      "balance_after": "2698203.88"
+    },
+    {
+      "number": 4,
+      "principal": "104649.21",
+      "interest": "53964.08",
+      "total": "158613.29",
+      "balance_after": "2593554.67"
+    },
+    {
+      "number": 5,
+      "principal": "106742.20",
+      "interest": "51871.09",
+      "total": "158613.29",
+      "balance_after": "2486812.47"
+    },
+    {
+      "number": 6,
+      "principal": "108877.04",
+      "interest": "49736.25",
+      "total": "158613.29",
+      "balance_after": "2377935.43"
+    },
+    {
+      "number": 7,
+      "principal": "111054.58",
+      "interest": "47558.71",
+      "total": "158613.29",
+      "balance_after": "2266880.85"
+    },
+    {
+      "number": 8,
+      "principal": "113275.67",
+      "interest": "45337.62",
+      "total": "158613.29",
+      "balance_after": "2153605.18"
+    },
+    {
+      "number": 9,
+      "principal": "115541.19",
+      "interest": "43072.10",
+      "total": "158613.29",
+      "balance_after": "2038063.99"
+    },
+    {
+      "number": 10,
+      "principal": "117852.01",
+      "interest": "40761.28",
+      "total": "158613.29",
+      "balance_after": "1920211.98"
+    },
+    {
+      "number": 11,
+      "principal": "120209.05",
+      "interest": "38404.24",
+      "total": "158613.29",
+      "balance_after": "1800002.93"
+    },
+    {
+      "number": 12,
+      "principal": "122613.23",
+      "interest": "36000.06",
+      "total": "158613.29",
+      "balance_after": "1677389.70"
+    },
+    {
+      "number": 13,
+      "principal": "125065.50",
+      "interest": "33547.79",
+      "total": "158613.29",
+      "balance_after": "1552324.20"
+    },
+    {
+      "number": 14,
+      "principal": "127566.81",
+      "interest": "31046.48",
+      "total": "158613.29",
+      "balance_after": "1424757.39"
+    },
+    {
+      "number": 15,
+      "principal": "130118.14",
+      "interest": "28495.15",
+      "total": "158613.29",
+      "balance_after": "1294639.25"
+    },
+    {
+      "number": 16,
+      "principal": "132720.50",
+      "interest": "25892.79",
+      "total": "158613.29",
+      "balance_after": "1161918.75"
+    },
+    {
+      "number": 17,
+      "principal": "135374.91",
+      "interest": "23238.38",
+      "total": "158613.29",
+      "balance_after": "1026543.84"
+    },
+    {
+      "number": 18,
+      "principal": "138082.41",
+      "interest": "20530.88",
+      "total": "158613.29",
+      "balance_after": "888461.43"
+    },
+    {
+      "number": 19,
+      "principal": "140844.06",
+      "interest": "17769.23",
+      "total": "158613.29",
+      "balance_after": "747617.37"
+    },
+    {
+      "number": 20,
+      "principal": "143660.94",
+      "interest": "14952.35",
+      "total": "158613.29",
+      "balance_after": "603956.43"
+    },
+    {
+      "number": 21,
+      "principal": "146534.16",
+      "interest": "12079.13",
+      "total": "158613.29",
+      "balance_after": "457422.27"
+    },
+    {
+      "number": 22,
+      "principal": "149464.84",
+      "interest": "9148.45",
+      "total": "158613.29",
+      "balance_after": "307957.43"
+    },
+    {
+      "number": 23,
+      "principal": "152454.14",
+      "interest": "6159.15",
+      "total": "158613.29",
+      "balance_after": "155503.29"
+    },
+    {
+      "number": 24,
+      "principal": "155503.29",
+      "interest": "3110.07",
+      "total": "158613.36",
+      "balance_after": "0.00"
+    }
+  ]
+}
