@@ -6,8 +6,11 @@ import logging
 from fastapi import FastAPI
 
 from src.applications.api.routes import router
+from src.applications.application.ports import AbsClient
 from src.applications.config import ApplicationsSettings
 from src.applications.facade import ApplicationsFacade
+from src.applications.infrastructure.abs import HttpAbsClient, SimulatedAbsClient
+from src.applications.infrastructure.consumers import run_offer_expiry, subscriptions
 from src.applications.infrastructure.edo import HttpEdoClient, SimulatedEdoClient
 from src.applications.infrastructure.facade_impl import ApplicationsFacadeImpl
 from src.applications.infrastructure.storage import MinioDocumentStorage
@@ -40,6 +43,14 @@ def wire(app: FastAPI) -> None:
         if config.external_mocks_url
         else SimulatedEdoClient()
     )
+    app.state.applications_config = config
+    abs_client = (
+        HttpAbsClient(config.external_mocks_url)
+        if config.external_mocks_url
+        else SimulatedAbsClient()
+    )
+    # Module-private port for the Kafka handlers (they get ports from the registry).
+    app.state.facades.register(AbsClient, lambda _session: abs_client)
     app.state.facades.register(
         ApplicationsFacade,
         lambda session: ApplicationsFacadeImpl(
@@ -49,16 +60,38 @@ def wire(app: FastAPI) -> None:
 
 
 async def startup(app: FastAPI) -> None:
+    settings: Settings = app.state.settings
     storage = app.state.document_storage
-    if not app.state.settings.minio_ensure_bucket or not isinstance(storage, MinioDocumentStorage):
-        return
-    try:
-        await asyncio.wait_for(storage.ensure_bucket(), timeout=15)
-    except (InfrastructureError, TimeoutError):
-        # Uploads answer 503 until the storage is back; the rest keeps working.
-        logger.warning("Document storage is not reachable on startup")
+    if settings.minio_ensure_bucket and isinstance(storage, MinioDocumentStorage):
+        try:
+            await asyncio.wait_for(storage.ensure_bucket(), timeout=15)
+        except (InfrastructureError, TimeoutError):
+            # Uploads answer 503 until the storage is back; the rest keeps working.
+            logger.warning("Document storage is not reachable on startup")
+    if settings.run_background_jobs:
+        stop = asyncio.Event()
+        app.state.applications_jobs = (
+            stop,
+            asyncio.create_task(
+                run_offer_expiry(
+                    app.state.session_factory,
+                    app.state.clock,
+                    stop,
+                    app.state.applications_config.offer_expiry_interval_seconds,
+                ),
+                name="applications-offer-expiry",
+            ),
+        )
+
+
+async def shutdown(app: FastAPI) -> None:
+    jobs = getattr(app.state, "applications_jobs", None)
+    if jobs is not None:
+        stop, task = jobs
+        stop.set()
+        await task
 
 
 def subscribers() -> list[Subscription]:
-    """Kafka subscriptions; group_id is `applications.<purpose>`."""
-    return []
+    """Commands of the process; stage labels from process events."""
+    return subscriptions()
