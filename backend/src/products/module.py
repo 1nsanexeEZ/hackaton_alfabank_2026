@@ -3,19 +3,23 @@
 from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
+from src.products.api import router
+from src.products.facade import ProductsFacade
+from src.products.infrastructure.facade_impl import ProductsFacadeImpl
 
 NAME = "products"
 
 
 def register(app: FastAPI) -> None:
-    """Include routers."""
+    app.include_router(router)
 
 
 def wire(app: FastAPI) -> None:
-    """Register facade implementations, e.g.
-    app.state.facades.register(ProductsFacade, lambda session: ...)"""
+    app.state.facades.register(
+        ProductsFacade, lambda session: ProductsFacadeImpl(session, app.state.facades)
+    )
 
 
 def subscribers() -> list[Subscription]:
-    """Kafka subscriptions; group_id is `products.<purpose>`."""
+    """Products react to no events: the catalog changes only through seeds."""
     return []
