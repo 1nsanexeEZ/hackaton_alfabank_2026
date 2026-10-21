@@ -60,3 +60,85 @@
 | Налоговый режим | любой, патент — только ИП | без патента | без патента |
 
 АО в MVP устроено как ООО (особых ролей нет), но форма поддержана в VO, продуктах и правах.
+
+## Хранение
+
+| Таблица | Что | Ключи |
+|---|---|---|
+| `clients_organizations` | реквизиты, карточка, руководитель по реестру (JSONB), сверка (статус, дата, расхождения JSONB), `version` | PK `id`, UNIQUE `inn`, UNIQUE `ogrn` |
+| `clients_members` | роль, полномочие, доверенность (JSONB), кто и когда добавил | PK `(organization_id, account_id)` — аккаунт в компании один раз; индекс `account_id` для порта `org_member`; FK на компанию `ON DELETE CASCADE` |
+| `clients_financial_reports` | показатели (`Numeric(18, 2)`, рубли), кто и когда подал | UNIQUE `(organization_id, period_year, period_quarter, source)`, CHECK `period_quarter BETWEEN 0 AND 4` |
+
+Годовой отчёт хранится с `period_quarter = 0`, а не `NULL`: в UNIQUE-ограничении `NULL` не равны друг другу, и дубли годовых отчётов прошли бы. Вариант `NULLS NOT DISTINCT` работает только на Postgres 15+ и не проверяется тестами на SQLite; `0` переносим и виден в тестах. Наружу (API, фасад, события) годовой отчёт — по-прежнему `period_quarter: null`.
+
+Оптимистическая блокировка: каждое изменение участников обновляет компанию с `WHERE version = :ожидаемая` и увеличивает версию. Два менеджера, одновременно удаляющие друг друга, не обойдут инвариант «последний менеджер остаётся» — второй получит `409 version_conflict`.
+
+Миграция — `alembic/versions/20261022_1000_clients_organizations.py`, `clients_0001`.
+
+## API
+
+Пермишны `organizations.read` (чтение) и `organizations.update` (изменения), у клиента — с политикой `org_member`. Чужая компания — **404**: фильтр по членству отсекает её ещё в репозитории. Внутри своей компании решает таблица прав: нет `manage_members` / `edit_financials` — **403**. Андеррайтер (без политик) видит любые компании на чтение, `my_role` у него `null`. Admin меняет участников как банк — без проверки прав внутри компании.
+
+| Метод | Путь | Что | Ответ |
+|---|---|---|---|
+| GET | `/organizations` | мои компании (банк — все): `my_role`, `my_permissions` | 200 |
+| GET | `/organizations/{id}` | карточка: реквизиты, адрес, ОКВЭД, возраст бизнеса, руководитель по реестру, сверка, мои права | 200 / 404 |
+| GET | `/organizations/{id}/members` | участники с ФИО (из identity), полномочием, доверенностью и действующими правами | 200 / 404 |
+| POST | `/organizations/{id}/members` | `{login, role}` — существующий аккаунт по email или телефону | 201 / 403 / 409 / 422 |
+| PATCH | `/organizations/{id}/members/{account_id}` | `{role}` | 200 / 403 / 404 / 409 / 422 |
+| DELETE | `/organizations/{id}/members/{account_id}` | | 204 / 403 / 404 / 409 |
+| POST | `/organizations/{id}/members/{account_id}/poa` | доверенность `{number, issued_at, valid_until, scope}`, заменяет прежнюю | 200 / 403 / 404 / 422 |
+| GET | `/organizations/{id}/financial-reports` | отчёты: новые годы первыми, в году — годовой, затем кварталы 4…1 | 200 / 404 |
+| POST | `/organizations/{id}/financial-reports` | заявленный отчёт `{period_year, period_quarter?, revenue, expenses?, net_profit?, total_liabilities?, monthly_debt_payments?}` | 201 новый / 200 уточнён / 403 / 422 |
+
+Логин, которого нет в identity, — **422** `{field: "login", code: "account_not_found"}`, а не 404: запрос корректен, но ссылается на несуществующий аккаунт, и 404 путался бы с «компания не найдена». Права проверяются до поиска логина: участник без `manage_members` не узнаёт, какие логины существуют.
+
+Коды ошибок в `details.code`: `already_member`, `last_manager`, `owner_exists`, `owner_must_be_entrepreneur`, `entrepreneur_owner_fixed`, `manager_required`, `not_allowed` (директор у ИП), `cannot_issue_power_of_attorney`, `self_power_of_attorney`, `expired`, `period_not_closed`, `org_permission_required` (+ `permission`), `version_conflict`, `report_exists`.
+
+## События
+
+Топик `clients.events`, ключ — `organization_id`, контракты — `core/messaging/contracts/clients.py`. Доменные события превращаются в контракты в `application/events.py` и пишутся в outbox (`SqlAlchemyOutboxWriter`, producer `clients`) в той же транзакции, что и изменение.
+
+| Событие | Когда |
+|---|---|
+| `MemberAdded` | участник добавлен (`role`) |
+| `MemberRoleChanged` | роль изменилась (`role` — новая) |
+| `MemberRemoved` | участник удалён |
+| `FinancialReportSubmitted` | отчёт подан или уточнён |
+| `OrganizationVerified` / `OrganizationVerificationMismatch` | записан результат сверки (`Organization.record_verification`; ручки пока нет) |
+
+Выдача доверенности события не публикует: контракта нет, а права всё равно читаются через фасад на момент `now`. Сиды событий не публикуют: это начальное состояние, а не изменение.
+
+## Фасад и порт `org_member`
+
+`ClientsFacadeImpl` (`infrastructure/facade_impl.py`) регистрируется в `module.wire` под двумя ключами — `ClientsFacade` и `MemberOrganizationsResolver`. Права считаются по `app.state.clock`.
+
+| Метод | Поведение |
+|---|---|
+| `ensure_can(account, org, permission)` | не участник или нет компании — `NotFoundError`; участник без права — `PermissionDeniedError`; неизвестное право — `ValueError` |
+| `get_member_permissions` | действующие права; не участник — пусто |
+| `get_member_organization_ids` / `member_organization_ids` | компании, где аккаунт — участник (порт ABAC) |
+| `get_snapshot` | снимок для заявки: `business_age_months` по часам, `head_name` — руководитель по реестру, до двух последних годовых отчётов (новые первыми; в году — `declared`, иначе `fns`, иначе `bank_statement`; кварталы не входят) |
+| `list_my_organizations` | компании аккаунта с ролью и правами |
+| `list_members(org, permission?)` | участники (с правом); неизвестная компания — пусто |
+
+S-8 на фасаде: бухгалтер Ромашки проходит `ensure_can(..., "submit_application")` и получает 403 на `sign`, пока руководитель не выдаст ему доверенность со scope `sign`; когда доверенность истекает, `sign` пропадает сам.
+
+## Сиды
+
+`backend/seed/clients.py`, запускается после сида identity. Идемпотентен: компания ищется по ИНН, участник — по аккаунту, отчёт — по периоду и источнику; недостающее досоздаётся.
+
+- 6 компаний из `seed/demo_data.py`: `registered_at` — ровно `registered_months_ago` календарных месяцев назад (возраст бизнеса совпадает с демо-данными), адрес в Москве (регион `77`), `usn` для ИП и `osn` для ООО, фиксированная численность.
+- Участники из `ACCOUNTS[*].memberships`, аккаунты — через `IdentityFacade.find_by_login(email)`; руководители добавляются первыми. Полномочие не задаётся вручную, а выводится тем же правилом, что и в API (совпадение ФИО с реестром), и совпадает с демо-данными: Смирнова, Иванов и директора Заката, Прогресса, Сбоя — `registry`, Петров (Вектор) и Кузнецова (бухгалтер Ромашки и ИП Иванова) — `unconfirmed`.
+- Сверка: у Вектора `mismatch` — заявлен Петров П. П., в реестре Сидоров С. С.; у остальных `verified`. Закат — `liquidating`.
+- Отчёты `declared`: за прошлый год (выручка и расходы) и позапрошлый (выручка), если он есть в демо-данных — у ИП Иванова его нет.
+- Нет аккаунта — участник пропускается с предупреждением в логе (код компании и роль, без ПДн); нет фасада identity — компании создаются без участников.
+
+## Решения и упрощения
+
+- Регистрации и онбординга компании нет: компании появляются только из сидов.
+- Подключение ещё одной компании по ИНН через `enrichment.lookup_registry` (Could) не сделано.
+- Отзыва доверенности нет — только замена новой; действие доверенности ограничено датами.
+- Учредители ООО и акционеры АО в реестре не сверяются: полномочие по реестру подтверждается только для руководителя (у ИП — для самого предпринимателя).
+- Повышение до директора полномочие не подтверждает: подписывать сможет только тот, чьё ФИО совпало с реестром, или по доверенности.
+- Суммы отчётов — только в рублях.
