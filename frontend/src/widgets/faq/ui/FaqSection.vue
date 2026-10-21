@@ -48,7 +48,7 @@ const openStates = ref(QUESTIONS.map((_, index) => index === 0))
       <SectionHeader
         title="Вопросы и ответы"
         description="Коротко о том, как устроен кредитный процесс."
-        class="lg:sticky lg:top-28 lg:self-start"
+        class="lg:self-start"
       >
         <template #after>
           <DecorSticker
