@@ -4,15 +4,23 @@ version = "0.1.0"
 description = "Smart credit cabinet backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "aioboto3>=13",
     "alembic>=1.14",
     "argon2-cffi>=23.1",
     "asyncpg>=0.30",
     "email-validator>=2.2",
     "fastapi>=0.115",
+    "faststream[kafka]>=0.6",
+    "httpx>=0.28",
+    "lxml>=5.3",
+    "nh3>=0.2",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "pyjwt[crypto]>=2.10",
+    "python-multipart>=0.0.12",
+    "pyyaml>=6.0",
     "sqlalchemy[asyncio]>=2.0.36",
+    "sse-starlette>=2.1",
     "uvicorn[standard]>=0.32",
 ]
 
@@ -20,9 +28,13 @@ dependencies = [
 dev = [
     "aiosqlite>=0.20",
     "httpx>=0.28",
+    "import-linter>=2.1",
+    "mypy>=1.13",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
+    "testcontainers[kafka,minio,postgres]>=4.8",
+    "types-pyyaml>=6.0",
 ]
 
 [tool.uv]
@@ -32,6 +44,12 @@ package = false
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: needs Docker (testcontainers: Postgres, Kafka, MinIO)",
+    "e2e: full scenarios through HTTP and Kafka",
+]
+# The deploy workflow runs plain `pytest`: heavy suites are opt-in (`-m integration`).
+addopts = "-m 'not integration and not e2e'"
 
 [tool.ruff]
 line-length = 100
@@ -45,3 +63,142 @@ ignore = ["UP040"]
 [tool.ruff.lint.isort]
 known-first-party = ["src", "tests"]
 known-third-party = ["alembic"]
+
+[tool.importlinter]
+root_packages = ["src"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain is plain Python"
+type = "forbidden"
+source_modules = ["src.*.domain", "src.core.domain"]
+forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "pydantic", "httpx", "faststream", "aiokafka", "aioboto3"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Domain and application do not depend on infrastructure and api"
+type = "forbidden"
+source_modules = ["src.*.domain", "src.*.application"]
+forbidden_modules = ["src.*.infrastructure", "src.*.api", "src.*.module"]
+
+[[tool.importlinter.contracts]]
+name = "Domain does not depend on application"
+type = "forbidden"
+source_modules = ["src.*.domain"]
+forbidden_modules = ["src.*.application"]
+
+[[tool.importlinter.contracts]]
+name = "Core does not know the modules"
+type = "forbidden"
+source_modules = ["src.core"]
+forbidden_modules = ["src.identity", "src.applications", "src.process", "src.products", "src.clients", "src.enrichment", "src.scoring", "src.decision", "src.notifications", "src.projector", "src.bff", "src.main", "src.models"]
+
+[[tool.importlinter.contracts]]
+name = "identity reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.identity"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.identity.** -> src.identity.**", "src.identity.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "applications reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.applications"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.applications.** -> src.applications.**", "src.applications.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "process reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.process"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.process.** -> src.process.**", "src.process.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "products reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.products"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.products.** -> src.products.**", "src.products.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "clients reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.clients"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.clients.** -> src.clients.**", "src.clients.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "enrichment reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.enrichment"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.enrichment.** -> src.enrichment.**", "src.enrichment.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "scoring reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.scoring"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.scoring.** -> src.scoring.**", "src.scoring.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "decision reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.decision"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.decision.** -> src.decision.**", "src.decision.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "notifications reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.notifications"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.notifications.** -> src.notifications.**", "src.notifications.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "projector reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.projector"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.projector.** -> src.projector.**", "src.projector.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "bff reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.bff"]
+forbidden_modules = ["src.*.domain", "src.*.application", "src.*.infrastructure", "src.*.api", "src.*.module"]
+ignore_imports = ["src.bff.** -> src.bff.**", "src.bff.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
