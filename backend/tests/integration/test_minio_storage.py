@@ -9,12 +9,22 @@ from src.applications.infrastructure.storage import MinioDocumentStorage
 
 pytestmark = pytest.mark.integration
 
+# The image docker-compose uses: minio/minio is no longer pulled from Docker Hub.
+MINIO_IMAGE = "soldevelo/minio:latest"
+
 
 @pytest.fixture(scope="module")
 def minio_endpoint() -> Iterator[str]:
     from testcontainers.community.minio import MinioContainer
 
-    with MinioContainer() as minio:
+    minio = (
+        MinioContainer(MINIO_IMAGE)
+        .with_env("MINIO_ROOT_USER", "minioadmin")
+        .with_env("MINIO_ROOT_PASSWORD", "minioadmin")
+        # as in docker-compose: the image writes /data as root
+        .with_kwargs(user="root")
+    )
+    with minio:
         yield f"http://{minio.get_config()['endpoint']}"
 
 
