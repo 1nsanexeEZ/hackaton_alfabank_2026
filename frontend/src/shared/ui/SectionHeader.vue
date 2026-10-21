@@ -21,6 +21,7 @@ withDefaults(
       >
         {{ description }}
       </p>
+      <slot name="after" />
     </div>
     <slot name="aside" />
   </div>

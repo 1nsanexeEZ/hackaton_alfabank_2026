@@ -51,6 +51,8 @@
 
   body {
     @apply bg-white font-sans text-ink antialiased;
+    /* Декоративные стикеры могут выступать за край — не даём им создать горизонтальную прокрутку */
+    overflow-x: clip;
   }
 
   ::selection {
