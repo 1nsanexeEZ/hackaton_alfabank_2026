@@ -27,7 +27,7 @@
     },
     {
       "code": "debt_load",
-      "value": "0.04",
+      "value": "0.05",
       "bin": "<0,2",
       "points": 50,
       "direction": "positive",

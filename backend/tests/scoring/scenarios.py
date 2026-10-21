@@ -1,8 +1,9 @@
 """Фиксированные входы scoring для golden-тестов — на демо-данных §9.
 
-Параметры компании берём из `seed.demo_data` (ИНН/возраст/выручка/ОКВЭД), а параметры запроса,
-бюро и прогноза по выписке задаём под сценарий. Поменялась карта — видно по diff golden-файлов,
-какие сценарии сдвинулись.
+Параметры компании берём из `seed.demo_data` (ИНН/возраст/выручка/ОКВЭД), бюро — как отвечает
+мок БКИ (`external-mocks/app/data.py`), базовые ставки — из каталога (`seed/products.py`), так что
+числа совпадают со сквозными тестами на реальных фасадах. Поменялась карта — видно по diff
+golden-файлов, какие сценарии сдвинулись.
 """
 
 from __future__ import annotations
@@ -51,7 +52,7 @@ def _request(
     *,
     product: str = "UNSECURED",
     facility: str = "term_loan",
-    rate: str = "21.5",
+    rate: str = "23.5",  # базовая ставка UNSECURED в каталоге
 ) -> RequestInput:
     return RequestInput(Decimal(amount), term, product, facility, Decimal(rate))
 
@@ -83,7 +84,7 @@ def _scenario(
 _ROMASHKA_S1 = _scenario(
     code="romashka",
     request=_request("3000000", 24),
-    bureau=BureauInput(True, True, 0, 0, Decimal("180000")),
+    bureau=BureauInput(True, True, 0, 1, Decimal("180000")),
 )
 
 # ivanov — молодой ИП, тонкое досье, с выпиской и прогнозируемым разрывом.
@@ -98,9 +99,9 @@ _IVANOV_S2 = _scenario(
 _VECTOR_S3 = _scenario(
     code="vector",
     request=_request(
-        "10000000", 24, product="CREDIT_LINE", facility="credit_line_revolving", rate="23.0"
+        "10000000", 24, product="CREDIT_LINE", facility="credit_line_revolving", rate="22"
     ),
-    bureau=BureauInput(True, True, 0, 1, Decimal("400000")),
+    bureau=BureauInput(True, True, 0, 2, Decimal("340000")),
     verification="mismatch",
 )
 
@@ -108,16 +109,16 @@ _VECTOR_S3 = _scenario(
 _ZAKAT_S4 = _scenario(
     code="zakat",
     request=_request("2000000", 12),
-    bureau=BureauInput(True, True, 120, 2, Decimal("300000")),
+    bureau=BureauInput(True, True, 120, 3, Decimal("300000")),
 )
 
 # progress — заявленная выручка втрое выше ФНС (расхождение).
 _PROGRESS_S5 = _scenario(
     code="progress",
     request=_request(
-        "8000000", 24, product="CREDIT_LINE", facility="credit_line_revolving", rate="23.0"
+        "8000000", 24, product="CREDIT_LINE", facility="credit_line_revolving", rate="22"
     ),
-    bureau=BureauInput(True, True, 0, 1, Decimal("250000")),
+    bureau=BureauInput(True, True, 0, 1, Decimal("150000")),
 )
 
 # sboy — БКИ недоступно (мок 503): не штрафуем за свой сбой, но ставим флаг.
@@ -131,8 +132,8 @@ _SBOY_S6 = _scenario(
 # romashka — ипотека с залогом (фактор collateral_coverage).
 _ROMASHKA_MORTGAGE_S7 = _scenario(
     code="romashka",
-    request=_request("30000000", 120, product="MORTGAGE", rate="18.0"),
-    bureau=BureauInput(True, True, 0, 0, Decimal("180000")),
+    request=_request("30000000", 120, product="MORTGAGE", rate="23"),
+    bureau=BureauInput(True, True, 0, 1, Decimal("180000")),
     collateral=Decimal("50000000"),
 )
 

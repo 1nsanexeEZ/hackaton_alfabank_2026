@@ -43,7 +43,7 @@
     },
     {
       "code": "bureau_inquiries",
-      "value": "0",
+      "value": "1",
       "bin": "≤2",
       "points": 0,
       "direction": "neutral",

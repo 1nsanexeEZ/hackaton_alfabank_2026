@@ -1,5 +1,5 @@
 {
-  "score": 740,
+  "score": 700,
   "grade": "B",
   "data_completeness": "0.917",
   "flags": [],
@@ -25,9 +25,9 @@
     },
     {
       "code": "debt_load",
-      "value": "0.18",
-      "bin": "<0,2",
-      "points": 50,
+      "value": "0.21",
+      "bin": "0,2–0,4",
+      "points": 10,
       "direction": "positive",
       "client_hint": null,
       "has_data": true
@@ -43,7 +43,7 @@
     },
     {
       "code": "bureau_inquiries",
-      "value": "0",
+      "value": "1",
       "bin": "≤2",
       "points": 0,
       "direction": "neutral",

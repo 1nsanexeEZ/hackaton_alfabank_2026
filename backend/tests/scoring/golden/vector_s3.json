@@ -27,7 +27,7 @@
     },
     {
       "code": "debt_load",
-      "value": "0.37",
+      "value": "0.34",
       "bin": "0,2–0,4",
       "points": 10,
       "direction": "positive",
@@ -45,7 +45,7 @@
     },
     {
       "code": "bureau_inquiries",
-      "value": "1",
+      "value": "2",
       "bin": "≤2",
       "points": 0,
       "direction": "neutral",

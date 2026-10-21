@@ -1,5 +1,5 @@
 {
-  "score": 410,
+  "score": 395,
   "grade": "E",
   "data_completeness": "0.909",
   "flags": [],
@@ -43,11 +43,11 @@
     },
     {
       "code": "bureau_inquiries",
-      "value": "2",
-      "bin": "≤2",
-      "points": 0,
-      "direction": "neutral",
-      "client_hint": null,
+      "value": "3",
+      "bin": "3–5",
+      "points": -15,
+      "direction": "negative",
+      "client_hint": "Много недавних кредитных запросов — это временно снижает оценку.",
       "has_data": true
     },
     {

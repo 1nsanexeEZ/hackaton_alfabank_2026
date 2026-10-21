@@ -84,11 +84,14 @@ decision. Подсказки клиенту берём из 2–3 самых н�
 | S-1 romashka UNSECURED 3 млн / 24 | 790 | A | — |
 | S-2 ivanov UNSECURED 5 млн / 24 (с выпиской, разрыв) | 565 | C | thin_file, cash_gap |
 | S-3 vector CREDIT_LINE 10 млн / 24 | 620 | C | verification_mismatch |
-| S-4 zakat UNSECURED 2 млн / 12 | 410 | E | — |
-| S-5 progress CREDIT_LINE 8 млн / 24 | 660 | B | revenue_mismatch |
+| S-4 zakat UNSECURED 2 млн / 12 | 395 | E | — |
+| S-5 progress CREDIT_LINE 8 млн / 24 | 700 | B | revenue_mismatch |
 | S-6 sboy UNSECURED 1 млн / 12 (БКИ 503) | 760 | A | bureau_unavailable |
+| S-7 romashka MORTGAGE 30 млн / 120, залог 50 млн | 700 | B | — |
 
-Числа закреплены golden-тестами (`tests/scoring/golden/*.json`): поменял карту — видно, что сдвинулось.
+Входы — как отвечают моки (`external-mocks/app/data.py`) и ставки каталога (`seed/products.py`), так
+что числа совпадают со сквозными тестами на реальных фасадах. Закреплены golden-тестами
+(`tests/scoring/golden/*.json`): поменял карту — видно, что сдвинулось.
 
 ## События
 
