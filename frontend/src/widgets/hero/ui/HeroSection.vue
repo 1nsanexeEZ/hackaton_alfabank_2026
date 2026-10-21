@@ -3,13 +3,14 @@ import { Sparkles } from 'lucide-vue-next'
 
 import { ApplicationStatusCard } from '@/entities/application'
 import { SECTION_ID, sectionHref } from '@/shared/config'
-import { BaseBadge, BaseButton, BaseContainer } from '@/shared/ui'
+import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
 import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
 </script>
 
 <template>
-  <section class="relative overflow-hidden bg-night text-on-night">
+  <section class="hero relative flex flex-col justify-center overflow-hidden bg-night text-on-night">
+    <PatternBackground />
     <div
       class="pointer-events-none absolute -top-48 right-[-40%] size-[28rem] rounded-full bg-brand/15 blur-[120px] lg:-top-40 lg:right-0 lg:size-[36rem] lg:bg-brand/25"
       aria-hidden="true"
@@ -62,3 +63,32 @@ import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
     </BaseContainer>
   </section>
 </template>
+
+<style scoped>
+/*
+ * Низ hero со скруглёнными «плечами»: нижняя полоса высотой --r вырезана маской,
+ * кроме углов. Сквозь вырез видна страница — следующая секция выглядит
+ * как светлый лист, наехавший на hero, но без собственного фона.
+ */
+.hero {
+  --r: 2.5rem;
+  /* Высота шапки: hero занимает весь первый экран, вырез со скруглением — уже за его краем */
+  --header: 4rem;
+
+  min-height: calc(100dvh - var(--header) + var(--r));
+
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--r)) no-repeat,
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - 0.5px), #000 var(--r)) bottom left /
+      var(--r) var(--r) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--r) - 0.5px), #000 var(--r)) bottom right /
+      var(--r) var(--r) no-repeat;
+}
+
+@media (width >= 64rem) {
+  .hero {
+    --r: var(--radius-sheet);
+    --header: 4.5rem;
+  }
+}
+</style>

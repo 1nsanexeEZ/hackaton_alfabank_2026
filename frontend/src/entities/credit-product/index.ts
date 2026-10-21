@@ -9,3 +9,4 @@ export {
   type ProductKind,
 } from './model/types'
 export { default as ProductCard } from './ui/ProductCard.vue'
+export { default as ProductFlexCard } from './ui/ProductFlexCard.vue'

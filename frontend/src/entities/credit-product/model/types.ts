@@ -21,6 +21,8 @@ export interface CreditProduct {
   collateral: Collateral
   /** Типичное время решения, например «5 минут» */
   decisionTime: string
+  /** 2–3 слова, которые продают продукт с первого взгляда — для компактной витрины */
+  keywords: readonly string[]
   tag?: string
 }
 
