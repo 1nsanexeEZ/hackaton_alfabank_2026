@@ -1,13 +1,18 @@
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Security
+from fastapi import Depends, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.access.access_context import AccessContext
+from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.access.permission_check import ensure_permissions
 from src.core.access.permissions import Permissions
+from src.core.access.policies import Policies
+from src.core.facades import get_facade_registry
+from src.core.infrastructure.database.session import get_session
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.core.security import bearer_security
 
@@ -56,9 +61,15 @@ def require_permissions(*required: Permissions) -> Callable[[OpenSubTokenDTO], O
     return dependency
 
 
+def needs_organization_ids(token: OpenSubTokenDTO, permission: Permissions) -> bool:
+    if Permissions.ADMIN.value in token.permissions:
+        return False
+    return Policies.ORG_MEMBER.value in token.policies.get(permission.value, ())
+
+
 def get_access_context_for(
     permission: Permissions,
-) -> Callable[[OpenSubTokenDTO], AccessContext]:
+) -> Callable[..., Awaitable[AccessContext]]:
     """
     Use:
         access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_READ))]
@@ -68,16 +79,30 @@ def get_access_context_for(
     builds the AccessContext the repository uses for row-level (ABAC)
     filtering. Don't pair it with a separate require_permissions dependency —
     that would just be the same check done twice.
+
+    When the permission carries the `org_member` policy, the organizations of
+    the user are resolved through MemberOrganizationsResolver (registered by
+    the clients module), only then and only once per request.
     """
 
-    def dependency(token: CurrentToken) -> AccessContext:
+    async def dependency(
+        request: Request,
+        token: CurrentToken,
+        session: Annotated[AsyncSession, Depends(get_session)],
+    ) -> AccessContext:
         ensure_permissions(token, permission)
+
+        organization_ids: frozenset[UUID] | None = None
+        if needs_organization_ids(token, permission):
+            resolver = get_facade_registry(request).get(MemberOrganizationsResolver, session)
+            organization_ids = await resolver.member_organization_ids(token.subject)
 
         return AccessContext(
             user_id=token.subject,
             permission=permission,
             granted_permissions=token.permissions,
             policies=token.policies,
+            organization_ids=organization_ids,
         )
 
     return dependency

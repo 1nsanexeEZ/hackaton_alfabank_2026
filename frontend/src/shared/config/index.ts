@@ -28,7 +28,24 @@ export const LANDING_NAV: readonly { label: string; section: SectionId }[] = [
 export const ROUTE_PATH = {
   home: '/',
   login: '/login',
+  admin: '/admin',
 } as const
+
+/** Имена маршрутов рабочего места сотрудника */
+export const ADMIN_ROUTE = {
+  login: 'admin-login',
+  dashboard: 'admin-dashboard',
+  applications: 'admin-applications',
+  application: 'admin-application',
+  innCheck: 'admin-inn-check',
+  products: 'admin-products',
+  scoring: 'admin-scoring',
+  users: 'admin-users',
+  roles: 'admin-roles',
+  profile: 'admin-profile',
+} as const
+
+export type AdminRouteName = (typeof ADMIN_ROUTE)[keyof typeof ADMIN_ROUTE]
 
 export const APP_NAME = 'Кредитный кабинет'
 export const APP_TAGLINE = 'для малого бизнеса'

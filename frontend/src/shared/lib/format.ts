@@ -47,3 +47,31 @@ export function formatTerm(months: number): string {
 export function onlyDigits(value: string): string {
   return value.replace(/\D/g, '')
 }
+
+const dateFormatter = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' })
+const dateTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+const relativeFormatter = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' })
+
+/** «14 мар. 2017 г.» */
+export function formatDate(value: string | Date): string {
+  return dateFormatter.format(new Date(value))
+}
+
+/** «21 окт., 14:05» */
+export function formatDateTime(value: string | Date): string {
+  return dateTimeFormatter.format(new Date(value))
+}
+
+/** «3 часа назад», «через 5 часов» */
+export function formatRelativeTime(value: string | Date, now = Date.now()): string {
+  const minutes = Math.round((new Date(value).getTime() - now) / 60_000)
+  if (Math.abs(minutes) < 60) return relativeFormatter.format(minutes, 'minute')
+  const hours = Math.round(minutes / 60)
+  if (Math.abs(hours) < 48) return relativeFormatter.format(hours, 'hour')
+  return relativeFormatter.format(Math.round(hours / 24), 'day')
+}

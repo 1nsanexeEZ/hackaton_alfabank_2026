@@ -4,11 +4,10 @@ from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-import src.identity.models  # noqa: F401  registers identity tables in Base.metadata
 from src.core.config import get_settings
-from src.core.infrastructure.database.base import Base
+from src.models import metadata
 
-target_metadata = Base.metadata
+target_metadata = metadata
 
 
 def run_migrations_offline() -> None:

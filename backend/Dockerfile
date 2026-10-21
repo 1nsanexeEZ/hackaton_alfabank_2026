@@ -16,6 +16,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY src ./src
+COPY seed ./seed
 
 RUN useradd --create-home --uid 10001 app && mkdir -p /app/keys && chown app /app/keys
 USER app
