@@ -47,17 +47,13 @@ jobs:
             git fetch origin
  
             git reset --hard origin/main
-
-            git clean -fd
             
-            git pull --ff-only origin main
+            docker-compose down
             
-            docker-compose build
-            
-            docker-compose up -d --remove-orphans
+            docker-compose up -d --build --remove-orphans
             
             docker-compose restart nginx || true
             
             docker image prune -f
             
-            docker compose ps
+            docker-compose ps
