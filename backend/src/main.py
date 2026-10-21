@@ -73,6 +73,11 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
                 settings.bootstrap_admin_email,
                 settings.bootstrap_admin_password,
             )
+        for module in MODULES:
+            # Optional hook for modules that need I/O before serving (buckets, caches).
+            startup = getattr(module, "startup", None)
+            if startup is not None:
+                await startup(app)
         if settings.seed_demo_data:
             await run_seeds(
                 SeedContext(settings, app.state.session_factory, app.state.facades, clock)

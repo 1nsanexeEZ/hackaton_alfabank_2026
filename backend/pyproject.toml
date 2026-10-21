@@ -80,6 +80,8 @@ name = "Domain and application do not depend on infrastructure and api"
 type = "forbidden"
 source_modules = ["src.*.domain", "src.*.application"]
 forbidden_modules = ["src.*.infrastructure", "src.*.api", "src.*.module"]
+# Direct imports only: core helpers (outbox writer) may use core infrastructure inside.
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Domain does not depend on application"

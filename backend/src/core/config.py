@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     minio_root_user: str = "minioadmin"
     minio_root_password: str = "minioadmin"
     minio_bucket_name: str = "credit-documents"
+    # What the browser sees (presigned URLs go through nginx); None — minio_endpoint.
+    minio_public_endpoint: str | None = None
+    # Create the bucket on startup; off in tests (no MinIO there).
+    minio_ensure_bucket: bool = True
 
     # Demo organizations, accounts and products from docs (idempotent).
     seed_demo_data: bool = False
