@@ -13,6 +13,7 @@
   - `Generated with ...`, `🤖 Generated with [Claude Code]` и любые аналоги
 - **В описании PR** — то же самое, без подписей агента.
 - **Имена веток** — без префиксов агентов (`claude/...`, `copilot/...`). Ветки называем по шаблону из [02-branches.md](02-branches.md).
+- **Сообщения коммитов** — с префиксом типа (`feat:`, `fix:`, `hotfix:` и т.д.), см. [03-commit-messages.md](03-commit-messages.md).
 
 ## Как это обеспечено
 
