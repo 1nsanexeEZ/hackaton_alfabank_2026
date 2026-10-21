@@ -2,10 +2,17 @@
 import { ChevronDown } from 'lucide-vue-next'
 import { useId } from 'vue'
 
-defineProps<{
-  label: string
-  options: readonly { value: T; label: string }[]
-}>()
+withDefaults(
+  defineProps<{
+    label: string
+    options: readonly { value: T; label: string }[]
+    /** Компактная высота — для фильтров и форм админки */
+    dense?: boolean
+    /** Подпись только для скринридеров */
+    hideLabel?: boolean
+  }>(),
+  { dense: false, hideLabel: false },
+)
 
 const model = defineModel<T>({ required: true })
 
@@ -14,12 +21,15 @@ const id = useId()
 
 <template>
   <div>
-    <label :for="id" class="mb-2 block text-sm font-medium text-ink">{{ label }}</label>
+    <label :for="id" class="mb-2 block text-sm font-medium text-ink" :class="hideLabel && 'sr-only'">{{ label }}</label>
     <div class="relative">
       <select
         :id="id"
         v-model="model"
-        class="h-14 w-full cursor-pointer appearance-none rounded-xl bg-surface pr-12 pl-4 text-base text-ink transition outline-none focus:bg-white focus:ring-2 focus:ring-ink/20"
+        :class="[
+          'w-full cursor-pointer appearance-none bg-surface pr-12 pl-4 text-ink transition outline-none focus:bg-white focus:ring-2 focus:ring-ink/20',
+          dense ? 'h-11 rounded-lg text-sm' : 'h-14 rounded-xl text-base',
+        ]"
       >
         <option v-for="option in options" :key="option.value" :value="option.value">
           {{ option.label }}

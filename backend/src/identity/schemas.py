@@ -50,6 +50,18 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class DemoLoginRequest(BaseModel):
+    login: str = Field(min_length=1, max_length=254, description="Email or phone of a demo account")
+
+
+class DemoAccountRead(BaseModel):
+    login: str = Field(description="Email to pass to /auth/demo-login")
+    phone: str | None
+    role: str
+    caption: str
+    full_name: str
+
+
 class RoleCreate(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     description: str = Field(default="", max_length=255)

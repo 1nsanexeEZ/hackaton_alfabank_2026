@@ -38,7 +38,7 @@ watch(() => route.fullPath, closeMenu)
 </script>
 
 <template>
-  <header class="sticky top-0 z-50 bg-night/90 text-on-night backdrop-blur-md">
+  <header class="sticky top-0 z-50 bg-night text-on-night">
     <BaseContainer class="flex h-16 items-center justify-between gap-6 lg:h-18">
       <RouterLink :to="ROUTE_PATH.home" class="shrink-0 rounded-lg" aria-label="Кредитный кабинет — на главную">
         <AppLogo inverted />

@@ -7,17 +7,24 @@ const props = withDefaults(
     placeholder?: string
     hint?: string
     error?: string
+    type?: 'text' | 'email' | 'password' | 'tel' | 'search'
     inputmode?: 'text' | 'numeric' | 'decimal' | 'email' | 'tel'
     autocomplete?: string
     maxlength?: number
+    /** Компактная высота — для таблиц и форм админки */
+    dense?: boolean
+    required?: boolean
   }>(),
   {
     placeholder: undefined,
     hint: undefined,
     error: undefined,
+    type: 'text',
     inputmode: 'text',
     autocomplete: 'off',
     maxlength: undefined,
+    dense: false,
+    required: false,
   },
 )
 
@@ -33,16 +40,18 @@ const describedBy = computed(() => (props.error || props.hint ? `${id}-descripti
     <input
       :id="id"
       v-model="model"
-      type="text"
+      :type="type"
       :placeholder="placeholder"
       :inputmode="inputmode"
       :autocomplete="autocomplete"
       :maxlength="maxlength"
+      :required="required"
       :aria-invalid="Boolean(error)"
       :aria-describedby="describedBy"
       :class="[
-        'h-14 w-full rounded-xl bg-surface px-4 text-base text-ink transition outline-none placeholder:text-ink-muted',
+        'w-full bg-surface px-4 text-base text-ink transition outline-none placeholder:text-ink-muted',
         'focus:bg-white focus:ring-2 focus:ring-ink/20',
+        dense ? 'h-11 rounded-lg text-sm' : 'h-14 rounded-xl',
         error && 'bg-brand-soft ring-1 ring-brand focus:ring-brand',
       ]"
     />

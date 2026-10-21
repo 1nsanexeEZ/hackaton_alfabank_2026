@@ -1,0 +1,95 @@
+{
+  "amount": "1000000.00",
+  "term_months": 12,
+  "rate": "23.5",
+  "repayment": "annuity",
+  "monthly_payment": "94317.79",
+  "total_interest": "131813.49",
+  "total_paid": "1131813.49",
+  "payments": [
+    {
+      "number": 1,
+      "principal": "74734.46",
+      "interest": "19583.33",
+      "total": "94317.79",
+      "balance_after": "925265.54"
+    },
+    {
+      "number": 2,
+      "principal": "76198.01",
+      "interest": "18119.78",
+      "total": "94317.79",
+      "balance_after": "849067.53"
+    },
+    {
+      "number": 3,
+      "principal": "77690.22",
+      "interest": "16627.57",
+      "total": "94317.79",
+      "balance_after": "771377.31"
+    },
+    {
+      "number": 4,
+      "principal": "79211.65",
+      "interest": "15106.14",
+      "total": "94317.79",
+      "balance_after": "692165.66"
+    },
+    {
+      "number": 5,
+      "principal": "80762.88",
+      "interest": "13554.91",
+      "total": "94317.79",
+      "balance_after": "611402.78"
+    },
+    {
+      "number": 6,
+      "principal": "82344.49",
+      "interest": "11973.30",
+      "total": "94317.79",
+      "balance_after": "529058.29"
+    },
+    {
+      "number": 7,
+      "principal": "83957.07",
+      "interest": "10360.72",
+      "total": "94317.79",
+      "balance_after": "445101.22"
+    },
+    {
+      "number": 8,
+      "principal": "85601.22",
+      "interest": "8716.57",
+      "total": "94317.79",
+      "balance_after": "359500.00"
+    },
+    {
+      "number": 9,
+      "principal": "87277.58",
+      "interest": "7040.21",
+      "total": "94317.79",
+      "balance_after": "272222.42"
+    },
+    {
+      "number": 10,
+      "principal": "88986.77",
+      "interest": "5331.02",
+      "total": "94317.79",
+      "balance_after": "183235.65"
+    },
+    {
+      "number": 11,
+      "principal": "90729.43",
+      "interest": "3588.36",
+      "total": "94317.79",
+      "balance_after": "92506.22"
+    },
+    {
+      "number": 12,
+      "principal": "92506.22",
+      "interest": "1811.58",
+      "total": "94317.80",
+      "balance_after": "0.00"
+    }
+  ]
+}

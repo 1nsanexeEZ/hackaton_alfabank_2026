@@ -17,6 +17,7 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY src ./src
 COPY seed ./seed
+COPY scripts ./scripts
 
 RUN useradd --create-home --uid 10001 app && mkdir -p /app/keys && chown app /app/keys
 USER app
