@@ -1,18 +1,7 @@
-/**
- * Статусы заявки — черновой список для витрины.
- * Финальный набор и переходы фиксируем в стейт-машине (docs/state-machine.md) и синхронизируем с бэкендом.
- */
-export type ApplicationStatus =
-  | 'draft'
-  | 'submitted'
-  | 'checking'
-  | 'scoring'
-  | 'info_requested'
-  | 'approved'
-  | 'counter_offer'
-  | 'rejected'
-  | 'signing'
-  | 'issued'
+import type { ApplicationStatus } from '@/shared/api'
+
+/** Статусы заявки описаны в контракте API; финальный набор фиксируем в стейт-машине (docs/state-machine.md) */
+export type { ApplicationStatus }
 
 /** Параметры кредита, которые клиент выбрал до отправки заявки */
 export interface ApplicationDraft {

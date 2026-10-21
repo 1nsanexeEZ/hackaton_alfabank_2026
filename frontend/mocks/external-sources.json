@@ -1,0 +1,1546 @@
+{
+  "_meta": {
+    "description": "Синтетические ответы внешних источников для мок-интеграций. Все компании, люди и реквизиты выдуманы; ИНН/ОГРН/ОГРНИП сгенерированы с корректными контрольными цифрами. Совпадение с реальными лицами случайно.",
+    "sources": {
+      "egrul": "ЕГРЮЛ ФНС — регистрационные данные юрлиц (egrul.nalog.ru)",
+      "egrip": "ЕГРИП ФНС — регистрационные данные ИП (egrul.nalog.ru)",
+      "fns": "ФНС «Прозрачный бизнес» — налоговый режим, численность, уплаченные налоги, недоимка, блокировки счетов, реестр МСП (pb.nalog.ru)",
+      "gir_bo": "ГИР БО ФНС — бухгалтерская отчётность юрлиц, коды строк форм 0710001/0710002 (bo.nalog.ru)",
+      "kontur": "Контур.Фокус — агрегированные индикаторы риска: арбитраж, ФССП, банкротства, госконтракты, залоги"
+    },
+    "lookup": "Поиск по ИНН: companies[].egrul.inn или entrepreneurs[].egrip.inn. ИНН, которого нет в файле, мок должен возвращать как «не найден».",
+    "not_found_inn": [
+      "7799604543",
+      "779914659004"
+    ],
+    "expected_outcome_values": [
+      "approved",
+      "counter_offer",
+      "info_requested",
+      "rejected"
+    ],
+    "generated_at": "2026-10-21"
+  },
+  "companies": [
+    {
+      "scenario": "Демо-ИНН из формы: устойчивый производственный бизнес, растущая выручка",
+      "expected_outcome": "approved",
+      "egrul": {
+        "inn": "7720123457",
+        "kpp": "772001001",
+        "ogrn": "1177715881397",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «ТехноПрофиль»",
+        "name_short": "ООО «ТехноПрофиль»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2017-03-14",
+        "registration_authority": "Межрайонная инспекция ФНС № 46 по г. Москве",
+        "address": {
+          "region_code": "77",
+          "full": "111123, г. Москва, ш. Энтузиастов, д. 56, стр. 3, помещ. 12",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 500000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Смирнова Анна Викторовна",
+          "inn": "770753645562",
+          "since": "2017-03-14",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Смирнова Анна Викторовна",
+            "inn": "779869879710",
+            "share_percent": 60,
+            "share_rub": 300000
+          },
+          {
+            "name": "Голубев Максим Олегович",
+            "inn": "773091141774",
+            "share_percent": 40,
+            "share_rub": 200000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "25.62",
+            "name": "Обработка металлических изделий механическая"
+          },
+          "additional": [
+            {
+              "code": "28.99",
+              "name": "Производство прочих машин и оборудования специального назначения"
+            },
+            {
+              "code": "33.12",
+              "name": "Ремонт машин и оборудования"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ОСНО",
+        "average_headcount": 48,
+        "msp_register": {
+          "included": true,
+          "category": "Малое предприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 9725000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 11184000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 32163,
+              "1210_inventories": 17774,
+              "1230_receivables": 20314,
+              "1250_cash": 7618,
+              "1600_total_assets": 84640,
+              "1300_equity": 38934,
+              "1400_long_term_liabilities": 16560,
+              "1500_short_term_liabilities": 29146,
+              "1700_total_liabilities": 84640
+            },
+            "income": {
+              "2110_revenue": 163509,
+              "2120_cost_of_sales": 124558,
+              "2200_sales_profit": 20723,
+              "2330_interest_payable": 3776,
+              "2300_profit_before_tax": 13931,
+              "2400_net_profit": 11609
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 34960,
+              "1210_inventories": 19320,
+              "1230_receivables": 22080,
+              "1250_cash": 8280,
+              "1600_total_assets": 92000,
+              "1300_equity": 42320,
+              "1400_long_term_liabilities": 18000,
+              "1500_short_term_liabilities": 31680,
+              "1700_total_liabilities": 92000
+            },
+            "income": {
+              "2110_revenue": 186400,
+              "2120_cost_of_sales": 141996,
+              "2200_sales_profit": 23624,
+              "2330_interest_payable": 4104,
+              "2300_profit_before_tax": 15881,
+              "2400_net_profit": 13234
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 3,
+          "sum_rub": 22368000
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 1,
+        "affiliated_companies": 3,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Пекарня с сетью точек, стабильные показатели, без долгов",
+      "expected_outcome": "approved",
+      "egrul": {
+        "inn": "7809151888",
+        "kpp": "780901001",
+        "ogrn": "1157844729404",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «Северная Пекарня»",
+        "name_short": "ООО «Северная Пекарня»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2015-09-02",
+        "registration_authority": "Межрайонная инспекция ФНС № 15 по Санкт-Петербургу",
+        "address": {
+          "region_code": "78",
+          "full": "197342, г. Санкт-Петербург, ул. Сердобольская, д. 64, лит. К, помещ. 3-Н",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 100000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Ковалёв Игорь Сергеевич",
+          "inn": "787168976878",
+          "since": "2015-09-02",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Ковалёв Игорь Сергеевич",
+            "inn": "785576169879",
+            "share_percent": 100,
+            "share_rub": 100000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "10.71",
+            "name": "Производство хлеба и мучных кондитерских изделий"
+          },
+          "additional": [
+            {
+              "code": "47.11",
+              "name": "Торговля розничная преимущественно пищевыми продуктами в неспециализированных магазинах"
+            },
+            {
+              "code": "56.10",
+              "name": "Деятельность ресторанов и услуги по доставке продуктов питания"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы минус расходы)",
+        "average_headcount": 31,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 2277000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 2618000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 10838,
+              "1210_inventories": 5989,
+              "1230_receivables": 6845,
+              "1250_cash": 2567,
+              "1600_total_assets": 28520,
+              "1300_equity": 15686,
+              "1400_long_term_liabilities": 3680,
+              "1500_short_term_liabilities": 9154,
+              "1700_total_liabilities": 28520
+            },
+            "income": {
+              "2110_revenue": 68624,
+              "2120_cost_of_sales": 51320,
+              "2200_sales_profit": 9794,
+              "2330_interest_payable": 973,
+              "2300_profit_before_tax": 7247,
+              "2400_net_profit": 6039
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 11780,
+              "1210_inventories": 6510,
+              "1230_receivables": 7440,
+              "1250_cash": 2790,
+              "1600_total_assets": 31000,
+              "1300_equity": 17050,
+              "1400_long_term_liabilities": 4000,
+              "1500_short_term_liabilities": 9950,
+              "1700_total_liabilities": 31000
+            },
+            "income": {
+              "2110_revenue": 74800,
+              "2120_cost_of_sales": 55938,
+              "2200_sales_profit": 10675,
+              "2330_interest_payable": 1058,
+              "2300_profit_before_tax": 7899,
+              "2400_net_profit": 6582
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Грузоперевозки с высокой долговой нагрузкой и низкой маржой",
+      "expected_outcome": "counter_offer",
+      "egrul": {
+        "inn": "6607978803",
+        "kpp": "660701001",
+        "ogrn": "1196693208194",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «УралЛогистик»",
+        "name_short": "ООО «УралЛогистик»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2019-06-20",
+        "registration_authority": "Инспекция ФНС по Верх-Исетскому району г. Екатеринбурга",
+        "address": {
+          "region_code": "66",
+          "full": "620075, Свердловская обл., г. Екатеринбург, ул. Бажова, д. 79, оф. 410",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 250000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Шайхутдинов Ренат Ильдарович",
+          "inn": "666634400205",
+          "since": "2019-06-20",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Шайхутдинов Ренат Ильдарович",
+            "inn": "666727317704",
+            "share_percent": 51,
+            "share_rub": 128000
+          },
+          {
+            "name": "Морозова Ольга Петровна",
+            "inn": "668486488704",
+            "share_percent": 49,
+            "share_rub": 122000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "49.41",
+            "name": "Деятельность автомобильного грузового транспорта"
+          },
+          "additional": [
+            {
+              "code": "52.10",
+              "name": "Деятельность по складированию и хранению"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ОСНО",
+        "average_headcount": 22,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 6678000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 7680000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 23423,
+              "1210_inventories": 12944,
+              "1230_receivables": 14794,
+              "1250_cash": 5548,
+              "1600_total_assets": 61640,
+              "1300_equity": 8630,
+              "1400_long_term_liabilities": 35880,
+              "1500_short_term_liabilities": 17130,
+              "1700_total_liabilities": 61640
+            },
+            "income": {
+              "2110_revenue": 124272,
+              "2120_cost_of_sales": 100069,
+              "2200_sales_profit": 9559,
+              "2330_interest_payable": 5880,
+              "2300_profit_before_tax": 2684,
+              "2400_net_profit": 2237
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 25460,
+              "1210_inventories": 14070,
+              "1230_receivables": 16080,
+              "1250_cash": 6030,
+              "1600_total_assets": 67000,
+              "1300_equity": 9380,
+              "1400_long_term_liabilities": 39000,
+              "1500_short_term_liabilities": 18620,
+              "1700_total_liabilities": 67000
+            },
+            "income": {
+              "2110_revenue": 128000,
+              "2120_cost_of_sales": 103071,
+              "2200_sales_profit": 9846,
+              "2330_interest_payable": 6391,
+              "2300_profit_before_tax": 2765,
+              "2400_net_profit": 2304
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Высокая долговая нагрузка",
+          "Арбитражные дела в качестве ответчика за последний год"
+        ],
+        "arbitration": {
+          "as_defendant": 3,
+          "as_plaintiff": 5,
+          "defendant_sum_rub": 2480000
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 4,
+        "affiliated_companies": 4,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Молодой бизнес: меньше года, отчётности в ГИР БО ещё нет",
+      "expected_outcome": "info_requested",
+      "egrul": {
+        "inn": "1608875343",
+        "kpp": "160801001",
+        "ogrn": "1251677876801",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «КазаньСофт»",
+        "name_short": "ООО «КазаньСофт»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2025-11-10",
+        "registration_authority": "Межрайонная инспекция ФНС № 18 по Республике Татарстан",
+        "address": {
+          "region_code": "16",
+          "full": "420107, Республика Татарстан, г. Казань, ул. Петербургская, д. 52, оф. 214",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 10000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Гарипова Алсу Рустемовна",
+          "inn": "162671475166",
+          "since": "2025-11-10",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Гарипова Алсу Рустемовна",
+            "inn": "164571784703",
+            "share_percent": 100,
+            "share_rub": 10000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "62.01",
+            "name": "Разработка компьютерного программного обеспечения"
+          },
+          "additional": [
+            {
+              "code": "62.02",
+              "name": "Деятельность консультативная и работы в области компьютерных технологий"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы)",
+        "average_headcount": 4,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 270000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 310000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Компания зарегистрирована менее 12 месяцев назад"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Стоп-факторы: блокировка счёта, недоимка, исполнительные производства",
+      "expected_outcome": "rejected",
+      "egrul": {
+        "inn": "5407270105",
+        "kpp": "540701001",
+        "ogrn": "1165479819339",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «СибСтройМонтаж»",
+        "name_short": "ООО «СибСтройМонтаж»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2016-04-08",
+        "registration_authority": "Инспекция ФНС по Центральному району г. Новосибирска",
+        "address": {
+          "region_code": "54",
+          "full": "630099, Новосибирская обл., г. Новосибирск, ул. Советская, д. 5, оф. 1",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 10000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Петренко Виталий Андреевич",
+          "inn": "545997283791",
+          "since": "2016-04-08",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Петренко Виталий Андреевич",
+            "inn": "541908452034",
+            "share_percent": 100,
+            "share_rub": 10000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "41.20",
+            "name": "Строительство жилых и нежилых зданий"
+          },
+          "additional": [
+            {
+              "code": "43.39",
+              "name": "Производство прочих отделочных и завершающих работ"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ОСНО",
+        "average_headcount": 7,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 2139000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 738000
+          }
+        ],
+        "tax_arrears_rub": 1870000,
+        "account_blocks": [
+          {
+            "decision_number": "12345",
+            "date": "2026-09-18",
+            "authority_code": "5406",
+            "reason": "Неуплата налогов"
+          }
+        ],
+        "mass_registration_address": true,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 20277,
+              "1210_inventories": 11206,
+              "1230_receivables": 12806,
+              "1250_cash": 4802,
+              "1600_total_assets": 53360,
+              "1300_equity": -4269,
+              "1400_long_term_liabilities": 20240,
+              "1500_short_term_liabilities": 37389,
+              "1700_total_liabilities": 53360
+            },
+            "income": {
+              "2110_revenue": 65079,
+              "2120_cost_of_sales": 56780,
+              "2200_sales_profit": -10,
+              "2330_interest_payable": 4703,
+              "2300_profit_before_tax": -4165,
+              "2400_net_profit": -4165
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 22040,
+              "1210_inventories": 12180,
+              "1230_receivables": 13920,
+              "1250_cash": 5220,
+              "1600_total_assets": 58000,
+              "1300_equity": -4640,
+              "1400_long_term_liabilities": 22000,
+              "1500_short_term_liabilities": 40640,
+              "1700_total_liabilities": 58000
+            },
+            "income": {
+              "2110_revenue": 41000,
+              "2120_cost_of_sales": 35772,
+              "2200_sales_profit": -7,
+              "2330_interest_payable": 5112,
+              "2300_profit_before_tax": -2624,
+              "2400_net_profit": -2624
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "red",
+        "reliability_notes": [
+          "Приостановлены операции по счетам",
+          "Налоговая задолженность",
+          "Адрес массовой регистрации",
+          "Отрицательные чистые активы"
+        ],
+        "arbitration": {
+          "as_defendant": 14,
+          "as_plaintiff": 1,
+          "defendant_sum_rub": 19300000
+        },
+        "enforcement_proceedings": {
+          "active": 9,
+          "sum_rub": 6740000
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 4,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Компания ликвидирована, заявку принимать нельзя",
+      "expected_outcome": "rejected",
+      "egrul": {
+        "inn": "2303984163",
+        "kpp": "230301001",
+        "ogrn": "1122322948660",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «Южный Терминал»",
+        "name_short": "ООО «Южный Терминал»",
+        "status": "Ликвидировано",
+        "status_date": "2026-05-27",
+        "registration_date": "2012-02-15",
+        "registration_authority": "Инспекция ФНС № 1 по г. Краснодару",
+        "address": {
+          "region_code": "23",
+          "full": "350000, Краснодарский край, г. Краснодар, ул. Северная, д. 324, оф. 7",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 10000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Захарченко Денис Николаевич",
+          "inn": "230550087514",
+          "since": "2012-02-15",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Захарченко Денис Николаевич",
+            "inn": "232836016185",
+            "share_percent": 100,
+            "share_rub": 10000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "52.10",
+            "name": "Деятельность по складированию и хранению"
+          },
+          "additional": [
+            {
+              "code": "46.90",
+              "name": "Торговля оптовая неспециализированная"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ОСНО",
+        "average_headcount": 0,
+        "msp_register": {
+          "included": false,
+          "category": null
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 0
+          },
+          {
+            "year": 2025,
+            "paid_rub": 0
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "red",
+        "reliability_notes": [
+          "Юрлицо ликвидировано"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Идёт процедура банкротства",
+      "expected_outcome": "rejected",
+      "egrul": {
+        "inn": "5208517799",
+        "kpp": "520801001",
+        "ogrn": "1185292298366",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «ВолгаТорг»",
+        "name_short": "ООО «ВолгаТорг»",
+        "status": "В стадии банкротства",
+        "status_date": "2026-08-12",
+        "registration_date": "2018-07-30",
+        "registration_authority": "Межрайонная инспекция ФНС № 15 по Нижегородской области",
+        "address": {
+          "region_code": "52",
+          "full": "603005, Нижегородская обл., г. Нижний Новгород, ул. Алексеевская, д. 10/16, оф. 302",
+          "unreliable": false
+        },
+        "authorized_capital_rub": 20000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Лаптев Сергей Геннадьевич",
+          "inn": "527028382221",
+          "since": "2018-07-30",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Лаптев Сергей Геннадьевич",
+            "inn": "529579318603",
+            "share_percent": 50,
+            "share_rub": 10000
+          },
+          {
+            "name": "Лаптева Марина Юрьевна",
+            "inn": "520320807343",
+            "share_percent": 50,
+            "share_rub": 10000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "46.90",
+            "name": "Торговля оптовая неспециализированная"
+          },
+          "additional": [
+            {
+              "code": "47.91",
+              "name": "Торговля розничная по почте или по информационно-коммуникационной сети Интернет"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ОСНО",
+        "average_headcount": 3,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 626000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 216000
+          }
+        ],
+        "tax_arrears_rub": 640000,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 3321,
+              "1210_inventories": 1835,
+              "1230_receivables": 2098,
+              "1250_cash": 787,
+              "1600_total_assets": 8740,
+              "1300_equity": -3496,
+              "1400_long_term_liabilities": 5520,
+              "1500_short_term_liabilities": 6716,
+              "1700_total_liabilities": 8740
+            },
+            "income": {
+              "2110_revenue": 30769,
+              "2120_cost_of_sales": 30782,
+              "2200_sales_profit": -4517,
+              "2330_interest_payable": 1109,
+              "2300_profit_before_tax": -6769,
+              "2400_net_profit": -6769
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 3610,
+              "1210_inventories": 1995,
+              "1230_receivables": 2280,
+              "1250_cash": 855,
+              "1600_total_assets": 9500,
+              "1300_equity": -3800,
+              "1400_long_term_liabilities": 6000,
+              "1500_short_term_liabilities": 7300,
+              "1700_total_liabilities": 9500
+            },
+            "income": {
+              "2110_revenue": 12000,
+              "2120_cost_of_sales": 12005,
+              "2200_sales_profit": -1762,
+              "2330_interest_payable": 1205,
+              "2300_profit_before_tax": -2640,
+              "2400_net_profit": -2640
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "red",
+        "reliability_notes": [
+          "Процедура банкротства",
+          "Исполнительные производства"
+        ],
+        "arbitration": {
+          "as_defendant": 21,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 34100000
+        },
+        "enforcement_proceedings": {
+          "active": 17,
+          "sum_rub": 11200000
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [
+          {
+            "date": "2026-08-12",
+            "type": "Введение процедуры наблюдения",
+            "case": "А43-18734/2026"
+          }
+        ],
+        "active_pledges": 0,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Нормальные финансы, но в ЕГРЮЛ отметка о недостоверном адресе",
+      "expected_outcome": "info_requested",
+      "egrul": {
+        "inn": "6307468618",
+        "kpp": "630701001",
+        "ogrn": "1206364252478",
+        "opf": "Общество с ограниченной ответственностью",
+        "name_full": "Общество с ограниченной ответственностью «МедиаКуб»",
+        "name_short": "ООО «МедиаКуб»",
+        "status": "Действующее",
+        "status_date": null,
+        "registration_date": "2020-10-05",
+        "registration_authority": "Инспекция ФНС по Ленинскому району г. Самары",
+        "address": {
+          "region_code": "63",
+          "full": "443099, Самарская обл., г. Самара, ул. Куйбышева, д. 101, оф. 9",
+          "unreliable": true
+        },
+        "authorized_capital_rub": 10000,
+        "director": {
+          "position": "Генеральный директор",
+          "name": "Белова Кристина Андреевна",
+          "inn": "637188413318",
+          "since": "2020-10-05",
+          "unreliable": false
+        },
+        "founders": [
+          {
+            "name": "Белова Кристина Андреевна",
+            "inn": "637647258767",
+            "share_percent": 100,
+            "share_rub": 10000
+          }
+        ],
+        "okved": {
+          "main": {
+            "code": "73.11",
+            "name": "Деятельность рекламных агентств"
+          },
+          "additional": [
+            {
+              "code": "62.02",
+              "name": "Деятельность консультативная и работы в области компьютерных технологий"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы)",
+        "average_headcount": 9,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 1022000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 1175000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [
+          "address"
+        ],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": true,
+        "currency": "RUB",
+        "unit": "тыс. руб.",
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 2797,
+              "1210_inventories": 1546,
+              "1230_receivables": 1766,
+              "1250_cash": 662,
+              "1600_total_assets": 7360,
+              "1300_equity": 2944,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 4416,
+              "1700_total_liabilities": 7360
+            },
+            "income": {
+              "2110_revenue": 19262,
+              "2120_cost_of_sales": 13900,
+              "2200_sales_profit": 3329,
+              "2330_interest_payable": 221,
+              "2300_profit_before_tax": 2774,
+              "2400_net_profit": 2311
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 3040,
+              "1210_inventories": 1680,
+              "1230_receivables": 1920,
+              "1250_cash": 720,
+              "1600_total_assets": 8000,
+              "1300_equity": 3200,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 4800,
+              "1700_total_liabilities": 8000
+            },
+            "income": {
+              "2110_revenue": 23500,
+              "2120_cost_of_sales": 16958,
+              "2200_sales_profit": 4061,
+              "2330_interest_payable": 240,
+              "2300_profit_before_tax": 3384,
+              "2400_net_profit": 2820
+            }
+          }
+        ]
+      },
+      "kontur": {
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Сведения об адресе недостоверны (запись ФНС)"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 0,
+        "checked_at": "2026-10-20"
+      }
+    }
+  ],
+  "entrepreneurs": [
+    {
+      "scenario": "Интернет-магазин, долгая история, без нарушений",
+      "expected_outcome": "approved",
+      "egrip": {
+        "inn": "770275682070",
+        "ogrnip": "314775258983197",
+        "fio": "Орлов Дмитрий Александрович",
+        "citizenship": "Российская Федерация",
+        "status": "Действующий",
+        "status_date": null,
+        "registration_date": "2014-05-19",
+        "registration_authority": "Межрайонная инспекция ФНС № 46 по г. Москве",
+        "region_code": "77",
+        "okved": {
+          "main": {
+            "code": "47.91",
+            "name": "Торговля розничная по почте или по информационно-коммуникационной сети Интернет"
+          },
+          "additional": [
+            {
+              "code": "46.90",
+              "name": "Торговля оптовая неспециализированная"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы)",
+        "average_headcount": 6,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 1652000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 1900000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Салон красоты на патенте, небольшой стабильный оборот",
+      "expected_outcome": "approved",
+      "egrip": {
+        "inn": "780589394921",
+        "ogrnip": "321784821416210",
+        "fio": "Никитина Елена Сергеевна",
+        "citizenship": "Российская Федерация",
+        "status": "Действующий",
+        "status_date": null,
+        "registration_date": "2021-02-11",
+        "registration_authority": "Межрайонная инспекция ФНС № 15 по Санкт-Петербургу",
+        "region_code": "78",
+        "okved": {
+          "main": {
+            "code": "96.02",
+            "name": "Предоставление услуг парикмахерскими и салонами красоты"
+          },
+          "additional": []
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "ПСН",
+        "average_headcount": 5,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 51000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 59000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Мастерская: есть недоимка и мелкие взыскания",
+      "expected_outcome": "counter_offer",
+      "egrip": {
+        "inn": "660152185456",
+        "ogrnip": "322669145244107",
+        "fio": "Хабибуллин Тимур Маратович",
+        "citizenship": "Российская Федерация",
+        "status": "Действующий",
+        "status_date": null,
+        "registration_date": "2022-08-01",
+        "registration_authority": "Инспекция ФНС по Верх-Исетскому району г. Екатеринбурга",
+        "region_code": "66",
+        "okved": {
+          "main": {
+            "code": "33.12",
+            "name": "Ремонт машин и оборудования"
+          },
+          "additional": [
+            {
+              "code": "25.62",
+              "name": "Обработка металлических изделий механическая"
+            }
+          ]
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы минус расходы)",
+        "average_headcount": 2,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 298000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 103000
+          }
+        ],
+        "tax_arrears_rub": 212000,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Налоговая задолженность",
+          "Исполнительные производства"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 2,
+          "sum_rub": 268000
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "Кофейня, ИП открыт 4 месяца назад",
+      "expected_outcome": "info_requested",
+      "egrip": {
+        "inn": "160560013003",
+        "ogrnip": "326164118955795",
+        "fio": "Сафина Гульнара Ильясовна",
+        "citizenship": "Российская Федерация",
+        "status": "Действующий",
+        "status_date": null,
+        "registration_date": "2026-06-17",
+        "registration_authority": "Межрайонная инспекция ФНС № 18 по Республике Татарстан",
+        "region_code": "16",
+        "okved": {
+          "main": {
+            "code": "56.10",
+            "name": "Деятельность ресторанов и услуги по доставке продуктов питания"
+          },
+          "additional": []
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "АУСН",
+        "average_headcount": 1,
+        "msp_register": {
+          "included": true,
+          "category": "Микропредприятие"
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 57000
+          },
+          {
+            "year": 2025,
+            "paid_rub": 66000
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "yellow",
+        "reliability_notes": [
+          "ИП зарегистрирован менее 6 месяцев назад"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    },
+    {
+      "scenario": "ИП закрыт, кредитовать нельзя",
+      "expected_outcome": "rejected",
+      "egrip": {
+        "inn": "540165939722",
+        "ogrnip": "317546158464503",
+        "fio": "Громов Павел Викторович",
+        "citizenship": "Российская Федерация",
+        "status": "Прекратил деятельность",
+        "status_date": "2025-12-30",
+        "registration_date": "2017-03-03",
+        "registration_authority": "Инспекция ФНС по Центральному району г. Новосибирска",
+        "region_code": "54",
+        "okved": {
+          "main": {
+            "code": "68.20",
+            "name": "Аренда и управление собственным или арендованным недвижимым имуществом"
+          },
+          "additional": []
+        },
+        "last_update": "2026-10-01"
+      },
+      "fns": {
+        "tax_regime": "УСН (доходы)",
+        "average_headcount": 0,
+        "msp_register": {
+          "included": false,
+          "category": null
+        },
+        "taxes_paid": [
+          {
+            "year": 2024,
+            "paid_rub": 0
+          },
+          {
+            "year": 2025,
+            "paid_rub": 0
+          }
+        ],
+        "tax_arrears_rub": 0,
+        "account_blocks": [],
+        "mass_registration_address": false,
+        "disqualified_persons": false,
+        "unreliable_data": [],
+        "checked_at": "2026-10-20"
+      },
+      "gir_bo": {
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      },
+      "kontur": {
+        "reliability": "red",
+        "reliability_notes": [
+          "Деятельность ИП прекращена"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-20"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+import { http } from '../http'
+import type { IdentityApi } from './types'
+
+/** Настоящий Identity API бэкенда */
+export const realIdentityApi: IdentityApi = {
+  login: (login, password) => http('/auth/login', { method: 'POST', body: { login, password } }),
+  me: () => http('/me'),
+  updateProfile: (data) => http('/me/profile', { method: 'PATCH', body: data }),
+  listAccounts: (params = {}) => http('/accounts', { query: { limit: params.limit ?? 100, offset: params.offset } }),
+  createAccount: (data) => http('/accounts', { method: 'POST', body: data }),
+  updateAccount: (id, data) => http(`/accounts/${id}`, { method: 'PATCH', body: data }),
+  deleteAccount: (id) => http(`/accounts/${id}`, { method: 'DELETE' }),
+  listRoles: () => http('/roles'),
+  createRole: (data) => http('/roles', { method: 'POST', body: data }),
+  updateRole: (id, data) => http(`/roles/${id}`, { method: 'PATCH', body: data }),
+  deleteRole: (id) => http(`/roles/${id}`, { method: 'DELETE' }),
+}
