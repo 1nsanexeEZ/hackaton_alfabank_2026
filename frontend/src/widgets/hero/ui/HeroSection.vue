@@ -66,23 +66,15 @@ import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
 
 <style scoped>
 /*
- * Низ hero со скруглёнными «плечами»: нижняя полоса высотой --r вырезана маской,
- * кроме углов. Сквозь вырез видна страница — следующая секция выглядит
- * как светлый лист, наехавший на hero, но без собственного фона.
+ * Hero занимает весь первый экран. Следующая секция наезжает на него
+ * скруглённым листом на --r, поэтому добавляем эту высоту сверх экрана.
  */
 .hero {
   --r: 2.5rem;
-  /* Высота шапки: hero занимает весь первый экран, вырез со скруглением — уже за его краем */
+  /* Высота шапки */
   --header: 4rem;
 
   min-height: calc(100dvh - var(--header) + var(--r));
-
-  mask:
-    linear-gradient(#000 0 0) top / 100% calc(100% - var(--r)) no-repeat,
-    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - 0.5px), #000 var(--r)) bottom left /
-      var(--r) var(--r) no-repeat,
-    radial-gradient(circle at 0 100%, transparent calc(var(--r) - 0.5px), #000 var(--r)) bottom right /
-      var(--r) var(--r) no-repeat;
 }
 
 @media (width >= 64rem) {

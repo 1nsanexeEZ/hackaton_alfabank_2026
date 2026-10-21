@@ -16,7 +16,7 @@ const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.stat
 
 <template>
   <article
-    class="rounded-card bg-night-glass p-5 text-on-night ring-1 ring-night-line backdrop-blur-md sm:p-6"
+    class="rounded-card bg-night-elevated/90 p-5 text-on-night ring-1 ring-night-line sm:p-6"
     aria-label="Пример заявки в кабинете"
   >
     <header class="flex items-start justify-between gap-3">
