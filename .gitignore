@@ -1,0 +1,39 @@
+# 1.СЕКРЕТЫ
+.env
+.env.local
+.env.production
+.env.*.local
+*.pem
+*.key
+*.crt
+docker-compose.override.yml # Если будешь использовать для локальной разработки
+
+# 2. PYTHON
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# 3. ЛОГИ, БЭКАПЫ И ВРЕМЕННЫЕ ФАЙЛЫ
+*.log
+logs/
+backup/
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+tmp/
+temp/
+*.tmp
+
+
+
