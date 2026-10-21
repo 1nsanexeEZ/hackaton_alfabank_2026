@@ -29,6 +29,8 @@ class RequiredDocumentDTO:
     title: str
     # Required only from this amount (None — always).
     required_from_amount: Decimal | None = None
+    # Required only for these legal forms (empty — for every form).
+    legal_forms: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
