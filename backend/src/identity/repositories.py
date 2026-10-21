@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from sqlalchemy import exists, func, select
@@ -38,6 +38,10 @@ class AccountRepository:
     async def get_active_by_phone(self, phone: str) -> Account | None:
         stmt = select(Account).where(Account.phone == phone, Account.entity_is_not_deleted())
         return (await self._session.scalars(stmt)).unique().one_or_none()
+
+    async def list_active_by_emails(self, emails: Collection[str]) -> Sequence[Account]:
+        stmt = select(Account).where(Account.email.in_(emails), Account.entity_is_not_deleted())
+        return (await self._session.scalars(stmt)).unique().all()
 
     async def login_taken(
         self,
