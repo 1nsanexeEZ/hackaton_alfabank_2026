@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-30}
+      JWT_PRIVATE_KEY_PATH: /app/keys/jwt_private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/jwt_public.pem
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-Admin-2026!}
+    volumes:
+      # Keeps the signing key across restarts, otherwise every restart logs everyone out.
+      - jwt-keys:/app/keys
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+volumes:
+  pgdata:
+  jwt-keys:
