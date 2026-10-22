@@ -236,6 +236,20 @@ class ClientTimelineEntry(ClientModel):
     title: str
 
 
+class HeadConsent(ClientModel):
+    # The head by the state registry gives their own consent to the request of
+    # their credit history; without it the bank skips that check.
+    required: bool
+    given: bool
+    given_at: datetime | None
+    head_name: str
+
+
+class ApplicationConsents(ClientModel):
+    # None — the registry names no head of the company.
+    head_credit_bureau: HeadConsent | None
+
+
 class ClientApplicationCard(ClientModel):
     id: UUID
     number: str
@@ -252,6 +266,7 @@ class ClientApplicationCard(ClientModel):
     info_request: InfoRequest | None
     offer: Offer | None
     decision: ClientDecision | None
+    consents: ApplicationConsents
     timeline: list[ClientTimelineEntry]
     feed: list[FeedItem]
     available_actions: list[str]

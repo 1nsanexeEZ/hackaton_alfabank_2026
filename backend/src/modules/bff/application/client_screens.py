@@ -12,11 +12,17 @@ from uuid import UUID
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
 from src.modules.applications.facade import ACTIVE_STATUSES, ApplicationCardDTO, ApplicationsFacade
 from src.modules.bff.application import views
-from src.modules.bff.application.actions import available_actions, todo_for
+from src.modules.bff.application.actions import (
+    CONSENT_PENDING_STATUSES,
+    available_actions,
+    consent_todo,
+    todo_for,
+)
 from src.modules.bff.application.client_status import client_status, offer_kind_of_row
 from src.modules.bff.application.neighbours import Neighbours
 from src.modules.clients.facade import ClientsFacade, OrganizationSummaryDTO, OrgPermission
 from src.modules.decision.facade import ClientDecisionDTO, DecisionFacade
+from src.modules.identity.facade import IdentityFacade
 from src.modules.notifications.facade import FeedItemDTO, NotificationsFacade
 from src.modules.products.facade import ProductsFacade, Purpose
 from src.modules.projector.facade import ApplicationOverviewDTO, ProjectorFacade, TimelineEntryDTO
@@ -87,6 +93,19 @@ class ClientScreens:
                         application_id=row.application_id, number=row.number, kind=kind, title=title
                     )
                 )
+        pending = next((r for r in active if r.status in CONSENT_PENDING_STATUSES), None)
+        if pending is not None and await self._n.optional(
+            "head_consent", lambda: self._head_consent_missing(account_id, chosen), False
+        ):
+            kind, title = consent_todo(pending.number)
+            todo.append(
+                views.TodoItem(
+                    application_id=pending.application_id,
+                    number=pending.number,
+                    kind=kind,
+                    title=title,
+                )
+            )
 
         pre_approved = await self._n.optional(
             "pre_approved", lambda: self._pre_approved(chosen), []
@@ -132,6 +151,33 @@ class ClientScreens:
             )
             for o in offers
         ]
+
+    async def _head_consent_missing(self, account_id: UUID, organization_id: UUID) -> bool:
+        if await self._n(ClientsFacade).get_registry_head(organization_id) != account_id:
+            return False
+        consent = await self._n(IdentityFacade).get_active_consent(
+            account_id, "credit_bureau_personal"
+        )
+        return consent is None
+
+    async def _head_consent(self, organization_id: UUID) -> views.HeadConsent | None:
+        """The head's name is the registry's; a head without an account in the company
+        has not given the consent."""
+        head_name = (await self._n(ClientsFacade).get_snapshot(organization_id)).head_name
+        if head_name is None:
+            return None
+        head_id = await self._n(ClientsFacade).get_registry_head(organization_id)
+        consent = None
+        if head_id is not None:
+            consent = await self._n(IdentityFacade).get_active_consent(
+                head_id, "credit_bureau_personal"
+            )
+        return views.HeadConsent(
+            required=True,
+            given=consent is not None,
+            given_at=consent.given_at if consent else None,
+            head_name=head_name,
+        )
 
     async def _product_names(self) -> dict[str, str]:
         async def load() -> dict[str, str]:
@@ -192,7 +238,12 @@ class ClientScreens:
             ),
             [],
         )
-        return _card(card, name, timeline, decision, feed, permissions, self._n.degraded)
+        head_consent = await self._n.optional(
+            "head_consent", lambda: self._head_consent(card.organization_id), None
+        )
+        return _card(
+            card, name, timeline, decision, head_consent, feed, permissions, self._n.degraded
+        )
 
     # --- product matching ---------------------------------------------------
 
@@ -278,6 +329,7 @@ def _card(
     product_name: str | None,
     timeline: list[TimelineEntryDTO],
     decision: ClientDecisionDTO | None,
+    head_consent: views.HeadConsent | None,
     feed: list[FeedItemDTO],
     permissions: frozenset[str],
     degraded: list[str],
@@ -318,6 +370,7 @@ def _card(
         info_request=views.InfoRequest.model_validate(open_request) if open_request else None,
         offer=views.Offer.model_validate(card.offer) if card.offer else None,
         decision=client_decision,
+        consents=views.ApplicationConsents(head_credit_bureau=head_consent),
         timeline=[
             views.ClientTimelineEntry.model_validate(e) for e in timeline if e.audience == "client"
         ],
