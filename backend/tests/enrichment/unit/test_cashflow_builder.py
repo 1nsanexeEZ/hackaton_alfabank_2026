@@ -10,12 +10,12 @@ from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEn
 from src.modules.applications.facade import ScoringInputDTO
 from src.modules.enrichment.application.cashflow import CashflowBuilder
 from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.modules.enrichment.application.sources import Sources
 from tests.enrichment.unit.test_fetch_enrichment import (
     FakeBureau,
     FakeRegistry,
     FakeTax,
     InMemoryRepo,
+    sources,
 )
 from tests.fakes import builders
 from tests.fakes.messaging import FakeOutboxWriter
@@ -63,7 +63,7 @@ def _use_case(
 ) -> tuple[FetchEnrichmentUseCase, InMemoryRepo, FakeOutboxWriter]:
     repo, outbox = InMemoryRepo(), FakeOutboxWriter()
     use_case = FetchEnrichmentUseCase(
-        repo, Sources(FakeRegistry(), FakeTax(), FakeBureau()), FrozenClock(), builder
+        repo, sources(FakeRegistry(), FakeTax(), FakeBureau()), FrozenClock(), builder
     )
     return use_case, repo, outbox
 

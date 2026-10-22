@@ -1,0 +1,114 @@
+{
+  "policy_version": "policy_v2",
+  "key_rate": "16.50",
+  "outcome": "REQUEST_INFO",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "INFO_REVENUE_NOT_CONFIRMED"
+  ],
+  "client_explanation": "Чтобы принять решение, нам нужно немного больше информации. Подтвердите выручку выпиской по счёту за 6 месяцев.",
+  "improvement_hints": [
+    "Выписку можно выгрузить из интернет-банка в формате CSV.",
+    "Расхождение выручки с данными ФНС — приложите выписку по счёту."
+  ],
+  "requested_info": {
+    "fields": [],
+    "documents": [
+      "bank_statement"
+    ],
+    "comment": "Подтвердите выручку выпиской по счёту за 6 месяцев."
+  },
+  "rule_trace": [
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "максимальная просрочка 0 дн., порог > 90"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": false,
+      "detail": "текущая просрочка компании 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": false,
+      "detail": "текущая просрочка руководителя 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": false,
+      "detail": "решений о приостановлении операций по счетам: 0"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": false,
+      "detail": "недоимка 0, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": false,
+      "detail": "исполнительные производства 0, порог > 0.1 × выручка 12 000 000 (ГИР БО за 2025) = 1 200 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": false,
+      "detail": "иски к компании 0, порог > 0.2 × выручка 12 000 000 (ГИР БО за 2025) = 2 400 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": false,
+      "detail": "собственный капитал за 2025: 3 500 000"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 49.41 — не в стоп-листе"
+    },
+    {
+      "rule": "stop.grade",
+      "matched": false,
+      "detail": "грейд B (скор 700)"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": true,
+      "detail": "выручка не подтверждена ФНС — запрашиваем выписку по счёту за 6 месяцев"
+    }
+  ],
+  "limits": {
+    "by_product": null,
+    "by_revenue": null,
+    "by_ltv": null,
+    "by_capacity": null,
+    "final": null
+  },
+  "rate": null,
+  "scoring": {
+    "score": 700,
+    "grade": "B",
+    "flags": [
+      "revenue_mismatch"
+    ]
+  }
+}

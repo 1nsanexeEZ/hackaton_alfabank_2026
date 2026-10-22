@@ -11,6 +11,18 @@ class BkiRequest(BaseModel):
     request_id: str | None = None
 
 
+class PersonBkiRequest(BaseModel):
+    """Кредитный отчёт физлица (руководителя). `company_inn` — компания, от имени которой
+    запрашивают: по нему мок подбирает сценарий демо-руководителя."""
+
+    last_name: str
+    first_name: str
+    middle_name: str | None = None
+    company_inn: str | None = None
+    consent_at: str | None = None
+    request_id: str | None = None
+
+
 class AbsRequest(BaseModel):
     application_id: str
     account: str

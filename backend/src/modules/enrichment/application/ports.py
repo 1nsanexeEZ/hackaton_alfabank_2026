@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.modules.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, TaxProfileDTO
+from src.modules.enrichment.facade import (
+    AccountingReportsDTO,
+    CounterpartyRiskDTO,
+    CreditHistoryDTO,
+    RegistryExtractDTO,
+    TaxProfileDTO,
+)
 
 
 class SourceError(Exception):
@@ -38,6 +45,35 @@ class TaxSource(Protocol):
 
 class CreditBureauSource(Protocol):
     async def fetch(self, inn: str, consent_at: datetime) -> CreditHistoryDTO: ...
+
+
+class AccountingReportsSource(Protocol):
+    """ГИР БО: бухотчётность юрлица."""
+
+    async def fetch(self, inn: str) -> AccountingReportsDTO: ...
+
+
+class CounterpartyRiskSource(Protocol):
+    """Контур: суды, приставы, банкротство."""
+
+    async def fetch(self, inn: str) -> CounterpartyRiskDTO: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PersonQuery:
+    """Физлицо для запроса кредитной истории; `company_inn` — компания, по заявке которой
+    спрашиваем."""
+
+    last_name: str
+    first_name: str
+    middle_name: str | None
+    company_inn: str
+
+
+class PersonBureauSource(Protocol):
+    """БКИ физлица: только с согласием самого человека (218-ФЗ)."""
+
+    async def fetch(self, person: PersonQuery, consent_at: datetime) -> CreditHistoryDTO: ...
 
 
 class EnrichmentRepository(Protocol):

@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Literal, Protocol
 from uuid import UUID
 
-Source = Literal["egrul", "fns", "bki", "statement"]
+Source = Literal["egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,16 @@ class RegistryExtractDTO:
 
 
 @dataclass(frozen=True, slots=True)
+class AccountBlockDTO:
+    """Решение ФНС о приостановлении операций по счетам."""
+
+    decision_number: str
+    date: date
+    authority_code: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class TaxProfileDTO:
     tax_arrears: Decimal
     avg_headcount: int
@@ -48,6 +58,78 @@ class TaxProfileDTO:
     tax_regime: str
     disqualified_head: bool
     in_msp_registry: bool
+    account_blocks: tuple[AccountBlockDTO, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class AccountingPeriodDTO:
+    """Год бухотчётности из ГИР БО, рубли (у источника — тыс. ₽)."""
+
+    year: int
+    revenue: Decimal
+    cost_of_sales: Decimal
+    sales_profit: Decimal
+    interest_payable: Decimal
+    net_profit: Decimal
+    fixed_assets: Decimal
+    inventories: Decimal
+    receivables: Decimal
+    cash: Decimal
+    equity: Decimal
+    total_assets: Decimal
+    long_term_liabilities: Decimal
+    short_term_liabilities: Decimal
+    total_liabilities: Decimal  # строка 1700 — итог пассива
+
+
+@dataclass(frozen=True, slots=True)
+class AccountingReportsDTO:
+    available: bool
+    reason: str | None  # почему отчётности нет: ИП, компания младше года
+    periods: tuple[AccountingPeriodDTO, ...]  # от старых к новым
+
+    @property
+    def latest(self) -> AccountingPeriodDTO | None:
+        return max(self.periods, key=lambda p: p.year) if self.periods else None
+
+
+@dataclass(frozen=True, slots=True)
+class ArbitrationDTO:
+    as_defendant: int
+    as_plaintiff: int
+    defendant_sum: Decimal  # иски к компании, рубли
+
+
+@dataclass(frozen=True, slots=True)
+class EnforcementDTO:
+    active: int
+    sum: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class BankruptcyMessageDTO:
+    date: date
+    type: str
+    case: str
+
+
+@dataclass(frozen=True, slots=True)
+class GovContractsDTO:
+    count: int
+    sum: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class CounterpartyRiskDTO:
+    """Контур.Фокус: суды, приставы, банкротство."""
+
+    reliability: Literal["green", "yellow", "red"]
+    notes: tuple[str, ...]
+    arbitration: ArbitrationDTO
+    enforcement: EnforcementDTO
+    bankruptcy_messages: tuple[BankruptcyMessageDTO, ...]
+    gov_contracts: GovContractsDTO
+    active_pledges: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +200,12 @@ class EnrichmentSnapshotDTO:
     fns: TaxProfileDTO | None
     bki: CreditHistoryDTO | None
     cashflow: CashflowForecastDTO | None
+    gir_bo: AccountingReportsDTO | None = None
+    kontur: CounterpartyRiskDTO | None = None
+    # Кредитная история руководителя по реестру — только с его личным согласием.
+    bki_head: CreditHistoryDTO | None = None
+    # Не запрошенные источники и почему: no_consent, no_head.
+    sources_skipped: tuple[SourceErrorDTO, ...] = ()
 
 
 class EnrichmentFacade(Protocol):

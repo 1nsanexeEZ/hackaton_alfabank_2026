@@ -1,6 +1,7 @@
 """EnrichmentSnapshot — что внешние источники сказали о компании по одной заявке
 на один момент. БКИ запрашивается только при согласии субъекта (218-ФЗ): без
-согласия источник помечается `skipped`, а не запрашивается.
+согласия источник помечается `skipped`, а не запрашивается. БКИ руководителя — так же,
+по его личному согласию; нет руководителя по реестру — тоже `skipped`.
 
 Данные источников переносим в DTO из facade.py (они — чистые dataclass'ы), чтобы
 не дублировать структуры; бизнес-логика снимка — здесь.
@@ -14,20 +15,31 @@ from typing import Literal
 from uuid import UUID
 
 from src.modules.enrichment.facade import (
+    AccountingReportsDTO,
     CashflowForecastDTO,
+    CounterpartyRiskDTO,
     CreditHistoryDTO,
     RegistryExtractDTO,
     Source,
     TaxProfileDTO,
 )
 
-SourceData = RegistryExtractDTO | TaxProfileDTO | CreditHistoryDTO | CashflowForecastDTO
+SourceData = (
+    RegistryExtractDTO
+    | TaxProfileDTO
+    | CreditHistoryDTO
+    | CashflowForecastDTO
+    | AccountingReportsDTO
+    | CounterpartyRiskDTO
+)
 SourceStatus = Literal["ok", "failed", "skipped"]
+# Прогноз по выписке строит сам модуль: это не внешний источник, в ok / failed он не считается.
+INTERNAL_SOURCES: frozenset[Source] = frozenset({"statement"})
 
 
 @dataclass(frozen=True, slots=True)
 class SourceError:
-    kind: str  # timeout | unavailable | not_found | bad_response | no_consent
+    kind: str  # timeout | unavailable | not_found | bad_response | no_consent | no_head
     message: str
 
 
@@ -97,19 +109,22 @@ class EnrichmentSnapshot:
 
     @property
     def sources_ok(self) -> list[Source]:
-        # Only external sources (egrul/fns/bki); `statement` — внутренний, не считается.
-        return [
-            s
-            for s in self.requested_sources
-            if s in self.results and self.results[s].status == "ok"
-        ]
+        # Только внешние источники; `statement` — внутренний, не считается.
+        return self._external_with("ok")
 
     @property
     def sources_failed(self) -> list[Source]:
+        return self._external_with("failed")
+
+    @property
+    def sources_skipped(self) -> list[Source]:
+        return self._external_with("skipped")
+
+    def _external_with(self, status: SourceStatus) -> list[Source]:
         return [
             s
             for s in self.requested_sources
-            if s in self.results and self.results[s].status == "failed"
+            if s not in INTERNAL_SOURCES and s in self.results and self.results[s].status == status
         ]
 
     def _data(self, source: Source) -> SourceData | None:
@@ -127,6 +142,18 @@ class EnrichmentSnapshot:
     def credit_history(self) -> CreditHistoryDTO | None:
         data = self._data("bki")
         return data if isinstance(data, CreditHistoryDTO) else None
+
+    def head_credit_history(self) -> CreditHistoryDTO | None:
+        data = self._data("bki_head")
+        return data if isinstance(data, CreditHistoryDTO) else None
+
+    def accounting(self) -> AccountingReportsDTO | None:
+        data = self._data("gir_bo")
+        return data if isinstance(data, AccountingReportsDTO) else None
+
+    def counterparty(self) -> CounterpartyRiskDTO | None:
+        data = self._data("kontur")
+        return data if isinstance(data, CounterpartyRiskDTO) else None
 
     def record_cashflow(self, forecast: CashflowForecastDTO, *, fetched_at: datetime) -> None:
         self.results["statement"] = SourceResult(

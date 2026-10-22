@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import TaxProfileDTO
+from src.modules.enrichment.facade import AccountBlockDTO, TaxProfileDTO
 from src.modules.enrichment.infrastructure.adapters.base import HttpSource, kop_to_rub
 
 
@@ -28,4 +29,14 @@ def _map(raw: dict[str, Any]) -> TaxProfileDTO:
         tax_regime=str(raw["tax_regime"]),
         disqualified_head=bool(raw["disqualified_head"]),
         in_msp_registry=bool(raw["msp_registry"]),
+        # Нет поля в ответе — блокировок нет.
+        account_blocks=tuple(
+            AccountBlockDTO(
+                decision_number=str(block["decision_number"]),
+                date=date.fromisoformat(block["date"]),
+                authority_code=str(block["authority_code"]),
+                reason=str(block["reason"]),
+            )
+            for block in raw.get("account_blocks", [])
+        ),
     )

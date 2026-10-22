@@ -11,7 +11,13 @@ from src.modules.enrichment.application.ports import (
     SourceNotFound,
     SourceUnavailable,
 )
-from src.modules.enrichment.facade import EnrichmentSnapshotDTO, RegistryExtractDTO, SourceErrorDTO
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
+from src.modules.enrichment.facade import (
+    EnrichmentSnapshotDTO,
+    RegistryExtractDTO,
+    Source,
+    SourceErrorDTO,
+)
 from src.modules.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
 
 _LOOKUP_TTL = timedelta(minutes=10)
@@ -31,15 +37,7 @@ class EnrichmentFacadeImpl:
             return None
         # sources_failed исключает внутренний `statement` (как и sources_ok) — симметрично
         # с домено́вым снимком; провал разбора выписки виден по cashflow=None, не как источник.
-        failed = tuple(
-            SourceErrorDTO(
-                source=source,
-                code=snapshot.results[source].error.kind,
-                message=snapshot.results[source].error.message,
-            )
-            for source in snapshot.sources_failed
-            if snapshot.results[source].error is not None
-        )
+        failed = _errors(snapshot, snapshot.sources_failed)
         return EnrichmentSnapshotDTO(
             id=snapshot.id,
             application_id=snapshot.application_id,
@@ -51,6 +49,10 @@ class EnrichmentFacadeImpl:
             fns=snapshot.tax(),
             bki=snapshot.credit_history(),
             cashflow=snapshot.cashflow(),
+            gir_bo=snapshot.accounting(),
+            kontur=snapshot.counterparty(),
+            bki_head=snapshot.head_credit_history(),
+            sources_skipped=_errors(snapshot, snapshot.sources_skipped),
         )
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
@@ -66,3 +68,11 @@ class EnrichmentFacadeImpl:
             raise InfrastructureError("Реестр временно недоступен") from exc
         _lookup_cache[inn] = (now + _LOOKUP_TTL, extract)
         return extract
+
+
+def _errors(snapshot: EnrichmentSnapshot, sources: list[Source]) -> tuple[SourceErrorDTO, ...]:
+    return tuple(
+        SourceErrorDTO(source=source, code=error.kind, message=error.message)
+        for source in sources
+        if (error := snapshot.results[source].error) is not None
+    )

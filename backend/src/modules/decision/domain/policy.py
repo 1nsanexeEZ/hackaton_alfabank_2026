@@ -4,13 +4,16 @@
 `rule_trace` (сработало правило или нет и почему):
 
 1. стоп-факторы → REJECT без вариантов: ликвидация/банкротство по ЕГРЮЛ, дисквалификация
-   руководителя, просрочка > 90 дней, грейд E;
+   руководителя, просрочка > 90 дней, грейд E; с policy_v2 ещё — текущая просрочка компании
+   или руководителя, блокировки счетов и недоимка выше порога (ФНС), сообщения о банкротстве,
+   исполнительные производства и иски выше доли выручки (Контур), отрицательный капитал
+   (ГИР БО), массовый адрес и ОКВЭД из стоп-листа;
 2. дозапрос → REQUEST_INFO: флаг `revenue_mismatch`, а закрытого дозапроса выписки ещё не было;
 3. ставка: база продукта + надбавка за грейд − скидка за залог + (ключевая − опорная),
    в коридоре продукта; господдержка — не выше потолка программы;
 4. лимит: min(продукт, k(грейд) × выручка, LTV × залог, платёжеспособность);
 5. маршрутизация → MANUAL_REVIEW: сумма выше лимита автоматики, грейд D, расхождения, сбой
-   источников, массовый адрес (`thin_file` не маршрутизирует);
+   источников, массовый адрес, с policy_v2 — недоимка по налогам (`thin_file` не маршрутизирует);
 6. исход: APPROVE как просили / COUNTER_OFFER (лимит вниз до 10 000, срок подобран в рамках
    продукта) / REJECT с альтернативным продуктом.
 
@@ -18,7 +21,8 @@
 (овердрафт или кредитная линия — что проходит eligibility) и объяснение клиенту.
 
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
-входа и ключевой ставки, без IO и без `now()`.
+входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 включаются своими ключами в YAML:
+нет ключа — нет правила и нет строки в трассе, поэтому решения policy_v1 не меняются.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from src.modules.decision.domain.explanations import ExplanationCatalog, month_in, render, rub
 from src.modules.decision.domain.model import (
     AlternativeInput,
+    CompanyInput,
     DecisionInput,
     Grade,
     InfoNeed,
@@ -51,6 +56,12 @@ _MONTHLY_DIVISOR = Decimal(1200)  # 12 месяцев × 100 %
 _TWELVE = Decimal(12)
 _MAX_HINTS = 4
 _GRADE_ORDER: tuple[Grade, ...] = ("A", "B", "C", "D", "E")
+_HEAD_BUREAU_SKIPPED = {
+    "no_consent": "нет согласия руководителя на запрос его БКИ — проверка не выполнена",
+    "no_head": "руководитель по реестру не найден среди участников — проверка не выполнена",
+    "failed": "БКИ руководителя не ответило — проверка не выполнена",
+    "not_requested": "БКИ руководителя не запрашивалось — проверка не выполнена",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +86,17 @@ class PolicyConfig:
     secured_product: str
     small_amount_product: str
     offer_valid_days: int
+    # policy_v2. None / False / пусто — правило выключено (так ведёт себя policy_v1).
+    stop_current_overdue_days: int | None = None  # текущая просрочка компании и руководителя
+    stop_account_blocks: bool = False
+    stop_tax_arrears_above: Decimal | None = None  # недоимка строго больше — стоп
+    stop_bankruptcy_messages: bool = False
+    stop_enforcement_share: Decimal | None = None  # исп. производства > доли годовой выручки
+    stop_lawsuits_share: Decimal | None = None  # иски к компании > доли годовой выручки
+    stop_negative_equity: bool = False
+    stop_mass_address: bool = False
+    stop_okved_classes: frozenset[str] = frozenset()  # двузначные классы ОКВЭД
+    route_tax_arrears: bool = False  # недоимка > 0 (не выше стоп-порога) → ручная проверка
 
 
 class CreditPolicy:
@@ -356,11 +378,189 @@ class _Evaluation:
         if overdue_stop:
             reasons.append(ReasonCode.STOP_OVERDUE_90)
 
+        self._external_stops(reasons)
+
         grade_stop = score.grade in self._c.stop_grades
         self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
         if grade_stop:
             reasons.append(ReasonCode.STOP_GRADE_E)
         return tuple(reasons)
+
+    def _external_stops(self, reasons: list[ReasonCode]) -> None:
+        """Стоп-факторы policy_v2: каждое правило — только если оно включено в YAML."""
+        company, counterparty = self._in.company, self._in.counterparty
+        checks = (
+            self._current_overdue(),
+            self._head_overdue(),
+            self._account_blocks(company),
+            self._tax_arrears_stop(company),
+            self._bankruptcy_messages(),
+            self._revenue_share(
+                "stop.enforcement",
+                self._c.stop_enforcement_share,
+                "исполнительные производства",
+                counterparty.enforcement_sum if counterparty is not None else None,
+                ReasonCode.STOP_LARGE_ENFORCEMENT,
+            ),
+            self._revenue_share(
+                "stop.lawsuits",
+                self._c.stop_lawsuits_share,
+                "иски к компании",
+                counterparty.lawsuits_sum if counterparty is not None else None,
+                ReasonCode.STOP_LARGE_LAWSUITS,
+            ),
+            self._negative_equity(),
+            self._mass_address(company),
+            self._okved(company),
+        )
+        reasons.extend(code for code in checks if code is not None)
+
+    def _current_overdue(self) -> ReasonCode | None:
+        days = self._c.stop_current_overdue_days
+        if days is None:
+            return None
+        current = self._in.bureau.current_overdue_days
+        matched = current is not None and current >= days
+        self._hit(
+            "stop.current_overdue",
+            matched,
+            "БКИ недоступно — проверка не выполнена"
+            if current is None
+            else f"текущая просрочка компании {current} дн., порог ≥ {days}",
+        )
+        return ReasonCode.STOP_CURRENT_OVERDUE if matched else None
+
+    def _head_overdue(self) -> ReasonCode | None:
+        days = self._c.stop_current_overdue_days
+        if days is None:
+            return None
+        head = self._in.head_bureau
+        status = head.status if head is not None else "not_requested"
+        current = (head.current_overdue_days if head is not None else None) or 0
+        matched = status == "ok" and current >= days
+        detail = (
+            f"текущая просрочка руководителя {current} дн., порог ≥ {days}"
+            if status == "ok"
+            else _HEAD_BUREAU_SKIPPED[status]
+        )
+        self._hit("stop.head_overdue", matched, detail)
+        return ReasonCode.STOP_HEAD_OVERDUE if matched else None
+
+    def _account_blocks(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_account_blocks:
+            return None
+        blocks = company.account_blocks
+        matched = bool(blocks)
+        self._hit(
+            "stop.account_blocks",
+            matched,
+            "ФНС не ответила — проверка не выполнена"
+            if blocks is None
+            else f"решений о приостановлении операций по счетам: {blocks}",
+        )
+        return ReasonCode.STOP_ACCOUNT_BLOCKS if matched else None
+
+    def _tax_arrears_stop(self, company: CompanyInput) -> ReasonCode | None:
+        limit = self._c.stop_tax_arrears_above
+        if limit is None:
+            return None
+        arrears = company.tax_arrears
+        matched = arrears is not None and arrears > limit
+        self._hit(
+            "stop.tax_arrears",
+            matched,
+            "ФНС не ответила — проверка не выполнена"
+            if arrears is None
+            else f"недоимка {_num(arrears)}, порог > {_num(limit)}",
+        )
+        return ReasonCode.STOP_TAX_ARREARS if matched else None
+
+    def _bankruptcy_messages(self) -> ReasonCode | None:
+        if not self._c.stop_bankruptcy_messages:
+            return None
+        kontur = self._in.counterparty
+        matched = kontur is not None and kontur.bankruptcy_messages > 0
+        self._hit(
+            "stop.bankruptcy_messages",
+            matched,
+            "Контур не ответил — проверка не выполнена"
+            if kontur is None
+            else f"сообщений о банкротстве: {kontur.bankruptcy_messages}",
+        )
+        return ReasonCode.STOP_BANKRUPTCY_MESSAGE if matched else None
+
+    def _revenue_share(
+        self,
+        rule: str,
+        share: Decimal | None,
+        what: str,
+        amount: Decimal | None,
+        reason: ReasonCode,
+    ) -> ReasonCode | None:
+        """Сумма из Контура больше доли годовой выручки — стоп."""
+        if share is None:
+            return None
+        if amount is None:
+            self._hit(rule, False, "Контур не ответил — проверка не выполнена")
+            return None
+        revenue, basis = self._annual_revenue()
+        if revenue is None:
+            self._hit(rule, False, f"{what} {_num(amount)}; выручка неизвестна — не проверить")
+            return None
+        threshold = (share * revenue).quantize(_CENT, rounding=ROUND_DOWN)
+        matched = amount > threshold
+        self._hit(
+            rule,
+            matched,
+            f"{what} {_num(amount)}, порог > {share} × выручка {_num(revenue)} ({basis}) "
+            f"= {_num(threshold)}",
+        )
+        return reason if matched else None
+
+    def _annual_revenue(self) -> tuple[Decimal | None, str]:
+        """Годовая выручка для долевых порогов: ГИР БО, иначе ФНС, иначе отчёт клиента."""
+        accounting, company = self._in.accounting, self._in.company
+        if accounting is not None and accounting.revenue > 0:
+            return accounting.revenue, f"ГИР БО за {accounting.year}"
+        if company.reported_revenue:
+            return company.reported_revenue, "ФНС"
+        if company.declared_revenue:
+            return company.declared_revenue, "отчёт клиента"
+        return None, ""
+
+    def _negative_equity(self) -> ReasonCode | None:
+        if not self._c.stop_negative_equity:
+            return None
+        accounting = self._in.accounting
+        matched = accounting is not None and accounting.equity < 0
+        self._hit(
+            "stop.negative_equity",
+            matched,
+            "отчётности в ГИР БО нет — проверка не выполнена"
+            if accounting is None
+            else f"собственный капитал за {accounting.year}: {_num(accounting.equity)}",
+        )
+        return ReasonCode.STOP_NEGATIVE_EQUITY if matched else None
+
+    def _mass_address(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_mass_address:
+            return None
+        matched = company.mass_address
+        self._hit(
+            "stop.mass_address",
+            matched,
+            "адрес массовой регистрации (ЕГРЮЛ)" if matched else "адрес не массовый",
+        )
+        return ReasonCode.STOP_MASS_ADDRESS if matched else None
+
+    def _okved(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_okved_classes:
+            return None
+        okved_class = company.okved_main.split(".", 1)[0]
+        matched = okved_class in self._c.stop_okved_classes
+        verdict = "в стоп-листе банка" if matched else "не в стоп-листе"
+        self._hit("stop.okved", matched, f"основной ОКВЭД {company.okved_main} — {verdict}")
+        return ReasonCode.STOP_FORBIDDEN_OKVED if matched else None
 
     # --- 2. дозапрос ---------------------------------------------------------------------------
 
@@ -521,6 +721,19 @@ class _Evaluation:
         self._hit("route.grade", grade_review, f"грейд {score.grade}")
         if grade_review:
             reasons.append(ReasonCode.ROUTE_GRADE_D)
+
+        if self._c.route_tax_arrears:
+            arrears = company.tax_arrears
+            in_arrears = arrears is not None and arrears > 0
+            self._hit(
+                "route.tax_arrears",
+                in_arrears,
+                "ФНС не ответила — проверка не выполнена"
+                if arrears is None
+                else f"недоимка по налогам {_num(arrears)}",
+            )
+            if in_arrears:
+                reasons.append(ReasonCode.ROUTE_TAX_ARREARS)
 
         flags = set(score.flags)
         if company.verification_status == "mismatch":
