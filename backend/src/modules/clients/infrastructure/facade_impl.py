@@ -11,7 +11,7 @@ from src.core.domain import Money
 from src.core.domain.clock import Clock
 from src.modules.clients.domain.financial_report import FinancialReport, ReportSource
 from src.modules.clients.domain.organization import Organization, organization_not_found
-from src.modules.clients.domain.rights import OrgPermission
+from src.modules.clients.domain.rights import HEAD_ROLES, Authority, MemberRole, OrgPermission
 from src.modules.clients.facade import (
     DiscrepancyDTO,
     FinancialReportDTO,
@@ -150,6 +150,18 @@ class ClientsFacadeImpl:
             return []
         wanted = _permission(permission) if permission is not None else None
         return org.members_with(wanted, self._clock.now())
+
+    async def get_registry_head(self, organization_id: UUID) -> UUID | None:
+        org = await self._organizations.get(organization_id)
+        if org is None:
+            return None
+        heads = [
+            m for m in org.members if m.role in HEAD_ROLES and m.authority is Authority.REGISTRY
+        ]
+        if not heads:
+            return None
+        heads.sort(key=lambda m: (m.role is not MemberRole.DIRECTOR, m.added_at))
+        return heads[0].account_id
 
     async def _get(self, organization_id: UUID) -> Organization:
         org = await self._organizations.get(organization_id)

@@ -95,3 +95,9 @@ class ClientsFacade(Protocol):
     async def list_members(
         self, organization_id: UUID, permission: str | None = None
     ) -> list[UUID]: ...
+
+    async def get_registry_head(self, organization_id: UUID) -> UUID | None:
+        """The member whose name matched the head in the state registry (authority by the
+        registry): the person whose own consent the bank needs for their credit history.
+        A director goes before an owner. None — no such member or no company."""
+        ...
