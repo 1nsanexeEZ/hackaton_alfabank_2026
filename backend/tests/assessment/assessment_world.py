@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi.testclient import TestClient
@@ -24,12 +24,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.applications.facade import ApplicationsFacade, ScoringInputDTO
+from src.applications.infrastructure.repository import SqlAlchemyApplicationRepository
 from src.clients.infrastructure.models import OrganizationModel
 from src.core.access.permissions import Permissions
 from src.core.messaging.contracts.base import IntegrationMessage
+from src.core.messaging.contracts.decision import MakeDecision
 from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.core.messaging.contracts.scoring import CalculateScore
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
+from src.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
 from src.enrichment.application.sources import Sources
 from src.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -223,6 +226,60 @@ class Assessment:
     def calculate_score(self, application_id: UUID) -> dict[str, Any]:
         command = CalculateScore(application_id=application_id)
         return self.deliver(command, application_id, reply="ScoreCalculated")
+
+    def make_decision(self, application_id: UUID) -> dict[str, Any]:
+        command = MakeDecision(application_id=application_id)
+        return self.deliver(command, application_id, reply="DecisionMade")
+
+    def decision(self, application_id: UUID) -> DecisionDTO | None:
+        """Решение для банка: с кодами причин и трассой правил."""
+        return self.facade(DecisionFacade, lambda f: f.get_decision(application_id))
+
+    def client_view(self, application_id: UUID) -> ClientDecisionDTO | None:
+        """То, что видит клиент: без кодов причин и трассы."""
+        return self.facade(DecisionFacade, lambda f: f.get_client_view(application_id))
+
+    # --- дозапрос: играем process, которого ещё нет ------------------------
+
+    def request_statement(self, application_id: UUID, comment: str) -> UUID:
+        """Взять заявку в работу и запросить выписку. Команды `StartReview`/`RequestInfo`
+        applications пока не слушает, поэтому меняем агрегат напрямую — как API-тесты
+        applications играют process."""
+        clock = self.client.app.state.clock  # type: ignore[attr-defined]
+        info_request_id = uuid4()
+
+        async def change(session: AsyncSession) -> None:
+            repository = SqlAlchemyApplicationRepository(session)
+            application = await repository.get(application_id)
+            now = clock.now()
+            application.start_review(now)
+            application.request_info(
+                info_request_id=info_request_id,
+                fields=(),
+                documents=("bank_statement",),
+                comment=comment,
+                due_at=None,
+                now=now,
+            )
+            application.pull_events()
+            await repository.save(application)
+            await session.commit()
+
+        self.with_session(change)
+        return info_request_id
+
+    def answer_with_statement(
+        self, application_id: UUID, info_request_id: UUID, *, email: str, statement: str
+    ) -> None:
+        """Клиент загружает выписку по дозапросу и отвечает на него через API."""
+        headers = self.headers(email)
+        content = (_STATEMENTS / f"{statement}.csv").read_bytes()
+        self._upload(str(application_id), "bank_statement", content, "text/csv", headers)
+        answered = self.client.post(
+            f"/applications/{application_id}/info-requests/{info_request_id}/answer",
+            headers=headers,
+        )
+        assert answered.status_code == 200, answered.text
 
     def deliver(
         self, command: IntegrationMessage, application_id: UUID, *, reply: str

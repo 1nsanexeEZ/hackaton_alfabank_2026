@@ -1,8 +1,9 @@
 """Сквозные golden-тесты оценки заявки (#41) на реальных фасадах и сидах §9.
 
-Каждый сценарий: заявка подаётся через API от демо-аккаунта → команда `FetchEnrichment` →
-ответ `EnrichmentCompleted` → команда `CalculateScore` → ответ `ScoreCalculated`. Числа совпадают с
-golden scoring (`tests/scoring/golden`), потому что входы те же: данные моков и каталог продуктов.
+Каждый сценарий: заявка подаётся через API от демо-аккаунта → `FetchEnrichment` →
+`EnrichmentCompleted` → `CalculateScore` → `ScoreCalculated` → `MakeDecision` → `DecisionMade`.
+Числа скоринга совпадают с golden scoring (`tests/scoring/golden`), исходы решения — с golden
+политики (`tests/decision/unit`): входы те же — данные моков и каталог продуктов.
 Страховка для e2e: если поменяется контракт соседа, это видно здесь, а не на демо.
 """
 
@@ -10,7 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +22,7 @@ from src.clients.facade import ClientsFacade, OrgPermission
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.exceptions.exceptions import PermissionDeniedError
+from src.decision.facade import DecisionDTO
 from src.enrichment import module as enrichment_module
 from src.enrichment.facade import EnrichmentFacade
 from src.main import create_app
@@ -27,7 +31,7 @@ from tests.assessment.assessment_world import NOW, Assessment, mock_sources
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import create_schema
 
-_ASSESSMENT_TOPICS = {"enrichment.commands", "scoring.commands"}
+_ASSESSMENT_TOPICS = {"enrichment.commands", "scoring.commands", "decision.commands"}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -43,13 +47,21 @@ class Scenario:
     statement: str | None = None
     collateral: dict[str, Any] | None = None
     product_fields: dict[str, Any] | None = None
-    # ожидания
+    # обогащение и скоринг
     sources_failed: tuple[str, ...] = ()
     cash_gap: bool | None = None
     gap_month: str | None = None
     score: int
     grade: str
     flags: frozenset[str] = field(default_factory=frozenset)
+    # решение
+    outcome: str
+    reasons: frozenset[str] = field(default_factory=frozenset)  # все должны быть
+    any_reason: frozenset[str] = field(default_factory=frozenset)  # хотя бы одна
+    offer: str | None = None  # сумма оффера ровно
+    offer_between: tuple[str, str] | None = None  # [от, до) для встречного предложения
+    alternative: str | None = None
+    explains: str | None = None  # что клиент должен прочитать в объяснении
 
 
 SCENARIOS = (
@@ -62,6 +74,8 @@ SCENARIOS = (
         term=24,
         score=790,
         grade="A",
+        outcome="APPROVE",
+        offer="3000000",
     ),
     Scenario(
         name="S-2 ivanov UNSECURED 5 млн с выпиской",
@@ -77,6 +91,12 @@ SCENARIOS = (
         score=565,
         grade="C",
         flags=frozenset({"thin_file", "cash_gap"}),
+        outcome="COUNTER_OFFER",
+        reasons=frozenset({"CASH_GAP_FORECAST"}),
+        any_reason=frozenset({"LIMIT_BY_REVENUE", "LIMIT_BY_PAYMENT_CAPACITY"}),
+        offer_between=("300000", "5000000"),
+        alternative="OVERDRAFT",
+        explains="кассов",
     ),
     Scenario(
         name="S-3 vector CREDIT_LINE 10 млн",
@@ -89,6 +109,8 @@ SCENARIOS = (
         score=620,
         grade="C",
         flags=frozenset({"verification_mismatch"}),
+        outcome="MANUAL_REVIEW",
+        reasons=frozenset({"ROUTE_VERIFICATION_MISMATCH"}),
     ),
     Scenario(
         name="S-4 zakat UNSECURED 2 млн",
@@ -99,18 +121,8 @@ SCENARIOS = (
         term=12,
         score=395,
         grade="E",
-    ),
-    Scenario(
-        name="S-5 progress CREDIT_LINE 8 млн",
-        email="owner@progress.test",
-        inn="7704568152",
-        product="CREDIT_LINE",
-        amount="8000000",
-        term=24,
-        documents=("financial_report",),
-        score=700,
-        grade="B",
-        flags=frozenset({"revenue_mismatch"}),
+        outcome="REJECT",
+        reasons=frozenset({"STOP_LIQUIDATION", "STOP_OVERDUE_90"}),
     ),
     Scenario(
         name="S-6 sboy UNSECURED 1 млн, БКИ недоступно",
@@ -123,6 +135,8 @@ SCENARIOS = (
         score=760,
         grade="A",
         flags=frozenset({"bureau_unavailable"}),
+        outcome="MANUAL_REVIEW",
+        reasons=frozenset({"ROUTE_SOURCES_FAILED"}),
     ),
     Scenario(
         name="S-7 romashka MORTGAGE 30 млн с залогом",
@@ -146,6 +160,8 @@ SCENARIOS = (
         },
         score=700,
         grade="B",
+        outcome="MANUAL_REVIEW",
+        reasons=frozenset({"ROUTE_AMOUNT_OVER_AUTO_LIMIT"}),
     ),
 )
 
@@ -173,7 +189,7 @@ def assessment(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Assessment]
 
 
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.name)
-def test_enrichment_and_scoring(assessment: Assessment, scenario: Scenario) -> None:
+def test_assessment_scenario(assessment: Assessment, scenario: Scenario) -> None:
     application_id = assessment.apply(
         email=scenario.email,
         inn=scenario.inn,
@@ -200,12 +216,71 @@ def test_enrichment_and_scoring(assessment: Assessment, scenario: Scenario) -> N
     scored = assessment.calculate_score(application_id)
     assert (scored["score"], scored["risk_grade"]) == (scenario.score, scenario.grade)
     assert set(scored["flags"]) == scenario.flags
-
     result = assessment.facade(ScoringFacade, lambda f: f.get_result(application_id))
     assert result is not None and result.score == scenario.score
 
-    stuck = [d for d in assessment.dead_letters() if d["topic"] in _ASSESSMENT_TOPICS]
-    assert stuck == []
+    made = assessment.make_decision(application_id)
+    assert made["outcome"] == scenario.outcome
+    assert made["decided_by"] == "auto"
+    assert made.get("alternative_product_code") == scenario.alternative
+    _check_offer(made, scenario)
+    decision = assessment.decision(application_id)
+    assert decision is not None and decision.outcome == scenario.outcome
+    assert scenario.reasons <= set(decision.reason_codes), decision.reason_codes
+    if scenario.any_reason:
+        assert scenario.any_reason & set(decision.reason_codes), decision.reason_codes
+    _check_client_view(assessment, application_id, decision, scenario.explains)
+
+    assert _stuck(assessment) == []
+
+
+def test_s5_progress_request_info_then_manual_review(assessment: Assessment) -> None:
+    """S-5: выручка не подтверждена → дозапрос выписки → после выписки — к андеррайтеру."""
+    email = "owner@progress.test"
+    application_id = assessment.apply(
+        email=email,
+        inn="7704568152",
+        product="CREDIT_LINE",
+        amount="8000000",
+        term=24,
+        documents=("financial_report",),
+    )
+    enriched = assessment.fetch_enrichment(application_id)
+    assert enriched["cash_gap_detected"] is None  # выписки ещё нет
+    scored = assessment.calculate_score(application_id)
+    assert (scored["score"], scored["risk_grade"]) == (700, "B")
+    assert "revenue_mismatch" in scored["flags"]
+
+    # S-5a: просим выписку, а не отказываем и не отправляем к андеррайтеру
+    asked = assessment.make_decision(application_id)
+    assert asked["outcome"] == "REQUEST_INFO"
+    assert "bank_statement" in asked["requested_info"]["documents"]
+    first = assessment.decision(application_id)
+    assert first is not None and "INFO_REVENUE_NOT_CONFIRMED" in first.reason_codes
+    _check_client_view(assessment, application_id, first, None)
+
+    info_request_id = assessment.request_statement(
+        application_id, asked["requested_info"]["comment"]
+    )
+    assessment.answer_with_statement(
+        application_id, info_request_id, email=email, statement="progress"
+    )
+
+    # Выписка подтверждает ФНС (12 млн), а не заявленные 36 млн
+    assessment.fetch_enrichment(application_id)
+    snapshot = assessment.facade(EnrichmentFacade, lambda f: f.get_snapshot(application_id))
+    assert snapshot is not None and snapshot.cashflow is not None
+    assert snapshot.cashflow.revenue_confirmed is False
+    rescored = assessment.calculate_score(application_id)
+    assert "revenue_mismatch" in rescored["flags"]
+
+    # S-5b: дозапрос уже был — решает андеррайтер
+    routed = assessment.make_decision(application_id)
+    assert routed["outcome"] == "MANUAL_REVIEW"
+    second = assessment.decision(application_id)
+    assert second is not None and "ROUTE_REVENUE_MISMATCH" in second.reason_codes
+
+    assert _stuck(assessment) == []
 
 
 def test_s8_accountant_cannot_sign(assessment: Assessment) -> None:
@@ -216,3 +291,33 @@ def test_s8_accountant_cannot_sign(assessment: Assessment) -> None:
         assessment.facade(
             ClientsFacade, lambda f: f.ensure_can(accountant, romashka, OrgPermission.SIGN)
         )
+
+
+def _check_offer(made: dict[str, Any], scenario: Scenario) -> None:
+    offer = made.get("offer")
+    if scenario.offer is None and scenario.offer_between is None:
+        assert offer is None
+        return
+    assert offer is not None
+    amount = Decimal(offer["amount"])
+    if scenario.offer is not None:
+        assert amount == Decimal(scenario.offer)
+    if scenario.offer_between is not None:
+        low, high = (Decimal(value) for value in scenario.offer_between)
+        assert low <= amount < high, amount
+
+
+def _check_client_view(
+    assessment: Assessment, application_id: UUID, decision: DecisionDTO, explains: str | None
+) -> None:
+    """Клиенту — исход и понятное объяснение, но не внутренние коды и не трасса правил."""
+    view = assessment.client_view(application_id)
+    assert view is not None and view.outcome == decision.outcome
+    assert view.client_explanation
+    assert not any(code in view.client_explanation for code in decision.reason_codes)
+    if explains is not None:
+        assert explains in view.client_explanation.lower()
+
+
+def _stuck(assessment: Assessment) -> list[Any]:
+    return [d for d in assessment.dead_letters() if d["topic"] in _ASSESSMENT_TOPICS]
