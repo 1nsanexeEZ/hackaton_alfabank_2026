@@ -6,7 +6,7 @@ import { ScoreBreakdown } from '@/entities/application'
 import { InnLookupForm } from '@/features/check-inn'
 import type { Dossier, ScoreResult } from '@/shared/api'
 import { PanelCard } from '@/shared/ui'
-import { AdminPageHeader } from '@/widgets/admin-layout'
+import { AdminPageHeader, DemoSectionNote } from '@/widgets/admin-layout'
 import { CounterpartyDossier } from '@/widgets/counterparty-dossier'
 
 const result = shallowRef<{ dossier: Dossier; score: ScoreResult } | null>(null)
@@ -23,6 +23,7 @@ function onResult(value: { dossier: Dossier; score: ScoreResult } | null, inn: s
     title="Проверка по ИНН"
     description="Досье из ЕГРЮЛ/ЕГРИП, ФНС, ГИР БО и Контура и предварительный скоринг — до того, как клиент подал заявку"
   />
+  <DemoSectionNote text="Проверки по ИНН до заявки на бэкенде нет: досье и скоринг здесь — на синтетических данных в браузере. Настоящие источники и скоринг — в карточке заявки." />
 
   <PanelCard>
     <InnLookupForm @result="onResult" />

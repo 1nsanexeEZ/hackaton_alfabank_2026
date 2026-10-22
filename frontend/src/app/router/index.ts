@@ -2,7 +2,7 @@ import { START_LOCATION, createRouter, createWebHistory, type RouteLocationRaw }
 
 import { canEnterAdmin, onSessionExpired, session } from '@/entities/session'
 import { LandingPage } from '@/pages/landing'
-import type { Permission } from '@/shared/api'
+import { API_MODE, type Permission } from '@/shared/api'
 import { ADMIN_ROUTE, APP_NAME, ROUTE_PATH } from '@/shared/config'
 import { ADMIN_NAVIGATION, AdminLayout } from '@/widgets/admin-layout'
 
@@ -22,6 +22,7 @@ const HEADER_OFFSET = 80
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // В режиме real обзор, заявки и карточка — на данных бэкенда (бэк-офис андеррайтера), в mock — на моке
   routes: [
     { path: ROUTE_PATH.home, name: 'landing', component: LandingPage },
     {
@@ -39,20 +40,29 @@ export const router = createRouter({
         {
           path: 'dashboard',
           name: ADMIN_ROUTE.dashboard,
-          component: () => import('@/pages/admin-dashboard').then((module) => module.AdminDashboardPage),
+          component: () =>
+            import('@/pages/admin-dashboard').then((module) =>
+              API_MODE === 'real' ? module.BackofficeDashboardPage : module.AdminDashboardPage,
+            ),
           meta: { title: 'Обзор', permission: 'requests.read' },
         },
         {
           path: 'applications',
           name: ADMIN_ROUTE.applications,
-          component: () => import('@/pages/admin-applications').then((module) => module.AdminApplicationsPage),
+          component: () =>
+            import('@/pages/admin-applications').then((module) =>
+              API_MODE === 'real' ? module.BackofficeApplicationsPage : module.AdminApplicationsPage,
+            ),
           meta: { title: 'Заявки', permission: 'requests.read' },
         },
         {
           path: 'applications/:id',
           name: ADMIN_ROUTE.application,
           props: true,
-          component: () => import('@/pages/admin-application').then((module) => module.AdminApplicationPage),
+          component: () =>
+            import('@/pages/admin-application').then((module) =>
+              API_MODE === 'real' ? module.BackofficeApplicationPage : module.AdminApplicationPage,
+            ),
           meta: { title: 'Заявка', permission: 'requests.read' },
         },
         {
