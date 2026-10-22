@@ -42,6 +42,7 @@ from src.applications.domain.value_objects import (
     CollateralDeclaration,
     Consents,
     DecisionSummary,
+    Disbursement,
     LoanRequest,
     Offer,
     OrganizationSnapshot,
@@ -77,6 +78,7 @@ class CreditApplication:
         offer: Offer | None = None,
         decision_summary: DecisionSummary | None = None,
         signature: Signature | None = None,
+        disbursement: Disbursement | None = None,
         client_stage: str | None = None,
         history: list[StatusChange] | None = None,
         version: int = 1,
@@ -99,6 +101,7 @@ class CreditApplication:
         self.offer = offer
         self.decision_summary = decision_summary
         self.signature = signature
+        self.disbursement = disbursement
         self.client_stage = client_stage
         self.history: list[StatusChange] = list(history or [])
         self.version = version
@@ -450,9 +453,11 @@ class CreditApplication:
         self._expire_open_info_request()
         self._move(S.REJECTED, PROCESS, now, reason=summary.client_explanation)
 
-    def mark_disbursed(self, now: datetime) -> bool:
+    def mark_disbursed(self, now: datetime, disbursement: Disbursement | None = None) -> bool:
         if self.status is S.DISBURSED:
             return False
+        ensure_transition(self.status, S.DISBURSED)
+        self.disbursement = disbursement
         self._move(S.DISBURSED, PROCESS, now)
         return True
 

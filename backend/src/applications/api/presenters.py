@@ -133,6 +133,13 @@ def application(view: ApplicationView) -> schemas.ApplicationOut:
         )
         if app.decision_summary
         else None,
+        disbursement=schemas.DisbursementOut(
+            reference=app.disbursement.reference,
+            disbursed_at=app.disbursement.disbursed_at,
+            simulated=app.disbursement.simulated,
+        )
+        if app.disbursement
+        else None,
         history=[
             schemas.StatusChangeOut(
                 from_status=h.from_status,

@@ -226,6 +226,9 @@ def card(application: CreditApplication) -> ApplicationCardDTO:
         updated_at=application.updated_at,
         submitted_at=application.submitted_at,
         closed_at=application.closed_at,
+        disbursement_reference=application.disbursement.reference
+        if application.disbursement
+        else None,
     )
 
 

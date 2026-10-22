@@ -165,6 +165,13 @@ class DecisionSummaryOut(BaseModel):
     alternative_product_code: str | None
 
 
+class DisbursementOut(BaseModel):
+    reference: str
+    disbursed_at: datetime
+    # Paid out through the mock of the core banking system.
+    simulated: bool
+
+
 class StatusChangeOut(BaseModel):
     from_status: str | None
     to_status: str
@@ -191,6 +198,7 @@ class ApplicationOut(BaseModel):
     info_requests: list[InfoRequestOut]
     offer: OfferOut | None
     decision_summary: DecisionSummaryOut | None
+    disbursement: DisbursementOut | None
     history: list[StatusChangeOut]
     # What the current user can do now — the frontend shows only these buttons.
     available_actions: list[str]
