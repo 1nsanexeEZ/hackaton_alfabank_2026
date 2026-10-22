@@ -70,6 +70,22 @@ services:
     networks:
       - alfa_network
 
+  # Моки внешних систем (ЕГРЮЛ, ФНС, БКИ, АБС, ЭДО) — настоящий HTTP-сервис, backend ходит в него
+  # через адаптеры. Для демо «хаос» выключен: небольшая задержка, без случайных 503
+  # (для проверки устойчивости поднимите MOCK_FAILURE_RATE). «Сбой» в БКИ отвечает 503 всегда — сценарий S-6.
+  external-mocks:
+    build: ./external-mocks
+    container_name: alfa_credit_external_mocks
+    restart: unless-stopped
+    environment:
+      MOCK_LATENCY_MS_MIN: ${MOCK_LATENCY_MS_MIN:-100}
+      MOCK_LATENCY_MS_MAX: ${MOCK_LATENCY_MS_MAX:-400}
+      MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0}
+      MOCK_BKI_ALWAYS_FAIL_INNS: ${MOCK_BKI_ALWAYS_FAIL_INNS:-7705729405}
+    mem_limit: 192m
+    networks:
+      - alfa_network
+
   backend:
     build: ./backend
     container_name: alfa_credit_backend
@@ -88,6 +104,7 @@ services:
       # Host the browser uses for presigned URLs (nginx proxies /credit-documents/ to MinIO).
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost}
       APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-}
+      ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
@@ -102,6 +119,8 @@ services:
       minio:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      external-mocks:
         condition: service_healthy
     mem_limit: 768m
     networks:

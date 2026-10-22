@@ -8,9 +8,13 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 from src.enrichment.domain.snapshot import SourceData
 from src.enrichment.facade import (
+    CashflowForecastDTO,
+    CashflowMonthDTO,
+    CashflowProjectionDTO,
     CreditHistoryDTO,
     FounderDTO,
     ObligationDTO,
@@ -27,6 +31,8 @@ def data_to_json(source: Source, data: SourceData) -> dict[str, Any]:
         return _tax_to_json(data)
     if isinstance(data, CreditHistoryDTO):
         return _credit_to_json(data)
+    if isinstance(data, CashflowForecastDTO):
+        return _cashflow_to_json(data)
     raise TypeError(f"Нельзя сериализовать данные источника {source!r}")
 
 
@@ -37,6 +43,8 @@ def data_from_json(source: Source, raw: dict[str, Any]) -> SourceData:
         return _tax_from_json(raw)
     if source == "bki":
         return _credit_from_json(raw)
+    if source == "statement":
+        return _cashflow_from_json(raw)
     raise ValueError(f"Нельзя разобрать данные источника {source!r}")
 
 
@@ -158,4 +166,57 @@ def _credit_from_json(raw: dict[str, Any]) -> CreditHistoryDTO:
         has_active_overdue=raw["has_active_overdue"],
         max_overdue_days_12m=raw["max_overdue_days_12m"],
         total_monthly_payments=Decimal(raw["total_monthly_payments"]),
+    )
+
+
+def _cashflow_to_json(dto: CashflowForecastDTO) -> dict[str, Any]:
+    return {
+        "months_history": [
+            {
+                "month": m.month,
+                "inflow": str(m.inflow),
+                "outflow": str(m.outflow),
+                "net": str(m.net),
+                "balance": str(m.balance),
+            }
+            for m in dto.months_history
+        ],
+        "forecast": [
+            {"month": p.month, "projected_balance": str(p.projected_balance)} for p in dto.forecast
+        ],
+        "gap_detected": dto.gap_detected,
+        "gap_month": dto.gap_month,
+        "gap_amount": str(dto.gap_amount) if dto.gap_amount is not None else None,
+        "annual_inflow": str(dto.annual_inflow),
+        "revenue_confirmed": dto.revenue_confirmed,
+        "method": dto.method,
+        "statement_document_ids": [str(x) for x in dto.statement_document_ids],
+    }
+
+
+def _cashflow_from_json(raw: dict[str, Any]) -> CashflowForecastDTO:
+    return CashflowForecastDTO(
+        months_history=tuple(
+            CashflowMonthDTO(
+                month=m["month"],
+                inflow=Decimal(m["inflow"]),
+                outflow=Decimal(m["outflow"]),
+                net=Decimal(m["net"]),
+                balance=Decimal(m["balance"]),
+            )
+            for m in raw["months_history"]
+        ),
+        forecast=tuple(
+            CashflowProjectionDTO(
+                month=p["month"], projected_balance=Decimal(p["projected_balance"])
+            )
+            for p in raw["forecast"]
+        ),
+        gap_detected=raw["gap_detected"],
+        gap_month=raw["gap_month"],
+        gap_amount=_dec(raw["gap_amount"]),
+        annual_inflow=Decimal(raw["annual_inflow"]),
+        revenue_confirmed=raw["revenue_confirmed"],
+        method=raw["method"],
+        statement_document_ids=tuple(UUID(x) for x in raw["statement_document_ids"]),
     )
