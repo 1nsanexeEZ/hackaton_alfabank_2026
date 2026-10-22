@@ -17,6 +17,14 @@ const BY_DETAILS_CODE: Record<string, string> = {
   upload_missing: 'Файл ещё не дошёл до хранилища — попробуйте ещё раз',
   invalid_password: 'Неверный пароль',
   org_permission_required: 'Недостаточно прав в компании для этого действия',
+  already_member: 'Этот человек уже участник компании',
+  account_not_found: 'Нет учётной записи с таким email или телефоном',
+  cannot_issue_power_of_attorney: 'Доверенность выдаёт руководитель, полномочия которого подтверждены реестром',
+  self_power_of_attorney: 'Доверенность нельзя выдать самому себе',
+  expired: 'Срок доверенности уже истёк',
+  period_not_closed: 'Этот период ещё не закончился — отчёт за него подать нельзя',
+  report_exists: 'Отчёт за этот период уже отправляется, попробуйте ещё раз',
+  manager_required: 'В компании должен остаться участник, который управляет составом',
 }
 
 const BY_STATUS: Record<number, string> = {

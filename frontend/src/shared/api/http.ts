@@ -69,6 +69,11 @@ interface RequestOptions {
   realm?: AuthRealm
 }
 
+/** Адрес ручки с префиксом API — для того, что ходит в бэк мимо http(): EventSource, ссылки */
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`
+}
+
 function buildUrl(path: string, query?: Query): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {

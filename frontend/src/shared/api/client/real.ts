@@ -28,7 +28,55 @@ export const realClientApi: ClientApi = {
     call(`/applications/${id}/documents/${documentId}/confirm`, { method: 'POST' }),
   deleteDocument: (id, documentId) => call(`/applications/${id}/documents/${documentId}`, { method: 'DELETE' }),
   submitApplication: (id) => call(`/applications/${id}/submit`, { method: 'POST' }),
-  cancelApplication: (id) => call(`/applications/${id}/cancel`, { method: 'POST' }),
+  cancelApplication: (id, reason) =>
+    call(`/applications/${id}/cancel`, { method: 'POST', body: reason ? { reason } : undefined }),
+
+  dashboard: (organizationId) => call('/bff/dashboard', { query: { organization_id: organizationId } }),
+  listApplicationRows: (organizationId, limit = 50) =>
+    call('/bff/applications', { query: { organization_id: organizationId, limit } }),
+  getApplicationCard: (id) => call(`/bff/applications/${id}`),
+  acceptOffer: (id) => call(`/applications/${id}/offer/accept`, { method: 'POST' }),
+  declineOffer: (id, reason) =>
+    call(`/applications/${id}/offer/decline`, { method: 'POST', body: reason ? { reason } : undefined }),
+  sign: (id, password) => call(`/applications/${id}/sign`, { method: 'POST', body: { password } }),
+  answerInfoRequest: (id, infoRequestId) =>
+    call(`/applications/${id}/info-requests/${infoRequestId}/answer`, { method: 'POST' }),
+  downloadDocument: (id, documentId) => call(`/applications/${id}/documents/${documentId}/download`),
+
+  recommend: (need) => call('/products/recommend', { method: 'POST', body: need }),
+  recommendFor: (need, organizationId) =>
+    call('/bff/products/recommend', {
+      query: { purpose: need.purpose, amount: need.amount, term_months: need.term_months, organization_id: organizationId },
+    }),
+
+  feed: (query = {}) =>
+    call('/feed', {
+      query: {
+        organization_id: query.organizationId,
+        application_id: query.applicationId,
+        unread_only: query.unreadOnly ? 'true' : undefined,
+        limit: query.limit,
+        offset: query.offset,
+      },
+    }),
+  unreadCount: () => call('/feed/unread-count'),
+  readFeedItem: (itemId) => call(`/feed/${itemId}/read`, { method: 'POST' }),
+  readAllFeed: () => call('/feed/read-all', { method: 'POST' }),
+  streamTicket: () => call('/feed/stream-ticket', { method: 'POST' }),
+  news: (organizationId, limit) => call('/news', { query: { organization_id: organizationId, limit } }),
+  readNews: (newsId) => call(`/news/${newsId}/read`, { method: 'POST' }),
+
+  getOrganization: (id) => call(`/organizations/${id}`),
+  financialReports: (organizationId) => call(`/organizations/${organizationId}/financial-reports`),
+  submitFinancialReport: (organizationId, input) =>
+    call(`/organizations/${organizationId}/financial-reports`, { method: 'POST', body: input }),
+  preApprovedOffers: (organizationId) => call(`/organizations/${organizationId}/pre-approved-offers`),
+  members: (organizationId) => call(`/organizations/${organizationId}/members`),
+  addMember: (organizationId, login, role) =>
+    call(`/organizations/${organizationId}/members`, { method: 'POST', body: { login, role } }),
+  grantPowerOfAttorney: (organizationId, accountId, input) =>
+    call(`/organizations/${organizationId}/members/${accountId}/poa`, { method: 'POST', body: input }),
+  updateProfile: (input) => call('/me/profile', { method: 'PATCH', body: input }),
 
   async uploadFile(upload, file) {
     let response: Response

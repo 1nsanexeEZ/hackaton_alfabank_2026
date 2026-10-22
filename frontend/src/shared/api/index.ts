@@ -1,6 +1,7 @@
 export {
   API_MODE,
   ApiError,
+  apiUrl,
   configureAuth,
   http,
   type ApiErrorDetails,
