@@ -190,15 +190,38 @@ function onFocusOut(event: FocusEvent) {
 </template>
 
 <style scoped>
+/* Стрелки: от них расходится кольцо, при наведении — увеличение с поворотом */
 .catalog-arrow {
   transition:
     background-color 0.2s,
-    scale 0.2s;
+    scale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    rotate 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: catalog-ring 2.4s ease-out infinite;
+}
+
+.catalog-arrow + .catalog-arrow {
+  animation-delay: 1.2s;
 }
 
 .catalog-arrow:hover {
+  animation: none;
   background-color: var(--color-surface-strong);
-  scale: 1.06;
+  scale: 1.1;
+  rotate: -6deg;
+}
+
+.catalog-arrow:active {
+  scale: 0.92;
+}
+
+@keyframes catalog-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(18 18 19 / 0.22);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.75rem rgb(18 18 19 / 0);
+  }
 }
 
 .catalog-seg {
@@ -240,7 +263,8 @@ function onFocusOut(event: FocusEvent) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .catalog-dot {
+  .catalog-dot,
+  .catalog-arrow {
     animation: none;
   }
 }
