@@ -9,12 +9,17 @@ import {
   useLoanSchedule,
   type ProductCatalog,
 } from '@/entities/credit-product'
-import { formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
+import type { PreApprovedOfferDto } from '@/shared/api'
+import { clamp, formatMoney, formatMoneyShort, formatPercent, formatTerm, formatTermLimit } from '@/shared/lib'
 import { BaseButton, RangeField, SelectField } from '@/shared/ui'
 
 import { fitLoanParams } from '../model/loanParams'
 
-const props = defineProps<{ products: ProductCatalog }>()
+const props = defineProps<{
+  products: ProductCatalog
+  /** Предодобрение компании вошедшего клиента — подсказка и предупреждение сверх лимита */
+  preApproved?: { companyName: string; offers: readonly PreApprovedOfferDto[] } | null
+}>()
 
 const emit = defineEmits<{ apply: [] }>()
 
@@ -38,6 +43,14 @@ watch(
   },
   { immediate: true },
 )
+
+const preApprovedOffer = computed(() => props.preApproved?.offers.find((offer) => offer.product_code === product.value.code) ?? null)
+const preApprovedMax = computed(() => (preApprovedOffer.value ? Number(preApprovedOffer.value.max_amount) : null))
+const overPreApproved = computed(() => preApprovedMax.value !== null && amount.value > preApprovedMax.value)
+
+function takePreApproved() {
+  if (preApprovedMax.value !== null) amount.value = clamp(preApprovedMax.value, product.value.amount.min, product.value.amount.max)
+}
 
 // График считает бэкенд (POST /products/{code}/calculate) по базовой ставке и схеме продукта
 const { schedule, pending, estimated } = useLoanSchedule(() => ({
@@ -68,6 +81,24 @@ const { schedule, pending, estimated } = useLoanSchedule(() => ({
         :format-value="formatTerm"
         :editable="false"
       />
+
+      <div
+        v-if="preApprovedOffer && preApproved"
+        class="rounded-2xl p-4 text-sm"
+        :class="overPreApproved ? 'bg-warning-soft' : 'bg-success-soft'"
+      >
+        <p class="text-ink">
+          Для {{ preApproved.companyName }} предварительно одобрено до
+          <b>{{ formatMoney(preApprovedMax ?? 0) }}</b> от {{ formatPercent(Number(preApprovedOffer.rate_from)) }},
+          {{ formatTermLimit(preApprovedOffer.term_max_months) }}
+        </p>
+        <p v-if="overPreApproved" class="mt-2 text-ink-secondary">
+          Сумма больше одобренной — подать заявку можно, но банк может предложить меньше.
+          <button type="button" class="font-medium text-ink underline underline-offset-2" @click="takePreApproved">
+            Взять одобренную сумму
+          </button>
+        </p>
+      </div>
     </div>
 
     <div class="flex flex-col rounded-card bg-night p-6 text-on-night lg:p-8" aria-live="polite">

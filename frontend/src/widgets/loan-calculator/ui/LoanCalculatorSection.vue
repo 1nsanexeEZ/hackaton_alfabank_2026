@@ -3,10 +3,14 @@ import { Calculator, CalendarCheck } from 'lucide-vue-next'
 
 import type { ProductCatalog } from '@/entities/credit-product'
 import { LoanCalculator } from '@/features/calculate-loan'
+import type { PreApprovedOfferDto } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
 import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
-defineProps<{ products: ProductCatalog }>()
+defineProps<{
+  products: ProductCatalog
+  preApproved?: { companyName: string; offers: readonly PreApprovedOfferDto[] } | null
+}>()
 
 const emit = defineEmits<{ apply: [] }>()
 
@@ -47,6 +51,7 @@ const termMonths = defineModel<number>('termMonths', { required: true })
           v-model:amount="amount"
           v-model:term-months="termMonths"
           :products="products"
+          :pre-approved="preApproved"
           @apply="emit('apply')"
         />
       </div>

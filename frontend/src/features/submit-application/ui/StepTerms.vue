@@ -1,20 +1,26 @@
 <script setup lang="ts">
-import { Building2 } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { BadgeCheck, Building2, CircleAlert, Sparkles } from 'lucide-vue-next'
+import { computed, shallowRef, watch } from 'vue'
 
 import {
   amountStep,
   PURPOSE_LABEL,
   termStep,
   useLoanSchedule,
+  useRecommendations,
   type ProductCatalog,
+  type ProductRecommendation,
 } from '@/entities/credit-product'
-import type { LoanPurpose } from '@/shared/api'
-import { formatMoney, formatPercent, formatTerm } from '@/shared/lib'
+import { clientApi, type LoanPurpose, type OrganizationDetailDto } from '@/shared/api'
+import { formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
 import { RangeField, SelectField, TextField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
 
+/**
+ * Шаг «Условия» начинается с подбора: компания и цель → продукты под эту цель (с проверкой компании
+ * и предодобрением) → выбранный продукт, сумма, срок. Подбор — тот же, что на лендинге.
+ */
 const props = defineProps<{ wizard: ApplicationWizard; products: ProductCatalog }>()
 
 const { terms, organizations, organization, product, fieldErrors, ineligibleReason } = props.wizard
@@ -23,13 +29,72 @@ const organizationOptions = computed(() =>
   (organizations.value ?? []).map((item) => ({ value: item.id, label: `${item.name} · ИНН ${item.inn}` })),
 )
 const productOptions = computed(() => props.products.map((item) => ({ value: item.id, label: item.title })))
-const purposeOptions = computed(() =>
-  product.value.purposes.map((value) => ({ value, label: PURPOSE_LABEL[value] })),
-)
+// Цель выбирают первой — поэтому все цели, а не только цели текущего продукта
+const purposeOptions = (Object.keys(PURPOSE_LABEL) as LoanPurpose[]).map((value) => ({ value, label: PURPOSE_LABEL[value] }))
 
 const purpose = computed({
   get: () => terms.purpose as LoanPurpose,
   set: (value: LoanPurpose) => (terms.purpose = value),
+})
+
+const { items: recommended } = useRecommendations(() =>
+  terms.purpose
+    ? {
+        purpose: terms.purpose as LoanPurpose,
+        amount: terms.amount,
+        termMonths: terms.termMonths,
+        organizationId: terms.organizationId || null,
+      }
+    : null,
+)
+
+const productByCode = (code: string) => props.products.find((item) => item.code === code)
+
+/** Подходящие под цель — сначала те, что компании подходят */
+const suggestions = computed(() =>
+  (recommended.value ?? [])
+    .filter((item) => item.status !== 'unavailable' && productByCode(item.code))
+    .sort((a, b) => Number(b.eligible !== false) - Number(a.eligible !== false) || a.rank - b.rank)
+    .slice(0, 4),
+)
+
+function choose(item: ProductRecommendation) {
+  const next = productByCode(item.code)
+  if (next) terms.productId = next.id
+}
+
+// Выбрали цель, под которую текущий продукт не подходит, — берём первый подходящий из подбора
+watch(suggestions, (list) => {
+  const first = list.find((item) => item.eligible !== false) ?? list[0]
+  if (first && !product.value.purposes.includes(terms.purpose as LoanPurpose)) choose(first)
+})
+
+/** Предодобрение по выбранному продукту — из того же подбора */
+const preApprovedMax = computed(() => recommended.value?.find((item) => item.code === product.value.code)?.preApprovedMax ?? null)
+
+/** Реквизиты компании из базы банка: клиенту их не вводить; расхождение с ЕГРЮЛ — заявку посмотрит специалист */
+const requisites = shallowRef<OrganizationDetailDto | null>(null)
+watch(
+  () => terms.organizationId,
+  async (id) => {
+    requisites.value = null
+    if (!id) return
+    try {
+      const detail = await clientApi.getOrganization(id)
+      if (id === terms.organizationId) requisites.value = detail
+    } catch {
+      // Реквизиты — подсказка: без них заявка всё равно подаётся
+    }
+  },
+  { immediate: true },
+)
+
+const requisitesLine = computed(() => {
+  const detail = requisites.value
+  if (!detail) return ''
+  return [`ОГРН ${detail.ogrn}`, detail.kpp && `КПП ${detail.kpp}`, detail.head_name && `руководитель — ${detail.head_name}`]
+    .filter(Boolean)
+    .join(', ')
 })
 
 const { schedule, pending } = useLoanSchedule(() => ({
@@ -58,6 +123,53 @@ const { schedule, pending } = useLoanSchedule(() => ({
         </div>
       </div>
       <p v-if="fieldErrors.organization" class="mt-1.5 text-sm text-brand">{{ fieldErrors.organization }}</p>
+      <p v-if="requisitesLine" class="mt-2 text-xs text-ink-secondary">Из базы банка: {{ requisitesLine }}</p>
+      <p
+        v-if="requisites?.verification.status === 'mismatch'"
+        class="mt-2 flex items-start gap-2 rounded-xl bg-warning-soft p-3 text-sm text-ink"
+      >
+        <CircleAlert class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+        Данные компании расходятся с ЕГРЮЛ — заявку посмотрит специалист банка, решение займёт больше времени.
+      </p>
+    </div>
+
+    <div>
+      <SelectField v-model="purpose" label="Для чего нужны деньги" :options="purposeOptions" />
+      <p v-if="fieldErrors['request.purpose']" class="mt-1.5 text-sm text-brand">
+        {{ fieldErrors['request.purpose'] }}
+      </p>
+    </div>
+
+    <div v-if="suggestions.length">
+      <p class="mb-2 flex items-center gap-2 text-sm font-medium text-ink">
+        <Sparkles class="size-4 text-brand" aria-hidden="true" />
+        Под эту цель подходят
+      </p>
+      <ul class="grid gap-2 sm:grid-cols-2">
+        <li v-for="item in suggestions" :key="item.code">
+          <button
+            type="button"
+            class="flex h-full w-full flex-col items-start gap-1 rounded-xl p-3 text-left text-sm transition-colors"
+            :class="
+              product.code === item.code
+                ? 'bg-brand-soft ring-2 ring-brand'
+                : item.eligible === false
+                  ? 'bg-surface-soft opacity-70 hover:opacity-100'
+                  : 'bg-surface-soft hover:bg-surface'
+            "
+            :aria-pressed="product.code === item.code"
+            @click="choose(item)"
+          >
+            <span class="font-semibold text-ink">{{ productByCode(item.code)?.title }}</span>
+            <span class="text-xs text-ink-secondary">от {{ formatMoney(item.paymentFrom) }} в месяц</span>
+            <span v-if="item.eligible === false" class="text-xs text-brand">{{ item.notEligibleReasons[0] }}</span>
+            <span v-else-if="item.preApprovedMax" class="flex items-center gap-1 text-xs text-success">
+              <BadgeCheck class="size-3.5" aria-hidden="true" />
+              Предварительно до {{ formatMoneyShort(item.preApprovedMax) }}
+            </span>
+          </button>
+        </li>
+      </ul>
     </div>
 
     <div>
@@ -75,6 +187,19 @@ const { schedule, pending } = useLoanSchedule(() => ({
       :step="amountStep(product)"
       :format-value="formatMoney"
     />
+    <p
+      v-if="preApprovedMax"
+      class="-mt-3 flex items-start gap-2 text-sm"
+      :class="terms.amount > preApprovedMax ? 'text-warning' : 'text-success'"
+    >
+      <CircleAlert v-if="terms.amount > preApprovedMax" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <BadgeCheck v-else class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      {{
+        terms.amount > preApprovedMax
+          ? `Больше предварительно одобренных ${formatMoney(preApprovedMax)} — подать можно, но банк может предложить меньше`
+          : `Предварительно одобрено до ${formatMoney(preApprovedMax)}`
+      }}
+    </p>
     <RangeField
       v-model="terms.termMonths"
       label="Срок"
@@ -85,20 +210,12 @@ const { schedule, pending } = useLoanSchedule(() => ({
       :editable="false"
     />
 
-    <div class="grid gap-4 sm:grid-cols-2">
-      <div>
-        <SelectField v-model="purpose" label="Цель кредита" :options="purposeOptions" />
-        <p v-if="fieldErrors['request.purpose']" class="mt-1.5 text-sm text-brand">
-          {{ fieldErrors['request.purpose'] }}
-        </p>
-      </div>
-      <TextField
-        v-model="terms.purposeComment"
-        label="Комментарий к цели"
-        placeholder="Необязательно"
-        :maxlength="500"
-      />
-    </div>
+    <TextField
+      v-model="terms.purposeComment"
+      label="Комментарий к цели"
+      placeholder="Необязательно"
+      :maxlength="500"
+    />
 
     <div class="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-night px-5 py-4 text-on-night">
       <span class="text-sm text-on-night-secondary">

@@ -330,6 +330,9 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       errors['request.product'] = 'Продукт недоступен для этой формы бизнеса'
     }
     if (!terms.purpose) errors['request.purpose'] = 'Выберите цель кредита'
+    else if (!product.value.purposes.includes(terms.purpose)) {
+      errors['request.purpose'] = 'Этот продукт не для такой цели — выберите один из подходящих выше'
+    }
     fieldErrors.value = errors
     return Object.keys(errors).length === 0
   }
