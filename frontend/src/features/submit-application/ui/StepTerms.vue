@@ -101,7 +101,9 @@ const { schedule, pending } = useLoanSchedule(() => ({
     </div>
 
     <div class="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-night px-5 py-4 text-on-night">
-      <span class="text-sm text-on-night-secondary">Платёж в месяц</span>
+      <span class="text-sm text-on-night-secondary">
+        {{ schedule?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Платёж в месяц' }}
+      </span>
       <span class="text-xl font-bold transition-opacity" :class="pending && 'opacity-60'">
         {{ schedule ? formatMoney(schedule.monthlyPayment) : '—' }}
         <span class="text-sm font-normal text-on-night-secondary">

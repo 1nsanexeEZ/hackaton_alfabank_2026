@@ -24,7 +24,7 @@ const summary = computed(() => [
   { label: 'Срок', value: formatTerm(terms.termMonths) },
   { label: 'Цель', value: terms.purpose ? PURPOSE_LABEL[terms.purpose] : '—' },
   {
-    label: 'Платёж в месяц',
+    label: schedule.value?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Платёж в месяц',
     value: schedule.value
       ? `${formatMoney(schedule.value.monthlyPayment)} · от ${formatPercent(schedule.value.rate)}`
       : '—',
