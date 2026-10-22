@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from src.core.domain import Money
@@ -11,6 +12,16 @@ from tests.applications.unit.factories import offer as make_offer
 
 def offer_for(world: World) -> Offer:
     return replace(make_offer(), expires_at=world.clock.now() + timedelta(days=7))
+
+
+def offer_hash(world: World, application_id: str, account_id: UUID | None = None) -> str:
+    """What the client saw in the contract before signing."""
+    contract = world.client.get(
+        f"/applications/{application_id}/contract",
+        headers=world.headers(account_id or world.director),
+    )
+    assert contract.status_code == 200, contract.text
+    return contract.json()["offer_hash"]
 
 
 def to_offer(world: World, application_id: str) -> None:
@@ -72,7 +83,9 @@ def test_accountant_submits_but_does_not_sign(world: World) -> None:
     assert accepted.json()["available_actions"] == []  # no "sign" for the accountant
 
     denied = world.client.post(
-        f"/applications/{application['id']}/sign", json={"password": PASSWORD}, headers=accountant
+        f"/applications/{application['id']}/sign",
+        json={"password": PASSWORD, "offer_hash": offer_hash(world, application["id"])},
+        headers=accountant,
     )
     assert denied.status_code == 403
 
@@ -87,15 +100,18 @@ def test_signing_needs_the_password_again(world: World) -> None:
     headers = world.headers(world.director)
     world.client.post(f"/applications/{application['id']}/offer/accept", headers=headers)
 
+    seen = offer_hash(world, application["id"])
     wrong = world.client.post(
-        f"/applications/{application['id']}/sign", json={"password": "nope"}, headers=headers
+        f"/applications/{application['id']}/sign",
+        json={"password": "nope", "offer_hash": seen},
+        headers=headers,
     )
     assert wrong.status_code == 422
     assert wrong.json()["details"] == {"code": "invalid_password"}
 
     signed = world.client.post(
         f"/applications/{application['id']}/sign",
-        json={"password": PASSWORD},
+        json={"password": PASSWORD, "offer_hash": seen},
         headers={**headers, "User-Agent": "pytest", "X-Real-IP": "203.0.113.7"},
     )
     assert signed.status_code == 200, signed.text
@@ -104,7 +120,7 @@ def test_signing_needs_the_password_again(world: World) -> None:
     signature = body["signature"]
     assert signature["simulated"] is True
     assert signature["edo_document_id"] == f"SIM-{signature['offer_hash'][:16]}"
-    assert len(signature["offer_hash"]) == 64
+    assert signature["offer_hash"] == seen
     assert world.outbox_types()[-1] == "ApplicationSigned"
 
     async def stored_signature() -> SignatureRecord | None:
@@ -117,9 +133,127 @@ def test_signing_needs_the_password_again(world: World) -> None:
     assert record.offer_hash == signature["offer_hash"]
 
     again = world.client.post(
-        f"/applications/{application['id']}/sign", json={"password": PASSWORD}, headers=headers
+        f"/applications/{application['id']}/sign",
+        json={"password": PASSWORD, "offer_hash": seen},
+        headers=headers,
     )
     assert again.status_code == 409
+
+
+def accepted(world: World) -> str:
+    application = world.submit(world.ready())
+    to_offer(world, application["id"])
+    world.client.post(
+        f"/applications/{application['id']}/offer/accept", headers=world.headers(world.director)
+    )
+    return application["id"]
+
+
+def test_contract_is_shown_from_signing_on(world: World) -> None:
+    application = world.submit(world.ready())
+    to_offer(world, application["id"])
+    headers = world.headers(world.director)
+    url = f"/applications/{application['id']}/contract"
+
+    not_yet = world.client.get(url, headers=headers)
+    assert not_yet.status_code == 409
+    assert not_yet.json()["details"]["code"] == "contract_not_ready"
+
+    world.client.post(f"/applications/{application['id']}/offer/accept", headers=headers)
+    contract = world.client.get(url, headers=headers)
+    assert contract.status_code == 200, contract.text
+    body = contract.json()
+    assert body["number"] == application["number"]
+    assert body["status"] == "unsigned" and body["signature"] is None
+    assert body["borrower"]["inn"] == "7701158817"
+    assert body["terms"]["kind"] == "as_requested"
+    schedule = body["schedule"]
+    assert (schedule["term_months"], schedule["repayment"]) == (24, "annuity")
+    assert Decimal(schedule["amount"]) == Decimal(body["terms"]["amount"])
+    assert len(schedule["payments"]) == 24
+    # only the director holds the right to sign; the accountant has no power of attorney
+    assert [s["account_id"] for s in body["signers"]] == [str(world.director)]
+
+    # another company's member does not see the contract
+    stranger = world.client.get(url, headers=world.headers(world.petrov))
+    assert stranger.status_code == 404
+
+
+def test_signers_say_why_they_may_sign(world: World) -> None:
+    """The head by the registry signs by law; anyone else holding the right
+    has a power of attorney."""
+    head_name = world.clients.organizations[world.romashka].head_name
+    assert head_name is not None
+    last, first, *middle = head_name.split()
+    director = world.identity.accounts[world.director]
+    world.identity.accounts[world.director] = replace(
+        director, last_name=last, first_name=first, middle_name=middle[0] if middle else None
+    )
+    world.clients.add_member(
+        world.accountant,
+        world.romashka,
+        "accountant",
+        permissions=frozenset({"view", "submit_application", "sign"}),
+    )
+    application_id = accepted(world)
+
+    body = world.client.get(
+        f"/applications/{application_id}/contract", headers=world.headers(world.director)
+    ).json()
+    signers = {s["account_id"]: (s["name"], s["authority"]) for s in body["signers"]}
+    assert signers[str(world.director)] == (head_name, "registry")
+    assert signers[str(world.accountant)][1] == "power_of_attorney"
+
+
+def test_signed_contract_shows_the_signature(world: World) -> None:
+    application_id = accepted(world)
+    headers = world.headers(world.director)
+    seen = offer_hash(world, application_id)
+    signed = world.client.post(
+        f"/applications/{application_id}/sign",
+        json={"password": PASSWORD, "offer_hash": seen},
+        headers=headers,
+    )
+    assert signed.status_code == 200, signed.text
+
+    body = world.client.get(f"/applications/{application_id}/contract", headers=headers).json()
+    assert body["status"] == "signed"
+    assert body["offer_hash"] == seen
+    signature = body["signature"]
+    assert signature["signed_by"] == str(world.director)
+    assert signature["edo_document_id"] == f"SIM-{seen[:16]}"
+    assert signature["simulated"] is True
+
+
+def test_signing_a_changed_offer_is_refused(world: World) -> None:
+    application_id = accepted(world)
+    headers = world.headers(world.director)
+    seen = offer_hash(world, application_id)
+
+    def change_offer(app) -> None:  # type: ignore[no-untyped-def]
+        app.offer = replace(app.offer, rate=Decimal("30"))
+
+    world.process(application_id, change_offer)
+
+    response = world.client.post(
+        f"/applications/{application_id}/sign",
+        json={"password": PASSWORD, "offer_hash": seen},
+        headers=headers,
+    )
+    assert response.status_code == 409
+    assert response.json()["details"] == {"code": "offer_changed"}
+    card = world.client.get(f"/applications/{application_id}", headers=headers).json()
+    assert card["status"] == "signing"
+
+
+def test_sign_requires_the_offer_hash(world: World) -> None:
+    application_id = accepted(world)
+    response = world.client.post(
+        f"/applications/{application_id}/sign",
+        json={"password": PASSWORD},
+        headers=world.headers(world.director),
+    )
+    assert response.status_code == 422
 
 
 def test_expired_offer_cannot_be_accepted(world: World) -> None:

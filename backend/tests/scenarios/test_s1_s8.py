@@ -70,12 +70,22 @@ class Stand(Assessment):
         self.settle()
         signed = self.client.post(
             f"/applications/{application_id}/sign",
-            json={"password": DEMO_PASSWORD},
+            json={
+                "password": DEMO_PASSWORD,
+                "offer_hash": self.offer_hash(application_id, headers),
+            },
             headers=headers,
         )
         assert signed.status_code == 200, signed.text
         self.settle()
         return self.card(application_id, email)
+
+    def offer_hash(self, application_id: UUID, headers: dict[str, str]) -> str:
+        """The client reads the contract before signing it."""
+        contract = self.client.get(f"/applications/{application_id}/contract", headers=headers)
+        assert contract.status_code == 200, contract.text
+        assert contract.json()["status"] == "unsigned"
+        return contract.json()["offer_hash"]
 
     def stuck(self) -> list[Any]:
         return list(self.dead_letters())
@@ -300,14 +310,19 @@ def test_s8_accountant_submits_but_only_the_director_signs(stand: Stand) -> None
     assert "sign" not in card["my_permissions"]
     accepted = stand.client.post(f"/applications/{application_id}/offer/accept", headers=headers)
     assert accepted.status_code == 200
+    seen = stand.offer_hash(application_id, headers)  # the accountant may read the contract
     denied = stand.client.post(
-        f"/applications/{application_id}/sign", json={"password": DEMO_PASSWORD}, headers=headers
+        f"/applications/{application_id}/sign",
+        json={"password": DEMO_PASSWORD, "offer_hash": seen},
+        headers=headers,
     )
     assert denied.status_code == 403
 
     director = stand.login(ROMASHKA["email"])
     signed = stand.client.post(
-        f"/applications/{application_id}/sign", json={"password": DEMO_PASSWORD}, headers=director
+        f"/applications/{application_id}/sign",
+        json={"password": DEMO_PASSWORD, "offer_hash": stand.offer_hash(application_id, director)},
+        headers=director,
     )
     assert signed.status_code == 200, signed.text
     stand.settle()
