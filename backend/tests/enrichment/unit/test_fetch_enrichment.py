@@ -5,7 +5,11 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from src.core.domain.clock import FrozenClock
-from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEnrichment
+from src.core.messaging.contracts.enrichment import (
+    EnrichmentCompleted,
+    EnrichmentFailed,
+    FetchEnrichment,
+)
 from src.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
 from src.enrichment.application.ports import SourceUnavailable
 from src.enrichment.application.sources import Sources
@@ -152,3 +156,77 @@ async def test_duplicate_command_reuses_snapshot_and_republishes() -> None:
     completed = outbox.of_type(EnrichmentCompleted)
     assert len(completed) == 2
     assert completed[0].snapshot_id == completed[1].snapshot_id
+
+
+class DownSource:
+    """Источник, до которого нет сети: любой запрос — `unavailable`."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def fetch(self, inn: str, *args: object) -> RegistryExtractDTO:
+        self.calls += 1
+        raise SourceUnavailable("unavailable", "connection refused")
+
+
+async def test_all_sources_down_publishes_failed() -> None:
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo,
+        Sources(DownSource(), DownSource(), DownSource()),
+        FrozenClock(),  # type: ignore[arg-type]
+    )
+    await use_case.execute(_command(), command_event_id=uuid4(), outbox=outbox)
+
+    assert outbox.of_type(EnrichmentCompleted) == []
+    failed = outbox.of_type(EnrichmentFailed)
+    assert len(failed) == 1
+    assert (
+        failed[0].reason
+        == "all_sources_failed: egrul=unavailable, fns=unavailable, bki=unavailable"
+    )
+    assert len(repo.added) == 1  # снимок с ошибками сохранён для аудита
+
+
+async def test_registry_and_tax_down_without_bki_consent_fails() -> None:
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo,
+        Sources(DownSource(), DownSource(), FakeBureau()),
+        FrozenClock(),  # type: ignore[arg-type]
+    )
+    await use_case.execute(_command(consent=None), command_event_id=uuid4(), outbox=outbox)
+
+    reason = outbox.of_type(EnrichmentFailed)[0].reason
+    assert "bki=no_consent" in reason
+
+
+async def test_duplicate_failed_command_republishes_failed() -> None:
+    repo, outbox, registry = InMemoryRepo(), FakeOutboxWriter(), DownSource()
+    use_case = FetchEnrichmentUseCase(
+        repo,
+        Sources(registry, DownSource(), DownSource()),
+        FrozenClock(),  # type: ignore[arg-type]
+    )
+    command, event_id = _command(), uuid4()
+    await use_case.execute(command, command_event_id=event_id, outbox=outbox)
+    await use_case.execute(command, command_event_id=event_id, outbox=outbox)
+
+    assert len(repo.added) == 1
+    assert registry.calls == 1
+    assert len(outbox.of_type(EnrichmentFailed)) == 2
+
+
+async def test_one_source_alive_is_still_completed() -> None:
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo,
+        Sources(FakeRegistry(), DownSource(), DownSource()),
+        FrozenClock(),  # type: ignore[arg-type]
+    )
+    await use_case.execute(_command(), command_event_id=uuid4(), outbox=outbox)
+
+    assert outbox.of_type(EnrichmentFailed) == []
+    event = outbox.of_type(EnrichmentCompleted)[0]
+    assert event.sources_ok == ["egrul"]
+    assert set(event.sources_failed) == {"fns", "bki"}

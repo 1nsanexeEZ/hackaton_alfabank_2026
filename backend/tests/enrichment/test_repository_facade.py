@@ -7,7 +7,14 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
-from src.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, TaxProfileDTO
+from src.enrichment.facade import (
+    CashflowForecastDTO,
+    CashflowMonthDTO,
+    CashflowProjectionDTO,
+    CreditHistoryDTO,
+    RegistryExtractDTO,
+    TaxProfileDTO,
+)
 from src.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
 from src.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
 
@@ -111,6 +118,53 @@ async def test_get_by_command_reconstructs_data(
     assert registry is not None
     assert registry.inn == "7701158817"
     assert registry.okved_extra == ("56.29",)
+
+
+def _forecast() -> CashflowForecastDTO:
+    return CashflowForecastDTO(
+        months_history=(
+            CashflowMonthDTO(
+                month="2026-09",
+                inflow=Decimal("1000000.00"),
+                outflow=Decimal("800000.00"),
+                net=Decimal("200000.00"),
+                balance=Decimal("200000.00"),
+            ),
+        ),
+        forecast=(CashflowProjectionDTO(month="2026-11", projected_balance=Decimal("-120000.00")),),
+        gap_detected=True,
+        gap_month="2026-11",
+        gap_amount=Decimal("120000.00"),
+        annual_inflow=Decimal("6000000.00"),
+        revenue_confirmed=True,
+        method="тест",
+        statement_document_ids=(uuid4(),),
+    )
+
+
+async def test_cashflow_roundtrip_through_facade(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    snapshot, application_id = _snapshot()
+    snapshot.record_cashflow(_forecast(), fetched_at=_NOW)
+    async with session_factory() as session:
+        await SqlAlchemyEnrichmentRepository(session).add(snapshot)
+        await session.commit()
+
+    async with session_factory() as session:
+        dto = await EnrichmentFacadeImpl(session, registry=None).get_snapshot(application_id)  # type: ignore[arg-type]
+
+    assert dto is not None
+    assert dto.cashflow is not None
+    assert dto.cashflow.gap_detected is True
+    assert dto.cashflow.gap_month == "2026-11"
+    assert dto.cashflow.gap_amount == Decimal("120000.00")
+    assert dto.cashflow.revenue_confirmed is True
+    assert dto.cashflow.months_history[0].net == Decimal("200000.00")
+    assert dto.cashflow.forecast[0].projected_balance == Decimal("-120000.00")
+    # `statement` — внутренний источник, не попадает ни в успешные, ни в проваленные.
+    assert "statement" not in dto.sources_ok
+    assert all(error.source != "statement" for error in dto.sources_failed)
 
 
 def test_credit_history_dto_isolation() -> None:

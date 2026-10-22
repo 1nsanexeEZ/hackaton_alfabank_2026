@@ -1,0 +1,61 @@
+# Кредитная политика v1 (синтетическая). Логика правил — в domain/policy.py, здесь — пороги
+# и коэффициенты. Файл проверяется при старте: ошибка → приложение не стартует.
+version: policy_v1
+
+# Ключевая ставка, под которую откалиброваны ставки каталога продуктов. Текущая ключевая —
+# DECISION_KEY_RATE; разница сдвигает ставку внутри коридора продукта.
+key_rate_reference: "16.50"
+
+stop_factors:
+  # Статус по ЕГРЮЛ → причина отказа.
+  registry_statuses:
+    liquidating: STOP_LIQUIDATION
+    liquidated: STOP_LIQUIDATION
+    bankrupt: STOP_BANKRUPTCY
+  # Просрочка строго больше — стоп-фактор.
+  overdue_days: 90
+  grades: [E]
+
+info_request:
+  # Флаг revenue_mismatch и закрытого дозапроса с этим документом ещё не было → REQUEST_INFO.
+  revenue_document: bank_statement
+
+limits:
+  # k(грейд) × годовая выручка (меньшая из заявленной и ФНС).
+  revenue_multiplier: {A: "0.5", B: "0.4", C: "0.25", D: "0.15"}
+  # LTV по типу залога — только для залоговых продуктов.
+  ltv: {real_estate: "0.7", vehicle: "0.6", equipment: "0.5", goods: "0.3"}
+  # Платёж ≤ этой доли свободного денежного потока в месяц.
+  payment_share: "0.4"
+  # Нет расходов в отчёте → считаем расходы такой долей выручки.
+  assumed_expense_ratio: "0.8"
+  # Встречное предложение округляем вниз до шага.
+  amount_step: "10000"
+
+pricing:
+  grade_premium: {A: "0", B: "1.5", C: "3.5", D: "6.0"}
+  # Скидка за залог при покрытии (стоимость залога / сумма) не ниже порога.
+  collateral_discount: "1.5"
+  collateral_min_coverage: "1"
+
+routing:
+  # → MANUAL_REVIEW. Плюс всегда: сумма выше auto_decision_limit продукта (у MORTGAGE — 0).
+  grades: [D]
+  # Флаг скоринга → причина. revenue_mismatch сюда доходит только после дозапроса выписки.
+  # thin_file не маршрутизирует (только −10 баллов в скоринге).
+  flags:
+    verification_mismatch: ROUTE_VERIFICATION_MISMATCH
+    revenue_mismatch: ROUTE_REVENUE_MISMATCH
+    bureau_unavailable: ROUTE_SOURCES_FAILED
+    mass_address: ROUTE_MASS_ADDRESS
+
+alternatives:
+  # Под кассовый разрыв — первый продукт, который проходит eligibility.
+  cash_gap_products: [OVERDRAFT, CREDIT_LINE]
+  # Отказ, а у клиента есть залог для беззалогового продукта.
+  secured_product: SECURED
+  # Отказ, но небольшая сумма возможна.
+  small_amount_product: OVERDRAFT
+
+offer:
+  valid_days: 7
