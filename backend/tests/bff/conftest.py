@@ -23,6 +23,7 @@ from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFaca
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.facade import DecisionFacade
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.identity.facade import IdentityFacade
 from src.modules.notifications.facade import NotificationsFacade
 from src.modules.process.facade import ProcessFacade
 from src.modules.products.facade import ProductsFacade
@@ -34,6 +35,7 @@ from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.decision_facade import FakeDecisionFacade
 from tests.fakes.enrichment_facade import FakeEnrichmentFacade
+from tests.fakes.identity_facade import FakeIdentityFacade
 from tests.fakes.notifications_facade import FakeNotificationsFacade
 from tests.fakes.process_facade import FakeProcessFacade
 from tests.fakes.products_facade import FakeProductsFacade
@@ -56,6 +58,7 @@ class World:
     enrichment: FakeEnrichmentFacade
     scoring: FakeScoringFacade
     process: FakeProcessFacade
+    identity: FakeIdentityFacade
     romashka: OrganizationSnapshotDTO
     ivanov: OrganizationSnapshotDTO
     vector: OrganizationSnapshotDTO
@@ -110,6 +113,7 @@ ALL_FACADES: tuple[type[Any], ...] = (
     EnrichmentFacade,
     ScoringFacade,
     ProcessFacade,
+    IdentityFacade,
 )
 
 
@@ -155,6 +159,7 @@ def make_world(settings: Settings) -> Iterator[Callable[..., World]]:
                 EnrichmentFacade: FakeEnrichmentFacade(),
                 ScoringFacade: FakeScoringFacade(),
                 ProcessFacade: FakeProcessFacade(),
+                IdentityFacade: FakeIdentityFacade(),
             }
             for key, fake in fakes.items():
                 if key in skip:
@@ -173,6 +178,7 @@ def make_world(settings: Settings) -> Iterator[Callable[..., World]]:
                 enrichment=fakes[EnrichmentFacade],
                 scoring=fakes[ScoringFacade],
                 process=fakes[ProcessFacade],
+                identity=fakes[IdentityFacade],
                 romashka=romashka,
                 ivanov=ivanov,
                 vector=vector,
