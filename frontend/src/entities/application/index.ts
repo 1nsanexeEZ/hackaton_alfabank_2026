@@ -8,6 +8,8 @@ export {
 } from './model/review'
 export { toClientStatus } from './model/clientStatus'
 export { loanDraft } from './model/draft'
+export { myApplications, type MyApplication } from './model/myApplications'
+export { clientStages } from './model/stages'
 export { APPLICATION_STATUS_META } from './model/status'
 export type {
   ApplicationDraft,

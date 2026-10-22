@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 
-import { loanDraft } from '@/entities/application'
+import { loanDraft, type ApplicationDraft } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { fitLoanParams, getDefaultLoanParams } from '@/features/calculate-loan'
 import { SECTION_ID } from '@/shared/config'
@@ -46,10 +46,16 @@ function applyForProduct(productId: string) {
   selectProduct(productId)
   void startApplication()
 }
+
+/** «Продолжить заявку» на карточке первого экрана: мастер откроется с компанией и условиями черновика */
+function continueApplication(draft: ApplicationDraft) {
+  Object.assign(loanDraft, draft)
+  void startApplication()
+}
 </script>
 
 <template>
-  <HeroSection :products="products" />
+  <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" />
   <BenefitsSection />
   <template v-if="products">
     <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />

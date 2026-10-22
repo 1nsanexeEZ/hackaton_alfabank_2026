@@ -8,8 +8,13 @@ import { BaseBadge } from '@/shared/ui'
 import { APPLICATION_STATUS_META } from '../model/status'
 import type { ApplicationPreview } from '../model/types'
 
-/** Карточка заявки со шкалой этапов. Рассчитана на тёмный фон */
-const props = defineProps<{ application: ApplicationPreview }>()
+/**
+ * Карточка заявки со шкалой этапов. Рассчитана на тёмный фон.
+ * Слоты: top — над заголовком (например, переключатель заявок), footer — под шкалой (действие).
+ */
+const props = withDefaults(defineProps<{ application: ApplicationPreview; label?: string }>(), {
+  label: 'Пример заявки в кабинете',
+})
 
 const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.status])
 </script>
@@ -17,12 +22,16 @@ const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.stat
 <template>
   <article
     class="rounded-card bg-night-elevated/90 p-5 text-on-night ring-1 ring-night-line sm:p-6"
-    aria-label="Пример заявки в кабинете"
+    :aria-label="label"
   >
+    <slot name="top" />
     <header class="flex items-start justify-between gap-3">
-      <div>
+      <div class="min-w-0">
         <p class="text-xs text-on-night-secondary">Заявка № {{ application.number }}</p>
         <p class="mt-1 font-semibold">{{ application.productTitle }}</p>
+        <p v-if="application.organizationName" class="mt-0.5 truncate text-xs text-on-night-secondary">
+          {{ application.organizationName }}
+        </p>
       </div>
       <BaseBadge :tone="statusMeta.tone">{{ statusMeta.label }}</BaseBadge>
     </header>
@@ -30,11 +39,15 @@ const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.stat
     <dl class="mt-5 grid grid-cols-2 gap-3">
       <div class="rounded-2xl bg-white/5 p-3">
         <dt class="text-xs text-on-night-secondary">Сумма</dt>
-        <dd class="mt-1 text-base font-semibold sm:text-lg">{{ formatMoney(application.amount) }}</dd>
+        <dd class="mt-1 text-base font-semibold sm:text-lg">
+          {{ application.amount === null ? '—' : formatMoney(application.amount) }}
+        </dd>
       </div>
       <div class="rounded-2xl bg-white/5 p-3">
         <dt class="text-xs text-on-night-secondary">Срок</dt>
-        <dd class="mt-1 text-base font-semibold sm:text-lg">{{ formatTerm(application.termMonths) }}</dd>
+        <dd class="mt-1 text-base font-semibold sm:text-lg">
+          {{ application.termMonths === null ? '—' : formatTerm(application.termMonths) }}
+        </dd>
       </div>
     </dl>
 
@@ -77,5 +90,6 @@ const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.stat
         </div>
       </li>
     </ol>
+    <slot name="footer" />
   </article>
 </template>

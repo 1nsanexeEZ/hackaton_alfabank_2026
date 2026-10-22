@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
+import { myApplications } from '@/entities/application'
 import { useProductCatalog } from '@/entities/credit-product'
+import { customer } from '@/entities/customer'
 import { CustomerLoginModal } from '@/features/customer-login'
 import { ApplicationModal } from '@/features/submit-application'
 import { AsyncState, BaseModal } from '@/shared/ui'
@@ -23,6 +25,14 @@ function modalModel(name: 'login' | 'application') {
 
 const loginOpen = modalModel('login')
 const applicationOpen = modalModel('application')
+
+// Мастер закрыли — черновик мог появиться, заявка уйти в банк: карточка на первом экране должна это показать
+watch(
+  () => applyFlow.modal,
+  (modal, previous) => {
+    if (previous === 'application' && modal !== 'application' && customer.state.me) void myApplications.refresh()
+  },
+)
 
 const loginDescription = computed(() =>
   applyFlow.continueToApplication

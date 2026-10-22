@@ -240,6 +240,21 @@ export interface ApplicationDto {
   submitted_at: string | null
 }
 
+/** Заявка в списке (GET /applications): по всем компаниям клиента, свежие первыми */
+export interface ApplicationSummaryDto {
+  id: string
+  number: string
+  organization_id: string
+  product_code: string
+  status: ApplicationStatusCode
+  client_stage: string | null
+  /** null — в черновике ещё не указана */
+  amount: string | null
+  term_months: number | null
+  updated_at: string
+  submitted_at: string | null
+}
+
 export interface ApplicationUpdateInput {
   /** Оптимистичная блокировка: устаревшая версия — 409 version_conflict */
   version: number
@@ -291,6 +306,8 @@ export interface ClientApi {
   eligibility(code: string, organizationId: string): Promise<EligibilityDto>
   /** Компании, где пользователь участник */
   listOrganizations(): Promise<OrganizationSummaryDto[]>
+  /** Заявки клиента по всем его компаниям, свежие первыми; limit — до 100 */
+  listApplications(limit?: number): Promise<ApplicationSummaryDto[]>
   /** Уже есть заявка по продукту в работе — 409, details.code = duplicate_active, details.application_id */
   createApplication(organizationId: string, productCode: string): Promise<ApplicationDto>
   getApplication(id: string): Promise<ApplicationDto>

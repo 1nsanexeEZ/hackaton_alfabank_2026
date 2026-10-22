@@ -165,7 +165,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
       organizations.value = list
       const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      terms.organizationId = preferred?.id ?? ''
+      terms.organizationId = takeRequestedOrganization(list) ?? preferred?.id ?? ''
     } catch (caught) {
       organizationsError.value = errorMessage(caught)
     } finally {
@@ -173,7 +173,14 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
   }
 
-  /** Модалка открылась: подхватываем то, что клиент выбрал в каталоге или калькуляторе */
+  /** Компания черновика, который клиент продолжает с первого экрана; берём один раз */
+  function takeRequestedOrganization(list: OrganizationSummaryDto[]): string | undefined {
+    const requested = loanDraft.organizationId
+    loanDraft.organizationId = undefined
+    return list.some((item) => item.id === requested) ? requested : undefined
+  }
+
+  /** Модалка открылась: подхватываем то, что клиент выбрал в каталоге, калькуляторе или на карточке заявки */
   function prepare() {
     const me = customer.state.me?.id ?? null
     if (me !== loadedFor) {
@@ -182,6 +189,12 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       organizations.value = null
     }
     if (step.value === 'done') reset()
+
+    const requested = organizations.value ? takeRequestedOrganization(organizations.value) : undefined
+    if (requested && requested !== terms.organizationId) {
+      terms.organizationId = requested
+      step.value = 'terms'
+    }
 
     const fromSite = findProduct(products(), loanDraft.productId)
     if (step.value === 'terms' || fromSite.id !== terms.productId) {

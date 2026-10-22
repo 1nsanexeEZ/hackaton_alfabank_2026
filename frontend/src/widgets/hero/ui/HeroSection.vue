@@ -2,14 +2,18 @@
 import { Sparkles } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import { ApplicationStatusCard } from '@/entities/application'
+import type { ApplicationDraft } from '@/entities/application'
 import type { CreditProduct } from '@/entities/credit-product'
 import { SECTION_ID, sectionHref } from '@/shared/config'
 import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
-import { HERO_DEMO_APPLICATION, heroStats } from '../model/content'
+import { heroStats } from '../model/content'
+import HeroApplication from './HeroApplication.vue'
 
 const props = defineProps<{ products: readonly CreditProduct[] | null }>()
+
+/** Куда вести «Оформить» и «Продолжить заявку», решает страница: виджет про поток заявки не знает */
+const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft] }>()
 
 const stats = computed(() => heroStats(props.products))
 </script>
@@ -48,7 +52,12 @@ const stats = computed(() => heroStats(props.products))
           </div>
         </div>
 
-        <ApplicationStatusCard :application="HERO_DEMO_APPLICATION" class="w-full lg:justify-self-end" />
+        <HeroApplication
+          :products="products"
+          class="w-full lg:justify-self-end"
+          @apply="emit('apply')"
+          @continue="(draft) => emit('continue', draft)"
+        />
       </div>
 
       <ul class="mt-12 grid grid-cols-2 gap-3 lg:mt-20 lg:grid-cols-4 lg:gap-4">

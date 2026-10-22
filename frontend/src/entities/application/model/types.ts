@@ -8,6 +8,8 @@ export interface ApplicationDraft {
   productId: string
   amount: number
   termMonths: number
+  /** Компания для заявки — когда клиент продолжает свой черновик; иначе мастер выберет сам */
+  organizationId?: string
 }
 
 export type StageState = 'done' | 'current' | 'pending'
@@ -21,8 +23,11 @@ export interface ApplicationStage {
 export interface ApplicationPreview {
   number: string
   productTitle: string
-  amount: number
-  termMonths: number
+  /** Компания-заявитель; у примера на первом экране её нет */
+  organizationName?: string | null
+  /** null — в черновике ещё не указаны */
+  amount: number | null
+  termMonths: number | null
   status: ApplicationStatus
   stages: ApplicationStage[]
 }
