@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TypeVar
 from uuid import UUID, uuid4
@@ -44,6 +44,7 @@ from tests.helpers import bearer, token_for
 T = TypeVar("T")
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
+_STEP = timedelta(minutes=1)
 _FIXTURES = Path(__file__).resolve().parent / "fixtures" / "external_mocks.json"
 _STATEMENTS = Path(__file__).resolve().parents[2] / "seed" / "statements"
 
@@ -286,6 +287,9 @@ class Assessment:
     ) -> dict[str, Any]:
         """Положить команду в outbox (как process), доставить и вернуть payload ответа."""
         clock = self.client.app.state.clock  # type: ignore[attr-defined]
+        # Между шагами конвейера проходит время: без этого у повторного снимка/скора/решения
+        # то же время, что у прошлого, и «последний» по фасаду выбирается наугад.
+        clock.advance(_STEP)
 
         async def stage(session: AsyncSession) -> None:
             await SqlAlchemyOutboxWriter(session, "process", clock).add(
