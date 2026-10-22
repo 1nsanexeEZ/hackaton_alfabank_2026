@@ -3,7 +3,6 @@ export const SECTION_ID = {
   products: 'products',
   calculator: 'calculator',
   process: 'process',
-  application: 'application',
   faq: 'faq',
 } as const
 

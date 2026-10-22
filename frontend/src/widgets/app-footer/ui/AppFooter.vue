@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { DEMO_CREDIT_PRODUCTS } from '@/entities/credit-product'
+import { useProductCatalog } from '@/entities/credit-product'
 import { LANDING_NAV, SECTION_ID, sectionHref } from '@/shared/config'
 import { AppLogo, BaseContainer } from '@/shared/ui'
+
+const { products } = useProductCatalog()
 
 const currentYear = new Date().getFullYear()
 </script>
@@ -20,7 +22,7 @@ const currentYear = new Date().getFullYear()
         <nav aria-label="Продукты">
           <p class="text-sm font-semibold">Продукты</p>
           <ul class="mt-4 space-y-3">
-            <li v-for="product in DEMO_CREDIT_PRODUCTS" :key="product.id">
+            <li v-for="product in products ?? []" :key="product.id">
               <a
                 :href="sectionHref(SECTION_ID.products)"
                 class="text-sm text-on-night-secondary transition-colors hover:text-on-night"
