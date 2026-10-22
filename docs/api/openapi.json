@@ -3599,6 +3599,74 @@
         }
       }
     },
+    "/bff/products/{code}/calculate": {
+      "post": {
+        "tags": [
+          "bff"
+        ],
+        "summary": "Calculate For Organization",
+        "description": "Schedule at the pre-approved rate and how the request fits the pre-approved\nterms. Above them is a reason and a suggestion, not an error.",
+        "operationId": "calculate_for_organization_bff_products__code__calculate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalCalculateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalSchedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/bff/backoffice/queue": {
       "get": {
         "tags": [
@@ -9132,6 +9200,52 @@
         ],
         "title": "OrganizationSummaryRead"
       },
+      "Payment": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "principal": {
+            "type": "string",
+            "title": "Principal"
+          },
+          "interest": {
+            "type": "string",
+            "title": "Interest"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "balance_after": {
+            "type": "string",
+            "title": "Balance After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "due_date",
+          "principal",
+          "interest",
+          "total",
+          "balance_after"
+        ],
+        "title": "Payment"
+      },
       "PaymentRead": {
         "properties": {
           "number": {
@@ -9177,6 +9291,63 @@
           "balance_after"
         ],
         "title": "PaymentRead"
+      },
+      "PaymentSchedule": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          },
+          "repayment": {
+            "type": "string",
+            "enum": [
+              "annuity",
+              "differentiated",
+              "interest_only",
+              "by_contract_schedule"
+            ],
+            "title": "Repayment"
+          },
+          "monthly_payment": {
+            "type": "string",
+            "title": "Monthly Payment"
+          },
+          "total_interest": {
+            "type": "string",
+            "title": "Total Interest"
+          },
+          "total_paid": {
+            "type": "string",
+            "title": "Total Paid"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/Payment"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "term_months",
+          "rate",
+          "repayment",
+          "monthly_payment",
+          "total_interest",
+          "total_paid",
+          "payments"
+        ],
+        "title": "PaymentSchedule"
       },
       "PaymentScheduleRead": {
         "properties": {
@@ -9265,6 +9436,120 @@
           "feed.read"
         ],
         "title": "Permissions"
+      },
+      "PersonalCalculateBody": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Months"
+          },
+          "repayment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "annuity",
+                  "differentiated",
+                  "interest_only",
+                  "by_contract_schedule"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repayment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "term_months"
+        ],
+        "title": "PersonalCalculateBody",
+        "description": "As for `POST /products/{code}/calculate`, but without the rate: the bank sets it."
+      },
+      "PersonalSchedule": {
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/PaymentSchedule"
+          },
+          "pre_approved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreApprovedTerms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "within_pre_approved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Within Pre Approved"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/EligibilityReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Suggestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "degraded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Degraded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule",
+          "pre_approved",
+          "within_pre_approved",
+          "eligible",
+          "reasons",
+          "suggestion",
+          "degraded"
+        ],
+        "title": "PersonalSchedule"
       },
       "Policies": {
         "type": "string",
@@ -9446,6 +9731,44 @@
           "basis"
         ],
         "title": "PreApprovedOfferRead"
+      },
+      "PreApprovedTerms": {
+        "properties": {
+          "max_amount": {
+            "type": "string",
+            "title": "Max Amount"
+          },
+          "rate_from": {
+            "type": "string",
+            "title": "Rate From"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "title": "Term Max Months"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date",
+            "title": "Valid Until"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "estimate",
+              "full"
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_amount",
+          "rate_from",
+          "term_max_months",
+          "valid_until",
+          "basis"
+        ],
+        "title": "PreApprovedTerms"
       },
       "PresignedUploadOut": {
         "properties": {
@@ -11719,6 +12042,29 @@
           "stream_url"
         ],
         "title": "StreamTicketRead"
+      },
+      "Suggestion": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "monthly_payment": {
+            "type": "string",
+            "title": "Monthly Payment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "term_months",
+          "monthly_payment"
+        ],
+        "title": "Suggestion"
       },
       "SupportProgramRead": {
         "properties": {

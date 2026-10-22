@@ -41,7 +41,7 @@
 | 4 | Подтянули данные из базы банка | банк | `GET /organizations/{id}`, `GET /organizations/{id}/financial-reports` | ✅ |
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | только чтение `OrganizationRead.verification` | ❌ запустить сверку нечем — [4.2](#42-сверка-с-егрюл-по-запросу) |
 | 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
-| 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility`, `POST /products/{code}/calculate` | 🟡 калькулятор не знает о предодобрении — [4.1](#41-калькулятор-с-учётом-предскоринга) |
+| 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `POST /bff/products/{code}/calculate`, `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility` | ✅ график по ставке предодобрения; сверх предодобренного — причина и подсказка, не ошибка — [3.4](#34-выбор-условий-шаг-7) |
 | 8 | Согласие: БКИ физлица + ПДн | клиент | `PATCH /applications/{id}` → `consents` | 🟡 согласие только в заявке и только на БКИ компании — [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
 | 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | 🟡 есть ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и выписки; нет ГИР БО, Контура, БКИ ФЛ — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
@@ -174,11 +174,46 @@ Dashboard {
 }
 ```
 
+**`POST /bff/products/{code}/calculate?organization_id=`** (нужен вход и `credits.read`) — калькулятор с учётом предодобрения. Тело — как у `POST /products/{code}/calculate`, но без `rate`: ставку определяет бэк, `rate` в теле — 422. Без `repayment` — схема продукта по умолчанию.
+
+```json
+{ "amount": 5000000, "term_months": 24, "repayment": "annuity" }
+```
+
+Ответ `PersonalSchedule`:
+
+```text
+{
+  schedule: { amount, term_months, rate, repayment, monthly_payment, total_interest, total_paid, payments[] },
+                                        // как PaymentScheduleRead (3.1); ставка — rate_from предодобрения, без него — rate_base продукта
+  pre_approved: { max_amount, rate_from, term_max_months, valid_until, basis: estimate | full } | null,
+  within_pre_approved: boolean | null,  // null — по этому продукту ничего не предодобрено
+  eligible: boolean,
+  reasons: [{ code, passed, message }], // причины eligibility + amount_above_pre_approved / term_above_pre_approved
+  suggestion: { amount, term_months, monthly_payment } | null,  // запрос, урезанный до предодобренного
+  degraded: string[]                    // ["pre_approved"] — decision не ответил, считаем без предодобрения
+}
+```
+
+| Случай | Ответ |
+|---|---|
+| Предодобрения по продукту нет | `pre_approved: null`, `within_pre_approved: null`, ставка — `rate_base`, `suggestion: null` |
+| Запрос в рамках предодобрения | `within_pre_approved: true`, ставка — `rate_from`, `suggestion: null` |
+| Сумма больше `max_amount` | `within_pre_approved: false`, причина `amount_above_pre_approved` («Предварительно доступно до 4 000 000 ₽»); график — по запрошенной сумме, `suggestion` — по `max_amount` |
+| Срок больше `term_max_months` | `within_pre_approved: false`, причина `term_above_pre_approved`; в `suggestion` срок урезан до `term_max_months` |
+| Компания не проходит eligibility | `eligible: false`, причины — из eligibility; график всё равно считается |
+| `decision` не ответил | как без предодобрения, `degraded: ["pre_approved"]` |
+| Сумма, срок или схема вне рамок продукта | 422, как у `POST /products/{code}/calculate`: `details.field` — `amount`, `term_months` или `repayment`; `details.code` — `out_of_range` (с `min` и `max`) или `not_offered` (с `options`) |
+| Продукта нет / продукт в архиве | 404 / 409 `product_not_available` |
+| Чужая компания | 404 |
+
+Подачу сверх предодобренного бэк не блокирует: окончательное решение — после проверки, банк может ответить counteroffer. Фронт показывает причины из `reasons` и предлагает `suggestion`, кнопку подачи не прячет. Если урезанная сумма или срок меньше минимума продукта, `suggestion: null`.
+
 | Ручка | Что |
 |---|---|
 | `POST /products/recommend/{organization_id}` | то же в терминах модуля products: `RecommendationsRead` с причинами и `cash_gap_expected` (ожидается кассовый разрыв) |
 | `GET /products/{code}/eligibility?organization_id=` | `{product_code, organization_id, eligible, reasons: [{code, passed, message}]}` |
-| `POST /products/{code}/calculate` | график, см. 3.1. Предодобрение не учитывает — [4.1](#41-калькулятор-с-учётом-предскоринга) |
+| `POST /products/{code}/calculate` | график без компании, см. 3.1. Предодобрение не учитывает: для компании — `POST /bff/products/{code}/calculate` выше |
 
 ### 3.5. Заявка: черновик → подача (шаги 8–9)
 
@@ -299,7 +334,7 @@ Dashboard {
 
 | # | Что | Шаг схемы | Изменение API | Приоритет | Модули |
 |---|---|---|---|---|---|
-| 4.1 | Калькулятор с учётом предскоринга | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
+| 4.1 | Калькулятор с учётом предскоринга — ✅ сделано | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
 | 4.2 | Сверка с ЕГРЮЛ по запросу | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment |
 | 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, enrichment |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
@@ -311,45 +346,15 @@ Must нет: основной путь (компания с оборотами �
 
 ### 4.1. Калькулятор с учётом предскоринга
 
-**Зачем.** На схеме: «Сумма, срок, платёж — это калькулятор, только с учётом предскоринга, чтобы не предложить 30 млн на слоты». Сейчас `POST /products/{code}/calculate` публичный и про компанию не знает: считает любую сумму в рамках продукта по базовой ставке. Можно обойтись двумя вызовами (`/bff/products/recommend` → `pre_approved_max`, потом `calculate` с `rate = rate_from`), но тогда правило «не больше предодобренного» живёт на фронте.
+✅ Сделано, контракт — в [3.4](#34-выбор-условий-шаг-7).
+
+**Зачем.** На схеме: «Сумма, срок, платёж — это калькулятор, только с учётом предскоринга, чтобы не предложить 30 млн на слоты». Публичный `POST /products/{code}/calculate` про компанию не знает: считает любую сумму в рамках продукта по базовой ставке. Если собирать ответ на фронте из `/bff/products/recommend` (`pre_approved_max`) и `calculate` с `rate = rate_from`, правило «не больше предодобренного» жило бы на фронте.
 
 **Ручка.** `POST /bff/products/{code}/calculate?organization_id=…`. Нужен вход и `credits.read`, чужая компания — 404. Ручка в BFF, а не в products: предодобрение хранит `decision`, а он сам читает `products`, и получился бы цикл.
 
-Тело — как у `calculate`, но без `rate`: ставку определяет бэк.
+**Как считает.** Компания видна пользователю → `ProductsFacade.get_product` и `check_eligibility` → рамки продукта (422) → `DecisionFacade.get_pre_approved`, предложение по `code` → `ProductsFacade.calculate_payment` по `rate_from` или `rate_base`; второй расчёт — для `suggestion`.
 
-```json
-{ "amount": 30000000, "term_months": 24, "repayment": "annuity" }
-```
-
-Ответ `PersonalScheduleRead`:
-
-```json
-{
-  "schedule": { "…": "PaymentScheduleRead по ставке предодобрения" },
-  "pre_approved": {
-    "max_amount": "5000000",
-    "rate_from": "21.50",
-    "term_max_months": 36,
-    "valid_until": "2026-11-21",
-    "basis": "estimate"
-  },
-  "within_pre_approved": false,
-  "eligible": true,
-  "reasons": [
-    { "code": "amount_above_pre_approved", "passed": false, "message": "Предварительно доступно до 5 000 000 ₽" }
-  ],
-  "suggestion": { "amount": "5000000", "term_months": 24, "monthly_payment": "…" }
-}
-```
-
-Правила:
-- Предодобрения нет: `pre_approved: null`, `within_pre_approved: null`, ставка — `rate_base`.
-- Сумма больше `max_amount`: `within_pre_approved: false`, график считаем по запрошенной сумме, в `suggestion` — то же по `max_amount`. Подать заявку на большую сумму можно: окончательное решение — после проверки, банк ответит counteroffer.
-- Срок больше `term_max_months` — причина `term_above_pre_approved`.
-- Компания не проходит eligibility: `eligible: false`, причины — из eligibility, график всё равно считается.
-- Ошибки — как у публичного `calculate`: 404 продукта, 422 за рамками продукта.
-
-Открытый вопрос: блокировать ли на фронте подачу сверх предодобренного? По умолчанию — нет, только предупреждение и подсказка.
+Подачу сверх предодобренного не блокируем ни на бэке, ни на фронте: только причина и подсказка.
 
 ### 4.2. Сверка с ЕГРЮЛ по запросу
 

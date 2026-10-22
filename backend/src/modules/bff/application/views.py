@@ -7,7 +7,7 @@ screens carry the facade DTOs as they are: the bank sees everything."""
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -18,7 +18,7 @@ from src.modules.bff.application.client_status import ClientStatus
 from src.modules.decision.facade import DecisionDTO
 from src.modules.enrichment.facade import EnrichmentSnapshotDTO
 from src.modules.process.facade import ProcessViewDTO, UserTaskDTO
-from src.modules.products.facade import EligibilityCheckDTO
+from src.modules.products.facade import EligibilityCheckDTO, Repayment
 from src.modules.projector.facade import TimelineEntryDTO
 from src.modules.scoring.facade import ScoringResultDTO
 
@@ -290,6 +290,59 @@ class Recommendation(ClientModel):
 
 class Recommendations(ClientModel):
     items: list[Recommendation]
+    degraded: list[str]
+
+
+# --- calculator with the pre-approval -----------------------------------------
+
+
+class Payment(ClientModel):
+    number: int
+    due_date: date | None
+    principal: Decimal
+    interest: Decimal
+    total: Decimal
+    balance_after: Decimal
+
+
+class PaymentSchedule(ClientModel):
+    amount: Decimal
+    term_months: int
+    rate: Decimal
+    repayment: Repayment
+    # The first payment for non-annuity schedules.
+    monthly_payment: Decimal
+    total_interest: Decimal
+    total_paid: Decimal
+    payments: list[Payment]
+
+
+class PreApprovedTerms(ClientModel):
+    max_amount: Decimal
+    rate_from: Decimal
+    term_max_months: int
+    valid_until: date
+    # estimate — a conservative estimate without the credit bureau; full — after a check.
+    basis: Literal["estimate", "full"]
+
+
+class Suggestion(ClientModel):
+    amount: Decimal
+    term_months: int
+    monthly_payment: Decimal
+
+
+class PersonalSchedule(ClientModel):
+    # At the pre-approved rate; at the base rate of the product without a pre-approval.
+    schedule: PaymentSchedule
+    pre_approved: PreApprovedTerms | None
+    # None — nothing is pre-approved for this product, nothing to compare with.
+    within_pre_approved: bool | None
+    eligible: bool
+    # Eligibility reasons and what is above the pre-approved terms.
+    reasons: list[EligibilityReason]
+    # The request cut to the pre-approved terms; None when it fits or nothing is pre-approved.
+    suggestion: Suggestion | None
     degraded: list[str]
 
 
