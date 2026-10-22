@@ -1,5 +1,7 @@
 """Client screens never carry the score, scoring factors, the rule trace,
-reason codes or credit bureau data — even when every neighbour has them."""
+reason codes or credit bureau data — even when every neighbour has them.
+The basis of a pre-approval reaches the client only as its kind (estimate or
+full): the internal text of the basis is one of the markers."""
 
 from typing import Any
 
@@ -25,7 +27,6 @@ FORBIDDEN_KEYS = {
     "fns",
     "enrichment",
     "scoring",
-    "basis",
     "policy_version",
     "decided_by_id",
     "details",
@@ -88,6 +89,14 @@ def test_client_screens_carry_no_internal_data(world: World) -> None:
             purpose="working_capital",
             amount="1000000",
             term_months=12,
+        )
+    )
+    assert_client_safe(
+        world.client.post(
+            "/bff/products/UNSECURED/calculate",
+            headers=headers,
+            params={"organization_id": str(org)},
+            json={"amount": "5000000", "term_months": 24},
         )
     )
 
