@@ -243,15 +243,20 @@ class Assessment:
     # --- дозапрос: играем process, которого ещё нет ------------------------
 
     def request_statement(self, application_id: UUID, comment: str) -> UUID:
-        """Взять заявку в работу и запросить выписку. Команды `StartReview`/`RequestInfo`
-        applications пока не слушает, поэтому меняем агрегат напрямую — как API-тесты
-        applications играют process."""
+        """Взять заявку в работу и запросить выписку. Настоящий process уже мог открыть
+        дозапрос сам (решение REQUEST_INFO пришло ему через ту же шину) — тогда отвечаем
+        на его дозапрос; иначе открываем свой, меняя агрегат напрямую."""
         clock = self.client.app.state.clock  # type: ignore[attr-defined]
         info_request_id = uuid4()
 
         async def change(session: AsyncSession) -> None:
+            nonlocal info_request_id
             repository = SqlAlchemyApplicationRepository(session)
             application = await repository.get(application_id)
+            opened = application.open_info_request
+            if opened is not None and "bank_statement" in opened.requested_documents:
+                info_request_id = opened.id
+                return
             now = clock.now()
             application.start_review(now)
             application.request_info(
