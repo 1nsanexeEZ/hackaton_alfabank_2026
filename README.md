@@ -131,7 +131,7 @@ Compose читает `.env` из корня репозитория; в конт�
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
 | `DEMO_LOGIN_ENABLED` | `false` (в `.env.example` — `true`) | вход в демо-учётку без пароля (`POST /auth/demo-login`); на публичном стенде выключен |
-| `APPLICATIONS_EXTERNAL_MOCKS_URL` | пусто | адрес моков для подписания через ЭДО; пусто — подписание моделируется внутри backend |
+| `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | адрес моков для подписания (ЭДО) и выдачи (АБС); без переменной (локальный запуск без моков) оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут запроса и число повторов; в compose пока не пробрасываются, действуют значения по умолчанию из `backend/src/enrichment/config.py` |
 | `MOCK_LATENCY_MS_MIN`, `MOCK_LATENCY_MS_MAX`, `MOCK_FAILURE_RATE`, `MOCK_BKI_ALWAYS_FAIL_INNS` | `200`, `1500`, `0.1`, `7705729405` | поведение `external-mocks`: задержка, доля ответов 503, ИНН, по которым БКИ всегда недоступно; значения по умолчанию заданы в его `Dockerfile` |
 
@@ -238,7 +238,6 @@ uv run python -m scripts.export_openapi   # обновить docs/api/openapi.js
 
 - коллекция запросов по S-1…S-8 и прогон сценариев на поднятом стенде;
 - в `docker-compose.yml`: контейнер фронтенда, healthcheck backend, фиксированные теги образов `minio` и `nginx`;
-- подписание и выдача через моки ЭДО и АБС: согласовать формат запросов адаптеров backend с `external-mocks`;
 - AI-ассистент — необязательный слой только на моделях с открытыми весами, основной сценарий от него не зависит.
 
 Идентификатор проверяемой версии — git-тег на `main`, проставляется при сдаче.

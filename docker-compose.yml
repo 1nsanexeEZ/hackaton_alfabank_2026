@@ -103,7 +103,8 @@ services:
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-credit-documents}
       # Host the browser uses for presigned URLs (nginx proxies /credit-documents/ to MinIO).
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost}
-      APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-}
+      # Signing (EDO) and payout (ABS) go through the external mocks (simulated, marked in API answers).
+      APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-http://external-mocks:8100}
       ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

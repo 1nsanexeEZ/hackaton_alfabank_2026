@@ -20,24 +20,35 @@ class SimulatedEdoClient:
 
 
 class HttpEdoClient:
-    def __init__(self, base_url: str, timeout_seconds: float = 5.0) -> None:
+    """`POST /edo/sign` of external-mocks: `{document_hash, signer}` →
+    `{signature_id, document_hash, signer, signed_at, simulated}`."""
+
+    def __init__(
+        self,
+        base_url: str,
+        timeout_seconds: float = 5.0,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout_seconds
+        self._transport = transport
 
     async def sign(
         self, application_id: UUID, number: str, offer_hash: str, signer_id: UUID
     ) -> EdoReceipt:
-        payload = {
-            "application_id": str(application_id),
-            "number": number,
-            "document_hash": offer_hash,
-            "signer_id": str(signer_id),
-        }
+        payload = {"document_hash": offer_hash, "signer": str(signer_id)}
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, transport=self._transport
+            ) as client:
                 response = await client.post(f"{self._base_url}/edo/sign", json=payload)
                 response.raise_for_status()
                 data = response.json()
-        except (httpx.HTTPError, ValueError) as exc:
+            if data.get("document_hash") != offer_hash:
+                raise ValueError("EDO signed another document")
+            return EdoReceipt(
+                document_id=str(data["signature_id"]),
+                simulated=bool(data.get("simulated", True)),
+            )
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
             raise InfrastructureError("Document flow service is unavailable") from exc
-        return EdoReceipt(document_id=str(data["document_id"]), simulated=True)
