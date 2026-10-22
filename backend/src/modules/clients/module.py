@@ -7,6 +7,7 @@ from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.messaging.subscriber import Subscription
 from src.modules.clients.api import router
 from src.modules.clients.facade import ClientsFacade
+from src.modules.clients.infrastructure.consumers import subscriptions
 from src.modules.clients.infrastructure.facade_impl import ClientsFacadeImpl
 
 NAME = "clients"
@@ -29,5 +30,6 @@ def wire(app: FastAPI) -> None:
 
 
 def subscribers() -> list[Subscription]:
-    """Kafka subscriptions; group_id is `clients.<purpose>`."""
-    return []
+    """Kafka subscriptions; group_id is `clients.<purpose>`: the auto check
+    against the registry extract of every enrichment."""
+    return subscriptions()
