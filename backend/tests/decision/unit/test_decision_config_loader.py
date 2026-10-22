@@ -48,14 +48,32 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v2"
+    assert policy.version == "policy_v3"
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
-    assert policy.config.revenue_multiplier["C"] == Decimal("0.25")
+    assert policy.config.grade_scale == tuple("ABCDEFGHIJ")
+    assert policy.config.revenue_multiplier["C"] == Decimal("0.4")
+
+
+def test_v3_strategy_lives_in_yaml() -> None:
+    config = default_policy().config
+    assert [band.label for band in config.risk_matrix] == ["A–C", "D–E", "F–G", "H–J"]
+    assert config.band("E") is not None and config.band("E").approve_up_to == Decimal("15000000")
+    assert config.trigger_tax_arrears and config.trigger_head_change_months == 6
+    assert (config.trigger_turnover_months, config.trigger_turnover_ratio) == (3, Decimal("1.5"))
+    assert config.turnover_multiplier == Decimal("0.5")
+    assert config.grade_max_amount["J"] == Decimal(0)
+    assert config.group_exposure_max == Decimal("100000000")
+    assert config.rate_components is not None
+    assert config.rate_components.lgd_unsecured == Decimal("0.45")
+    assert config.guarantee_grades == frozenset({"F", "G"})
+    # Грейд отсекает матрица, а не стоп-фактор и не маршрут по грейду.
+    assert config.stop_grades == frozenset() and config.manual_review_grades == frozenset()
+    assert not config.route_tax_arrears
 
 
 def test_v2_thresholds_live_in_yaml() -> None:
-    config = default_policy().config
+    config = load_policy("policy_v2").config
     assert config.stop_current_overdue_days == 30
     assert config.stop_tax_arrears_above == Decimal("300000")
     assert config.stop_enforcement_share == Decimal("0.1")
@@ -77,8 +95,40 @@ def test_v1_keeps_new_rules_off() -> None:
 
 
 @pytest.mark.parametrize("version", ["policy_v1", "policy_v2"])
+def test_earlier_versions_keep_v3_rules_off(version: str) -> None:
+    config = load_policy(version).config
+    assert config.grade_scale == tuple("ABCDE")
+    assert config.risk_matrix == () and config.rate_components is None
+    assert not config.full_limits and not config.trigger_tax_arrears
+    assert config.trigger_head_change_months is None and config.trigger_turnover_ratio is None
+    assert config.guarantee_grades == frozenset() and config.guarantee_amount_above is None
+
+
+@pytest.mark.parametrize("version", ["policy_v1", "policy_v2", "policy_v3"])
 def test_roundtrip_of_shipped_files_is_valid(tmp_path: Path, version: str) -> None:
     _load(tmp_path, version=version)
+
+
+@pytest.mark.parametrize(
+    "breaks",
+    [
+        lambda p: p.update({"grades": ["A", "B", "C"]}),
+        lambda p: p["limits"]["revenue_multiplier"].pop("J"),
+        lambda p: p["limits"]["grade_max_amount"].pop("F"),
+        lambda p: p["strategy"]["risk_matrix"].pop(),
+        lambda p: p["strategy"]["risk_matrix"][0]["grades"].append("D"),
+        lambda p: p["strategy"]["risk_matrix"][1].update({"manual_up_to": "1000000"}),
+        lambda p: p["strategy"]["guarantee"].update({"grades": ["Z"]}),
+        lambda p: p["strategy"]["soft_triggers"]["turnover_spike"].update({"ratio": "1"}),
+        lambda p: p["pricing"]["components"].update({"lgd_unsecured": "1.5"}),
+        lambda p: p["pricing"].pop("components"),  # без компонент нужна надбавка за грейд
+    ],
+)
+def test_invalid_v3_strategy_is_rejected(
+    tmp_path: Path, breaks: Callable[[dict[str, Any]], None]
+) -> None:
+    with pytest.raises(PolicyConfigError):
+        _load(tmp_path, policy=breaks, version="policy_v3")
 
 
 @pytest.mark.parametrize(

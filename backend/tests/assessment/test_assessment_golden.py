@@ -72,7 +72,7 @@ SCENARIOS = (
         product="UNSECURED",
         amount="3000000",
         term=24,
-        score=790,
+        score=800,
         grade="A",
         outcome="APPROVE",
         offer="3000000",
@@ -89,7 +89,7 @@ SCENARIOS = (
         cash_gap=True,
         gap_month="2026-11",
         score=565,
-        grade="C",
+        grade="E",
         flags=frozenset({"thin_file", "cash_gap"}),
         outcome="COUNTER_OFFER",
         reasons=frozenset({"CASH_GAP_FORECAST"}),
@@ -106,8 +106,8 @@ SCENARIOS = (
         amount="10000000",
         term=24,
         documents=("financial_report",),
-        score=620,
-        grade="C",
+        score=630,
+        grade="F",
         flags=frozenset({"verification_mismatch"}),
         outcome="MANUAL_REVIEW",
         reasons=frozenset({"ROUTE_VERIFICATION_MISMATCH"}),
@@ -119,8 +119,8 @@ SCENARIOS = (
         product="UNSECURED",
         amount="2000000",
         term=12,
-        score=395,
-        grade="E",
+        score=400,
+        grade="J",
         outcome="REJECT",
         reasons=frozenset({"STOP_LIQUIDATION", "STOP_OVERDUE_90"}),
     ),
@@ -132,8 +132,8 @@ SCENARIOS = (
         amount="1000000",
         term=12,
         sources_failed=("bki",),
-        score=760,
-        grade="A",
+        score=775,
+        grade="B",
         flags=frozenset({"bureau_unavailable"}),
         outcome="MANUAL_REVIEW",
         reasons=frozenset({"ROUTE_SOURCES_FAILED"}),
@@ -158,8 +158,8 @@ SCENARIOS = (
             "property_type": "office",
             "price": 50000000,
         },
-        score=700,
-        grade="B",
+        score=715,
+        grade="C",
         outcome="MANUAL_REVIEW",
         reasons=frozenset({"ROUTE_AMOUNT_OVER_AUTO_LIMIT"}),
     ),
@@ -252,7 +252,7 @@ def test_s5_progress_request_info_then_manual_review(assessment: Assessment) -> 
     enriched = assessment.fetch_enrichment(application_id)
     assert enriched["cash_gap_detected"] is None  # выписки ещё нет
     scored = assessment.calculate_score(application_id)
-    assert (scored["score"], scored["risk_grade"]) == (700, "B")
+    assert (scored["score"], scored["risk_grade"]) == (705, "C")
     assert "revenue_mismatch" in scored["flags"]
 
     # S-5a: просим выписку, а не отказываем и не отправляем к андеррайтеру

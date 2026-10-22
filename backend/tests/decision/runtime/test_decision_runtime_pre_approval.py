@@ -32,8 +32,22 @@ KEY_RATE = Decimal("16.50")
 Sessions = async_sessionmaker[AsyncSession]
 
 
+def _estimate(
+    grade: str = "A", pd: str = "0.0041", score: int = 800, segment: str = "legal_entity"
+) -> EstimateDTO:
+    """Оценка PD-модели (pd_model_v2): грейд A–J и PD."""
+    return EstimateDTO(
+        score=score,
+        grade=grade,  # type: ignore[arg-type]
+        flags=(),
+        factors=(),
+        segment=segment,  # type: ignore[arg-type]
+        pd_12m=Decimal(pd),
+    )
+
+
 class _World:
-    def __init__(self, code: str, grade: str = "A", score: int = 790) -> None:
+    def __init__(self, code: str, estimate: EstimateDTO | None = None) -> None:
         self.company: OrganizationSnapshotDTO = builders.organization_snapshot(code)
         self.clients = FakeClientsFacade()
         self.clients.add_organization(self.company)
@@ -44,9 +58,7 @@ class _World:
             self.products.set_eligibility(
                 check_dto(product.check_eligibility(profile), self.company.id)
             )
-        self.scoring = FakeScoringFacade(
-            EstimateDTO(score=score, grade=grade, flags=(), factors=())  # type: ignore[arg-type]
-        )
+        self.scoring = FakeScoringFacade(estimate or _estimate())
 
     def not_eligible(self, code: str) -> None:
         self.products.set_eligibility(
@@ -103,9 +115,10 @@ async def test_offers_for_eligible_products(session_factory: Sessions) -> None:
     offers = await world.offers(session_factory)
     assert offers and set(offers) <= world.eligible_codes()
     unsecured = offers["UNSECURED"]
-    # Ромашка: грейд A → лимит на ступень осторожнее (B, k = 0,4) от выручки, ставка — база.
+    # Ромашка: грейд A → лимит на ступень осторожнее (B, k = 0,45) от выручки; ставка из
+    # компонент (17,5 + 0,18 + 2 + 3,5) ниже базы продукта — база.
     revenue = world.company.financial_reports[0].revenue
-    assert unsecured.max_amount == min(Decimal(30_000_000), Decimal("0.4") * revenue)
+    assert unsecured.max_amount == min(Decimal(30_000_000), Decimal("0.45") * revenue)
     assert unsecured.rate_from == Decimal("23.50")
     assert unsecured.term_max_months == 60
     assert unsecured.valid_until == (NOW + timedelta(days=30)).date()
@@ -129,26 +142,37 @@ async def test_recalculation_replaces_offers(session_factory: Sessions) -> None:
     assert "CREDIT_LINE" in await world.offers(session_factory)
 
     world.not_eligible("CREDIT_LINE")
-    world.scoring.default_estimate = EstimateDTO(score=620, grade="C", flags=(), factors=())
+    world.scoring.default_estimate = _estimate("C", "0.0153", score=705)
     await world.recalculate(session_factory)
 
     offers = await world.offers(session_factory)
     assert "CREDIT_LINE" not in offers
-    # Грейд C → лимит по D (k = 0,15), ставка с надбавкой за C.
+    # Грейд C → лимит по D (k = 0,3; автоматика по D–E — до 15 млн), ставка с EL по PD C.
     revenue = world.company.financial_reports[0].revenue
-    assert offers["UNSECURED"].max_amount == Decimal("0.15") * revenue
-    assert offers["UNSECURED"].rate_from == Decimal("27.00")
+    assert offers["UNSECURED"].max_amount == Decimal("0.3") * revenue
+    assert offers["UNSECURED"].rate_from == Decimal("23.69")
 
 
 async def test_stop_factors_leave_no_offers(session_factory: Sessions) -> None:
-    liquidating = _World("zakat", grade="B", score=700)
-    worst = _World("romashka", grade="E", score=395)
+    liquidating = _World("zakat", _estimate("B", "0.0059"))
+    worst = _World("romashka", _estimate("J", "0.5161", score=400))
 
     await liquidating.recalculate(session_factory)
     await worst.recalculate(session_factory)
 
     assert await liquidating.offers(session_factory) == {}
     assert await worst.offers(session_factory) == {}
+
+
+async def test_new_client_gets_no_pre_approval(session_factory: Sessions) -> None:
+    """Оборотов в банке меньше полугода — только полный скоринг по заявке."""
+    world = _World("ivanov", _estimate("C", "0.0153", segment="new_client"))
+
+    outbox = await world.recalculate(session_factory)
+
+    assert await world.offers(session_factory) == {}
+    [staged] = outbox.messages
+    assert staged.message == PreApprovedOffersUpdated(organization_id=world.company.id)
 
 
 async def test_expired_offers_are_not_shown(session_factory: Sessions) -> None:

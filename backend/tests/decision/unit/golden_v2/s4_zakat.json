@@ -101,9 +101,15 @@
     "by_revenue": null,
     "by_ltv": null,
     "by_capacity": null,
-    "final": null
+    "final": null,
+    "by_turnover": null,
+    "by_grade": null,
+    "by_group": null,
+    "binding": null
   },
   "rate": null,
+  "triggers": [],
+  "rate_breakdown": null,
   "scoring": {
     "score": 395,
     "grade": "E",

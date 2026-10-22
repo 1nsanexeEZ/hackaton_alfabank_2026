@@ -1,7 +1,7 @@
 """Golden S-1…S-7 политики v1: заявка из демо §9 → решение, эталон в JSON рядом.
 
-Версия политики закреплена: v1 решает на ЕГРЮЛ, ФНС и БКИ, как в момент её выхода. Golden
-следующей версии — в `test_decision_golden_v2.py`.
+Версия политики закреплена: v1 решает на ЕГРЮЛ, ФНС и БКИ и грейдах scorecard_v1, как в
+момент её выхода. Golden следующих версий — в `test_decision_golden_v2.py` и `_v3.py`.
 
 Поменялась политика или тексты — golden-файлы покажут, какие сценарии и как сдвинулись.
 Отдельно закреплены исходы из таблицы сценариев и грейды скоринга, на которых они стоят.
@@ -19,14 +19,16 @@ import pytest
 
 from src.modules.decision.domain.model import PolicyDecision, ReasonCode
 from src.modules.decision.infrastructure.config_loader import load_policy
+from src.modules.scoring.infrastructure.config_loader import load_scorecard
 from tests.decision.unit.decision_world import SCENARIOS, DecisionWorld, build_world
 
 _GOLDEN = Path(__file__).resolve().parent / "golden"
 _KEY_RATE = Decimal("16.50")
+SCORECARD_V1 = load_scorecard("scorecard_v1")
 
 
 async def decide(name: str) -> tuple[DecisionWorld, PolicyDecision]:
-    world = await build_world(name)
+    world = await build_world(name, scoring_model=SCORECARD_V1)
     policy = load_policy("policy_v1")
     collected = await world.builder(policy).collect(world.application_id)
     return world, policy.decide(collected.decision_input, key_rate=_KEY_RATE)
@@ -75,7 +77,7 @@ async def test_scenario_matches_golden(name: str) -> None:
 async def test_world_scores_like_scoring_golden(
     name: str, score: int, grade: str, flags: tuple[str, ...]
 ) -> None:
-    world = await build_world(name)
+    world = await build_world(name, scoring_model=SCORECARD_V1)
     assert (world.result.score, world.result.grade, world.result.flags) == (score, grade, flags)
 
 

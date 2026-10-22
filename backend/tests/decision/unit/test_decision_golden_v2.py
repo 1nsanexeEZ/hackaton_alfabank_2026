@@ -15,16 +15,18 @@ from pathlib import Path
 import pytest
 
 from src.modules.decision.domain.model import PolicyDecision, ReasonCode
-from src.modules.decision.infrastructure.config_loader import default_policy, load_policy
+from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.unit.decision_world import ALL_SOURCES, SCENARIOS, DecisionWorld, build_world
-from tests.decision.unit.test_decision_golden import as_json
+from tests.decision.unit.test_decision_golden import SCORECARD_V1, as_json
 
 _GOLDEN = Path(__file__).resolve().parent / "golden_v2"
 _KEY_RATE = Decimal("16.50")
 
 
 async def decide(name: str, *, head_consent: bool = True) -> tuple[DecisionWorld, PolicyDecision]:
-    world = await build_world(name, sources=ALL_SOURCES, head_consent=head_consent)
+    world = await build_world(
+        name, sources=ALL_SOURCES, head_consent=head_consent, scoring_model=SCORECARD_V1
+    )
     policy = load_policy("policy_v2")
     collected = await world.builder(policy).collect(world.application_id)
     return world, policy.decide(collected.decision_input, key_rate=_KEY_RATE)
@@ -32,10 +34,6 @@ async def decide(name: str, *, head_consent: bool = True) -> tuple[DecisionWorld
 
 def _trace(decision: PolicyDecision) -> dict[str, tuple[bool, str]]:
     return {hit.rule: (hit.matched, hit.detail) for hit in decision.rule_trace}
-
-
-def test_v2_is_the_default_policy() -> None:
-    assert default_policy().version == "policy_v2"
 
 
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
