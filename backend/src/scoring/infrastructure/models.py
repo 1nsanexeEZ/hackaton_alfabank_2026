@@ -1,1 +1,32 @@
-"""SQLAlchemy models of scoring. Tables are prefixed with `scoring_`."""
+"""SQLAlchemy-модели scoring. Таблицы с префиксом `scoring_`."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import DateTime, Index, Integer, Numeric, String, Uuid
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.core.infrastructure.database.base import Base, JSONType
+
+
+class ScoringResultRecord(Base):
+    __tablename__ = "scoring_results"
+    __table_args__ = (Index("ix_scoring_results_application", "application_id", "computed_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    application_id: Mapped[UUID] = mapped_column(Uuid)
+    requested_by_command: Mapped[UUID] = mapped_column(Uuid, unique=True)
+    model_version: Mapped[str] = mapped_column(String(32))
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    input_hash: Mapped[str] = mapped_column(String(64))
+    score: Mapped[int] = mapped_column(Integer)
+    grade: Mapped[str] = mapped_column(String(1))
+    factors: Mapped[list[dict[str, Any]]] = mapped_column(JSONType)
+    flags: Mapped[list[str]] = mapped_column(JSONType)
+    bank_notes: Mapped[list[str]] = mapped_column(JSONType)
+    data_completeness: Mapped[Decimal] = mapped_column(Numeric(4, 3))
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

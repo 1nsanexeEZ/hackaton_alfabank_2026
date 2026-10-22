@@ -26,8 +26,9 @@ class FakeOutboxWriter:
         key: UUID | str,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        event_id: UUID | None = None,
     ) -> UUID:
-        event_id = uuid4()
+        event_id = event_id or uuid4()
         self.messages.append(
             StagedMessage(event_id, message, str(key), correlation_id, causation_id)
         )

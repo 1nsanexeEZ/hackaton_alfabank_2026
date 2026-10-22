@@ -1,11 +1,12 @@
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.applications.domain.application import CreditApplication
-from src.applications.domain.statuses import FINAL_STATUSES
+from src.applications.domain.statuses import FINAL_STATUSES, ApplicationStatus
 from src.applications.domain.value_objects import ApplicationNumber
 from src.applications.infrastructure.mappers import apply, new_record, to_domain
 from src.applications.infrastructure.models import NUMBER_SEQUENCE, ApplicationRecord
@@ -89,6 +90,18 @@ class SqlAlchemyApplicationRepository:
         stmt = stmt.order_by(ApplicationRecord.updated_at.desc(), ApplicationRecord.id)
         records = (await self._session.scalars(stmt.limit(limit).offset(offset))).all()
         return [to_domain(record) for record in records]
+
+    async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]:
+        stmt = (
+            select(ApplicationRecord.id)
+            .where(
+                ApplicationRecord.status == ApplicationStatus.OFFER_READY.value,
+                ApplicationRecord.offer_expires_at <= moment,
+            )
+            .order_by(ApplicationRecord.offer_expires_at)
+            .limit(limit)
+        )
+        return list((await self._session.scalars(stmt)).all())
 
     async def record_signature_details(
         self,
