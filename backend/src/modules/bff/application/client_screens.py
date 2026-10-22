@@ -1,5 +1,5 @@
 """Client screens: dashboard, applications list, application card, product
-matching.
+matching, calculator with the pre-approval.
 
 Lists and counters come from the projector; the card and the status of one
 application always come from applications, the source of truth, so the client
@@ -9,16 +9,16 @@ before anything is read: the projector has no checks of its own."""
 from decimal import Decimal
 from uuid import UUID
 
-from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
+from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError, ValidationError
 from src.modules.applications.facade import ACTIVE_STATUSES, ApplicationCardDTO, ApplicationsFacade
 from src.modules.bff.application import views
 from src.modules.bff.application.actions import available_actions, todo_for
 from src.modules.bff.application.client_status import client_status, offer_kind_of_row
 from src.modules.bff.application.neighbours import Neighbours
 from src.modules.clients.facade import ClientsFacade, OrganizationSummaryDTO, OrgPermission
-from src.modules.decision.facade import ClientDecisionDTO, DecisionFacade
+from src.modules.decision.facade import ClientDecisionDTO, DecisionFacade, PreApprovedOfferDTO
 from src.modules.notifications.facade import FeedItemDTO, NotificationsFacade
-from src.modules.products.facade import ProductsFacade, Purpose
+from src.modules.products.facade import ProductDTO, ProductsFacade, Purpose, Repayment
 from src.modules.projector.facade import ApplicationOverviewDTO, ProjectorFacade, TimelineEntryDTO
 
 DASHBOARD_APPLICATIONS = 5
@@ -239,6 +239,142 @@ class ClientScreens:
             for r in found
         ]
         return views.Recommendations(items=items, degraded=self._n.degraded)
+
+    # --- calculator with the pre-approval -----------------------------------
+
+    async def personal_schedule(
+        self,
+        account_id: UUID,
+        member_of: frozenset[UUID] | None,
+        organization_id: UUID,
+        code: str,
+        amount: Decimal,
+        term_months: int,
+        repayment: Repayment | None,
+    ) -> views.PersonalSchedule:
+        """The rate is the bank's: the pre-approved one, the base one without it.
+        A request above the pre-approved terms is not an error: the decision
+        comes after the check, the bank may answer with a counteroffer."""
+        await self._ensure_visible(account_id, member_of, organization_id)
+        products = self._n(ProductsFacade)
+        product = await products.get_product(code)
+        check = await products.check_eligibility(code, organization_id)
+        repayment = repayment or product.repayment_options[0]
+        _ensure_within_product(product, amount, term_months, repayment)
+
+        async def load() -> PreApprovedOfferDTO | None:
+            offers = await self._n(DecisionFacade).get_pre_approved(organization_id)
+            return next((o for o in offers if o.product_code == code), None)
+
+        offer = await self._n.optional("pre_approved", load, None)
+        rate = offer.rate_from if offer is not None else product.rate_base
+        schedule = products.calculate_payment(amount, term_months, rate, repayment)
+        reasons = [views.EligibilityReason.model_validate(r) for r in check.reasons]
+        pre_approved: views.PreApprovedTerms | None = None
+        within: bool | None = None
+        suggestion: views.Suggestion | None = None
+        if offer is not None:
+            pre_approved = _terms(offer)
+            above = _above_pre_approved(offer, amount, term_months)
+            within = not above
+            reasons += above
+            if above:
+                suggestion = _suggestion(products, product, offer, amount, term_months, repayment)
+        return views.PersonalSchedule(
+            schedule=views.PaymentSchedule.model_validate(schedule),
+            pre_approved=pre_approved,
+            within_pre_approved=within,
+            eligible=check.eligible,
+            reasons=reasons,
+            suggestion=suggestion,
+            degraded=self._n.degraded,
+        )
+
+
+def _ensure_within_product(
+    product: ProductDTO, amount: Decimal, term_months: int, repayment: Repayment
+) -> None:
+    """The same 422 as `POST /products/{code}/calculate` gives."""
+    if not product.amount_min <= amount <= product.amount_max:
+        raise _out_of_range("amount", product.amount_min, product.amount_max)
+    if not product.term_min_months <= term_months <= product.term_max_months:
+        raise _out_of_range("term_months", product.term_min_months, product.term_max_months)
+    if repayment not in product.repayment_options:
+        raise ValidationError(
+            "The product does not offer this schedule",
+            details={
+                "field": "repayment",
+                "code": "not_offered",
+                "options": list(product.repayment_options),
+            },
+        )
+
+
+def _out_of_range(field: str, low: Decimal | int, high: Decimal | int) -> ValidationError:
+    return ValidationError(
+        "Value is out of the product frames",
+        details={"field": field, "code": "out_of_range", "min": str(low), "max": str(high)},
+    )
+
+
+def _terms(offer: PreApprovedOfferDTO) -> views.PreApprovedTerms:
+    return views.PreApprovedTerms(
+        max_amount=offer.max_amount,
+        rate_from=offer.rate_from,
+        term_max_months=offer.term_max_months,
+        valid_until=offer.valid_until,
+        # Only the kind of the estimate leaves the bank, not what it is based on.
+        basis="full" if offer.basis == "full" else "estimate",
+    )
+
+
+def _above_pre_approved(
+    offer: PreApprovedOfferDTO, amount: Decimal, term_months: int
+) -> list[views.EligibilityReason]:
+    reasons = []
+    if amount > offer.max_amount:
+        reasons.append(
+            views.EligibilityReason(
+                code="amount_above_pre_approved",
+                passed=False,
+                message=f"Предварительно доступно до {_rub(offer.max_amount)}",
+            )
+        )
+    if term_months > offer.term_max_months:
+        reasons.append(
+            views.EligibilityReason(
+                code="term_above_pre_approved",
+                passed=False,
+                message=f"Предварительно доступен срок до {offer.term_max_months} мес.",
+            )
+        )
+    return reasons
+
+
+def _suggestion(
+    products: ProductsFacade,
+    product: ProductDTO,
+    offer: PreApprovedOfferDTO,
+    amount: Decimal,
+    term_months: int,
+    repayment: Repayment,
+) -> views.Suggestion | None:
+    """The request cut to the pre-approved amount and term; none when the cut
+    falls below the product minimum."""
+    amount = min(amount, offer.max_amount)
+    term_months = min(term_months, offer.term_max_months)
+    if amount < product.amount_min or term_months < product.term_min_months:
+        return None
+    schedule = products.calculate_payment(amount, term_months, offer.rate_from, repayment)
+    return views.Suggestion(
+        amount=amount, term_months=term_months, monthly_payment=schedule.monthly_payment
+    )
+
+
+def _rub(value: Decimal) -> str:
+    """`Decimal("5000000")` -> `5 000 000 ₽`."""
+    whole, _, kopecks = f"{value:,.2f}".replace(",", " ").partition(".")
+    return f"{whole},{kopecks} ₽" if kopecks != "00" else f"{whole} ₽"
 
 
 def _brief(summary: OrganizationSummaryDTO) -> views.OrganizationBrief:
