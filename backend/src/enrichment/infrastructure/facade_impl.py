@@ -25,12 +25,16 @@ class EnrichmentFacadeImpl:
         snapshot = await self._repo.latest_for_application(application_id)
         if snapshot is None:
             return None
+        # sources_failed исключает внутренний `statement` (как и sources_ok) — симметрично
+        # с домено́вым снимком; провал разбора выписки виден по cashflow=None, не как источник.
         failed = tuple(
             SourceErrorDTO(
-                source=result.source, code=result.error.kind, message=result.error.message
+                source=source,
+                code=snapshot.results[source].error.kind,
+                message=snapshot.results[source].error.message,
             )
-            for result in snapshot.results.values()
-            if result.status == "failed" and result.error is not None
+            for source in snapshot.sources_failed
+            if snapshot.results[source].error is not None
         )
         return EnrichmentSnapshotDTO(
             id=snapshot.id,
@@ -42,7 +46,7 @@ class EnrichmentFacadeImpl:
             egrul=snapshot.registry(),
             fns=snapshot.tax(),
             bki=snapshot.credit_history(),
-            cashflow=None,  # прогноз кассового разрыва добавляется этапом #37
+            cashflow=snapshot.cashflow(),
         )
 
     async def lookup_registry(self, inn: str) -> RegistryExtractDTO | None:

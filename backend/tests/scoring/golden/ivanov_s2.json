@@ -1,0 +1,113 @@
+{
+  "score": 565,
+  "grade": "C",
+  "data_completeness": "0.818",
+  "flags": [
+    "thin_file",
+    "cash_gap"
+  ],
+  "bank_notes": [
+    "По выписке прогнозируется кассовый разрыв в 2026-11 на 300000.00 ₽."
+  ],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "8",
+      "bin": "<12",
+      "points": -10,
+      "direction": "negative",
+      "client_hint": "Срок работы бизнеса небольшой — с ростом истории условия станут лучше.",
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": null,
+      "bin": "нет данных",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    },
+    {
+      "code": "debt_load",
+      "value": "0.53",
+      "bin": "0,4–0,6",
+      "points": -10,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": null,
+      "bin": "истории нет",
+      "points": -10,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": false
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "0",
+      "bin": "≤2",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "0",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "62.01",
+      "bin": "низкий",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.83",
+      "bin": ">0,5",
+      "points": -40,
+      "direction": "negative",
+      "client_hint": "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "1.7%",
+      "bin": "≤15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": "разрыв",
+      "bin": "прогнозируется",
+      "points": -15,
+      "direction": "negative",
+      "client_hint": "По выписке возможен кассовый разрыв — удобнее овердрафт или кредитная линия.",
+      "has_data": true
+    }
+  ]
+}

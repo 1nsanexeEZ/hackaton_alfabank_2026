@@ -1,0 +1,108 @@
+{
+  "score": 395,
+  "grade": "E",
+  "data_completeness": "0.909",
+  "flags": [],
+  "bank_notes": [],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "108",
+      "bin": ">60",
+      "points": 50,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": "-16.7%",
+      "bin": "−20…0%",
+      "points": -10,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "debt_load",
+      "value": "0.29",
+      "bin": "0,2–0,4",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": "120",
+      "bin": ">90",
+      "points": -200,
+      "direction": "negative",
+      "client_hint": "В кредитной истории есть просрочки — своевременные платежи улучшат оценку.",
+      "has_data": true
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "3",
+      "bin": "3–5",
+      "points": -15,
+      "direction": "negative",
+      "client_hint": "Много недавних кредитных запросов — это временно снижает оценку.",
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "350000",
+      "bin": ">0",
+      "points": -60,
+      "direction": "negative",
+      "client_hint": "Есть налоговая задолженность — погашение улучшит оценку.",
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "47.19",
+      "bin": "средний",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.10",
+      "bin": "0,1–0,3",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "10.0%",
+      "bin": "≤15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": null,
+      "bin": "нет выписки",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    }
+  ]
+}
