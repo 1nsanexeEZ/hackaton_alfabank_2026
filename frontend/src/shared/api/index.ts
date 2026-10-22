@@ -7,6 +7,7 @@ export {
   type ApiViolation,
   type AuthRealm,
 } from './http'
+export { eligibilityMessage } from './errorMessages'
 export * from './identity'
 export * from './credit'
 export * from './client'
