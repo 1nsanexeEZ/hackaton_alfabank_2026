@@ -69,6 +69,19 @@ async def test_egrul_maps_foreign_format() -> None:
     assert dto.founders[0].share_percent == Decimal(100)
 
 
+async def test_egrul_head_record_date() -> None:
+    head = {**ROMASHKA_EGRUL["Руководитель"], "ДатаЗаписи": "2026-07-01"}
+    body = {**ROMASHKA_EGRUL, "Руководитель": head}
+    client = _client(lambda request: httpx.Response(200, json=body))
+    dto = await EgrulHttpSource(client, backoff=()).fetch("7701158817")
+    assert dto.head_since == date(2026, 7, 1)
+
+
+async def test_egrul_without_head_record_date() -> None:
+    dto = await EgrulHttpSource(_client(_demo_handler), backoff=()).fetch("7701158817")
+    assert dto.head_since is None
+
+
 async def test_egrul_status_lowercased() -> None:
     dto = await EgrulHttpSource(_client(_demo_handler), backoff=()).fetch("7703417070")
     assert dto.status == "liquidating"
