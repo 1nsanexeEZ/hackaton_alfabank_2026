@@ -34,6 +34,8 @@ class RegistryExtractDTO:
     address: str
     region_code: str
     mass_address: bool
+    # None for an entrepreneur and in snapshots taken before it was stored.
+    kpp: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
