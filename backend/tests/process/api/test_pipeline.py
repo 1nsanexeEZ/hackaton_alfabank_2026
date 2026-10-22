@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from src.process.infrastructure.consumers import time_out_stuck_steps
+from src.modules.process.infrastructure.consumers import time_out_stuck_steps
 from tests.applications.api.conftest import PASSWORD
 from tests.process.api.conftest import Pipeline
 
@@ -188,7 +188,7 @@ def test_facade_and_competing_underwriters(pipeline: Pipeline) -> None:
     from uuid import UUID, uuid4
 
     from src.core.access.permissions import Permissions
-    from src.process.facade import ProcessFacade
+    from src.modules.process.facade import ProcessFacade
     from tests.helpers import bearer, token_for
 
     p, client = pipeline, pipeline.world.client

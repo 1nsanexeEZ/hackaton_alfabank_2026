@@ -13,21 +13,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from seed.identity import ROLES
-from src.applications.facade import ApplicationCardDTO, ApplicationsFacade
-from src.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeNotRegisteredError
-from src.decision.facade import DecisionFacade
-from src.enrichment.facade import EnrichmentFacade
 from src.main import create_app
-from src.notifications.facade import NotificationsFacade
-from src.process.facade import ProcessFacade
-from src.products.facade import ProductsFacade
-from src.projector.facade import ProjectorFacade
-from src.scoring.facade import ScoringFacade
+from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade
+from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.decision.facade import DecisionFacade
+from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.notifications.facade import NotificationsFacade
+from src.modules.process.facade import ProcessFacade
+from src.modules.products.facade import ProductsFacade
+from src.modules.projector.facade import ProjectorFacade
+from src.modules.scoring.facade import ScoringFacade
 from tests.bff import factories
 from tests.fakes import builders, install
 from tests.fakes.applications_facade import FakeApplicationsFacade

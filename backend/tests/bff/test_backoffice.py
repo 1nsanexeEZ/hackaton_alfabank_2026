@@ -2,7 +2,7 @@ from datetime import date
 from uuid import uuid4
 
 from src.core.access.permissions import Permissions
-from src.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
+from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
 from tests.bff import factories
 from tests.bff.conftest import World
 

@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from src.applications.facade import (
+from src.core.exceptions.exceptions import NotFoundError
+from src.modules.applications.facade import (
     ACTIVE_STATUSES,
     ApplicationCardDTO,
     ApplicationSummaryDTO,
@@ -8,7 +9,6 @@ from src.applications.facade import (
     DocumentDTO,
     ScoringInputDTO,
 )
-from src.core.exceptions.exceptions import NotFoundError
 from tests.fakes import builders
 
 

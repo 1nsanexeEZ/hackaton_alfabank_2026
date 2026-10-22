@@ -1,7 +1,7 @@
 from seed.products import catalog
 from src.core.domain import Money
-from src.products.domain.recommender import ProductRecommender, Recommendation
-from src.products.domain.value_objects import BorrowerProfile, LoanNeed
+from src.modules.products.domain.recommender import ProductRecommender, Recommendation
+from src.modules.products.domain.value_objects import BorrowerProfile, LoanNeed
 from tests.products.factories import borrower
 
 

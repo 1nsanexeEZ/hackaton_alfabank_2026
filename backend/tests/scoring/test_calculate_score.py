@@ -5,19 +5,19 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from src.applications.facade import ScoringInputDTO
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.scoring import CalculateScore, ScoreCalculated, ScoringFailed
-from src.enrichment.facade import (
+from src.modules.applications.facade import ScoringInputDTO
+from src.modules.enrichment.facade import (
     CreditHistoryDTO,
     EnrichmentSnapshotDTO,
     ObligationDTO,
     RegistryExtractDTO,
     TaxProfileDTO,
 )
-from src.scoring.application.calculate_score import CalculateScoreUseCase
-from src.scoring.domain.model import ScoringResult
-from src.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
+from src.modules.scoring.domain.model import ScoringResult
+from src.modules.scoring.infrastructure.config_loader import load_scorecard
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.enrichment_facade import FakeEnrichmentFacade

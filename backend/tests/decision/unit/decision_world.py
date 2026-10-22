@@ -21,25 +21,25 @@ from uuid import UUID, uuid4
 import httpx
 
 from seed.products import catalog
-from src.applications.facade import CollateralDTO, DocumentDTO, InfoRequestDTO
-from src.clients.facade import OrganizationSnapshotDTO
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.enrichment import FetchEnrichment
-from src.decision.application.input_builder import DecisionInputBuilder
-from src.decision.domain.policy import CreditPolicy
-from src.enrichment.application.cashflow import CashflowBuilder
-from src.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.enrichment.application.sources import Sources
-from src.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.enrichment.facade import EnrichmentSnapshotDTO, SourceErrorDTO
-from src.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
-from src.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
-from src.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
-from src.products.application.borrowers import borrower_profile
-from src.products.application.mappers import check_dto, product_dto
-from src.scoring.application.input_builder import build_scoring_input
-from src.scoring.facade import FactorDTO, ScoringResultDTO
-from src.scoring.infrastructure.config_loader import default_scorecard
+from src.modules.applications.facade import CollateralDTO, DocumentDTO, InfoRequestDTO
+from src.modules.clients.facade import OrganizationSnapshotDTO
+from src.modules.decision.application.input_builder import DecisionInputBuilder
+from src.modules.decision.domain.policy import CreditPolicy
+from src.modules.enrichment.application.cashflow import CashflowBuilder
+from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.sources import Sources
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
+from src.modules.enrichment.facade import EnrichmentSnapshotDTO, SourceErrorDTO
+from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
+from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
+from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
+from src.modules.products.application.borrowers import borrower_profile
+from src.modules.products.application.mappers import check_dto, product_dto
+from src.modules.scoring.application.input_builder import build_scoring_input
+from src.modules.scoring.facade import FactorDTO, ScoringResultDTO
+from src.modules.scoring.infrastructure.config_loader import default_scorecard
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.enrichment_facade import FakeEnrichmentFacade

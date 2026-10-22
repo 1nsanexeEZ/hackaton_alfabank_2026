@@ -7,14 +7,14 @@ from itertools import count
 from typing import Any
 from uuid import UUID
 
-from src.process.domain.conditions import Condition
-from src.process.domain.context import CONDITION_FIELDS, ProcessContext
-from src.process.domain.steps import (
+from src.modules.process.domain.conditions import Condition
+from src.modules.process.domain.context import CONDITION_FIELDS, ProcessContext
+from src.modules.process.domain.steps import (
     CollateralFact,
     CompletenessFact,
     EnrichmentRequestFact,
 )
-from src.process.domain.workflow import (
+from src.modules.process.domain.workflow import (
     Edge,
     Node,
     NodeConfig,

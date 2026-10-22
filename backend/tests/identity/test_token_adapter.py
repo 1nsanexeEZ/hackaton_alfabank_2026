@@ -6,8 +6,8 @@ import jwt
 import pytest
 
 from src.core.exceptions.exceptions import UnauthorizedError
-from src.identity.keys import load_signing_keys
-from src.identity.token_adapter import TokenAdapter
+from src.modules.identity.keys import load_signing_keys
+from src.modules.identity.token_adapter import TokenAdapter
 
 
 def make_adapter(tmp_path: Path, name: str = "a", ttl: timedelta = timedelta(minutes=5), **kw):

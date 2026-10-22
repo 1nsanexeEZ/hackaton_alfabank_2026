@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from src.scoring.infrastructure.config_loader import load_scorecard
-from src.scoring.infrastructure.repository import _factor_to_json
+from src.modules.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.repository import _factor_to_json
 from tests.scoring.scenarios import SCENARIOS
 
 _GOLDEN = Path(__file__).resolve().parents[1] / "golden"

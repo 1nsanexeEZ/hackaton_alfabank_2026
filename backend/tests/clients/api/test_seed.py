@@ -8,17 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from seed import clients as clients_seed
 from seed.demo_data import ACCOUNTS, ACCOUNTS_BY_EMAIL, COMPANIES
 from seed.run import SeedContext
-from src.clients.infrastructure.models import (
-    FinancialReportModel,
-    MemberModel,
-    OrganizationModel,
-)
-from src.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.outbox import OutboxRecord
-from src.identity.facade import IdentityFacade
+from src.modules.clients.infrastructure.models import (
+    FinancialReportModel,
+    MemberModel,
+    OrganizationModel,
+)
+from src.modules.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
+from src.modules.identity.facade import IdentityFacade
 from tests.clients.api.conftest import NOW, add_demo_account
 from tests.fakes import builders
 from tests.fakes.identity_facade import FakeIdentityFacade

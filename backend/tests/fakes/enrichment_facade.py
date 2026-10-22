@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from src.enrichment.facade import EnrichmentSnapshotDTO, RegistryExtractDTO
+from src.modules.enrichment.facade import EnrichmentSnapshotDTO, RegistryExtractDTO
 
 
 class FakeEnrichmentFacade:

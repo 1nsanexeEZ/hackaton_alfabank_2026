@@ -16,8 +16,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from src.applications.facade import ApplicationsFacade
-from src.clients.facade import ClientsFacade
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
@@ -26,12 +24,14 @@ from src.core.messaging.contracts.clients import FinancialReportSubmitted, Organ
 from src.core.messaging.contracts.decision import MakeDecision
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
 from src.core.messaging.subscriber import MessageProcessor
-from src.decision import module as decision_module
-from src.decision.facade import DecisionFacade
-from src.enrichment.facade import EnrichmentFacade
 from src.main import create_app
-from src.products.facade import ProductsFacade
-from src.scoring.facade import ScoringFacade
+from src.modules.applications.facade import ApplicationsFacade
+from src.modules.clients.facade import ClientsFacade
+from src.modules.decision import module as decision_module
+from src.modules.decision.facade import DecisionFacade
+from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.products.facade import ProductsFacade
+from src.modules.scoring.facade import ScoringFacade
 from tests.decision.unit.decision_world import NOW, DecisionWorld, build_world
 from tests.fakes import builders, install
 from tests.fakes.clients_facade import FakeClientsFacade

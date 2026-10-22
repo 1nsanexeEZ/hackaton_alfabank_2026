@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 from seed.demo_data import ACCOUNTS, COMPANIES_BY_CODE, DemoAccount
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
-from src.identity.models import Account, Profile, Role
-from src.identity.passwords import PasswordHasher
-from src.identity.repositories import AccountRepository, RoleRepository
-from src.identity.schemas import normalize_phone
-from src.identity.services import normalize_role_rules
+from src.modules.identity.models import Account, Profile, Role
+from src.modules.identity.passwords import PasswordHasher
+from src.modules.identity.repositories import AccountRepository, RoleRepository
+from src.modules.identity.schemas import normalize_phone
+from src.modules.identity.services import normalize_role_rules
 
 if TYPE_CHECKING:
     from seed.run import SeedContext

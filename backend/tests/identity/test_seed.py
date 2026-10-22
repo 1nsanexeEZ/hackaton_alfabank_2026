@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from seed import identity
 from seed.demo_data import ACCOUNTS
-from src.identity.models import Account, Profile, Role
-from src.identity.passwords import PasswordHasher
+from src.modules.identity.models import Account, Profile, Role
+from src.modules.identity.passwords import PasswordHasher
 from tests.identity.conftest import DEMO_PASSWORD, seed_context
 
 Sessions: TypeAlias = async_sessionmaker[AsyncSession]

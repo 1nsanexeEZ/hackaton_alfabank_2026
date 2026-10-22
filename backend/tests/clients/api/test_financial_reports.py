@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from src.clients.facade import FinancialReportDTO
+from src.modules.clients.facade import FinancialReportDTO
 from tests.clients.api.conftest import KUZNETSOVA, PETROV, SMIRNOVA, Demo
 
 

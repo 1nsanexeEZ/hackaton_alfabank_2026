@@ -10,11 +10,11 @@ from src.core.messaging.contracts.enrichment import (
     EnrichmentFailed,
     FetchEnrichment,
 )
-from src.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.enrichment.application.ports import SourceUnavailable
-from src.enrichment.application.sources import Sources
-from src.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, TaxProfileDTO
+from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.ports import SourceUnavailable
+from src.modules.enrichment.application.sources import Sources
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
+from src.modules.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, TaxProfileDTO
 from tests.fakes.messaging import FakeOutboxWriter
 
 _CONSENT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)

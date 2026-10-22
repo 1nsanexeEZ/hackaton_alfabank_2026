@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from src.clients.facade import (
+from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
+from src.modules.clients.facade import (
     MemberRole,
     OrganizationSnapshotDTO,
     OrganizationSummaryDTO,
     OrgPermission,
 )
-from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "owner": frozenset(OrgPermission),

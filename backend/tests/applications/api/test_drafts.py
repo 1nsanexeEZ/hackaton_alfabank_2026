@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import uuid4
 
-from src.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
+from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
 from tests.applications.api.conftest import World
 
 

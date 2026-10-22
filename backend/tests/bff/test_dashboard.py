@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from src.core.access.permissions import Permissions
-from src.projector.facade import OrganizationDashboardDTO
+from src.modules.projector.facade import OrganizationDashboardDTO
 from tests.bff import factories
 from tests.bff.conftest import World
 from tests.fakes.builders import NOW

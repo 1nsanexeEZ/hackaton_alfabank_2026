@@ -2,13 +2,13 @@ from uuid import uuid4
 
 import pytest
 
-from src.clients.domain.events import FinancialReportSubmitted
-from src.clients.domain.financial_report import ReportFigures, ReportSource
-from src.clients.domain.member import Actor
-from src.clients.domain.rights import MemberRole
-from src.clients.domain.value_objects import FiscalPeriod
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError, ValidationError
+from src.modules.clients.domain.events import FinancialReportSubmitted
+from src.modules.clients.domain.financial_report import ReportFigures, ReportSource
+from src.modules.clients.domain.member import Actor
+from src.modules.clients.domain.rights import MemberRole
+from src.modules.clients.domain.value_objects import FiscalPeriod
 from tests.clients.unit.factories import BANK, NOW, add, with_head
 
 FIGURES = ReportFigures(revenue=Money.of(48_000_000), expenses=Money.of(41_000_000))

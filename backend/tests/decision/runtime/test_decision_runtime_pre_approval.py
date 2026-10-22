@@ -9,18 +9,18 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from seed.products import catalog
-from src.clients.facade import OrganizationSnapshotDTO
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.decision import PreApprovedOffersUpdated
-from src.decision.application.pre_approval import RecalculatePreApprovedUseCase
-from src.decision.facade import PreApprovedOfferDTO
-from src.decision.infrastructure.config_loader import default_policy
-from src.decision.infrastructure.facade_impl import DecisionFacadeImpl
-from src.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
-from src.products.application.borrowers import borrower_profile
-from src.products.application.mappers import check_dto, product_dto
-from src.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
-from src.scoring.facade import EstimateDTO
+from src.modules.clients.facade import OrganizationSnapshotDTO
+from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
+from src.modules.decision.facade import PreApprovedOfferDTO
+from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
+from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
+from src.modules.products.application.borrowers import borrower_profile
+from src.modules.products.application.mappers import check_dto, product_dto
+from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
+from src.modules.scoring.facade import EstimateDTO
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.messaging import FakeOutboxWriter

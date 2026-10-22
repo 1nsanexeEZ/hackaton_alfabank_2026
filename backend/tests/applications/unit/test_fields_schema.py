@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from src.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
 
 # Shapes the product catalog uses (agent docs: AUTO, MORTGAGE, REFINANCE).
 AUTO = {

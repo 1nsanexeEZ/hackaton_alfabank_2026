@@ -1,6 +1,6 @@
 import pytest
 
-from src.notifications.domain.advice import RULES, advice_for
+from src.modules.notifications.domain.advice import RULES, advice_for
 
 
 def codes(signals: list[str], product: str | None = None) -> list[str]:

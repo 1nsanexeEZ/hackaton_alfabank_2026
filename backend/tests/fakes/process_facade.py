@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from src.process.facade import ProcessViewDTO, UserTaskDTO
+from src.modules.process.facade import ProcessViewDTO, UserTaskDTO
 
 
 class FakeProcessFacade:

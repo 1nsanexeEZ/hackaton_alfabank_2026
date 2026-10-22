@@ -5,12 +5,12 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from src.applications.facade import ScoringInputDTO
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEnrichment
-from src.enrichment.application.cashflow import CashflowBuilder
-from src.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.enrichment.application.sources import Sources
+from src.modules.applications.facade import ScoringInputDTO
+from src.modules.enrichment.application.cashflow import CashflowBuilder
+from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.sources import Sources
 from tests.enrichment.unit.test_fetch_enrichment import (
     FakeBureau,
     FakeRegistry,

@@ -8,18 +8,18 @@ from uuid import uuid4
 
 import pytest
 
-from src.applications.facade import ApplicationsFacade
-from src.clients.facade import ClientsFacade, OrgPermission
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
-from src.decision.facade import DecisionFacade
-from src.enrichment.facade import EnrichmentFacade
-from src.identity.facade import IdentityFacade
-from src.notifications.facade import NotificationsFacade
-from src.process.facade import ProcessFacade
-from src.products.facade import ProductsFacade
-from src.projector.facade import ProjectorFacade
-from src.scoring.facade import ScoringFacade
+from src.modules.applications.facade import ApplicationsFacade
+from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.decision.facade import DecisionFacade
+from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.identity.facade import IdentityFacade
+from src.modules.notifications.facade import NotificationsFacade
+from src.modules.process.facade import ProcessFacade
+from src.modules.products.facade import ProductsFacade
+from src.modules.projector.facade import ProjectorFacade
+from src.modules.scoring.facade import ScoringFacade
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade

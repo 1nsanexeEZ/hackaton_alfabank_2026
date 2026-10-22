@@ -7,15 +7,15 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from src.applications.facade import ApplicationCardDTO, DecisionSummaryDTO, OfferDTO
-from src.decision.facade import (
+from src.modules.applications.facade import ApplicationCardDTO, DecisionSummaryDTO, OfferDTO
+from src.modules.decision.facade import (
     DecisionDTO,
     DecisionTermsDTO,
     LimitsDTO,
     PreApprovedOfferDTO,
     RuleTraceDTO,
 )
-from src.enrichment.facade import (
+from src.modules.enrichment.facade import (
     CashflowForecastDTO,
     CashflowMonthDTO,
     CashflowProjectionDTO,
@@ -24,16 +24,16 @@ from src.enrichment.facade import (
     ObligationDTO,
     SourceErrorDTO,
 )
-from src.notifications.facade import FeedItemDTO, NewsItemDTO
-from src.process.facade import ProcessViewDTO, StepViewDTO, UserTaskDTO
-from src.projector.facade import (
+from src.modules.notifications.facade import FeedItemDTO, NewsItemDTO
+from src.modules.process.facade import ProcessViewDTO, StepViewDTO, UserTaskDTO
+from src.modules.projector.facade import (
     ApplicationOverviewDTO,
     BackofficeMetricsDTO,
     DailyMetricsDTO,
     QueueItemDTO,
     TimelineEntryDTO,
 )
-from src.scoring.facade import FactorDTO, ScoringResultDTO
+from src.modules.scoring.facade import FactorDTO, ScoringResultDTO
 from tests.fakes.builders import NOW
 
 # Markers of data the client must never see.

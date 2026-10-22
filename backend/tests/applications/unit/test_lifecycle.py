@@ -6,8 +6,15 @@ from uuid import uuid4
 
 import pytest
 
-from src.applications.domain.entities import InfoRequestStatus
-from src.applications.domain.events import (
+from src.core.domain import Money
+from src.core.exceptions.exceptions import (
+    ConflictError,
+    InvalidStatusTransitionError,
+    NotFoundError,
+    ValidationError,
+)
+from src.modules.applications.domain.entities import InfoRequestStatus
+from src.modules.applications.domain.events import (
     ApplicationCancelled,
     ApplicationInfoProvided,
     ApplicationSigned,
@@ -16,21 +23,14 @@ from src.applications.domain.events import (
     OfferDeclined,
     OfferExpired,
 )
-from src.applications.domain.fields_schema import ProductFieldsSchema
-from src.applications.domain.statuses import ApplicationStatus
-from src.applications.domain.value_objects import (
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.value_objects import (
     PROCESS,
     SYSTEM,
     Actor,
     CollateralDeclaration,
     LoanRequest,
-)
-from src.core.domain import Money
-from src.core.exceptions.exceptions import (
-    ConflictError,
-    InvalidStatusTransitionError,
-    NotFoundError,
-    ValidationError,
 )
 from tests.applications.unit.factories import (
     APPLICANT_ID,

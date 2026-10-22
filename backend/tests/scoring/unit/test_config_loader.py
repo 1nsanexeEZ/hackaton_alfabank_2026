@@ -6,14 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from src.scoring.infrastructure.config_loader import (
+from src.modules.scoring.infrastructure.config_loader import (
     ScorecardConfigError,
     load_scorecard,
     load_scorecard_file,
 )
 
 _DEFAULT = (
-    Path(__file__).resolve().parents[3] / "src/scoring/infrastructure/config/scorecard_v1.yaml"
+    Path(__file__).resolve().parents[3]
+    / "src/modules/scoring/infrastructure/config/scorecard_v1.yaml"
 )
 _VALID = _DEFAULT.read_text(encoding="utf-8")
 

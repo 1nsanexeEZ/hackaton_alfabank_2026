@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from src.enrichment.domain.cashflow import StatementParseError, parse_statement
+from src.modules.enrichment.domain.cashflow import StatementParseError, parse_statement
 
 _HEADER = "date;amount;counterparty_inn;counterparty_name;purpose\n"
 

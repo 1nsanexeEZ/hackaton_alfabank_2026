@@ -3,9 +3,9 @@ from uuid import uuid4
 
 import pytest
 
-from src.clients.facade import OrgPermission
 from src.core.exceptions.exceptions import PermissionDeniedError
 from src.core.messaging import topics
+from src.modules.clients.facade import OrgPermission
 from tests.clients.api.conftest import IVANOV, KUZNETSOVA, NOW, PETROV, SMIRNOVA, Demo
 
 

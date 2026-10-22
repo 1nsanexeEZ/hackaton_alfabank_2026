@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from src.scoring.facade import CompanyProfileDTO, EstimateDTO, ScoringResultDTO
+from src.modules.scoring.facade import CompanyProfileDTO, EstimateDTO, ScoringResultDTO
 
 
 class FakeScoringFacade:

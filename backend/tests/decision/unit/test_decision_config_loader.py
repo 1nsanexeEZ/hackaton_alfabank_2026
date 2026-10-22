@@ -11,16 +11,17 @@ from typing import Any
 import pytest
 import yaml
 
-from src.decision.config import DecisionSettings
-from src.decision.domain.model import ReasonCode
-from src.decision.facade import ClientDecisionDTO, DecisionDTO
-from src.decision.infrastructure.config_loader import (
+from src.modules.decision.config import DecisionSettings
+from src.modules.decision.domain.model import ReasonCode
+from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO
+from src.modules.decision.infrastructure.config_loader import (
     PolicyConfigError,
     default_policy,
     load_policy_files,
 )
 
-_CONFIG = Path(__file__).resolve().parents[3] / "src" / "decision" / "infrastructure" / "config"
+_BACKEND = Path(__file__).resolve().parents[3]
+_CONFIG = _BACKEND / "src" / "modules" / "decision" / "infrastructure" / "config"
 
 
 def _raw(name: str) -> dict[str, Any]:

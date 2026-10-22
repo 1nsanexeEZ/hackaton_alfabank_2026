@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from src.projector.domain.read_models import ApplicationOverview, QueueItem
+from src.modules.projector.domain.read_models import ApplicationOverview, QueueItem
 
 T0 = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
 

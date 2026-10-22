@@ -17,7 +17,7 @@
 | Политика | Проверяется в репозитории хелпером `apply_policies` |
 | `admin` | Пермишн, который обходит все остальные пермишны и политики |
 | `org_member` | Клиент видит строки компаний, где он участник. Модели наследуют `OrganizationOwnedMixin`, список компаний даёт модуль clients (`docs/platform.md`, «Доступ») |
-| Соседи | Читают аккаунты только через `IdentityFacade` (`src/identity/facade.py`) |
+| Соседи | Читают аккаунты только через `IdentityFacade` (`src/modules/identity/facade.py`) |
 
 Следствия «без хранения»: после истечения токена — повторный вход; смена роли или удаление аккаунта вступают в силу, когда истечёт уже выданный токен (максимум 30 минут).
 
@@ -129,7 +129,7 @@
 
 ## Фасад для модулей
 
-Другие модули читают аккаунты только через `IdentityFacade` (`src/identity/facade.py`), реализация — `src/identity/facade_impl.py`, регистрируется в `src/identity/module.py::wire`.
+Другие модули читают аккаунты только через `IdentityFacade` (`src/modules/identity/facade.py`), реализация — `src/modules/identity/facade_impl.py`, регистрируется в `src/modules/identity/module.py::wire`.
 
 | Метод | Что делает |
 |---|---|

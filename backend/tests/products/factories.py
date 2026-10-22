@@ -6,9 +6,9 @@ from typing import Any
 
 from seed.products import catalog
 from src.core.domain import Money
-from src.products.application.borrowers import borrower_profile
-from src.products.domain.product import CreditProduct, ProductStatus
-from src.products.domain.value_objects import (
+from src.modules.products.application.borrowers import borrower_profile
+from src.modules.products.domain.product import CreditProduct, ProductStatus
+from src.modules.products.domain.value_objects import (
     LEGAL_FORMS,
     AmountRange,
     BorrowerProfile,

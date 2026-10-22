@@ -19,14 +19,14 @@ from src.core.messaging.contracts.decision import (
     RecordManualDecision,
     RequestedInfo,
 )
-from src.decision.application.make_decision import MakeDecisionUseCase
-from src.decision.application.record_manual_decision import RecordManualDecisionUseCase
-from src.decision.domain.result import DecisionResult
-from src.decision.facade import ClientDecisionDTO, DecisionDTO
-from src.decision.infrastructure.config_loader import default_policy
-from src.decision.infrastructure.facade_impl import DecisionFacadeImpl
-from src.decision.infrastructure.models import DecisionResultRecord
-from src.decision.infrastructure.repository import SqlAlchemyDecisionRepository
+from src.modules.decision.application.make_decision import MakeDecisionUseCase
+from src.modules.decision.application.record_manual_decision import RecordManualDecisionUseCase
+from src.modules.decision.domain.result import DecisionResult
+from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO
+from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
+from src.modules.decision.infrastructure.models import DecisionResultRecord
+from src.modules.decision.infrastructure.repository import SqlAlchemyDecisionRepository
 from tests.decision.unit.decision_world import NOW, DecisionWorld
 from tests.fakes.messaging import FakeOutboxWriter
 

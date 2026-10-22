@@ -18,15 +18,15 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
-from src.clients.facade import ClientsFacade, OrgPermission
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.exceptions.exceptions import PermissionDeniedError
-from src.decision.facade import DecisionDTO
-from src.enrichment import module as enrichment_module
-from src.enrichment.facade import EnrichmentFacade
 from src.main import create_app
-from src.scoring.facade import ScoringFacade
+from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.decision.facade import DecisionDTO
+from src.modules.enrichment import module as enrichment_module
+from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.scoring.facade import ScoringFacade
 from tests.assessment.assessment_world import NOW, Assessment, mock_sources
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import create_schema

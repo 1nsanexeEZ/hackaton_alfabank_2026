@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 
 from seed.notifications import NEWS, news_id
-from src.notifications.domain.news import (
+from src.modules.notifications.domain.news import (
     CompanyProfile,
     NewsArticle,
     okved_matches,

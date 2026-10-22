@@ -2,7 +2,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from src.core.exceptions.exceptions import NotFoundError
-from src.products.facade import (
+from src.modules.products.facade import (
     EligibilityCheckDTO,
     PaymentDTO,
     PaymentScheduleDTO,

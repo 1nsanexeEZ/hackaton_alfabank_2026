@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from src.projector.facade import (
+from src.modules.projector.facade import (
     ApplicationOverviewDTO,
     ApplicationPageDTO,
     Audience,

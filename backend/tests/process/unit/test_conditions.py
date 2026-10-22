@@ -2,8 +2,8 @@ from decimal import Decimal
 
 import pytest
 
-from src.process.domain.conditions import Condition, ConditionError
-from src.process.domain.context import CONDITION_FIELDS
+from src.modules.process.domain.conditions import Condition, ConditionError
+from src.modules.process.domain.context import CONDITION_FIELDS
 
 FIELDS = {"outcome", "risk_grade", "cash_gap_flag", "info_requests_count", "complete", "stage"}
 

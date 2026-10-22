@@ -8,9 +8,9 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 
-from src.applications.infrastructure.abs import HttpAbsClient, settlement_account
-from src.applications.infrastructure.edo import HttpEdoClient
 from src.core.exceptions.exceptions import InfrastructureError
+from src.modules.applications.infrastructure.abs import HttpAbsClient, settlement_account
+from src.modules.applications.infrastructure.edo import HttpEdoClient
 
 ORGANIZATION = UUID("00000000-0000-0000-0000-0000000000b1")
 

@@ -6,11 +6,11 @@ import pytest
 
 from seed.demo_data import PRODUCT_CODES
 from seed.products import catalog
-from src.applications.domain.fields_schema import ProductFieldsSchema
-from src.applications.domain.value_objects import COLLATERAL_TYPES
-from src.applications.domain.value_objects import PURPOSES as APPLICATION_PURPOSES
-from src.products.domain.value_objects import PURPOSES
-from src.products.facade import Purpose
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.value_objects import COLLATERAL_TYPES
+from src.modules.applications.domain.value_objects import PURPOSES as APPLICATION_PURPOSES
+from src.modules.products.domain.value_objects import PURPOSES
+from src.modules.products.facade import Purpose
 
 FRONTEND_IDS = {
     "UNSECURED": "unsecured",

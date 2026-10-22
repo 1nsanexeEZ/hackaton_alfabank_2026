@@ -10,14 +10,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from seed.demo_data import COMPANIES
-from src.clients.facade import ClientsFacade
-from src.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
-from src.decision.application.pre_approval import RecalculatePreApprovedUseCase
-from src.decision.config import DecisionSettings
-from src.decision.infrastructure.config_loader import default_policy
-from src.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
-from src.products.facade import ProductsFacade
-from src.scoring.facade import ScoringFacade
+from src.modules.clients.facade import ClientsFacade
+from src.modules.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
+from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
+from src.modules.decision.config import DecisionSettings
+from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
+from src.modules.products.facade import ProductsFacade
+from src.modules.scoring.facade import ScoringFacade
 
 if TYPE_CHECKING:
     from seed.run import SeedContext

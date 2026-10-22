@@ -5,8 +5,8 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
-from src.enrichment.domain.cashflow import Transaction, build_forecast, parse_statement
-from src.enrichment.facade import CashflowForecastDTO
+from src.modules.enrichment.domain.cashflow import Transaction, build_forecast, parse_statement
+from src.modules.enrichment.facade import CashflowForecastDTO
 
 _SEED = Path(__file__).resolve().parents[3] / "seed" / "statements"
 _AS_OF = date(2026, 10, 1)
