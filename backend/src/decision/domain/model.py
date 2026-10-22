@@ -144,6 +144,19 @@ class DecisionInput:
     alternatives: tuple[AlternativeInput, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class PreApprovalInput:
+    """Облегчённые данные для предодобрения: оценка скоринга без БКИ и выписок."""
+
+    product: ProductInput
+    grade: Grade
+    score: int
+    registry_status: str
+    annual_revenue: Decimal | None
+    okved_main: str
+    in_msp_registry: bool | None = None
+
+
 # --- итог ----------------------------------------------------------------------
 
 
@@ -195,3 +208,12 @@ class PolicyDecision:
     rule_trace: tuple[RuleHit, ...]
     limits: Limits
     rate: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PreApproval:
+    product_code: str
+    max_amount: Decimal
+    rate_from: Decimal
+    term_max_months: int
+    factors_summary: tuple[str, ...]

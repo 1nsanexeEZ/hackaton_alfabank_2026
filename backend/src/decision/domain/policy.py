@@ -37,6 +37,9 @@ from src.decision.domain.model import (
     OfferTerms,
     Outcome,
     PolicyDecision,
+    PreApproval,
+    PreApprovalInput,
+    ProductInput,
     ReasonCode,
     RuleHit,
     ScoreInput,
@@ -47,6 +50,7 @@ _CENT = Decimal("0.01")
 _MONTHLY_DIVISOR = Decimal(1200)  # 12 месяцев × 100 %
 _TWELVE = Decimal(12)
 _MAX_HINTS = 4
+_GRADE_ORDER: tuple[Grade, ...] = ("A", "B", "C", "D", "E")
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +98,11 @@ class CreditPolicy:
     def decide(self, inp: DecisionInput, *, key_rate: Decimal) -> PolicyDecision:
         return _Evaluation(self._c, self._x, inp, key_rate).run()
 
+    def pre_approve(self, inp: PreApprovalInput, *, key_rate: Decimal) -> PreApproval | None:
+        """Предодобренное предложение по продукту; None — предложить нечего (стоп-фактор,
+        выручка неизвестна или лимит ниже минимума продукта). Eligibility проверяет вызывающий."""
+        return _pre_approve(self._c, inp, key_rate)
+
 
 # --- расчётные функции (общие для решения и предодобрения) -----------------------------------
 
@@ -122,7 +131,132 @@ def max_principal(payment: Decimal, term_months: int, rate: Decimal) -> Decimal:
 def round_down(amount: Decimal, step: Decimal) -> Decimal:
     if amount <= 0:
         return _ZERO
-    return (amount / step).to_integral_value(rounding=ROUND_DOWN) * step
+    return ((amount / step).to_integral_value(rounding=ROUND_DOWN) * step).quantize(_CENT)
+
+
+def quote_rate(
+    config: PolicyConfig,
+    product: ProductInput,
+    grade: Grade,
+    *,
+    key_rate: Decimal,
+    coverage: Decimal | None,
+    okved_main: str,
+    in_msp_registry: bool | None,
+) -> tuple[Decimal, list[RuleHit]]:
+    """Ставка по шагам: база + надбавка за грейд − скидка за залог + сдвиг ключевой ставки, в
+    коридоре продукта; господдержка — не выше потолка программы, если компания проходит."""
+    hits: list[RuleHit] = []
+    premium = config.grade_premium.get(grade, _ZERO)
+    discount = (
+        config.collateral_discount
+        if coverage is not None and coverage >= config.collateral_min_coverage
+        else _ZERO
+    )
+    market = key_rate - config.key_rate_reference
+    raw = product.rate_base + premium - discount + market
+    rate = min(max(raw, product.rate_base), product.rate_max)
+
+    hits.append(
+        RuleHit("pricing.base", True, f"базовая ставка {product.code}: {_pct(product.rate_base)}")
+    )
+    hits.append(RuleHit("pricing.grade_premium", premium != 0, f"грейд {grade}: +{_pct(premium)}"))
+    hits.append(
+        RuleHit(
+            "pricing.collateral_discount",
+            discount != 0,
+            "залога нет"
+            if coverage is None
+            else f"покрытие залогом {coverage.quantize(_CENT)}: −{_pct(discount)}",
+        )
+    )
+    hits.append(
+        RuleHit(
+            "pricing.key_rate",
+            market != 0,
+            f"ключевая {_pct(key_rate)} − опорная {_pct(config.key_rate_reference)} "
+            f"= {'+' if market >= 0 else ''}{_pct(market)}",
+        )
+    )
+    hits.append(
+        RuleHit(
+            "pricing.corridor",
+            rate != raw,
+            f"{_pct(raw)} в коридоре продукта [{_pct(product.rate_base)}; "
+            f"{_pct(product.rate_max)}] → {_pct(rate)}",
+        )
+    )
+    program = product.support_program
+    if program is not None:
+        qualifies = _qualifies_for_program(product, okved_main, in_msp_registry)
+        capped = min(rate, program.rate_cap) if qualifies else rate
+        hits.append(
+            RuleHit(
+                "pricing.support_program",
+                qualifies and capped != rate,
+                f"программа {program.code}: "
+                + (
+                    f"компания проходит, потолок {_pct(program.rate_cap)} → {_pct(capped)}"
+                    if qualifies
+                    else "компания не проходит требования (реестр МСП или ОКВЭД)"
+                ),
+            )
+        )
+        rate = capped
+    return rate.quantize(_CENT, rounding=ROUND_HALF_UP), hits
+
+
+def _qualifies_for_program(
+    product: ProductInput, okved_main: str, in_msp_registry: bool | None
+) -> bool:
+    program = product.support_program
+    if program is None:
+        return False
+    if program.msp_registry_required and in_msp_registry is not True:
+        return False
+    return okved_main.split(".", 1)[0] in program.okved_whitelist
+
+
+def _pre_approve(
+    config: PolicyConfig, inp: PreApprovalInput, key_rate: Decimal
+) -> PreApproval | None:
+    """Предодобрение по облегчённым данным (без БКИ и выписок): лимит на грейд осторожнее."""
+    if inp.registry_status in config.stop_registry_statuses or inp.grade in config.stop_grades:
+        return None
+    revenue = inp.annual_revenue
+    position = _GRADE_ORDER.index(inp.grade) + 1
+    if position >= len(_GRADE_ORDER):
+        return None
+    cautious = _GRADE_ORDER[position]
+    k = config.revenue_multiplier.get(cautious)
+    if revenue is None or revenue <= 0 or k is None or cautious in config.stop_grades:
+        return None
+    product = inp.product
+    limit = round_down(min(product.amount_max, k * revenue), config.amount_step)
+    if limit < product.amount_min:
+        return None
+    rate, _ = quote_rate(
+        config,
+        product,
+        inp.grade,
+        key_rate=key_rate,
+        coverage=None,
+        okved_main=inp.okved_main,
+        in_msp_registry=inp.in_msp_registry,
+    )
+    return PreApproval(
+        product_code=product.code,
+        max_amount=limit,
+        rate_from=rate,
+        term_max_months=product.term_max_months,
+        factors_summary=(
+            f"оценка без кредитной истории: грейд {inp.grade} (скор {inp.score})",
+            f"лимит на ступень осторожнее: k({cautious}) {k} × выручка {_num(revenue)}, "
+            f"не больше {_num(product.amount_max)} → {_num(limit)}",
+            f"ставка от {_pct(rate)}: база {_pct(product.rate_base)}, грейд {inp.grade}, "
+            f"ключевая {_pct(key_rate)}",
+        ),
+    )
 
 
 def _num(value: Decimal) -> str:
@@ -251,66 +385,19 @@ class _Evaluation:
     # --- 3. ставка -------------------------------------------------------------------------------
 
     def _pricing(self, grade: Grade) -> Decimal:
-        product, collateral = self._in.product, self._in.collateral
-        amount = self._in.request.amount
-        premium = self._c.grade_premium.get(grade, _ZERO)
+        collateral, amount = self._in.collateral, self._in.request.amount
         coverage = collateral.value / amount if collateral is not None and amount > 0 else None
-        discount = (
-            self._c.collateral_discount
-            if coverage is not None and coverage >= self._c.collateral_min_coverage
-            else _ZERO
+        rate, hits = quote_rate(
+            self._c,
+            self._in.product,
+            grade,
+            key_rate=self._key_rate,
+            coverage=coverage,
+            okved_main=self._in.company.okved_main,
+            in_msp_registry=self._in.company.in_msp_registry,
         )
-        market = self._key_rate - self._c.key_rate_reference
-        raw = product.rate_base + premium - discount + market
-        rate = min(max(raw, product.rate_base), product.rate_max)
-
-        self._hit("pricing.base", True, f"базовая ставка {product.code}: {_pct(product.rate_base)}")
-        self._hit("pricing.grade_premium", premium != 0, f"грейд {grade}: +{_pct(premium)}")
-        self._hit(
-            "pricing.collateral_discount",
-            discount != 0,
-            "залога нет"
-            if coverage is None
-            else f"покрытие залогом {coverage.quantize(_CENT)}: −{_pct(discount)}",
-        )
-        self._hit(
-            "pricing.key_rate",
-            market != 0,
-            f"ключевая {_pct(self._key_rate)} − опорная {_pct(self._c.key_rate_reference)} "
-            f"= {'+' if market >= 0 else ''}{_pct(market)}",
-        )
-        self._hit(
-            "pricing.corridor",
-            rate != raw,
-            f"{_pct(raw)} в коридоре продукта [{_pct(product.rate_base)}; "
-            f"{_pct(product.rate_max)}] → {_pct(rate)}",
-        )
-        program = product.support_program
-        if program is not None:
-            qualifies = self._qualifies_for_program()
-            capped = min(rate, program.rate_cap) if qualifies else rate
-            self._hit(
-                "pricing.support_program",
-                qualifies and capped != rate,
-                f"программа {program.code}: "
-                + (
-                    f"компания проходит, потолок {_pct(program.rate_cap)} → {_pct(capped)}"
-                    if qualifies
-                    else "компания не проходит требования (реестр МСП или ОКВЭД)"
-                ),
-            )
-            rate = capped
-        return rate.quantize(_CENT, rounding=ROUND_HALF_UP)
-
-    def _qualifies_for_program(self) -> bool:
-        program = self._in.product.support_program
-        if program is None:
-            return False
-        company = self._in.company
-        if program.msp_registry_required and company.in_msp_registry is not True:
-            return False
-        okved_class = company.okved_main.split(".", 1)[0]
-        return okved_class in program.okved_whitelist
+        self._trace.extend(hits)
+        return rate
 
     # --- 4. лимит --------------------------------------------------------------------------------
 
