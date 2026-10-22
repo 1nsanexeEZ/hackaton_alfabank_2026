@@ -95,7 +95,10 @@ date;amount;counterparty_inn;counterparty_name;purpose
 ## События
 
 - Слушает `enrichment.commands` → `FetchEnrichment {application_id, organization_id, inn, sources,
-  bki_consent_at, statement_document_ids}` (group `enrichment.commands`).
+  bki_consent_at, statement_document_ids, head, head_bki_consent_at}` (group `enrichment.commands`).
+  `head {account_id, last_name, first_name, middle_name}` — руководитель по реестру,
+  `head_bki_consent_at` — момент его личного согласия на запрос своей кредитной истории (identity,
+  `/me/consents`); без согласия — `null`. Оба поля необязательные: старые команды читаются.
 - Публикует `enrichment.events` → `EnrichmentCompleted {application_id, snapshot_id, sources_ok,
   sources_failed, cash_gap_detected}` (`cash_gap_detected = None`, если выписок не было) — если
   ответил хотя бы один внешний источник (частичный результат — нормальный исход).
