@@ -149,6 +149,11 @@ class StepSpec:
     on_reply: OnReply | None = None
 
 
+# What enrichment is asked for: registry, tax, company bureau, the bank statement forecast,
+# accounting reports (GIR BO), courts and bailiffs (Kontur), the head's own bureau report.
+ENRICHMENT_SOURCES = ("egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head")
+
+
 def _ids(ctx: ProcessContext) -> dict[str, Any]:
     return {"application_id": ctx.application_id}
 
@@ -188,6 +193,7 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 **_ids(step.context),
                 "organization_id": step.context.organization_id,
                 "inn": fact.inn,
+                "sources": list(ENRICHMENT_SOURCES),
                 "bki_consent_at": fact.bki_consent_at,
                 "statement_document_ids": list(fact.statement_document_ids),
                 "head": _person(fact.head),

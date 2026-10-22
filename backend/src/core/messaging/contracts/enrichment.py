@@ -23,7 +23,8 @@ class FetchEnrichment(IntegrationMessage):
     application_id: UUID
     organization_id: UUID
     inn: str
-    sources: list[str] = ["egrul", "fns", "bki"]
+    # statement — прогноз по выпискам из statement_document_ids; bki_head — БКИ руководителя.
+    sources: list[str] = ["egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head"]
     # Without the consent the credit bureau is not requested at all (218-FZ).
     bki_consent_at: datetime | None = None
     # Uploaded bank statements (CSV) for the cash flow forecast.

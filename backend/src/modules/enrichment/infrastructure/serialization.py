@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -12,16 +13,27 @@ from uuid import UUID
 
 from src.modules.enrichment.domain.snapshot import SourceData
 from src.modules.enrichment.facade import (
+    AccountBlockDTO,
+    AccountingPeriodDTO,
+    AccountingReportsDTO,
+    ArbitrationDTO,
+    BankruptcyMessageDTO,
     CashflowForecastDTO,
     CashflowMonthDTO,
     CashflowProjectionDTO,
+    CounterpartyRiskDTO,
     CreditHistoryDTO,
+    EnforcementDTO,
     FounderDTO,
+    GovContractsDTO,
     ObligationDTO,
     RegistryExtractDTO,
     Source,
     TaxProfileDTO,
 )
+
+# Поля периода ГИР БО: все суммы, кроме года.
+_PERIOD_AMOUNTS = tuple(f.name for f in fields(AccountingPeriodDTO) if f.name != "year")
 
 
 def data_to_json(source: Source, data: SourceData) -> dict[str, Any]:
@@ -33,6 +45,10 @@ def data_to_json(source: Source, data: SourceData) -> dict[str, Any]:
         return _credit_to_json(data)
     if isinstance(data, CashflowForecastDTO):
         return _cashflow_to_json(data)
+    if isinstance(data, AccountingReportsDTO):
+        return _accounting_to_json(data)
+    if isinstance(data, CounterpartyRiskDTO):
+        return _counterparty_to_json(data)
     raise TypeError(f"Нельзя сериализовать данные источника {source!r}")
 
 
@@ -41,10 +57,14 @@ def data_from_json(source: Source, raw: dict[str, Any]) -> SourceData:
         return _registry_from_json(raw)
     if source == "fns":
         return _tax_from_json(raw)
-    if source == "bki":
+    if source in ("bki", "bki_head"):
         return _credit_from_json(raw)
     if source == "statement":
         return _cashflow_from_json(raw)
+    if source == "gir_bo":
+        return _accounting_from_json(raw)
+    if source == "kontur":
+        return _counterparty_from_json(raw)
     raise ValueError(f"Нельзя разобрать данные источника {source!r}")
 
 
@@ -109,6 +129,15 @@ def _tax_to_json(dto: TaxProfileDTO) -> dict[str, Any]:
         "tax_regime": dto.tax_regime,
         "disqualified_head": dto.disqualified_head,
         "in_msp_registry": dto.in_msp_registry,
+        "account_blocks": [
+            {
+                "decision_number": b.decision_number,
+                "date": b.date.isoformat(),
+                "authority_code": b.authority_code,
+                "reason": b.reason,
+            }
+            for b in dto.account_blocks
+        ],
     }
 
 
@@ -122,6 +151,83 @@ def _tax_from_json(raw: dict[str, Any]) -> TaxProfileDTO:
         tax_regime=raw["tax_regime"],
         disqualified_head=raw["disqualified_head"],
         in_msp_registry=raw["in_msp_registry"],
+        # Снимки до ГИР БО и Контура хранились без блокировок.
+        account_blocks=tuple(
+            AccountBlockDTO(
+                decision_number=b["decision_number"],
+                date=date.fromisoformat(b["date"]),
+                authority_code=b["authority_code"],
+                reason=b["reason"],
+            )
+            for b in raw.get("account_blocks", [])
+        ),
+    )
+
+
+def _accounting_to_json(dto: AccountingReportsDTO) -> dict[str, Any]:
+    return {
+        "available": dto.available,
+        "reason": dto.reason,
+        "periods": [
+            {"year": p.year, **{name: str(getattr(p, name)) for name in _PERIOD_AMOUNTS}}
+            for p in dto.periods
+        ],
+    }
+
+
+def _accounting_from_json(raw: dict[str, Any]) -> AccountingReportsDTO:
+    return AccountingReportsDTO(
+        available=raw["available"],
+        reason=raw["reason"],
+        periods=tuple(
+            AccountingPeriodDTO(
+                year=p["year"], **{name: Decimal(p[name]) for name in _PERIOD_AMOUNTS}
+            )
+            for p in raw["periods"]
+        ),
+    )
+
+
+def _counterparty_to_json(dto: CounterpartyRiskDTO) -> dict[str, Any]:
+    return {
+        "reliability": dto.reliability,
+        "notes": list(dto.notes),
+        "arbitration": {
+            "as_defendant": dto.arbitration.as_defendant,
+            "as_plaintiff": dto.arbitration.as_plaintiff,
+            "defendant_sum": str(dto.arbitration.defendant_sum),
+        },
+        "enforcement": {"active": dto.enforcement.active, "sum": str(dto.enforcement.sum)},
+        "bankruptcy_messages": [
+            {"date": m.date.isoformat(), "type": m.type, "case": m.case}
+            for m in dto.bankruptcy_messages
+        ],
+        "gov_contracts": {"count": dto.gov_contracts.count, "sum": str(dto.gov_contracts.sum)},
+        "active_pledges": dto.active_pledges,
+    }
+
+
+def _counterparty_from_json(raw: dict[str, Any]) -> CounterpartyRiskDTO:
+    arbitration, enforcement, contracts = (
+        raw["arbitration"],
+        raw["enforcement"],
+        raw["gov_contracts"],
+    )
+    return CounterpartyRiskDTO(
+        reliability=raw["reliability"],
+        notes=tuple(raw["notes"]),
+        arbitration=ArbitrationDTO(
+            as_defendant=arbitration["as_defendant"],
+            as_plaintiff=arbitration["as_plaintiff"],
+            defendant_sum=Decimal(arbitration["defendant_sum"]),
+        ),
+        enforcement=EnforcementDTO(active=enforcement["active"], sum=Decimal(enforcement["sum"])),
+        bankruptcy_messages=tuple(
+            BankruptcyMessageDTO(date=date.fromisoformat(m["date"]), type=m["type"], case=m["case"])
+            for m in raw["bankruptcy_messages"]
+        ),
+        gov_contracts=GovContractsDTO(count=contracts["count"], sum=Decimal(contracts["sum"])),
+        active_pledges=raw["active_pledges"],
     )
 
 

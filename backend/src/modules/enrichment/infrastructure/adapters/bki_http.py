@@ -18,12 +18,13 @@ class BkiHttpSource(HttpSource):
             json={"inn": inn, "consent_at": consent_at.isoformat(), "request_id": str(uuid4())},
         )
         try:
-            return _map(raw)
+            return map_credit_history(raw)
         except (KeyError, ValueError, TypeError) as exc:
             raise SourceUnavailable("bad_response", f"неожиданный ответ БКИ: {exc}") from exc
 
 
-def _map(raw: dict[str, Any]) -> CreditHistoryDTO:
+def map_credit_history(raw: dict[str, Any]) -> CreditHistoryDTO:
+    """Отчёт БКИ: у компании и у физлица формат один."""
     obligations = tuple(
         ObligationDTO(
             creditor=str(o["creditor"]),

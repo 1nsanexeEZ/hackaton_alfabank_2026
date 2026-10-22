@@ -111,3 +111,17 @@ async def test_command_without_a_consent_has_no_moment(world: World) -> None:
 
     assert command.head is not None
     assert command.head_bki_consent_at is None
+
+
+async def test_command_asks_every_source(world: World) -> None:
+    command = await _command(world)
+
+    assert command.sources == [
+        "egrul",
+        "fns",
+        "bki",
+        "statement",
+        "gir_bo",
+        "kontur",
+        "bki_head",
+    ]

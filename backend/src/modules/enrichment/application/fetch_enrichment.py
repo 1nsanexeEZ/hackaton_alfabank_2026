@@ -2,7 +2,10 @@
 
 - источники опрашиваются параллельно, ошибка одного не мешает остальным (частичный
   результат — нормальный исход);
-- БКИ запрашивается только при согласии (218-ФЗ), иначе `skipped`;
+- БКИ запрашивается только при согласии (218-ФЗ), иначе `skipped`; БКИ руководителя — только
+  при его личном согласии (`skipped`, `no_consent`) и если руководитель по реестру известен
+  (`skipped`, `no_head`);
+- `statement` в `sources` — прогноз по выпискам, он строится из `statement_document_ids`;
 - не ответил ни один внешний источник (например, нет сети до моков) — считать не на чем:
   снимок сохраняется для аудита, но публикуется EnrichmentFailed, а не EnrichmentCompleted;
 - идемпотентность по event_id команды: повтор возвращает тот же снимок и повторно
@@ -25,10 +28,14 @@ from src.core.messaging.contracts.enrichment import (
 )
 from src.core.messaging.outbox import OutboxWriter
 from src.modules.enrichment.application.cashflow import CashflowBuilder
-from src.modules.enrichment.application.ports import EnrichmentRepository, SourceError
+from src.modules.enrichment.application.ports import (
+    EnrichmentRepository,
+    PersonQuery,
+    SourceError,
+)
 from src.modules.enrichment.application.sources import Sources
 from src.modules.enrichment.domain.cashflow import StatementParseError
-from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceData
+from src.modules.enrichment.domain.snapshot import INTERNAL_SOURCES, EnrichmentSnapshot, SourceData
 from src.modules.enrichment.domain.snapshot import SourceError as SnapshotError
 from src.modules.enrichment.facade import Source
 
@@ -66,10 +73,11 @@ class FetchEnrichmentUseCase:
 
         tasks = []
         for source in command.sources:
-            if source == "bki" and command.bki_consent_at is None:
-                snapshot.record_skipped(
-                    "bki", SnapshotError("no_consent", "Нет согласия на запрос кредитной истории")
-                )
+            if source in INTERNAL_SOURCES:
+                continue
+            skip = _skip_reason(cast(Source, source), command)
+            if skip is not None:
+                snapshot.record_skipped(cast(Source, source), skip)
                 continue
             tasks.append(self._fetch(cast(Source, source), snapshot, command))
         if tasks:
@@ -118,6 +126,15 @@ class FetchEnrichmentUseCase:
         if source == "bki":
             assert command.bki_consent_at is not None
             return await self._sources.bureau.fetch(command.inn, command.bki_consent_at)
+        if source == "gir_bo":
+            return await self._sources.accounting.fetch(command.inn)
+        if source == "kontur":
+            return await self._sources.counterparty.fetch(command.inn)
+        if source == "bki_head":
+            head = command.head
+            assert head is not None and command.head_bki_consent_at is not None
+            person = PersonQuery(head.last_name, head.first_name, head.middle_name, command.inn)
+            return await self._sources.person_bureau.fetch(person, command.head_bki_consent_at)
         raise SourceError("bad_response", f"Неизвестный источник {source!r}")
 
     async def _publish(
@@ -152,10 +169,26 @@ def _elapsed_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
 
 
+def _skip_reason(source: Source, command: FetchEnrichment) -> SnapshotError | None:
+    """Источник не запрашиваем: нет согласия субъекта (218-ФЗ) или некого спрашивать."""
+    if source == "bki" and command.bki_consent_at is None:
+        return SnapshotError("no_consent", "Нет согласия на запрос кредитной истории")
+    if source == "bki_head":
+        if command.head is None:
+            return SnapshotError("no_head", "Руководитель по реестру не найден среди участников")
+        if command.head_bki_consent_at is None:
+            return SnapshotError(
+                "no_consent", "Нет согласия руководителя на запрос его кредитной истории"
+            )
+    return None
+
+
 def _failure_reason(snapshot: EnrichmentSnapshot) -> str:
     """Например: `all_sources_failed: egrul=unavailable, fns=timeout, bki=no_consent`."""
     details = []
     for source in snapshot.requested_sources:
+        if source in INTERNAL_SOURCES:
+            continue
         result = snapshot.results.get(source)
         if result is None:
             kind = "not_requested"
