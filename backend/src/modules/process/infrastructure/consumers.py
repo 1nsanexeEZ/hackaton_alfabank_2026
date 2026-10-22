@@ -21,6 +21,8 @@ from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.outbox import OutboxWriter, SqlAlchemyOutboxWriter
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
+from src.modules.clients.facade import ClientsFacade
+from src.modules.identity.facade import IdentityFacade
 from src.modules.process.application.ports import WorkflowSource
 from src.modules.process.application.service import ProcessService
 from src.modules.process.domain.steps import Trigger
@@ -64,7 +66,11 @@ def build_service(
         tasks=SqlAlchemyTaskRepository(session),
         outbox=outbox,
         workflows=workflows,
-        facts=ApplicationFacts(facades.get(ApplicationsFacade, session)),
+        facts=ApplicationFacts(
+            facades.get(ApplicationsFacade, session),
+            facades.get(ClientsFacade, session),
+            facades.get(IdentityFacade, session),
+        ),
         products=facades.get(ProductsFacade, session) if with_products else None,
         clock=clock,
     )

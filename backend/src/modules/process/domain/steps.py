@@ -97,10 +97,21 @@ class CompletenessFact:
 
 
 @dataclass(frozen=True, slots=True)
+class PersonFact:
+    account_id: UUID
+    last_name: str
+    first_name: str
+    middle_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class EnrichmentRequestFact:
     inn: str
     bki_consent_at: datetime | None
     statement_document_ids: tuple[UUID, ...]
+    # The head by the registry and their own consent to request their credit history.
+    head: PersonFact | None = None
+    head_bki_consent_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,10 +190,23 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 "inn": fact.inn,
                 "bki_consent_at": fact.bki_consent_at,
                 "statement_document_ids": list(fact.statement_document_ids),
+                "head": _person(fact.head),
+                "head_bki_consent_at": fact.head_bki_consent_at,
             },
         ),
         {"EnrichmentCompleted", "EnrichmentFailed"},
     )
+
+
+def _person(person: PersonFact | None) -> dict[str, Any] | None:
+    if person is None:
+        return None
+    return {
+        "account_id": person.account_id,
+        "last_name": person.last_name,
+        "first_name": person.first_name,
+        "middle_name": person.middle_name,
+    }
 
 
 def _enrichment_reply(step: StepInput, trigger: Trigger) -> StepResult:
