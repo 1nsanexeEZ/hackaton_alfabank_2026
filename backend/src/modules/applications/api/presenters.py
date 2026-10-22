@@ -5,11 +5,12 @@ from typing import Any
 from src.core.serialization import to_jsonable
 from src.modules.applications.api import schemas
 from src.modules.applications.application.ports import PresignedUpload
-from src.modules.applications.application.service import ApplicationView
+from src.modules.applications.application.service import ApplicationView, ContractView
 from src.modules.applications.application.translate import terms_to_dto
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.entities import Document
 from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.value_objects import Offer
 from src.modules.clients.facade import OrgPermission
 
 S = ApplicationStatus
@@ -113,18 +114,7 @@ def application(view: ApplicationView) -> schemas.ApplicationOut:
             )
             for r in app.info_requests
         ],
-        offer=schemas.OfferOut(
-            kind=app.offer.kind,
-            amount=app.offer.amount.amount,
-            term_months=app.offer.term_months,
-            rate=app.offer.rate,
-            monthly_payment=app.offer.monthly_payment.amount,
-            schedule_type=app.offer.schedule_type,
-            conditions=list(app.offer.conditions),
-            expires_at=app.offer.expires_at,
-        )
-        if app.offer
-        else None,
+        offer=_offer(app.offer) if app.offer else None,
         decision_summary=schemas.DecisionSummaryOut(
             outcome=app.decision_summary.outcome,
             client_explanation=app.decision_summary.client_explanation,
@@ -156,6 +146,69 @@ def application(view: ApplicationView) -> schemas.ApplicationOut:
         updated_at=app.updated_at,
         submitted_at=app.submitted_at,
         closed_at=app.closed_at,
+    )
+
+
+def contract(view: ContractView) -> schemas.ContractOut:
+    borrower, schedule, signature = view.borrower, view.schedule, view.application.signature
+    return schemas.ContractOut(
+        number=str(view.application.number),
+        offer_hash=view.offer.fingerprint(),
+        status="signed" if signature else "unsigned",
+        borrower=schemas.ContractBorrowerOut(
+            name=borrower.name,
+            inn=borrower.inn,
+            ogrn=borrower.ogrn,
+            kpp=borrower.kpp,
+            legal_form=borrower.legal_form,
+            head_name=borrower.head_name,
+        ),
+        signers=[
+            schemas.ContractSignerOut(account_id=s.account_id, name=s.name, authority=s.authority)
+            for s in view.signers
+        ],
+        terms=_offer(view.offer),
+        schedule=schemas.ContractScheduleOut(
+            amount=schedule.amount,
+            term_months=schedule.term_months,
+            rate=schedule.rate,
+            repayment=schedule.repayment,
+            monthly_payment=schedule.monthly_payment,
+            total_interest=schedule.total_interest,
+            total_paid=schedule.total_paid,
+            payments=[
+                schemas.ContractPaymentOut(
+                    number=p.number,
+                    due_date=p.due_date,
+                    principal=p.principal,
+                    interest=p.interest,
+                    total=p.total,
+                    balance_after=p.balance_after,
+                )
+                for p in schedule.payments
+            ],
+        ),
+        signature=schemas.ContractSignatureOut(
+            signed_by=signature.signed_by,
+            signed_at=signature.signed_at,
+            edo_document_id=signature.edo_document_id,
+            simulated=view.simulated,
+        )
+        if signature
+        else None,
+    )
+
+
+def _offer(offer: Offer) -> schemas.OfferOut:
+    return schemas.OfferOut(
+        kind=offer.kind,
+        amount=offer.amount.amount,
+        term_months=offer.term_months,
+        rate=offer.rate,
+        monthly_payment=offer.monthly_payment.amount,
+        schedule_type=offer.schedule_type,
+        conditions=list(offer.conditions),
+        expires_at=offer.expires_at,
     )
 
 

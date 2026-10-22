@@ -526,12 +526,19 @@ class CreditApplication:
         self._events.append(OfferExpired(**self._ids(now)))
         return True
 
-    def sign(self, actor: Actor, now: datetime) -> Signature:
+    def sign(self, actor: Actor, now: datetime, offer_hash: str) -> Signature:
         """Rights (sign within the company) and the step-up password are
-        checked by the use case before; the aggregate fixes what was signed."""
+        checked by the use case before; the aggregate fixes what was signed.
+        `offer_hash` is the one the client saw in the contract: an offer that
+        changed since then is not signed blindly."""
         ensure_transition(self.status, S.SIGNED)
         assert self.offer is not None and actor.account_id is not None
-        self.signature = Signature(actor.account_id, now, self.offer.fingerprint())
+        if offer_hash != self.offer.fingerprint():
+            raise ConflictError(
+                "The offer has changed, open the contract again",
+                details={"code": "offer_changed"},
+            )
+        self.signature = Signature(actor.account_id, now, offer_hash)
         self._move(S.SIGNED, actor, now)
         self._events.append(ApplicationSigned(**self._ids(now), signed_by=actor.account_id))
         return self.signature

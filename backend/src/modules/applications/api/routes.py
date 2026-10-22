@@ -18,6 +18,7 @@ from src.modules.applications.api.schemas import (
     ApplicationOut,
     ApplicationUpdate,
     CompletenessOut,
+    ContractOut,
     DocumentOut,
     DocumentUploadIn,
     DocumentUploadOut,
@@ -174,16 +175,25 @@ async def decline_offer(
     return presenters.application(await service.decline_offer(access, application_id, reason))
 
 
+@router.get("/{application_id}/contract", response_model=ContractOut)
+async def contract(application_id: UUID, access: CanRead, service: Service) -> ContractOut:
+    """The loan contract to show before signing: borrower, terms, schedule
+    and who may sign. From `signing` on; before that 409 `contract_not_ready`."""
+    return presenters.contract(await service.contract(access, application_id))
+
+
 @router.post("/{application_id}/sign", response_model=SignOut)
 async def sign(
     application_id: UUID, data: SignIn, request: Request, access: CanUpdate, service: Service
 ) -> SignOut:
     """Simulated signature: the password is asked once more (step-up), the
-    document goes through the EDO mock; the response says `simulated: true`."""
+    document goes through the EDO mock; the response says `simulated: true`.
+    `offer_hash` comes from the contract; a changed offer — 409 `offer_changed`."""
     result = await service.sign(
         access,
         application_id,
         data.password.get_secret_value(),
+        data.offer_hash,
         client_ip(request),
         request.headers.get("user-agent"),
     )

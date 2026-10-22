@@ -464,4 +464,4 @@ def _history_in(row: StatusHistoryRecord) -> StatusChange:
 def _signature_in(row: SignatureRecord | None) -> Signature | None:
     if row is None:
         return None
-    return Signature(row.signed_by, _aware(row.signed_at), row.offer_hash)
+    return Signature(row.signed_by, _aware(row.signed_at), row.offer_hash, row.edo_document_id)

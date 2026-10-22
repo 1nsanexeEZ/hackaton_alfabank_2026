@@ -269,6 +269,8 @@ class Signature:
     signed_by: UUID
     signed_at: datetime
     offer_hash: str
+    # Filled in after the document flow answers; None right after signing.
+    edo_document_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

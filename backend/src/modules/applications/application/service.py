@@ -10,7 +10,7 @@ Bank staff read without a company check; writing is not given to them.
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
@@ -34,24 +34,32 @@ from src.modules.applications.application.ports import (
 )
 from src.modules.applications.application.translate import (
     snapshot_from_dto,
+    snapshot_to_dto,
     terms_from_dto,
     to_contract,
 )
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.entities import Document
+from src.modules.applications.domain.statuses import ApplicationStatus
 from src.modules.applications.domain.value_objects import (
     Actor,
     CollateralDeclaration,
     LoanRequest,
+    Offer,
     Signature,
     Violation,
 )
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO, OrgPermission
 from src.modules.identity.facade import IdentityFacade
-from src.modules.products.facade import ProductsFacade
+from src.modules.products.facade import PaymentScheduleDTO, ProductsFacade, Repayment
 
 UPLOAD_URL_TTL_SECONDS = 300
 DOWNLOAD_URL_TTL_SECONDS = 60
+
+# The contract exists once the client accepted the offer.
+CONTRACT_STATUSES = frozenset(
+    {ApplicationStatus.SIGNING, ApplicationStatus.SIGNED, ApplicationStatus.DISBURSED}
+)
 
 
 @dataclass(frozen=True)
@@ -74,6 +82,27 @@ class SignResult:
     view: ApplicationView
     signature: Signature
     edo_document_id: str
+    simulated: bool
+
+
+@dataclass(frozen=True)
+class ContractSigner:
+    account_id: UUID
+    name: str
+    # Head of the company by the registry, or a member with a power of attorney.
+    authority: Literal["registry", "power_of_attorney"]
+
+
+@dataclass(frozen=True)
+class ContractView:
+    """What the client signs: the offer, the schedule it gives and who may
+    sign. Rendered by the frontend from these fields."""
+
+    application: CreditApplication
+    offer: Offer
+    borrower: OrganizationSnapshotDTO
+    signers: tuple[ContractSigner, ...]
+    schedule: PaymentScheduleDTO
     simulated: bool
 
 
@@ -137,6 +166,27 @@ class ApplicationService:
             application.organization_id, application.product_code, exclude_id=application.id
         )
         return application.check_ready(legal_form, has_other_active=other is not None)
+
+    async def contract(self, access: AccessContext, application_id: UUID) -> ContractView:
+        application = await self._repository.get(application_id, access)
+        if application.status not in CONTRACT_STATUSES or application.offer is None:
+            raise ConflictError(
+                "The contract appears once the offer is accepted",
+                details={"code": "contract_not_ready"},
+            )
+        offer = application.offer
+        borrower = (
+            snapshot_to_dto(application.org_snapshot)
+            if application.org_snapshot is not None
+            else await self._clients.get_snapshot(application.organization_id)
+        )
+        schedule = self._products.calculate_payment(
+            offer.amount.amount, offer.term_months, offer.rate, cast(Repayment, offer.schedule_type)
+        )
+        signers = await self._signers(application.organization_id, borrower.head_name)
+        return ContractView(
+            application, offer, borrower, tuple(signers), schedule, self._edo.simulated
+        )
 
     async def download_url(
         self, access: AccessContext, application_id: UUID, document_id: UUID
@@ -314,15 +364,17 @@ class ApplicationService:
         access: AccessContext,
         application_id: UUID,
         password: str,
+        offer_hash: str,
         ip: str | None,
         user_agent: str | None,
     ) -> SignResult:
         """Signing is a legally meaningful act: the right to sign inside the
-        company plus the password once more (a stolen session is not enough)."""
+        company plus the password once more (a stolen session is not enough),
+        and exactly the offer the client saw in the contract."""
         application = await self._writable(access, application_id, OrgPermission.SIGN)
         if not await self._identity.verify_password(access.user_id, password):
             raise ValidationError("Wrong password", details={"code": "invalid_password"})
-        signature = application.sign(Actor.client(access.user_id), self._clock.now())
+        signature = application.sign(Actor.client(access.user_id), self._clock.now(), offer_hash)
         receipt = await self._edo.sign(
             application.id, str(application.number), signature.offer_hash, access.user_id
         )
@@ -401,7 +453,33 @@ class ApplicationService:
             organization = await self._clients.get_snapshot(application.organization_id)
         return ApplicationView(application, organization, permissions)
 
+    async def _signers(self, organization_id: UUID, head_name: str | None) -> list[ContractSigner]:
+        """Members who hold the right to sign today. The head by the registry
+        signs by law; anyone else holding the right has a power of attorney."""
+        signers = []
+        for account_id in await self._clients.list_members(organization_id, OrgPermission.SIGN):
+            account = await self._identity.get_account(account_id)
+            if account is None:
+                continue
+            parts = (account.last_name, account.first_name, account.middle_name)
+            name = " ".join(p for p in parts if p)
+            by_registry = head_name is not None and _same_person(name, head_name)
+            signers.append(
+                ContractSigner(account_id, name, "registry" if by_registry else "power_of_attorney")
+            )
+        return signers
+
     async def _legal_form(self, application: CreditApplication) -> str:
         if application.org_snapshot is not None:
             return application.org_snapshot.legal_form
         return (await self._clients.get_snapshot(application.organization_id)).legal_form
+
+
+def _same_person(name: str, registry_name: str) -> bool:
+    """The comparison clients makes with the registry head: case, ё and
+    spacing do not matter."""
+
+    def normalized(value: str) -> str:
+        return " ".join(value.lower().replace("ё", "е").split())
+
+    return normalized(name) == normalized(registry_name)
