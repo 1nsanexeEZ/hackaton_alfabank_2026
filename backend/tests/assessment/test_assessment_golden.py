@@ -204,8 +204,12 @@ def test_assessment_scenario(assessment: Assessment, scenario: Scenario) -> None
     )
 
     enriched = assessment.fetch_enrichment(application_id)
-    expected_ok = {"egrul", "fns", "bki"} - set(scenario.sources_failed)
+    # ГИР БО и Контур отвечают по всем демо-компаниям; БКИ руководителя без его согласия не
+    # запрашивается — ни в ok, ни в failed.
+    external = {"egrul", "fns", "bki", "gir_bo", "kontur"}
+    expected_ok = external - set(scenario.sources_failed)
     assert set(enriched["sources_ok"]) == expected_ok
+    assert "bki_head" not in enriched["sources_ok"] + enriched["sources_failed"]
     assert enriched["sources_failed"] == list(scenario.sources_failed)
     assert enriched["cash_gap_detected"] is scenario.cash_gap
     if scenario.gap_month is not None:

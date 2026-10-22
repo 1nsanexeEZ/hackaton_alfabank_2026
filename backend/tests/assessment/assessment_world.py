@@ -41,6 +41,7 @@ from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSourc
 from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
 from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
 from src.modules.identity.models import Account
+from src.modules.process.domain.steps import ENRICHMENT_SOURCES
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, token_for
 
@@ -227,7 +228,8 @@ class Assessment:
             application_id=application_id,
             organization_id=source.organization_id,
             inn=source.organization.inn,
-            sources=["egrul", "fns", "bki"],
+            # Как process: все источники. Личных согласий в сидах нет — БКИ руководителя `skipped`.
+            sources=list(ENRICHMENT_SOURCES),
             bki_consent_at=source.credit_bureau_consent_at,
             statement_document_ids=list(source.statement_document_ids),
         )
