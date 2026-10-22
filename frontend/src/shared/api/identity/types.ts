@@ -21,8 +21,16 @@ export type Permission =
   | 'credits.create'
   | 'credits.update'
   | 'credits.delete'
+  | 'organizations.read'
+  | 'organizations.update'
+  | 'tasks.read'
+  | 'tasks.update'
+  | 'decisions.read'
+  | 'backoffice.read'
+  | 'feed.read'
 
-export type Policy = 'not_deleted' | 'own_only'
+/** org_member — только компании, где пользователь участник, и их заявки */
+export type Policy = 'not_deleted' | 'own_only' | 'org_member'
 
 export type PolicyMap = Partial<Record<Permission, Policy[]>>
 
