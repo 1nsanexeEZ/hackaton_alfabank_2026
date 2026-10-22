@@ -274,6 +274,7 @@ export interface ClientApi {
   calculate(code: string, input: CalculateInput): Promise<PaymentScheduleDto>
   /** Компании, где пользователь участник */
   listOrganizations(): Promise<OrganizationSummaryDto[]>
+  /** Уже есть заявка по продукту в работе — 409, details.code = duplicate_active, details.application_id */
   createApplication(organizationId: string, productCode: string): Promise<ApplicationDto>
   getApplication(id: string): Promise<ApplicationDto>
   updateApplication(id: string, input: ApplicationUpdateInput): Promise<ApplicationDto>

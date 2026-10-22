@@ -1,6 +1,6 @@
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 
-import { loanDraft } from '@/entities/application'
+import { APPLICATION_STATUS_META, loanDraft, toClientStatus } from '@/entities/application'
 import {
   findProduct,
   hasProductFields,
@@ -46,6 +46,7 @@ export interface DocumentSlot {
  * Заявка по контракту docs/api/client-journey.md §3.5:
  * черновик (POST /applications) → автосохранение (PATCH с version) → документы → комплектность → submit.
  * Состояние живёт, пока жива модалка: закрыл и открыл снова — продолжаешь с того же места.
+ * После перезагрузки страницы черновик находится по 409 duplicate_active и продолжается (resume).
  */
 export function useApplicationWizard(products: () => ProductCatalog) {
   const step = ref<WizardStep>('terms')
@@ -218,8 +219,51 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     ) {
       return
     }
+    try {
+      application.value = await clientApi.createApplication(terms.organizationId, product.value.code)
+    } catch (caught) {
+      const existingId = duplicateOf(caught)
+      if (!existingId) throw caught
+      await resume(existingId)
+    }
+    // Старый черновик отменяем, только когда новый уже есть: иначе при отказе клиент потерял бы оба
     if (current?.status === 'draft') await clientApi.cancelApplication(current.id).catch(() => undefined)
-    application.value = await clientApi.createApplication(terms.organizationId, product.value.code)
+  }
+
+  /** Бэкенд не даёт вторую активную заявку по продукту и отдаёт id той, что уже есть */
+  function duplicateOf(caught: unknown): string | null {
+    if (!(caught instanceof ApiError) || caught.status !== 409 || caught.details.code !== 'duplicate_active') return null
+    return typeof caught.details.application_id === 'string' ? caught.details.application_id : null
+  }
+
+  /**
+   * Заявка по продукту уже есть. Черновик (например, начатый до перезагрузки страницы) продолжаем:
+   * условия перезапишутся тем, что клиент ввёл сейчас, а залог, анкета и документы подтянутся из него.
+   * Заявку, которая уже в работе, не трогаем — объясняем, почему новую подать нельзя.
+   */
+  async function resume(id: string) {
+    const existing = await clientApi.getApplication(id)
+    if (existing.status !== 'draft') {
+      const status = toClientStatus(existing.status, existing.client_stage)
+      const state = status ? ` в статусе «${APPLICATION_STATUS_META[status].label}»` : ''
+      throw new ApiError(
+        409,
+        'conflict',
+        `По этому продукту у компании уже есть заявка № ${existing.number}${state}. Новую можно подать, когда по ней будет решение`,
+      )
+    }
+    application.value = existing
+    if (existing.collateral) {
+      Object.assign(collateral, {
+        type: existing.collateral.type,
+        description: existing.collateral.description,
+        declaredValue: String(Number(existing.collateral.declared_value)),
+        owner: existing.collateral.owner,
+      })
+    }
+    if (Object.keys(existing.product_fields).length) {
+      productFields.value = toFormValues(product.value.fieldsSchema, existing.product_fields)
+    }
   }
 
   function validateTerms(): boolean {
