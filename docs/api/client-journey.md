@@ -295,9 +295,11 @@ Dashboard {
 
 ## 4. Чего не хватает: план
 
+Реализация по модулям, порядок работ и диаграммы — в [roadmap.md](roadmap.md). Если контракты здесь и там расходятся, верен roadmap.
+
 | # | Что | Шаг схемы | Изменение API | Приоритет | Модули |
 |---|---|---|---|---|---|
-| 4.1 | Калькулятор с учётом предскоринга | 7 | новая `POST /products/{code}/calculate/{organization_id}` | Should | products, decision |
+| 4.1 | Калькулятор с учётом предскоринга | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
 | 4.2 | Сверка с ЕГРЮЛ по запросу | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment |
 | 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, enrichment |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
@@ -311,7 +313,7 @@ Must нет: основной путь (компания с оборотами �
 
 **Зачем.** На схеме: «Сумма, срок, платёж — это калькулятор, только с учётом предскоринга, чтобы не предложить 30 млн на слоты». Сейчас `POST /products/{code}/calculate` публичный и про компанию не знает: считает любую сумму в рамках продукта по базовой ставке. Можно обойтись двумя вызовами (`/bff/products/recommend` → `pre_approved_max`, потом `calculate` с `rate = rate_from`), но тогда правило «не больше предодобренного» живёт на фронте.
 
-**Ручка.** `POST /products/{code}/calculate/{organization_id}` — по образцу `recommend/{organization_id}`. Нужен вход и `credits.read`, чужая компания — 404.
+**Ручка.** `POST /bff/products/{code}/calculate?organization_id=…`. Нужен вход и `credits.read`, чужая компания — 404. Ручка в BFF, а не в products: предодобрение хранит `decision`, а он сам читает `products`, и получился бы цикл.
 
 Тело — как у `calculate`, но без `rate`: ставку определяет бэк.
 
