@@ -25,8 +25,11 @@ def test_application_goes_from_submission_to_payout(pipeline: Pipeline) -> None:
     p.drain()
     assert p.process(application_id)["current_node_id"] == "wait_signature"
 
+    contract = world.client.get(f"/applications/{application_id}/contract", headers=headers)
     signed = world.client.post(
-        f"/applications/{application_id}/sign", json={"password": PASSWORD}, headers=headers
+        f"/applications/{application_id}/sign",
+        json={"password": PASSWORD, "offer_hash": contract.json()["offer_hash"]},
+        headers=headers,
     )
     assert signed.status_code == 200
     p.drain()

@@ -98,7 +98,7 @@ def action(
         S.OFFER_READY: lambda a: a.present_offer(offer(), summary(), NOW),
         S.REJECTED: lambda a: a.reject(summary("REJECT"), NOW),
         S.SIGNING: lambda a: a.accept_offer(CLIENT, NOW),
-        S.SIGNED: lambda a: a.sign(CLIENT, NOW),
+        S.SIGNED: lambda a: a.sign(CLIENT, NOW, a.offer.fingerprint() if a.offer else ""),
         S.DISBURSED: lambda a: a.mark_disbursed(NOW),
         S.OFFER_DECLINED: lambda a: a.decline_offer(CLIENT, NOW),
         S.CANCELLED: lambda a: a.cancel(CLIENT, NOW),

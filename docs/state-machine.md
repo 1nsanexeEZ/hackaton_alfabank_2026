@@ -79,7 +79,7 @@ stateDiagram-v2
 | `OFFER_READY` | `OFFER_DECLINED` | клиент | `POST /applications/{id}/offer/decline` | `decline_offer` | причина необязательна | `OfferDeclined` |
 | `OFFER_READY` | `EXPIRED` | система | фоновая проверка `expires_at` | `expire_offer` | срок действительно истёк, иначе ничего не меняется | `OfferExpired` |
 | `OFFER_READY` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | — | `ApplicationCancelled` |
-| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); документ уходит в ЭДО-мок | `ApplicationSigned` |
+| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password, offer_hash}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); `offer_hash` из договора совпадает с текущим предложением (иначе 409 `offer_changed`); документ уходит в ЭДО-мок | `ApplicationSigned` |
 | `SIGNED` | `DISBURSED` | процесс | команда `MarkDisbursed` | `mark_disbursed` | повтор в `DISBURSED` ничего не меняет | — |
 
 Чего в таблице нет, того нет и в коде: например, после принятия предложения (`SIGNING`) заявку уже нельзя отменить, а отклонённую — подать заново.

@@ -60,6 +60,8 @@ class ReasonIn(BaseModel):
 
 class SignIn(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=128)
+    # `offer_hash` from GET /applications/{id}/contract: the client signs what it saw.
+    offer_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 # --- output -------------------------------------------------------------------
@@ -261,3 +263,59 @@ class SignatureOut(BaseModel):
 class SignOut(BaseModel):
     application: ApplicationOut
     signature: SignatureOut
+
+
+class ContractBorrowerOut(BaseModel):
+    name: str
+    inn: str
+    ogrn: str
+    kpp: str | None
+    legal_form: str
+    head_name: str | None
+
+
+class ContractSignerOut(BaseModel):
+    account_id: UUID
+    name: str
+    authority: Literal["registry", "power_of_attorney"]
+
+
+class ContractPaymentOut(BaseModel):
+    number: int
+    due_date: date | None
+    principal: Decimal
+    interest: Decimal
+    total: Decimal
+    balance_after: Decimal
+
+
+class ContractScheduleOut(BaseModel):
+    amount: Decimal
+    term_months: int
+    rate: Decimal
+    repayment: str
+    monthly_payment: Decimal
+    total_interest: Decimal
+    total_paid: Decimal
+    payments: list[ContractPaymentOut]
+
+
+class ContractSignatureOut(BaseModel):
+    signed_by: UUID
+    signed_at: datetime
+    edo_document_id: str | None
+    simulated: bool
+
+
+class ContractOut(BaseModel):
+    """The loan contract to show before signing. `number` is the application
+    number; `offer_hash` goes back in `POST /applications/{id}/sign`."""
+
+    number: str
+    offer_hash: str
+    status: Literal["unsigned", "signed"]
+    borrower: ContractBorrowerOut
+    signers: list[ContractSignerOut]
+    terms: OfferOut
+    schedule: ContractScheduleOut
+    signature: ContractSignatureOut | None

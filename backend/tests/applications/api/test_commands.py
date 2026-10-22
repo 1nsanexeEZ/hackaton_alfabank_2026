@@ -206,8 +206,11 @@ def test_disbursement_after_signing(world: World) -> None:
     send(world, MarkDisbursed(application_id=UUID(application_id)))
     assert card(world, application_id)["status"] == "signing"
 
+    contract = world.client.get(f"/applications/{application_id}/contract", headers=headers)
     world.client.post(
-        f"/applications/{application_id}/sign", json={"password": PASSWORD}, headers=headers
+        f"/applications/{application_id}/sign",
+        json={"password": PASSWORD, "offer_hash": contract.json()["offer_hash"]},
+        headers=headers,
     )
     send(world, MarkDisbursed(application_id=UUID(application_id)))
     body = card(world, application_id)

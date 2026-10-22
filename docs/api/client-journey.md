@@ -51,7 +51,7 @@
 | 14 | Ручная проверка | андеррайтер | `GET /bff/backoffice/queue`, `GET /bff/backoffice/applications/{id}`, `POST /tasks/{id}/claim`, `POST /tasks/{id}/complete` | ✅ |
 | 15 | Решение клиенту | клиент | `GET /bff/applications/{id}`, `GET /feed` + SSE | ✅ |
 | 16 | counteroffer — клиент подтверждает | клиент | `POST …/offer/accept`, `POST …/offer/decline` | ✅ |
-| 17 | «Подпиши договор: одобрили, но нужна подпись» | клиент | `POST /applications/{id}/sign` | 🟡 показать перед подписью нечего — [4.5](#45-договор-перед-подписью) |
+| 17 | «Подпиши договор: одобрили, но нужна подпись» | клиент | `GET /applications/{id}/contract`, `POST /applications/{id}/sign` | ✅ договор перед подписью — [3.7](#37-решение-оффер-подпись-выдача-шаги-1518) |
 | 18 | Кредит оформлен | клиент | `client_status = issued`, `ApplicationOut.disbursement` | ✅ выдачу делает процесс после подписи (мок АБС) |
 | — | Стартап: личный скоринг учредителя → бизнес-план → проектная оценка | клиент, банк | — | ❌ — [4.6](#46-ветка-стартапа) |
 
@@ -310,8 +310,28 @@ Dashboard {
 |---|---|---|
 | `POST /applications/{id}/offer/accept` | — | `offer_ready` → `signing`. Нужно и для `as_requested`, и для `counter` |
 | `POST /applications/{id}/offer/decline` | `{reason?}` или пусто | → `offer_declined` |
-| `POST /applications/{id}/sign` | `{password}` | Пароль аккаунта ещё раз (step-up), неверный — 422 `invalid_password`. Нужно право `sign`. Ответ `{application, signature: {signed_at, offer_hash, edo_document_id, simulated}}` |
+| `GET /applications/{id}/contract` | — | Договор для экрана подписи, с `signing` и дальше; раньше — 409 `contract_not_ready`. Право — чтение заявки. Ответ ниже |
+| `POST /applications/{id}/sign` | `{password, offer_hash}` | Пароль аккаунта ещё раз (step-up), неверный — 422 `invalid_password`. `offer_hash` — из договора: если оффер изменился после открытия договора — 409 `offer_changed`, договор открыть заново. Нужно право `sign`. Ответ `{application, signature: {signed_at, offer_hash, edo_document_id, simulated}}` |
 | `POST /applications/{id}/cancel` | `{reason?}` или пусто | Отмена в `draft`, `submitted`, `info_requested`, `offer_ready` |
+
+Договор `ContractOut` рендерит фронт из полей, PDF нет:
+
+```json
+{
+  "number": "2026-000123",
+  "offer_hash": "9f2c…64 hex",
+  "status": "unsigned",
+  "borrower": { "name": "ООО «Ромашка»", "inn": "7701158817", "ogrn": "…", "kpp": "…", "legal_form": "ooo", "head_name": "Смирнова Анна Андреевна" },
+  "signers": [{ "account_id": "…", "name": "Смирнова Анна Андреевна", "authority": "registry" }],
+  "terms": { "kind": "as_requested", "amount": "3000000.00", "term_months": 24, "rate": "23.50", "monthly_payment": "…", "schedule_type": "annuity", "conditions": [], "expires_at": "…" },
+  "schedule": { "amount": "3000000.00", "term_months": 24, "rate": "23.50", "repayment": "annuity", "monthly_payment": "…", "total_interest": "…", "total_paid": "…", "payments": [{ "number": 1, "due_date": null, "principal": "…", "interest": "…", "total": "…", "balance_after": "…" }] },
+  "signature": null
+}
+```
+
+- `number` — номер заявки, отдельной нумерации договоров нет.
+- `signers` — кто вправе подписать сейчас: руководитель по реестру (`registry`) и участники с доверенностью со scope `sign` (`power_of_attorney`). Бухгалтер без доверенности сюда не попадает: ему договор виден, но подписать он не может.
+- После подписи `status = signed`, `signature = {signed_by, signed_at, edo_document_id, simulated}`.
 
 После подписи процесс сам выдаёт кредит через мок АБС: `status = disbursed`, в заявке `disbursement {reference, disbursed_at, simulated}`, у клиента `client_status = issued`. Оффер, не принятый до `offer.expires_at`, уходит в `expired`.
 
@@ -339,7 +359,7 @@ Dashboard {
 | 4.2 | Сверка с ЕГРЮЛ — ✅ сделано | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment, decision |
 | 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, enrichment |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
-| 4.5 | Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
+| 4.5 | ✅ Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
 | 4.6 | Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
 | 4.7 | Скоринг и стратегия как на схеме | 12–13 | без новых ручек: поля в DTO андеррайтера | Could | scoring, decision |
 
@@ -466,32 +486,12 @@ fns: + account_blocks: [{ decision_number, date, reason }]
 
 ### 4.5. Договор перед подписью
 
-**Зачем.** На схеме клиент получает документ «Подпиши договор: одобрили, но нужна подпись». Сейчас `sign` подписывает хэш оффера (`offer_hash`) через ЭДО-мок, а показать клиенту нечего: ни текста, ни графика платежей.
+✅ Сделано, контракт — в [3.7](#37-решение-оффер-подпись-выдача-шаги-1518).
 
-**Ручка.** `GET /applications/{application_id}/contract` — в статусах `signing`, `signed`, `disbursed`. В остальных — 409, `details.code = contract_not_ready`.
-
-```json
-{
-  "number": "…",
-  "offer_hash": "…",
-  "status": "unsigned",
-  "borrower": {
-    "name": "ООО «Ромашка»", "inn": "…", "ogrn": "…",
-    "signer_name": "Смирнова А. А.", "signer_authority": "registry"
-  },
-  "terms": { "…": "OfferOut" },
-  "schedule": { "…": "PaymentScheduleRead по условиям оффера" },
-  "conditions": ["…"],
-  "signature": null,
-  "document_url": null
-}
-```
-
-- `status`: `unsigned` | `signed`; после подписи `signature = {signed_at, edo_document_id, simulated}`.
-- `signer_authority`: `registry` | `power_of_attorney`.
-- `document_url` — ссылка на PDF, если сделаем генерацию. Пока `null`, и фронт рендерит договор из полей.
-
-**Изменение `sign`.** Тело становится `{password, offer_hash}`. Если оффер успел измениться после открытия договора, ответ — 409 `offer_changed`: клиент подписывает ровно то, что видел. Сейчас `sign` берёт хэш текущего оффера, не спрашивая клиента.
+- `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей и подпись.
+- `POST /applications/{id}/sign` принимает `{password, offer_hash}`; изменившийся оффер — 409 `offer_changed`.
+- Адреса заёмщика в договоре нет: его нет в снимке компании, который заявка фиксирует при подаче.
+- PDF не генерируем, фронт рендерит договор из полей.
 
 ### 4.6. Ветка стартапа
 

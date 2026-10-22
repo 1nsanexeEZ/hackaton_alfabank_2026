@@ -13,6 +13,8 @@ from src.modules.applications.application.ports import EdoReceipt
 class SimulatedEdoClient:
     """Used while the external mocks service is not configured."""
 
+    simulated = True
+
     async def sign(
         self, application_id: UUID, number: str, offer_hash: str, signer_id: UUID
     ) -> EdoReceipt:
@@ -22,6 +24,9 @@ class SimulatedEdoClient:
 class HttpEdoClient:
     """`POST /edo/sign` of external-mocks: `{document_hash, signer}` →
     `{signature_id, document_hash, signer, signed_at, simulated}`."""
+
+    # The only document flow behind this client is the mock.
+    simulated = True
 
     def __init__(
         self,

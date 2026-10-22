@@ -94,6 +94,9 @@ class EdoReceipt:
 
 
 class EdoClient(Protocol):
+    # True while the document flow is a mock: the contract says so to the client.
+    simulated: bool
+
     async def sign(
         self, application_id: UUID, number: str, offer_hash: str, signer_id: UUID
     ) -> EdoReceipt: ...
