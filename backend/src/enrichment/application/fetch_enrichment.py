@@ -3,8 +3,10 @@
 - источники опрашиваются параллельно, ошибка одного не мешает остальным (частичный
   результат — нормальный исход);
 - БКИ запрашивается только при согласии (218-ФЗ), иначе `skipped`;
+- не ответил ни один внешний источник (например, нет сети до моков) — считать не на чем:
+  снимок сохраняется для аудита, но публикуется EnrichmentFailed, а не EnrichmentCompleted;
 - идемпотентность по event_id команды: повтор возвращает тот же снимок и повторно
-  публикует EnrichmentCompleted;
+  публикует тот же ответ;
 - causation_id ответа = event_id команды.
 """
 
@@ -16,7 +18,11 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from src.core.domain.clock import Clock
-from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEnrichment
+from src.core.messaging.contracts.enrichment import (
+    EnrichmentCompleted,
+    EnrichmentFailed,
+    FetchEnrichment,
+)
 from src.core.messaging.outbox import OutboxWriter
 from src.enrichment.application.cashflow import CashflowBuilder
 from src.enrichment.application.ports import EnrichmentRepository, SourceError
@@ -117,6 +123,16 @@ class FetchEnrichmentUseCase:
     async def _publish(
         self, outbox: OutboxWriter, snapshot: EnrichmentSnapshot, command_event_id: UUID
     ) -> None:
+        if not snapshot.sources_ok:
+            await outbox.add(
+                EnrichmentFailed(
+                    application_id=snapshot.application_id, reason=_failure_reason(snapshot)
+                ),
+                key=snapshot.application_id,
+                correlation_id=snapshot.application_id,
+                causation_id=command_event_id,
+            )
+            return
         cashflow = snapshot.cashflow()
         await outbox.add(
             EnrichmentCompleted(
@@ -134,3 +150,18 @@ class FetchEnrichmentUseCase:
 
 def _elapsed_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
+
+
+def _failure_reason(snapshot: EnrichmentSnapshot) -> str:
+    """Например: `all_sources_failed: egrul=unavailable, fns=timeout, bki=no_consent`."""
+    details = []
+    for source in snapshot.requested_sources:
+        result = snapshot.results.get(source)
+        if result is None:
+            kind = "not_requested"
+        elif result.error is not None:
+            kind = result.error.kind
+        else:
+            kind = result.status
+        details.append(f"{source}={kind}")
+    return "all_sources_failed: " + ", ".join(details)
