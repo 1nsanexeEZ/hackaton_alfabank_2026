@@ -42,7 +42,7 @@
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | только чтение `OrganizationRead.verification` | ❌ запустить сверку нечем — [4.2](#42-сверка-с-егрюл-по-запросу) |
 | 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility`, `POST /products/{code}/calculate` | 🟡 калькулятор не знает о предодобрении — [4.1](#41-калькулятор-с-учётом-предскоринга) |
-| 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `PATCH /applications/{id}` → `consents` — согласия компании в заявке | ✅ плашка в карточке заявки и `todo` на дашборде — следующим шагом, [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
+| 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `PATCH /applications/{id}` → `consents` — согласия компании в заявке; `ClientApplicationCard.consents.head_credit_bureau`, `Dashboard.todo` → `consent_required` | ✅ |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
 | 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | 🟡 есть ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и выписки; нет ГИР БО, Контура, БКИ ФЛ — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
 | 11 | Стоп-фактор? → отказано | банк | без фронта (`decision`, причины `STOP_*`); клиенту — `client_status = rejected` и `decision.client_explanation` | ✅ |
@@ -139,12 +139,14 @@ Dashboard {
   counters: { active_applications, action_required_count, pre_approved_max_amount, pre_approved_rate_from, last_activity_at } | null
   pre_approved: [{ product_code, product_name, max_amount, rate_from, term_max_months, valid_until }]
   active_applications: ApplicationRow[]
-  todo: [{ application_id, number, kind: info_requested | offer_ready | signing, title }]
+  todo: [{ application_id, number, kind: info_requested | offer_ready | signing | consent_required, title }]
   feed: { unread, items: FeedItem[] }
   news: [{ id, title, body, published_at, relevance[] }]
   degraded: string[]             // какие блоки не загрузились — показать заглушку, а не ошибку
 }
 ```
+
+`consent_required` получает только руководитель по реестру и только пока у компании есть заявка до решения (`submitted`, `in_review`, `info_requested`), а его действующего `credit_bureau_personal` нет. Пункт один на компанию, с номером последней такой заявки; согласие даётся через `POST /me/consents` ([4.3](#43-личные-согласия-пдн-и-бки-физлица)).
 
 | Ручка | Что | Ответ |
 |---|---|---|
@@ -219,6 +221,14 @@ Dashboard {
   info_request: { id, requested_fields[], requested_documents[], comment, created_at, due_at, status, answered_at } | null,
   offer: { kind: as_requested | counter, amount, term_months, rate, monthly_payment, schedule_type, conditions[], expires_at } | null,
   decision: { outcome, terms, alternative_product_code, client_explanation, improvement_hints[], requested_info } | null,
+  consents: {
+    head_credit_bureau: {               // null — в реестре нет руководителя или identity недоступен (тогда в degraded — head_consent)
+      required: boolean,                // БКИ руководителя запрашивается для каждой заявки (policy_v2)
+      given: boolean,                   // у руководителя есть действующее credit_bureau_personal
+      given_at: date-time | null,
+      head_name: string                 // ФИО по реестру; у руководителя может не быть аккаунта в компании — тогда given = false
+    } | null
+  },
   timeline: [{ at, kind, title }],
   feed: FeedItem[],
   available_actions[], my_permissions[],
@@ -407,9 +417,9 @@ ConsentRead {
 
 Как согласие доходит до запроса в БКИ: при сборке `FetchEnrichment` процесс находит руководителя по реестру (`ClientsFacade.get_registry_head` — участник, чьё ФИО совпало с руководителем в ЕГРЮЛ) и его действующее согласие (`IdentityFacade.get_active_consent`). В команду уходят `head` и `head_bki_consent_at`; без согласия — `head_bki_consent_at = null`, и БКИ руководителя не запрашивается ([4.4](#44-источники-гир-бо-контур-бки-физлица)).
 
-Ещё не сделано (applications и BFF):
+Что видно на экранах ([3.3](#33-главная-компания-и-предодобрение-шаги-36), [3.6](#36-пока-банк-думает-шаги-1015-глазами-клиента)):
 - в карточке заявки — `consents.head_credit_bureau: {required, given, given_at, head_name}`, чтобы показать «руководитель ещё не дал согласие»;
-- в `Dashboard.todo` руководителю — `kind: consent_required`, если есть заявка в работе, а его согласия нет.
+- в `Dashboard.todo` руководителю — `kind: consent_required`, пока есть заявка до решения, а его согласия нет.
 
 ### 4.4. Источники ГИР БО, Контур, БКИ физлица
 

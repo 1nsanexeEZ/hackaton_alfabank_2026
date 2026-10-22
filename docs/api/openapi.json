@@ -4411,6 +4411,25 @@
         ],
         "title": "ApplicationCardDTO"
       },
+      "ApplicationConsents": {
+        "properties": {
+          "head_credit_bureau": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeadConsent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "head_credit_bureau"
+        ],
+        "title": "ApplicationConsents"
+      },
       "ApplicationCreate": {
         "properties": {
           "organization_id": {
@@ -5319,6 +5338,9 @@
               }
             ]
           },
+          "consents": {
+            "$ref": "#/components/schemas/ApplicationConsents"
+          },
           "timeline": {
             "items": {
               "$ref": "#/components/schemas/ClientTimelineEntry"
@@ -5405,6 +5427,7 @@
           "info_request",
           "offer",
           "decision",
+          "consents",
           "timeline",
           "feed",
           "available_actions",
@@ -7770,6 +7793,42 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HeadConsent": {
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "given": {
+            "type": "boolean",
+            "title": "Given"
+          },
+          "given_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Given At"
+          },
+          "head_name": {
+            "type": "string",
+            "title": "Head Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "required",
+          "given",
+          "given_at",
+          "head_name"
+        ],
+        "title": "HeadConsent"
       },
       "InfoRequest": {
         "properties": {
@@ -12328,7 +12387,8 @@
             "enum": [
               "info_requested",
               "offer_ready",
-              "signing"
+              "signing",
+              "consent_required"
             ],
             "title": "Kind"
           },
