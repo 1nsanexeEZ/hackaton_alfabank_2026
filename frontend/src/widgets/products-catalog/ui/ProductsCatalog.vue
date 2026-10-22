@@ -90,7 +90,8 @@ function onFocusOut(event: FocusEvent) {
 </script>
 
 <template>
-  <section :id="SECTION_ID.products" class="py-16 lg:py-24">
+  <!-- overflow-x-clip: стикер справа выглядывает из-за края окна, но не расширяет страницу -->
+  <section :id="SECTION_ID.products" class="overflow-x-clip py-16 lg:py-24">
     <BaseContainer class="relative">
       <DecorSticker
         class="absolute -top-12 right-24"
