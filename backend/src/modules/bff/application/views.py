@@ -1,0 +1,314 @@
+"""Screens as the frontend gets them.
+
+Client screens list every field explicitly: a model is read from a facade DTO
+by attribute, so only what is declared here leaves the bank — never the score,
+scoring factors, rule trace, reason codes or credit bureau data. Back office
+screens carry the facade DTOs as they are: the bank sees everything."""
+
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
+from src.modules.applications.facade import ApplicationCardDTO
+from src.modules.bff.application.actions import TodoKind
+from src.modules.bff.application.client_status import ClientStatus
+from src.modules.decision.facade import DecisionDTO
+from src.modules.enrichment.facade import EnrichmentSnapshotDTO
+from src.modules.process.facade import ProcessViewDTO, UserTaskDTO
+from src.modules.products.facade import EligibilityCheckDTO
+from src.modules.projector.facade import TimelineEntryDTO
+from src.modules.scoring.facade import ScoringResultDTO
+
+
+class ClientModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- shared client blocks ---------------------------------------------------
+
+
+class OrganizationBrief(ClientModel):
+    id: UUID
+    name: str
+    inn: str
+    legal_form: str
+    my_role: str
+    my_permissions: list[str]
+
+
+class CurrentOrganization(OrganizationBrief):
+    verification_status: str
+    registry_status: str
+
+
+class ApplicationRow(ClientModel):
+    id: UUID
+    number: str
+    product_code: str
+    product_name: str
+    amount: Decimal | None
+    term_months: int | None
+    status: str
+    client_status: ClientStatus
+    client_stage: str | None
+    action_required: str
+    offer_amount: Decimal | None
+    offer_rate: Decimal | None
+    submitted_at: datetime | None
+    updated_at: datetime
+
+
+class FeedItem(ClientModel):
+    id: UUID
+    type: str
+    title: str
+    body: str
+    link: str | None
+    priority: str
+    action_required: bool
+    organization_id: UUID | None
+    application_id: UUID | None
+    created_at: datetime
+    read_at: datetime | None
+
+
+# --- dashboard ----------------------------------------------------------------
+
+
+class Counters(ClientModel):
+    active_applications: int
+    action_required_count: int
+    pre_approved_max_amount: Decimal | None
+    pre_approved_rate_from: Decimal | None
+    last_activity_at: datetime | None
+
+
+class PreApprovedOffer(ClientModel):
+    product_code: str
+    product_name: str | None
+    max_amount: Decimal
+    rate_from: Decimal
+    term_max_months: int
+    valid_until: date
+
+
+class TodoItem(ClientModel):
+    application_id: UUID
+    number: str
+    kind: TodoKind
+    title: str
+
+
+class Feed(ClientModel):
+    unread: int
+    items: list[FeedItem]
+
+
+class NewsItem(ClientModel):
+    id: UUID
+    title: str
+    body: str
+    published_at: datetime
+    relevance: list[str]
+
+
+class Dashboard(ClientModel):
+    # No companies yet: the frontend offers to add one.
+    onboarding: bool
+    organization: CurrentOrganization | None
+    organizations: list[OrganizationBrief]
+    counters: Counters | None
+    pre_approved: list[PreApprovedOffer]
+    active_applications: list[ApplicationRow]
+    todo: list[TodoItem]
+    feed: Feed
+    news: list[NewsItem]
+    degraded: list[str]
+
+
+# --- applications list --------------------------------------------------------
+
+
+class ApplicationList(ClientModel):
+    items: list[ApplicationRow]
+    total: int
+
+
+# --- client application card -------------------------------------------------
+
+
+class OrganizationRef(ClientModel):
+    id: UUID
+    name: str
+    inn: str
+
+
+class ProductInfo(ClientModel):
+    code: str
+    name: str | None
+    amount_min: Decimal
+    amount_max: Decimal
+    term_min_months: int
+    term_max_months: int
+    rate_base: Decimal
+    rate_max: Decimal
+
+
+class LoanRequest(ClientModel):
+    amount: Decimal
+    term_months: int
+    purpose: str
+    purpose_comment: str | None
+
+
+class Collateral(ClientModel):
+    type: str
+    description: str
+    declared_value: Decimal
+    owner: str
+
+
+class Document(ClientModel):
+    id: UUID
+    type: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    status: str
+    uploaded_at: datetime | None
+    info_request_id: UUID | None
+    review_comment: str | None
+
+
+class InfoRequest(ClientModel):
+    id: UUID
+    requested_fields: list[str]
+    requested_documents: list[str]
+    comment: str
+    created_at: datetime
+    due_at: datetime | None
+    status: str
+    answered_at: datetime | None
+
+
+class Offer(ClientModel):
+    kind: str
+    amount: Decimal
+    term_months: int
+    rate: Decimal
+    monthly_payment: Decimal
+    schedule_type: str
+    conditions: list[str]
+    expires_at: datetime
+
+
+class DecisionTerms(ClientModel):
+    amount: Decimal
+    term_months: int
+    rate: Decimal
+    monthly_payment: Decimal
+    schedule_type: str
+    conditions: list[str]
+    expires_at: datetime
+
+
+class RequestedInfo(ClientModel):
+    fields: list[str]
+    documents: list[str]
+    comment: str
+
+
+class ClientDecision(ClientModel):
+    outcome: str
+    terms: DecisionTerms | None = None
+    alternative_product_code: str | None
+    client_explanation: str
+    improvement_hints: list[str]
+    requested_info: RequestedInfo | None = None
+
+
+class ClientTimelineEntry(ClientModel):
+    at: datetime
+    kind: str
+    title: str
+
+
+class ClientApplicationCard(ClientModel):
+    id: UUID
+    number: str
+    organization: OrganizationRef | None
+    product: ProductInfo
+    status: str
+    client_status: ClientStatus
+    client_stage: str | None
+    request: LoanRequest | None
+    product_fields: dict[str, Any]
+    collateral: Collateral | None
+    documents: list[Document]
+    # The open request for information, if the bank is waiting for an answer.
+    info_request: InfoRequest | None
+    offer: Offer | None
+    decision: ClientDecision | None
+    timeline: list[ClientTimelineEntry]
+    feed: list[FeedItem]
+    available_actions: list[str]
+    my_permissions: list[str]
+    created_at: datetime
+    updated_at: datetime
+    submitted_at: datetime | None
+    closed_at: datetime | None
+    degraded: list[str]
+
+
+# --- product matching ---------------------------------------------------------
+
+
+class EligibilityReason(ClientModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class Recommendation(ClientModel):
+    product_code: str
+    product_name: str
+    short_description: str
+    rank: int
+    # best — the first product that fits; unavailable — the company does not fit.
+    fit: str
+    eligible: bool | None
+    eligibility: list[EligibilityReason]
+    rate_from: Decimal
+    amount_max: Decimal
+    term_max_months: int
+    payment_from: Decimal | None
+    pre_approved_max: Decimal | None
+
+
+class Recommendations(ClientModel):
+    items: list[Recommendation]
+    degraded: list[str]
+
+
+# --- back office --------------------------------------------------------------
+
+
+class UnderwriterCard(BaseModel):
+    application: ApplicationCardDTO
+    client_status: ClientStatus
+    # Registry, tax, credit bureau, cash flow forecast for the gap chart.
+    enrichment: EnrichmentSnapshotDTO | None
+    scoring: ScoringResultDTO | None
+    # With rule_trace, reason codes and limits: why the decision is what it is.
+    decision: DecisionDTO | None
+    # Why the product fits the company (or does not).
+    product_fit: EligibilityCheckDTO | None
+    timeline: list[TimelineEntryDTO]
+    # Current node and the path passed, to highlight the diagram.
+    process: ProcessViewDTO | None
+    # The open underwriter task with its form.
+    task: UserTaskDTO | None
+    degraded: list[str]

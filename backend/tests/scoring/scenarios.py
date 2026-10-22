@@ -12,7 +12,7 @@ from datetime import date
 from decimal import Decimal
 
 from seed.demo_data import COMPANIES_BY_CODE, FINANCIALS_BY_CODE
-from src.scoring.domain.model import (
+from src.modules.scoring.domain.model import (
     BureauInput,
     CashflowInput,
     CollateralInput,

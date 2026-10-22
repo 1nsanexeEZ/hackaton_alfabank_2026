@@ -7,8 +7,6 @@ from uuid import UUID, uuid4, uuid5
 
 from sqlalchemy import select
 
-from src.applications.application.commands import _INFO_REQUEST_NAMESPACE
-from src.applications.infrastructure.consumers import expire_offers
 from src.core.messaging.contracts.applications import (
     MarkDisbursed,
     OfferTerms,
@@ -20,6 +18,8 @@ from src.core.messaging.contracts.applications import (
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.contracts.process import StepCompleted
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
+from src.modules.applications.application.commands import _INFO_REQUEST_NAMESPACE
+from src.modules.applications.infrastructure.consumers import expire_offers
 from tests.applications.api.conftest import PASSWORD, World
 
 

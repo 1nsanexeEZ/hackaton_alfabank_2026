@@ -6,11 +6,11 @@ from collections.abc import Callable
 from uuid import UUID
 
 from src.core.exceptions.exceptions import InfrastructureError
-from src.decision.facade import DecisionFacade
-from src.notifications.facade import NotificationsFacade
-from src.process.facade import ProcessFacade
-from src.projector.facade import TimelineEntryDTO
-from src.scoring.facade import ScoringFacade
+from src.modules.decision.facade import DecisionFacade
+from src.modules.notifications.facade import NotificationsFacade
+from src.modules.process.facade import ProcessFacade
+from src.modules.projector.facade import TimelineEntryDTO
+from src.modules.scoring.facade import ScoringFacade
 from tests.bff import factories
 from tests.bff.conftest import World
 

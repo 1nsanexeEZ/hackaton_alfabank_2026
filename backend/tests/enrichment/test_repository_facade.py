@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
-from src.enrichment.facade import (
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
+from src.modules.enrichment.facade import (
     CashflowForecastDTO,
     CashflowMonthDTO,
     CashflowProjectionDTO,
@@ -15,8 +15,8 @@ from src.enrichment.facade import (
     RegistryExtractDTO,
     TaxProfileDTO,
 )
-from src.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
-from src.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
+from src.modules.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
+from src.modules.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 

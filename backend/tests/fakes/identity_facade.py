@@ -1,7 +1,7 @@
 import re
 from uuid import UUID, uuid4
 
-from src.identity.facade import AccountRefDTO
+from src.modules.identity.facade import AccountRefDTO
 
 
 def _normalize_phone(value: str) -> str:

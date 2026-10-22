@@ -8,10 +8,10 @@ from seed.run import SeedContext
 from src.core.config import Settings
 from src.core.domain import FrozenClock
 from src.core.facades import FacadeRegistry
-from src.products.application.mappers import product_dto
-from src.products.domain.product import ProductStatus
-from src.products.infrastructure.models import CreditProductRecord
-from src.products.infrastructure.repository import SqlAlchemyProductRepository
+from src.modules.products.application.mappers import product_dto
+from src.modules.products.domain.product import ProductStatus
+from src.modules.products.infrastructure.models import CreditProductRecord
+from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 
 Sessions = async_sessionmaker[AsyncSession]
 

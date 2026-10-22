@@ -5,13 +5,13 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.clients.facade import ClientsFacade
 from src.core.exceptions.exceptions import NotFoundError
 from src.core.facades import FacadeRegistry
-from src.products.domain.errors import ProductNotAvailableError
-from src.products.infrastructure.facade_impl import ProductsFacadeImpl
-from src.products.infrastructure.repository import SqlAlchemyProductRepository
-from src.scoring.facade import EstimateDTO, ScoringFacade
+from src.modules.clients.facade import ClientsFacade
+from src.modules.products.domain.errors import ProductNotAvailableError
+from src.modules.products.infrastructure.facade_impl import ProductsFacadeImpl
+from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
+from src.modules.scoring.facade import EstimateDTO, ScoringFacade
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.products_facade import FakeProductsFacade

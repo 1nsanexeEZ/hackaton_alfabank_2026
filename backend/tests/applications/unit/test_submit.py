@@ -6,20 +6,20 @@ from uuid import uuid4
 
 import pytest
 
-from src.applications.domain.application import CreditApplication
-from src.applications.domain.entities import DocumentStatus
-from src.applications.domain.events import ApplicationStatusChanged, ApplicationSubmitted
-from src.applications.domain.fields_schema import ProductFieldsSchema
-from src.applications.domain.statuses import ApplicationStatus
-from src.applications.domain.value_objects import (
+from src.core.domain import Money
+from src.core.exceptions.exceptions import InvalidStatusTransitionError, ValidationError
+from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.entities import DocumentStatus
+from src.modules.applications.domain.events import ApplicationStatusChanged, ApplicationSubmitted
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.value_objects import (
     Actor,
     CollateralDeclaration,
     Consents,
     DocumentRequirement,
     LoanRequest,
 )
-from src.core.domain import Money
-from src.core.exceptions.exceptions import InvalidStatusTransitionError, ValidationError
 from tests.applications.unit.factories import (
     APPLICANT_ID,
     AUTO_FIELDS,

@@ -10,17 +10,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from src.applications.domain.application import CreditApplication
-from src.applications.infrastructure.repository import SqlAlchemyApplicationRepository
-from src.clients.facade import ClientsFacade
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.outbox import OutboxRecord
-from src.identity.facade import IdentityFacade
 from src.main import create_app
-from src.products.facade import ProductsFacade, RequiredDocumentDTO
+from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.infrastructure.repository import SqlAlchemyApplicationRepository
+from src.modules.clients.facade import ClientsFacade
+from src.modules.identity.facade import IdentityFacade
+from src.modules.products.facade import ProductsFacade, RequiredDocumentDTO
 from tests.fakes import builders, install
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.document_storage import FakeDocumentStorage

@@ -7,13 +7,13 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.scoring.application.serialization import dump_input, input_hash, load_input
-from src.scoring.domain.model import ScoringResult
-from src.scoring.facade import CompanyProfileDTO
-from src.scoring.infrastructure.config_loader import load_scorecard
-from src.scoring.infrastructure.facade_impl import ScoringFacadeImpl
-from src.scoring.infrastructure.models import ScoringResultRecord
-from src.scoring.infrastructure.repository import SqlAlchemyScoringRepository
+from src.modules.scoring.application.serialization import dump_input, input_hash, load_input
+from src.modules.scoring.domain.model import ScoringResult
+from src.modules.scoring.facade import CompanyProfileDTO
+from src.modules.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
+from src.modules.scoring.infrastructure.models import ScoringResultRecord
+from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 from tests.scoring.scenarios import SCENARIOS
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)

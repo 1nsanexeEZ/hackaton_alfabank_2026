@@ -1,8 +1,8 @@
 from datetime import date, timedelta
 from typing import Any
 
-from src.projector.domain.metrics import DailyMetrics, MetricsSummary
-from src.projector.domain.read_models import ApplicationOverview
+from src.modules.projector.domain.metrics import DailyMetrics, MetricsSummary
+from src.modules.projector.domain.read_models import ApplicationOverview
 from tests.projector.unit.factories import T0, overview
 
 DAY = date(2026, 10, 20)

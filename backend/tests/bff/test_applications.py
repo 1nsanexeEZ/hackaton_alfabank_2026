@@ -3,8 +3,8 @@ from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from src.applications.facade import DocumentDTO, InfoRequestDTO
 from src.core.access.permissions import Permissions
+from src.modules.applications.facade import DocumentDTO, InfoRequestDTO
 from tests.bff import factories
 from tests.bff.conftest import World
 from tests.fakes.builders import NOW

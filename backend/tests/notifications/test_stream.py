@@ -12,15 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.core.domain.clock import FrozenClock
 from src.core.exceptions.exceptions import UnauthorizedError
 from src.core.uow import SqlAlchemyUnitOfWork
-from src.notifications.application.ports import FeedStore
-from src.notifications.application.stream import (
+from src.modules.notifications.application.ports import FeedStore
+from src.modules.notifications.application.stream import (
     StreamEvent,
     StreamTickets,
     feed_events,
     parse_last_event_id,
 )
-from src.notifications.domain.feed import UNDERWRITERS, Delivery, FeedEntry, Recipient
-from src.notifications.infrastructure.repositories import (
+from src.modules.notifications.domain.feed import UNDERWRITERS, Delivery, FeedEntry, Recipient
+from src.modules.notifications.infrastructure.repositories import (
     SqlAlchemyFeedStore,
     SqlAlchemyTicketStore,
 )
@@ -185,7 +185,7 @@ async def test_ticket_is_stored_hashed(
 ) -> None:
     from sqlalchemy import select
 
-    from src.notifications.infrastructure.models import StreamTicket
+    from src.modules.notifications.infrastructure.models import StreamTicket
 
     async with session_factory() as session:
         issued = await tickets(session, clock).issue(ACCOUNT, [])

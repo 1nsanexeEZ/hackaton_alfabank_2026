@@ -12,7 +12,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from src.applications.infrastructure.consumers import subscriptions as application_subscriptions
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.messaging import topics
@@ -27,7 +26,10 @@ from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEn
 from src.core.messaging.contracts.scoring import CalculateScore, ScoreCalculated
 from src.core.messaging.runtime import MessagingRuntime
 from src.core.messaging.subscriber import HandlerContext, Subscription
-from src.process.infrastructure.consumers import subscriptions as process_subscriptions
+from src.modules.applications.infrastructure.consumers import (
+    subscriptions as application_subscriptions,
+)
+from src.modules.process.infrastructure.consumers import subscriptions as process_subscriptions
 from tests.applications.api.conftest import World, world  # noqa: F401  shared fixture
 from tests.helpers import bearer, token_for
 

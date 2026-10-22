@@ -3,7 +3,8 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from seed.demo_data import COMPANIES, DemoCompany
-from src.clients.domain.value_objects import (
+from src.core.exceptions.exceptions import ValidationError
+from src.modules.clients.domain.value_objects import (
     Address,
     Discrepancy,
     FiscalPeriod,
@@ -17,7 +18,6 @@ from src.clients.domain.value_objects import (
     VerificationResult,
     VerificationStatus,
 )
-from src.core.exceptions.exceptions import ValidationError
 
 ROMASHKA = next(c for c in COMPANIES if c.code == "romashka")
 IVANOV = next(c for c in COMPANIES if c.code == "ivanov")

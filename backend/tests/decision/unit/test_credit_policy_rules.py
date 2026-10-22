@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from src.core.domain import Money
-from src.decision.domain.model import (
+from src.modules.decision.domain.model import (
     AlternativeInput,
     BureauInput,
     CashflowInput,
@@ -28,9 +28,9 @@ from src.decision.domain.model import (
     ScoreInput,
     SupportProgramInput,
 )
-from src.decision.domain.policy import annuity_payment, max_principal
-from src.decision.infrastructure.config_loader import default_policy
-from src.products.domain.calculator import PaymentCalculator
+from src.modules.decision.domain.policy import annuity_payment, max_principal
+from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.products.domain.calculator import PaymentCalculator
 
 POLICY = default_policy()
 KEY_RATE = POLICY.config.key_rate_reference

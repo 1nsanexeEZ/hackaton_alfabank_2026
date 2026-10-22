@@ -4,14 +4,14 @@ from decimal import Decimal
 
 import pytest
 
-from src.applications.domain.value_objects import (
+from src.core.domain import Money
+from src.core.exceptions.exceptions import ValidationError
+from src.modules.applications.domain.value_objects import (
     ApplicationNumber,
     CollateralDeclaration,
     DocumentRequirement,
     LoanRequest,
 )
-from src.core.domain import Money
-from src.core.exceptions.exceptions import ValidationError
 from tests.applications.unit.factories import NOW, offer, terms
 
 

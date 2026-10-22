@@ -4,8 +4,8 @@ import pytest
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import ValidationError
-from src.products.domain import texts
-from src.products.domain.value_objects import (
+from src.modules.products.domain import texts
+from src.modules.products.domain.value_objects import (
     AmountRange,
     BorrowerProfile,
     DocumentRequirement,

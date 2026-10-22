@@ -10,13 +10,13 @@ import pytest
 from fastapi import Depends, FastAPI
 from sqlalchemy import select
 
-from src.clients.infrastructure.models import FinancialReportModel
 from src.core.access.access_context import AccessContext
 from src.core.access.apply_helper import apply_access_context
 from src.core.access.dependencies import get_access_context_for
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.infrastructure.database.session import DbSession
+from src.modules.clients.infrastructure.models import FinancialReportModel
 from tests.clients.api.conftest import IVANOV, KUZNETSOVA, PETROV, SMIRNOVA, Demo, start_demo
 
 

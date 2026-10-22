@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from src.decision.domain.model import PreApprovalInput, ProductInput, SupportProgramInput
-from src.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.domain.model import PreApprovalInput, ProductInput, SupportProgramInput
+from src.modules.decision.infrastructure.config_loader import default_policy
 
 POLICY = default_policy()
 KEY_RATE = POLICY.config.key_rate_reference

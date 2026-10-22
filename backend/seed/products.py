@@ -9,8 +9,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from src.core.domain import Money
-from src.products.domain.product import CreditProduct, ProductStatus
-from src.products.domain.value_objects import (
+from src.modules.products.domain.product import CreditProduct, ProductStatus
+from src.modules.products.domain.value_objects import (
     AmountRange,
     DocumentRequirement,
     Eligibility,
@@ -21,7 +21,7 @@ from src.products.domain.value_objects import (
     SupportProgram,
     TermRange,
 )
-from src.products.infrastructure.repository import SqlAlchemyProductRepository
+from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 
 if TYPE_CHECKING:
     from seed.run import SeedContext

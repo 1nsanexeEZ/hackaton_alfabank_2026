@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.applications.facade import ApplicationsFacade
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.applications import (
@@ -28,7 +27,8 @@ from src.core.messaging.contracts.process import (
 )
 from src.core.messaging.envelope import Envelope
 from src.core.messaging.outbox import build_envelope
-from src.projector.infrastructure.rebuild import apply_one
+from src.modules.applications.facade import ApplicationsFacade
+from src.modules.projector.infrastructure.rebuild import apply_one
 from tests.projector.world import (
     Consumer,
     OpenFacade,

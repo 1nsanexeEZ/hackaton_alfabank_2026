@@ -21,11 +21,13 @@ from seed.demo_data import (
     DemoMembership,
     DemoPerson,
 )
-from src.clients.domain.financial_report import ReportFigures, ReportSource
-from src.clients.domain.member import Actor
-from src.clients.domain.organization import Organization
-from src.clients.domain.rights import HEAD_ROLES, MemberRole
-from src.clients.domain.value_objects import (
+from src.core.domain import Money
+from src.core.exceptions.exceptions import AppError
+from src.modules.clients.domain.financial_report import ReportFigures, ReportSource
+from src.modules.clients.domain.member import Actor
+from src.modules.clients.domain.organization import Organization
+from src.modules.clients.domain.rights import HEAD_ROLES, MemberRole
+from src.modules.clients.domain.value_objects import (
     Address,
     Discrepancy,
     FiscalPeriod,
@@ -36,13 +38,11 @@ from src.clients.domain.value_objects import (
     TaxRegime,
     VerificationResult,
 )
-from src.clients.infrastructure.repositories import (
+from src.modules.clients.infrastructure.repositories import (
     SqlAlchemyFinancialReportRepository,
     SqlAlchemyOrganizationRepository,
 )
-from src.core.domain import Money
-from src.core.exceptions.exceptions import AppError
-from src.identity.facade import IdentityFacade
+from src.modules.identity.facade import IdentityFacade
 
 if TYPE_CHECKING:
     from seed.run import SeedContext

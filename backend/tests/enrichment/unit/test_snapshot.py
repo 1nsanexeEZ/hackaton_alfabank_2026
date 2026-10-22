@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
-from src.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
-from src.enrichment.facade import RegistryExtractDTO
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
+from src.modules.enrichment.facade import RegistryExtractDTO
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 

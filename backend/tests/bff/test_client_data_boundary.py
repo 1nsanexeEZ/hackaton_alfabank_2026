@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from src.applications.facade import ApplicationCardDTO
+from src.modules.applications.facade import ApplicationCardDTO
 from tests.bff import factories
 from tests.bff.conftest import World
 

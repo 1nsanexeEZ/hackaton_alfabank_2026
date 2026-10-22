@@ -14,11 +14,11 @@ from sqlalchemy import select
 from seed import decision as decision_seed
 from seed.demo_data import COMPANIES_BY_CODE
 from seed.run import SeedContext
-from src.clients.infrastructure.models import OrganizationModel
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
-from src.decision.facade import DecisionFacade, PreApprovedOfferDTO
 from src.main import create_app
+from src.modules.clients.infrastructure.models import OrganizationModel
+from src.modules.decision.facade import DecisionFacade, PreApprovedOfferDTO
 from tests.decision.unit.decision_world import NOW
 from tests.helpers import create_schema
 

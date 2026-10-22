@@ -23,21 +23,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.applications.facade import ApplicationsFacade, ScoringInputDTO
-from src.applications.infrastructure.repository import SqlAlchemyApplicationRepository
-from src.clients.infrastructure.models import OrganizationModel
 from src.core.access.permissions import Permissions
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.contracts.decision import MakeDecision
 from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.core.messaging.contracts.scoring import CalculateScore
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
-from src.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
-from src.enrichment.application.sources import Sources
-from src.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
-from src.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
-from src.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
-from src.identity.models import Account
+from src.modules.applications.facade import ApplicationsFacade, ScoringInputDTO
+from src.modules.applications.infrastructure.repository import SqlAlchemyApplicationRepository
+from src.modules.clients.infrastructure.models import OrganizationModel
+from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
+from src.modules.enrichment.application.sources import Sources
+from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
+from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
+from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
+from src.modules.identity.models import Account
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, token_for
 

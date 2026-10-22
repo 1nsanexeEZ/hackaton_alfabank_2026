@@ -12,11 +12,11 @@ from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts import CONTRACTS
 from src.core.messaging.runtime import validate_subscriptions
-from src.notifications import module
-from src.notifications.domain.feed import UNDERWRITERS, Delivery, FeedEntry, Recipient
-from src.notifications.infrastructure.facade_impl import NotificationsFacadeImpl
-from src.notifications.infrastructure.models import NewsItem
-from src.notifications.infrastructure.repositories import SqlAlchemyFeedStore
+from src.modules.notifications import module
+from src.modules.notifications.domain.feed import UNDERWRITERS, Delivery, FeedEntry, Recipient
+from src.modules.notifications.infrastructure.facade_impl import NotificationsFacadeImpl
+from src.modules.notifications.infrastructure.models import NewsItem
+from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
 from tests.notifications.conftest import World
 
 

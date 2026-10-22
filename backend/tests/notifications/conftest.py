@@ -7,20 +7,20 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.applications.facade import ApplicationCardDTO, ApplicationsFacade
-from src.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.outbox import build_envelope
 from src.core.messaging.subscriber import MessageProcessor, Outcome
-from src.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO
-from src.identity.facade import IdentityFacade
-from src.notifications.infrastructure.consumer import feed_subscriptions
-from src.notifications.infrastructure.models import FeedItem
-from src.products.facade import ProductsFacade
-from src.scoring.facade import ScoringFacade
+from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade
+from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO
+from src.modules.identity.facade import IdentityFacade
+from src.modules.notifications.infrastructure.consumer import feed_subscriptions
+from src.modules.notifications.infrastructure.models import FeedItem
+from src.modules.products.facade import ProductsFacade
+from src.modules.scoring.facade import ScoringFacade
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade

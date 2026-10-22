@@ -7,9 +7,9 @@ from dataclasses import asdict, fields
 from uuid import uuid4
 
 from src.core.domain.clock import FrozenClock
-from src.decision.facade import ClientDecisionDTO
-from src.decision.infrastructure.config_loader import default_policy
-from src.decision.infrastructure.facade_impl import DecisionFacadeImpl
+from src.modules.decision.facade import ClientDecisionDTO
+from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from tests.decision.runtime.decision_runtime_world import (
     KEY_RATE,
     Sessions,

@@ -10,7 +10,7 @@ import pytest
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import ValidationError
-from src.products.domain.calculator import PaymentCalculator, PaymentSchedule
+from src.modules.products.domain.calculator import PaymentCalculator, PaymentSchedule
 
 GOLDEN = Path(__file__).parent.parent / "golden"
 calculator = PaymentCalculator()

@@ -8,10 +8,10 @@ from uuid import uuid4
 import pytest
 
 from src.core.domain.clock import FrozenClock
-from src.projector.domain.metrics import DailyMetrics
-from src.projector.domain.read_models import OrganizationDashboard, QueueItem, task_stage
-from src.projector.domain.timeline import BANK, CLIENT, TimelineEntry
-from src.projector.facade import (
+from src.modules.projector.domain.metrics import DailyMetrics
+from src.modules.projector.domain.read_models import OrganizationDashboard, QueueItem, task_stage
+from src.modules.projector.domain.timeline import BANK, CLIENT, TimelineEntry
+from src.modules.projector.facade import (
     ApplicationOverviewDTO,
     BackofficeMetricsDTO,
     OrganizationDashboardDTO,
@@ -19,7 +19,7 @@ from src.projector.facade import (
     QueueItemDTO,
     TimelineEntryDTO,
 )
-from src.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
 from tests.projector.unit.factories import T0, overview, queue_item
 from tests.projector.world import OpenFacade, OpenStore
 

@@ -6,8 +6,9 @@ from itertools import product
 
 import pytest
 
-from src.applications.domain.application import CreditApplication
-from src.applications.domain.statuses import (
+from src.core.exceptions.exceptions import InvalidStatusTransitionError
+from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.statuses import (
     ACTIVE_STATUSES,
     FINAL_STATUSES,
     TRANSITIONS,
@@ -15,8 +16,7 @@ from src.applications.domain.statuses import (
     can_transition,
     ensure_transition,
 )
-from src.applications.domain.value_objects import Actor
-from src.core.exceptions.exceptions import InvalidStatusTransitionError
+from src.modules.applications.domain.value_objects import Actor
 from tests.applications.unit.factories import (
     APPLICANT_ID,
     INFO_REQUEST_ID,
@@ -150,7 +150,7 @@ def test_expire_offer_only_from_offer_ready(source: ApplicationStatus) -> None:
 def test_facade_contract_uses_the_same_statuses() -> None:
     from typing import get_args
 
-    from src.applications import facade
+    from src.modules.applications import facade
 
     assert set(get_args(facade.ApplicationStatus)) == {s.value for s in S}
     assert facade.ACTIVE_STATUSES == {s.value for s in ACTIVE_STATUSES}

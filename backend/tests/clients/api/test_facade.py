@@ -9,14 +9,14 @@ from uuid import uuid4
 import pytest
 
 from seed.demo_data import COMPANIES
-from src.clients.domain.financial_report import FinancialReport, ReportFigures, ReportSource
-from src.clients.domain.value_objects import FiscalPeriod
-from src.clients.facade import ClientsFacade, DiscrepancyDTO, OrgPermission
-from src.clients.infrastructure.facade_impl import ClientsFacadeImpl, latest_annual
-from src.clients.infrastructure.repositories import SqlAlchemyFinancialReportRepository
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
+from src.modules.clients.domain.financial_report import FinancialReport, ReportFigures, ReportSource
+from src.modules.clients.domain.value_objects import FiscalPeriod
+from src.modules.clients.facade import ClientsFacade, DiscrepancyDTO, OrgPermission
+from src.modules.clients.infrastructure.facade_impl import ClientsFacadeImpl, latest_annual
+from src.modules.clients.infrastructure.repositories import SqlAlchemyFinancialReportRepository
 from tests.clients.api.conftest import IVANOV, KUZNETSOVA, NOW, PETROV, SMIRNOVA, Demo
 from tests.fakes import builders
 

@@ -13,20 +13,20 @@ from uuid import UUID, uuid4, uuid5
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.applications.facade import ApplicationCardDTO, ApplicationsFacade, OfferDTO
-from src.clients.facade import ClientsFacade
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.base import IntegrationMessage, get_contract
 from src.core.messaging.outbox import build_envelope
 from src.core.messaging.subscriber import MessageProcessor, Outcome, Subscription
-from src.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO, PreApprovedOfferDTO
-from src.process.facade import ProcessFacade, UserTaskDTO
-from src.products.facade import ProductsFacade
-from src.projector import module as projector_module
-from src.projector.infrastructure.facade_impl import ProjectorFacadeImpl
-from src.projector.infrastructure.repositories import ALL_ROWS, SqlAlchemyReadModelStore
-from src.scoring.facade import ScoringFacade, ScoringResultDTO
+from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade, OfferDTO
+from src.modules.clients.facade import ClientsFacade
+from src.modules.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO, PreApprovedOfferDTO
+from src.modules.process.facade import ProcessFacade, UserTaskDTO
+from src.modules.products.facade import ProductsFacade
+from src.modules.projector import module as projector_module
+from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.repositories import ALL_ROWS, SqlAlchemyReadModelStore
+from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade

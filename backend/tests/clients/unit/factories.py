@@ -5,10 +5,10 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from seed.demo_data import COMPANIES_BY_CODE, DemoPerson
-from src.clients.domain.member import Actor
-from src.clients.domain.organization import Organization
-from src.clients.domain.rights import MemberRole, OrgPermission, PowerOfAttorney
-from src.clients.domain.value_objects import (
+from src.modules.clients.domain.member import Actor
+from src.modules.clients.domain.organization import Organization
+from src.modules.clients.domain.rights import MemberRole, OrgPermission, PowerOfAttorney
+from src.modules.clients.domain.value_objects import (
     Address,
     OkvedCode,
     PersonName,

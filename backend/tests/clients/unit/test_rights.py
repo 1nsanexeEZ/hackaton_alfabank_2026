@@ -2,7 +2,8 @@ from datetime import timedelta
 
 import pytest
 
-from src.clients.domain.rights import (
+from src.core.exceptions.exceptions import ValidationError
+from src.modules.clients.domain.rights import (
     Authority,
     MemberRole,
     OrgPermission,
@@ -10,7 +11,6 @@ from src.clients.domain.rights import (
     ordered,
     permissions_of,
 )
-from src.core.exceptions.exceptions import ValidationError
 from tests.clients.unit.factories import NOW, poa
 
 P = OrgPermission

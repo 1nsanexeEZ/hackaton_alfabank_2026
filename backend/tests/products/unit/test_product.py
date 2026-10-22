@@ -4,9 +4,9 @@ import pytest
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import InvalidStatusTransitionError, ValidationError
-from src.products.domain.errors import ProductNotAvailableError
-from src.products.domain.product import ProductStatus
-from src.products.domain.value_objects import (
+from src.modules.products.domain.errors import ProductNotAvailableError
+from src.modules.products.domain.product import ProductStatus
+from src.modules.products.domain.value_objects import (
     AmountRange,
     DocumentRequirement,
     ProcessingProfile,

@@ -4,16 +4,16 @@ from uuid import uuid4
 
 import pytest
 
-from src.clients.facade import FinancialReportDTO
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError
-from src.products.application.borrowers import (
+from src.modules.clients.facade import FinancialReportDTO
+from src.modules.products.application.borrowers import (
     BorrowerProfiles,
     borrower_profile,
     company_profile,
     has_cash_gap_flag,
 )
-from src.scoring.facade import CompanyProfileDTO, EstimateDTO
+from src.modules.scoring.facade import CompanyProfileDTO, EstimateDTO
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.scoring_facade import FakeScoringFacade

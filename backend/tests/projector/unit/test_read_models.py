@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.projector.domain.read_models import (
+from src.modules.projector.domain.read_models import (
     OrganizationDashboard,
     action_required,
     has_cash_gap,

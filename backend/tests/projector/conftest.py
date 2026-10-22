@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.domain.clock import FrozenClock
-from src.projector.infrastructure.facade_impl import ProjectorFacadeImpl
-from src.projector.infrastructure.repositories import SqlAlchemyReadModelStore
+from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.repositories import SqlAlchemyReadModelStore
 from tests.projector.world import Consumer, OpenFacade, OpenStore, World
 
 

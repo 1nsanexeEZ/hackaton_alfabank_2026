@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from src.notifications.facade import FeedItemDTO, NewsItemDTO
+from src.modules.notifications.facade import FeedItemDTO, NewsItemDTO
 
 
 class FakeNotificationsFacade:

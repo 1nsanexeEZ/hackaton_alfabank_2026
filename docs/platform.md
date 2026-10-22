@@ -27,7 +27,7 @@ backend/src/<module>/
 Реализацию фасада владелец регистрирует в `wire(app)`; фабрика получает сессию вызывающего, поэтому вызов фасада идёт в его транзакции:
 
 ```python
-# src/clients/module.py
+# src/modules/clients/module.py
 def wire(app: FastAPI) -> None:
     app.state.facades.register(ClientsFacade, ClientsFacadeImpl)
     app.state.facades.register(MemberOrganizationsResolver, ClientsFacadeImpl)
@@ -81,7 +81,7 @@ clients = ctx.facade(ClientsFacade)
 
 ## Миграции и сиды
 
-Файл `alembic/versions/YYYYMMDD_HHMM_<module>_<что>.py`, `revision = "<module>_<NNNN>"`, голова одна (CI проверяет и сверяет модели с миграциями через `alembic check`). Демо-данные — `backend/seed/demo_data.py`; сиды модулей — `backend/seed/<module>.py`, запускаются при `SEED_DEMO_DATA=true`, идемпотентны.
+Файл `migrations/versions/YYYYMMDD_HHMM_<module>_<что>.py`, `revision = "<module>_<NNNN>"`, голова одна (CI проверяет и сверяет модели с миграциями через `alembic check`). Демо-данные — `backend/seed/demo_data.py`; сиды модулей — `backend/seed/<module>.py`, запускаются при `SEED_DEMO_DATA=true`, идемпотентны.
 
 ## CI
 

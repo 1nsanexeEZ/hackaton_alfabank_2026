@@ -10,14 +10,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from seed.products import seed
 from seed.run import SeedContext
-from src.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.core.access.organizations import MemberOrganizationsResolver
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.main import create_app
-from src.products.infrastructure.repository import SqlAlchemyProductRepository
+from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 from tests.fakes import builders, install
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.helpers import bearer, create_schema, token_for

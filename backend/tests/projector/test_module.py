@@ -6,15 +6,15 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from src.applications.facade import ApplicationsFacade
 from src.core.messaging import topics
 from src.core.messaging.contracts.applications import ApplicationSubmitted
 from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.core.messaging.runtime import validate_subscriptions
-from src.products.facade import ProductsFacade
-from src.projector import module
-from src.projector.facade import ProjectorFacade
-from src.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.applications.facade import ApplicationsFacade
+from src.modules.products.facade import ProductsFacade
+from src.modules.projector import module
+from src.modules.projector.facade import ProjectorFacade
+from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
 from tests.fakes import install
 from tests.projector.world import World
 

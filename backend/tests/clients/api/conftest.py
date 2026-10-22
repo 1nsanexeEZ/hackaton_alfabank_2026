@@ -16,14 +16,14 @@ from sqlalchemy import select
 from seed import clients as clients_seed
 from seed.demo_data import ACCOUNTS, COMPANIES, DemoAccount
 from seed.run import SeedContext
-from src.clients.infrastructure.facade_impl import ClientsFacadeImpl
-from src.clients.infrastructure.models import OrganizationModel
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.outbox import OutboxRecord
-from src.identity.facade import AccountRefDTO, IdentityFacade
 from src.main import create_app
+from src.modules.clients.infrastructure.facade_impl import ClientsFacadeImpl
+from src.modules.clients.infrastructure.models import OrganizationModel
+from src.modules.identity.facade import AccountRefDTO, IdentityFacade
 from tests.fakes import install
 from tests.fakes.identity_facade import FakeIdentityFacade
 from tests.helpers import bearer, create_schema, token_for

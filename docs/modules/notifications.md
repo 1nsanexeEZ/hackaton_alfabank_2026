@@ -126,7 +126,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 5. Без `last_event_id` поток начинается «с сейчас». Переподключение: новый тикет и `last_event_id` = последний полученный `id` (или заголовок `Last-Event-ID`); `seq` есть и у записей `GET /feed`, чтобы продолжить поток ровно после загруженной страницы.
 6. Поток закрывается через 10 минут — клиент берёт новый тикет (токен за это время мог истечь).
 
-Интервалы и TTL — константы `src/notifications/application/stream.py`.
+Интервалы и TTL — константы `src/modules/notifications/application/stream.py`.
 
 ## API
 
@@ -146,7 +146,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 
 ## Фасад
 
-`NotificationsFacade` (`src/notifications/facade.py`, реализация — `infrastructure/facade_impl.py`, регистрирует `module.wire`):
+`NotificationsFacade` (`src/modules/notifications/facade.py`, реализация — `infrastructure/facade_impl.py`, регистрирует `module.wire`):
 
 - `unread_count(account_id, organization_id?)`, `latest(account_id, organization_id?, application_id?, limit)` — записи аккаунта; если `IdentityFacade` говорит, что роль аккаунта `underwriter`/`admin`, — и записи бэк-офиса. Прав внутри нет: доступ к компании проверяет вызывающий (BFF).
 - `personal_news(organization_id, limit)` — как `GET /news`.
@@ -160,7 +160,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 | `notifications_news_reads` | `(news_id, account_id)` — прочитанные новости |
 | `notifications_stream_tickets` | одноразовые тикеты SSE (sha256, роли, срок, `used_at`); старше часа удаляются при выдаче нового |
 
-Миграция — `alembic/versions/20261022_1200_notifications_feed.py` (`notifications_0001`, после `products_0001`).
+Миграция — `migrations/versions/20261022_1200_notifications_feed.py` (`notifications_0001`, после `products_0001`).
 
 ## Упрощения
 

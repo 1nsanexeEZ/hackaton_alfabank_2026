@@ -7,10 +7,10 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from src.enrichment.application.ports import SourceNotFound, SourceUnavailable
-from src.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
-from src.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
-from src.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
+from src.modules.enrichment.application.ports import SourceNotFound, SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
+from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
+from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
 from tests.enrichment.fixtures import ROMASHKA_BKI, ROMASHKA_EGRUL, ROMASHKA_FNS, ZAKAT_EGRUL
 
 

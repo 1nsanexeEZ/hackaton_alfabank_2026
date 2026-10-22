@@ -5,10 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.identity.facade import AccountRefDTO, IdentityFacade
-from src.identity.facade_impl import IdentityFacadeImpl
-from src.identity.passwords import PasswordHasher
-from src.identity.repositories import AccountRepository
+from src.modules.identity.facade import AccountRefDTO, IdentityFacade
+from src.modules.identity.facade_impl import IdentityFacadeImpl
+from src.modules.identity.passwords import PasswordHasher
+from src.modules.identity.repositories import AccountRepository
 from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD
 from tests.identity.conftest import DEMO_PASSWORD
 

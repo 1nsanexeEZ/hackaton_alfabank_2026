@@ -7,9 +7,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from seed.run import SeedContext, run_seeds
-from src.applications import module as applications_module
-from src.bff import module as bff_module
-from src.clients import module as clients_module
 from src.core.config import Settings, get_settings
 from src.core.domain.clock import Clock, SystemClock
 from src.core.exceptions.handlers import register_exception_handlers
@@ -17,18 +14,21 @@ from src.core.facades import FacadeRegistry
 from src.core.http.request_id import RequestIdMiddleware, configure_logging
 from src.core.infrastructure.database.session import build_engine, build_session_factory
 from src.core.messaging.runtime import MessagingRuntime
-from src.decision import module as decision_module
-from src.enrichment import module as enrichment_module
-from src.identity import module as identity_module
-from src.identity.bootstrap import bootstrap_admin
-from src.identity.keys import load_signing_keys
-from src.identity.passwords import PasswordHasher
-from src.identity.token_adapter import TokenAdapter
-from src.notifications import module as notifications_module
-from src.process import module as process_module
-from src.products import module as products_module
-from src.projector import module as projector_module
-from src.scoring import module as scoring_module
+from src.modules.applications import module as applications_module
+from src.modules.bff import module as bff_module
+from src.modules.clients import module as clients_module
+from src.modules.decision import module as decision_module
+from src.modules.enrichment import module as enrichment_module
+from src.modules.identity import module as identity_module
+from src.modules.identity.bootstrap import bootstrap_admin
+from src.modules.identity.keys import load_signing_keys
+from src.modules.identity.passwords import PasswordHasher
+from src.modules.identity.token_adapter import TokenAdapter
+from src.modules.notifications import module as notifications_module
+from src.modules.process import module as process_module
+from src.modules.products import module as products_module
+from src.modules.projector import module as projector_module
+from src.modules.scoring import module as scoring_module
 
 # Explicit list: no discovery by string. Each module owns only its module.py.
 MODULES = (

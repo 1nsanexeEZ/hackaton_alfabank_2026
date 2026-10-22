@@ -2,9 +2,9 @@ from dataclasses import replace
 from datetime import timedelta
 from uuid import UUID, uuid4
 
-from src.applications.domain.value_objects import DecisionSummary, Offer
-from src.applications.infrastructure.models import SignatureRecord
 from src.core.domain import Money
+from src.modules.applications.domain.value_objects import DecisionSummary, Offer
+from src.modules.applications.infrastructure.models import SignatureRecord
 from tests.applications.api.conftest import PASSWORD, World
 from tests.applications.unit.factories import offer as make_offer
 

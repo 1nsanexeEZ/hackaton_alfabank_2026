@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-from src.decision.domain.model import PolicyDecision, ReasonCode
-from src.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.domain.model import PolicyDecision, ReasonCode
+from src.modules.decision.infrastructure.config_loader import default_policy
 from tests.decision.unit.decision_world import SCENARIOS, DecisionWorld, build_world
 
 _GOLDEN = Path(__file__).resolve().parent / "golden"

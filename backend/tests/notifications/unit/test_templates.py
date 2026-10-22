@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.notifications.domain import templates as t
-from src.notifications.domain.feed import FeedEntry
+from src.modules.notifications.domain import templates as t
+from src.modules.notifications.domain.feed import FeedEntry
 
 
 def test_every_substitution_is_escaped() -> None:

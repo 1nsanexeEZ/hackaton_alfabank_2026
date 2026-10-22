@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from src.decision.facade import ClientDecisionDTO, DecisionDTO, PreApprovedOfferDTO
+from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, PreApprovedOfferDTO
 
 
 class FakeDecisionFacade:

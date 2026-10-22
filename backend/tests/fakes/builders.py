@@ -8,9 +8,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from seed.demo_data import COMPANIES_BY_CODE, FINANCIALS_BY_CODE
-from src.applications.facade import ApplicationCardDTO, LoanRequestDTO, ScoringInputDTO
-from src.clients.facade import FinancialReportDTO, OrganizationSnapshotDTO
-from src.products.facade import ProductDTO, ProductTermsDTO, RequiredDocumentDTO
+from src.modules.applications.facade import ApplicationCardDTO, LoanRequestDTO, ScoringInputDTO
+from src.modules.clients.facade import FinancialReportDTO, OrganizationSnapshotDTO
+from src.modules.products.facade import ProductDTO, ProductTermsDTO, RequiredDocumentDTO
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 

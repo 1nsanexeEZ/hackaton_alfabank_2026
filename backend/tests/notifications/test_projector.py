@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.applications.facade import DecisionSummaryDTO, InfoRequestDTO, OfferDTO
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.applications import (
@@ -42,12 +41,13 @@ from src.core.messaging.contracts.process import (
     UserTaskCompleted,
     UserTaskCreated,
 )
-from src.decision.facade import PreApprovedOfferDTO
-from src.notifications.application.neighbours import Neighbours
-from src.notifications.application.projector import FeedProjector
-from src.notifications.infrastructure.models import FeedItem
-from src.notifications.infrastructure.repositories import SqlAlchemyFeedStore
-from src.scoring.facade import ScoringResultDTO
+from src.modules.applications.facade import DecisionSummaryDTO, InfoRequestDTO, OfferDTO
+from src.modules.decision.facade import PreApprovedOfferDTO
+from src.modules.notifications.application.neighbours import Neighbours
+from src.modules.notifications.application.projector import FeedProjector
+from src.modules.notifications.infrastructure.models import FeedItem
+from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
+from src.modules.scoring.facade import ScoringResultDTO
 from tests.fakes import builders
 from tests.notifications.conftest import FeedHarness, World, decision_with_codes
 

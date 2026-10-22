@@ -17,8 +17,8 @@ from fastapi.testclient import TestClient
 
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
-from src.enrichment import module as enrichment_module
 from src.main import create_app
+from src.modules.enrichment import module as enrichment_module
 from tests.assessment.assessment_world import NOW, Assessment, mock_sources
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, create_schema

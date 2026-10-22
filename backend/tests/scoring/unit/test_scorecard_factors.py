@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from src.scoring.domain.model import (
+from src.modules.scoring.domain.model import (
     BureauInput,
     CashflowInput,
     CollateralInput,
@@ -17,7 +17,7 @@ from src.scoring.domain.model import (
     ScoringInput,
     TaxInput,
 )
-from src.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.config_loader import load_scorecard
 
 _CARD = load_scorecard()
 

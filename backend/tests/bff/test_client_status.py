@@ -5,10 +5,10 @@ from typing import get_args
 
 import pytest
 
-from src.applications.facade import ApplicationStatus
-from src.bff.application.actions import available_actions, todo_for
-from src.bff.application.client_status import ClientStatus, client_status, offer_kind_of_row
-from src.clients.facade import OrgPermission
+from src.modules.applications.facade import ApplicationStatus
+from src.modules.bff.application.actions import available_actions, todo_for
+from src.modules.bff.application.client_status import ClientStatus, client_status, offer_kind_of_row
+from src.modules.clients.facade import OrgPermission
 
 FRONTEND_STATUSES = Path(__file__).parents[3] / "frontend/src/entities/application/model/status.ts"
 
