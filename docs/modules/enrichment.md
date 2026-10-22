@@ -3,7 +3,9 @@
 ## Зачем
 
 Отвечает на вопрос **«что о компании знают внешние источники»** на момент заявки. ТЗ прямо
-называет их: бюро кредитных историй, ЕГРЮЛ/ЕГРИП, сервис ФНС «Прозрачный бизнес». Реальных
+называет их: бюро кредитных историй, ЕГРЮЛ/ЕГРИП, сервис ФНС «Прозрачный бизнес»; блок «Запросы»
+общей схемы добавляет ГИР БО (бухотчётность), Контур (суды, приставы, банкротство) и БКИ
+руководителя. Реальных
 интеграций нет (автономность), поэтому источники — моки в сервисе `external-mocks` за настоящей
 HTTP-границей, а модуль ходит к ним через **ACL-адаптеры**: «чужой» ответ (кириллица, копейки,
 даты строками) переводится в наши DTO. Замена мока на реальный API = новый адаптер, домен не
@@ -24,10 +26,56 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 уникально). Хранит по каждому источнику `SourceResult` со статусом `ok | failed | skipped`,
 задержкой и числом попыток. Данные источников переносятся в DTO из `facade.py`.
 
+## Источники
+
+| `Source` | Что | Порт → адаптер | Мок | В снимке |
+|---|---|---|---|---|
+| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель, учредители, адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
+| `fns` | ФНС «Прозрачный бизнес»: недоимка, выручка, блокировки счетов | `TaxSource` → `fns_http.py` | `GET /fns/{inn}` | `fns: TaxProfileDTO` (+ `account_blocks`) |
+| `bki` | БКИ компании | `CreditBureauSource` → `bki_http.py` | `POST /bki/report` | `bki: CreditHistoryDTO` |
+| `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
+| `kontur` | Контур.Фокус: арбитраж, исполнительные производства, банкротство, госконтракты | `CounterpartyRiskSource` → `kontur_http.py` | `GET /kontur/{inn}` | `kontur: CounterpartyRiskDTO` |
+| `bki_head` | БКИ руководителя по реестру | `PersonBureauSource` → `bki_person_http.py` | `POST /bki/person-report` | `bki_head: CreditHistoryDTO` |
+| `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
+
+Процесс просит все семь (`FetchEnrichment.sources` по умолчанию — тоже все семь). Новые источники
+хранятся так же, как старые, — строкой `enrichment_source_results` с JSONB `data`, поэтому миграция
+не понадобилась; старые снимки читаются (нет `account_blocks` — блокировок нет).
+
+`EnrichmentSnapshotDTO`, что добавилось:
+
+```text
+gir_bo: {
+  available: boolean, reason: string | null,          // нет отчётности: ИП, компания младше года
+  periods: [{ year, revenue, cost_of_sales, sales_profit, interest_payable, net_profit,
+              fixed_assets, inventories, receivables, cash, equity, total_assets,
+              long_term_liabilities, short_term_liabilities, total_liabilities }]
+} | null                                              // рубли; у источника — тыс. ₽, переводит адаптер
+kontur: {
+  reliability: "green" | "yellow" | "red", notes: string[],
+  arbitration: { as_defendant, as_plaintiff, defendant_sum },
+  enforcement: { active, sum },
+  bankruptcy_messages: [{ date, type, case }],
+  gov_contracts: { count, sum },
+  active_pledges
+} | null
+bki_head: CreditHistoryDTO | null                     // та же схема, что у bki компании
+fns.account_blocks: [{ decision_number, date, authority_code, reason }]
+sources_skipped: [{ source, code, message }]          // не запрошенные: no_consent, no_head
+```
+
+`total_liabilities` — строка 1700, итог пассива (капитал и обязательства), как в форме 0710001.
+Периоды ГИР БО — от старых к новым, `AccountingReportsDTO.latest` — последний.
+
 ## Ключевые решения («зачем»)
 
 - **БКИ — только при согласии (218-ФЗ).** Команда несёт `bki_consent_at`; нет согласия → источник
   `skipped`, запрос не отправляется. Проверяется в use case до обращения к бюро.
+- **БКИ руководителя — только при его личном согласии.** Процесс кладёт в команду руководителя по
+  реестру (`head`) и момент его согласия из identity (`head_bki_consent_at`). Нет руководителя →
+  `bki_head` `skipped` с кодом `no_head`; есть, но нет согласия → `skipped`, `no_consent`. Мок тоже
+  отклоняет запрос без `consent_at` (400). Согласие компании в заявке на руководителя не
+  распространяется.
 - **Параллельный опрос, частичный результат.** Источники опрашиваются `asyncio.gather`; ошибка
   одного не мешает остальным. Это отражает реальность: внешние системы отвечают по-разному.
 - **Ретраи и таймаут в адаптере.** На таймаут и 5xx — до `ENRICHMENT_RETRIES` попыток с задержкой
@@ -44,7 +92,8 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 и кладёт его в снимок как `cashflow` (`CashflowForecastDTO`).
 
 - **Выписка — внутренние данные, не внешний источник.** Источник `statement` не попадает ни в
-  `sources_ok`, ни в `sources_failed` (они только про ЕГРЮЛ/ФНС/БКИ). Выписка не распозналась →
+  `sources_ok`, ни в `sources_failed` (они только про внешние источники), даже если он есть в
+  `sources` команды. Выписка не распозналась →
   `cashflow = None`, обогащение не падает.
 - **Парсер — чистый stdlib.** Формат — ниже в «Формат выписки»; суммы в `Decimal`. Кривой формат →
   понятная `StatementParseError` с номером строки, не 500.
@@ -105,7 +154,7 @@ date;amount;counterparty_inn;counterparty_name;purpose
 - Публикует `EnrichmentFailed {application_id, reason}`, если не ответил **ни один** внешний источник
   (например, нет сети до моков): считать не на чем, process решает по `on_failure`. Снимок с ошибками
   всё равно сохраняется для аудита; `reason` — `all_sources_failed: egrul=unavailable, fns=timeout,
-  bki=no_consent`. Повтор команды повторяет тот же ответ.
+  bki=no_consent, gir_bo=…, kontur=…, bki_head=no_head`. Повтор команды повторяет тот же ответ.
 
 ## Фасад
 
@@ -116,14 +165,20 @@ date;amount;counterparty_inn;counterparty_name;purpose
 
 ## Моки (для README и `THIRD_PARTY_NOTICES`)
 
-Все внешние источники — смоделированы сервисом `external-mocks` (ЕГРЮЛ/ЕГРИП, ФНС, БКИ). Настоящих
+Все внешние источники — смоделированы сервисом `external-mocks` (ЕГРЮЛ/ЕГРИП, ФНС, ГИР БО,
+Контур, БКИ компании и физлица). Настоящих
 реестров и платных API нет. Настройки — блок `# --- enrichment ---` в `.env.example`.
 
 В `docker-compose.yml` моки — отдельный сервис `external-mocks` (порт 8100 внутри сети, наружу не
 открыт); backend ждёт его healthcheck и ходит по `ENRICHMENT_MOCKS_BASE_URL=http://external-mocks:8100`.
 Для демо «хаос» выключен: задержка 100–400 мс, без случайных 503 (`MOCK_FAILURE_RATE=0`); чтобы
 показать устойчивость к сбоям, поднимите `MOCK_FAILURE_RATE`, например до `0.1`. БКИ «Сбоя»
-(`7705729405`) отвечает 503 всегда — сценарий S-6.
+(`7705729405`) отвечает 503 всегда — сценарий S-6; так же и отчёт по его руководителю.
+
+Сценарии новых источников для демо-компаний: у «Заката» блокировка счёта, отрицательный капитал
+в последнем году, исполнительные производства и иски больше порогов, у его руководителя — текущая
+просрочка 45 дней; у «Прогресса» выручка ГИР БО совпадает с ФНС (12 млн против заявленных 36);
+у ИП Иванова отчётности в ГИР БО нет. Остальные ИНН — детерминированная генерация.
 
 ## Упрощения
 

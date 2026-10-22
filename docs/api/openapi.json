@@ -3986,6 +3986,36 @@
   },
   "components": {
     "schemas": {
+      "AccountBlockDTO": {
+        "properties": {
+          "decision_number": {
+            "type": "string",
+            "title": "Decision Number"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "authority_code": {
+            "type": "string",
+            "title": "Authority Code"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_number",
+          "date",
+          "authority_code",
+          "reason"
+        ],
+        "title": "AccountBlockDTO",
+        "description": "Решение ФНС о приостановлении операций по счетам."
+      },
       "AccountCreate": {
         "properties": {
           "email": {
@@ -4173,6 +4203,123 @@
         },
         "type": "object",
         "title": "AccountUpdate"
+      },
+      "AccountingPeriodDTO": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "revenue": {
+            "type": "string",
+            "title": "Revenue"
+          },
+          "cost_of_sales": {
+            "type": "string",
+            "title": "Cost Of Sales"
+          },
+          "sales_profit": {
+            "type": "string",
+            "title": "Sales Profit"
+          },
+          "interest_payable": {
+            "type": "string",
+            "title": "Interest Payable"
+          },
+          "net_profit": {
+            "type": "string",
+            "title": "Net Profit"
+          },
+          "fixed_assets": {
+            "type": "string",
+            "title": "Fixed Assets"
+          },
+          "inventories": {
+            "type": "string",
+            "title": "Inventories"
+          },
+          "receivables": {
+            "type": "string",
+            "title": "Receivables"
+          },
+          "cash": {
+            "type": "string",
+            "title": "Cash"
+          },
+          "equity": {
+            "type": "string",
+            "title": "Equity"
+          },
+          "total_assets": {
+            "type": "string",
+            "title": "Total Assets"
+          },
+          "long_term_liabilities": {
+            "type": "string",
+            "title": "Long Term Liabilities"
+          },
+          "short_term_liabilities": {
+            "type": "string",
+            "title": "Short Term Liabilities"
+          },
+          "total_liabilities": {
+            "type": "string",
+            "title": "Total Liabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "revenue",
+          "cost_of_sales",
+          "sales_profit",
+          "interest_payable",
+          "net_profit",
+          "fixed_assets",
+          "inventories",
+          "receivables",
+          "cash",
+          "equity",
+          "total_assets",
+          "long_term_liabilities",
+          "short_term_liabilities",
+          "total_liabilities"
+        ],
+        "title": "AccountingPeriodDTO",
+        "description": "Год бухотчётности из ГИР БО, рубли (у источника — тыс. ₽)."
+      },
+      "AccountingReportsDTO": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/AccountingPeriodDTO"
+            },
+            "type": "array",
+            "title": "Periods"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "reason",
+          "periods"
+        ],
+        "title": "AccountingReportsDTO"
       },
       "AddressRead": {
         "properties": {
@@ -4940,6 +5087,29 @@
         "title": "ApplicationUpdate",
         "description": "Autosave of a draft. Send only what changed; `collateral: null` removes it."
       },
+      "ArbitrationDTO": {
+        "properties": {
+          "as_defendant": {
+            "type": "integer",
+            "title": "As Defendant"
+          },
+          "as_plaintiff": {
+            "type": "integer",
+            "title": "As Plaintiff"
+          },
+          "defendant_sum": {
+            "type": "string",
+            "title": "Defendant Sum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_defendant",
+          "as_plaintiff",
+          "defendant_sum"
+        ],
+        "title": "ArbitrationDTO"
+      },
       "BackofficeMetricsDTO": {
         "properties": {
           "date_from": {
@@ -5001,6 +5171,30 @@
           "avg_time_to_decision_sec"
         ],
         "title": "BackofficeMetricsDTO"
+      },
+      "BankruptcyMessageDTO": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "case": {
+            "type": "string",
+            "title": "Case"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "type",
+          "case"
+        ],
+        "title": "BankruptcyMessageDTO"
       },
       "CalculateBody": {
         "properties": {
@@ -5843,6 +6037,58 @@
           "credit_bureau_at"
         ],
         "title": "ConsentsOut"
+      },
+      "CounterpartyRiskDTO": {
+        "properties": {
+          "reliability": {
+            "type": "string",
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Reliability"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "arbitration": {
+            "$ref": "#/components/schemas/ArbitrationDTO"
+          },
+          "enforcement": {
+            "$ref": "#/components/schemas/EnforcementDTO"
+          },
+          "bankruptcy_messages": {
+            "items": {
+              "$ref": "#/components/schemas/BankruptcyMessageDTO"
+            },
+            "type": "array",
+            "title": "Bankruptcy Messages"
+          },
+          "gov_contracts": {
+            "$ref": "#/components/schemas/GovContractsDTO"
+          },
+          "active_pledges": {
+            "type": "integer",
+            "title": "Active Pledges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reliability",
+          "notes",
+          "arbitration",
+          "enforcement",
+          "bankruptcy_messages",
+          "gov_contracts",
+          "active_pledges"
+        ],
+        "title": "CounterpartyRiskDTO",
+        "description": "Контур.Фокус: суды, приставы, банкротство."
       },
       "Counters": {
         "properties": {
@@ -7033,6 +7279,24 @@
         ],
         "title": "EligibilityReasonDTO"
       },
+      "EnforcementDTO": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "sum": {
+            "type": "string",
+            "title": "Sum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "sum"
+        ],
+        "title": "EnforcementDTO"
+      },
       "EnrichmentSnapshotDTO": {
         "properties": {
           "id": {
@@ -7062,7 +7326,10 @@
                 "egrul",
                 "fns",
                 "bki",
-                "statement"
+                "statement",
+                "gir_bo",
+                "kontur",
+                "bki_head"
               ]
             },
             "type": "array",
@@ -7114,6 +7381,44 @@
                 "type": "null"
               }
             ]
+          },
+          "gir_bo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountingReportsDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kontur": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CounterpartyRiskDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bki_head": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreditHistoryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources_skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SourceErrorDTO"
+            },
+            "type": "array",
+            "title": "Sources Skipped",
+            "default": []
           }
         },
         "type": "object",
@@ -7757,6 +8062,24 @@
           "share_percent"
         ],
         "title": "FounderDTO"
+      },
+      "GovContractsDTO": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "sum": {
+            "type": "string",
+            "title": "Sum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "sum"
+        ],
+        "title": "GovContractsDTO"
       },
       "HTTPValidationError": {
         "properties": {
@@ -11600,7 +11923,10 @@
               "egrul",
               "fns",
               "bki",
-              "statement"
+              "statement",
+              "gir_bo",
+              "kontur",
+              "bki_head"
             ],
             "title": "Source"
           },
@@ -12240,6 +12566,14 @@
           "in_msp_registry": {
             "type": "boolean",
             "title": "In Msp Registry"
+          },
+          "account_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/AccountBlockDTO"
+            },
+            "type": "array",
+            "title": "Account Blocks",
+            "default": []
           }
         },
         "type": "object",

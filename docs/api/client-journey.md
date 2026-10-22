@@ -44,8 +44,8 @@
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility`, `POST /products/{code}/calculate` | 🟡 калькулятор не знает о предодобрении — [4.1](#41-калькулятор-с-учётом-предскоринга) |
 | 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `PATCH /applications/{id}` → `consents` — согласия компании в заявке | ✅ плашка в карточке заявки и `todo` на дашборде — следующим шагом, [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
-| 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | 🟡 есть ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и выписки; нет ГИР БО, Контура, БКИ ФЛ — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
-| 11 | Стоп-фактор? → отказано | банк | без фронта (`decision`, причины `STOP_*`); клиенту — `client_status = rejected` и `decision.client_explanation` | ✅ |
+| 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | ✅ ЕГРЮЛ/ЕГРИП, ФНС с блокировками счетов, ГИР БО, Контур, БКИ компании и руководителя (с его согласия), выписки — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
+| 11 | Стоп-фактор? → отказано | банк | без фронта (`decision`, причины `STOP_*`); клиенту — `client_status = rejected` и `decision.client_explanation` | ✅ `policy_v2`: стоп-факторы ГИР БО, Контура, ФНС и БКИ руководителя — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
 | 12 | Модель оценки PD | банк | без фронта (`scoring`); андеррайтеру — `UnderwriterCard.scoring` | 🟡 грейды A–E, PD не считается — [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
 | 13 | Стратегия решения: approve / counteroffer / отказ / ручная | банк | без фронта (`decision`); клиенту — `offer` и `decision` в карточке | ✅ детали расходятся — [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
 | 14 | Ручная проверка | андеррайтер | `GET /bff/backoffice/queue`, `GET /bff/backoffice/applications/{id}`, `POST /tasks/{id}/claim`, `POST /tasks/{id}/complete` | ✅ |
@@ -58,7 +58,7 @@
 Вопросы на схеме:
 
 - **«А можно без эл. доверенности брать кредит?»** Подать заявку — да: хватает права `submit_application` (бухгалтер его имеет по умолчанию). Подписать — нет: `sign` есть только у руководителя по реестру и у участника с доверенностью со scope `sign`. Доверенность выдаёт руководитель: `POST /organizations/{id}/members/{account_id}/poa`. Без неё бухгалтер подаёт заявку, но на `sign` получает 403.
-- **«А можно в ЕГРЮЛ отчётность посмотреть?»** Нет: бухотчётности в ЕГРЮЛ нет, она в ГИР БО. Источника ГИР БО на бэке нет — [4.4](#44-источники-гир-бо-контур-бки-физлица). Сейчас отчётность — заявленная клиентом (`POST /organizations/{id}/financial-reports`) плюс выручка по ФНС.
+- **«А можно в ЕГРЮЛ отчётность посмотреть?»** В ЕГРЮЛ бухотчётности нет, она в ГИР БО. Банк запрашивает её при рассмотрении заявки: андеррайтер видит `enrichment.gir_bo` в карточке — [4.4](#44-источники-гир-бо-контур-бки-физлица). Клиенту в кабинете — по-прежнему заявленная им отчётность (`POST /organizations/{id}/financial-reports`) плюс выручка по ФНС.
 
 ---
 
@@ -303,7 +303,7 @@ Dashboard {
 | 4.1 | Калькулятор с учётом предскоринга | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
 | 4.2 | Сверка с ЕГРЮЛ по запросу | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment |
 | 4.3 | ✅ Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, clients, process |
-| 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
+| 4.4 | ✅ Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, process, external-mocks |
 | 4.5 | Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
 | 4.6 | Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
 | 4.7 | Скоринг и стратегия как на схеме | 12–13 | без новых ручек: поля в DTO андеррайтера | Could | scoring, decision |
@@ -413,34 +413,54 @@ ConsentRead {
 
 ### 4.4. Источники ГИР БО, Контур, БКИ физлица
 
-**Зачем.** Блок «Запросы» на схеме: ГИР БО (бухотчётность), Контур (суды, приставы, банкротство), ФНС (налоговые долги, блокировки), БКИ компании, БКИ руководителя. Сейчас enrichment опрашивает `egrul`, `fns`, `bki` и строит прогноз по выпискам. ГИР БО и Контур есть только в моках фронта: данные — `frontend/mocks/external-sources.json`, типы — `frontend/src/shared/api/credit/sources.ts`.
+✅ Блок «Запросы» схемы: ГИР БО (бухотчётность), Контур (суды, приставы, банкротство), ФНС (налоговые долги, блокировки), БКИ компании, БКИ руководителя. Процесс просит у enrichment все источники, БКИ руководителя — только с его личным согласием ([4.3](#43-личные-согласия-пдн-и-бки-физлица)).
 
-**Новых ручек нет.** Меняется `EnrichmentSnapshotDTO` в `GET /bff/backoffice/applications/{id}`:
+**Новых ручек нет.** Расширился `EnrichmentSnapshotDTO` в `GET /bff/backoffice/applications/{id}` (`UnderwriterCard.enrichment`):
 
 ```text
 sources_ok[], sources_failed[].source:  + "gir_bo" | "kontur" | "bki_head"
+sources_skipped: [{ source, code, message }]   // не запрошены: bki — no_consent; bki_head — no_consent | no_head
 
 gir_bo: {
-  available: boolean, reason: string | null,
-  periods: [{ year, revenue, cost_of_sales, net_profit, equity, total_assets, total_liabilities, cash, receivables }]
-} | null                                   // рубли строками, а не тыс. ₽ из форм, как в моке фронта
+  available: boolean, reason: string | null,   // нет отчётности: ИП, компания младше года
+  periods: [{ year, revenue, cost_of_sales, sales_profit, interest_payable, net_profit,
+              fixed_assets, inventories, receivables, cash, equity, total_assets,
+              long_term_liabilities, short_term_liabilities, total_liabilities }]
+} | null                                       // рубли строками, от старого года к новому
 
 kontur: {
-  reliability: "green" | "yellow" | "red", notes[],
+  reliability: "green" | "yellow" | "red", notes: string[],
   arbitration: { as_defendant, as_plaintiff, defendant_sum },
   enforcement: { active, sum },
   bankruptcy_messages: [{ date, type, case }],
-  gov_contracts: { count, sum }
+  gov_contracts: { count, sum },
+  active_pledges: int
 } | null
 
-bki_head: CreditHistoryDTO | null          // та же схема, что у bki компании
+bki_head: CreditHistoryDTO | null              // та же схема, что у bki компании
 
-fns: + account_blocks: [{ decision_number, date, reason }]
+fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 ```
 
-- Новые стоп-факторы в `decision`: `STOP_ACCOUNT_BLOCKS` (ФНС), `STOP_BANKRUPTCY_MESSAGE` и `STOP_LARGE_ENFORCEMENT` (Контур), `STOP_NEGATIVE_EQUITY` (ГИР БО). Они совпадают со `StopFactorId` мока фронта.
-- Клиенту ничего нового: не ответивший источник попадёт в `degraded`, решение уйдёт на ручную проверку.
-- В external-mocks — эндпоинты ГИР БО, Контура и БКИ физлица на том же `external-sources.json`.
+Стоп-факторы — новая версия политики `policy_v2` (её номер — в `decision.policy_version` карточки андеррайтера). Пороги стартовые и живут в YAML:
+
+| Условие | Источник | Причина |
+|---|---|---|
+| сообщения о банкротстве | Контур | `STOP_BANKRUPTCY_MESSAGE` |
+| действующие блокировки счетов | ФНС | `STOP_ACCOUNT_BLOCKS` |
+| исполнительные производства > 10% годовой выручки | Контур | `STOP_LARGE_ENFORCEMENT` |
+| иски к компании > 20% годовой выручки | Контур | `STOP_LARGE_LAWSUITS` |
+| отрицательный собственный капитал в последнем периоде | ГИР БО | `STOP_NEGATIVE_EQUITY` |
+| текущая просрочка руководителя 30+ дней | БКИ руководителя | `STOP_HEAD_OVERDUE` |
+| текущая просрочка компании 30+ дней | БКИ | `STOP_CURRENT_OVERDUE` |
+| налоговая недоимка > 300 000 ₽ | ФНС | `STOP_TAX_ARREARS` |
+| адрес массовой регистрации | ЕГРЮЛ | `STOP_MASS_ADDRESS` |
+| основной ОКВЭД из стоп-листа банка | ЕГРЮЛ | `STOP_FORBIDDEN_OKVED` |
+| налоговая недоимка > 0, но не выше порога | ФНС | `ROUTE_TAX_ARREARS` — на ручную проверку |
+
+Клиент видит только итог: текст отказа без деталей источников. Если источник не ответил, решение уходит на ручную проверку (`ROUTE_SOURCES_FAILED`), и клиент читает, что заявку рассмотрит специалист. Нет согласия руководителя — его БКИ не запрашивается, проверка просрочки руководителя пропускается, решение идёт дальше.
+
+В external-mocks — `GET /gir-bo/{inn}`, `GET /kontur/{inn}`, `POST /bki/person-report` и `account_blocks` в `GET /fns/{inn}`; формы ответов — как в `frontend/mocks/external-sources.json`.
 
 ### 4.5. Договор перед подписью
 
