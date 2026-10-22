@@ -2,13 +2,15 @@
 
 from fastapi import FastAPI
 
+from src.bff.api import backoffice, client
 from src.core.messaging.subscriber import Subscription
 
 NAME = "bff"
 
 
 def register(app: FastAPI) -> None:
-    """Include routers."""
+    app.include_router(client.router)
+    app.include_router(backoffice.router)
 
 
 def wire(app: FastAPI) -> None:
