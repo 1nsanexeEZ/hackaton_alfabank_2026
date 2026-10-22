@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.modules.scoring.application.serialization import dump_input, input_hash, load_input
 from src.modules.scoring.domain.model import ScoringResult
 from src.modules.scoring.facade import CompanyProfileDTO
-from src.modules.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.config_loader import load_pd_model, load_scorecard
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.models import ScoringResultRecord
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
@@ -18,6 +18,73 @@ from tests.scoring.scenarios import SCENARIOS
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 _CARD = load_scorecard()
+_MODEL = load_pd_model()
+
+
+async def test_pd_model_result_roundtrips(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    scoring_input = SCENARIOS["vector_s3"]
+    output = _MODEL.calculate(scoring_input)
+    stored = dump_input(scoring_input)
+    result = ScoringResult(
+        id=uuid4(),
+        application_id=uuid4(),
+        requested_by_command=uuid4(),
+        model_version=_MODEL.version,
+        score=output.score,
+        grade=output.grade,
+        factors=output.factors,
+        flags=output.flags,
+        data_completeness=output.data_completeness,
+        computed_at=_NOW,
+        input_hash=input_hash(stored),
+        segment=output.segment,
+        scorecard=output.scorecard,
+        pd_12m=output.pd_12m,
+        reason_codes=output.reason_codes,
+    )
+    async with session_factory() as session:
+        await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
+        await session.commit()
+
+    async with session_factory() as session:
+        dto = await ScoringFacadeImpl(session, _MODEL).get_result(result.application_id)
+
+    assert dto is not None
+    assert (dto.segment, dto.scorecard, dto.grade) == ("legal_entity", "legal_entity_v1", "F")
+    assert dto.pd_12m == Decimal("0.0421")
+    assert dto.reason_codes == ("amount_to_revenue", "industry_risk", "verification")
+
+
+async def test_scorecard_v1_result_has_no_pd(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    result, stored = _result()
+    async with session_factory() as session:
+        await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
+        await session.commit()
+
+    async with session_factory() as session:
+        dto = await ScoringFacadeImpl(session, _CARD).get_result(result.application_id)
+
+    assert dto is not None
+    assert (dto.segment, dto.pd_12m, dto.reason_codes) == (None, None, ())
+
+
+def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:
+    profile = CompanyProfileDTO(
+        legal_form="LLC",
+        business_age_months=3,
+        okved_main="56.10",
+        annual_revenue=None,
+        previous_annual_revenue=None,
+        verification_status="verified",
+        registry_status="active",
+    )
+    estimate = ScoringFacadeImpl(None, _MODEL).estimate(profile)  # type: ignore[arg-type]
+    assert estimate.segment == "new_client"
+    assert estimate.pd_12m is not None and estimate.grade in set("ABCDEFGHIJ")
 
 
 def _result() -> tuple[ScoringResult, dict]:

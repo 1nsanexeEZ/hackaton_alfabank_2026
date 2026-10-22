@@ -1,0 +1,121 @@
+{
+  "segment": "entrepreneur",
+  "scorecard": "entrepreneur_v1",
+  "score": 565,
+  "pd_12m": "0.0345",
+  "grade": "E",
+  "reason_codes": [
+    "amount_to_revenue",
+    "debt_load",
+    "business_age"
+  ],
+  "data_completeness": "0.909",
+  "flags": [
+    "thin_file",
+    "cash_gap"
+  ],
+  "bank_notes": [
+    "По выписке прогнозируется кассовый разрыв в 2026-11 на 300000.00 ₽."
+  ],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "8",
+      "bin": "<12",
+      "points": -5,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": null,
+      "bin": "нет данных",
+      "points": -5,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": false
+    },
+    {
+      "code": "debt_load",
+      "value": "0.53",
+      "bin": "0,4–0,6",
+      "points": -15,
+      "direction": "negative",
+      "client_hint": "Высокая долговая нагрузка — рассмотрите меньшую сумму или больший срок.",
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": "thin",
+      "bin": "истории нет",
+      "points": -5,
+      "direction": "negative",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "0",
+      "bin": "≤2",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "none",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "low",
+      "bin": "низкий",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.83",
+      "bin": "≥0,5",
+      "points": -40,
+      "direction": "negative",
+      "client_hint": "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "0.02",
+      "bin": "<15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": "gap",
+      "bin": "прогнозируется",
+      "points": -15,
+      "direction": "negative",
+      "client_hint": "По выписке возможен кассовый разрыв — удобнее овердрафт или кредитная линия.",
+      "has_data": true
+    }
+  ]
+}
