@@ -1,5 +1,7 @@
 <script setup lang="ts" generic="T extends string">
-withDefaults(
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const props = withDefaults(
   defineProps<{
     options: readonly { value: T; label: string }[]
     /** Подпись группы для скринридеров */
@@ -11,23 +13,61 @@ withDefaults(
 )
 
 const model = defineModel<T>({ required: true })
+
+/*
+ * Как переключатель в настройках телефона: под выбранным вариантом лежит белый ползунок,
+ * при выборе другого он переезжает под него. Положение и ширину берём из самой кнопки.
+ */
+const buttons = ref<HTMLButtonElement[]>([])
+const thumb = ref({ x: 0, width: 0 })
+// Первое измерение — без анимации, иначе ползунок выезжает из левого края при загрузке
+const ready = ref(false)
+
+function measure() {
+  const index = props.options.findIndex((option) => option.value === model.value)
+  const button = buttons.value[index]
+  thumb.value = button ? { x: button.offsetLeft, width: button.offsetWidth } : { x: 0, width: 0 }
+}
+
+let resizeObserver: ResizeObserver | undefined
+
+onMounted(async () => {
+  measure()
+  await nextTick()
+  requestAnimationFrame(() => (ready.value = true))
+  if ('ResizeObserver' in window) {
+    resizeObserver = new ResizeObserver(measure)
+    buttons.value.forEach((button) => resizeObserver?.observe(button))
+  }
+})
+
+onBeforeUnmount(() => resizeObserver?.disconnect())
+
+watch([model, () => props.options], () => nextTick(measure))
 </script>
 
 <template>
   <div
     role="group"
     :aria-label="label"
-    class="inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-surface p-1 [scrollbar-width:none]"
+    class="segmented relative isolate inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-surface p-1 [scrollbar-width:none]"
   >
+    <span
+      class="segmented__thumb pointer-events-none absolute top-1 bottom-1 left-0 -z-10 rounded-full bg-white shadow-sm"
+      :class="{ 'is-ready': ready }"
+      :style="{ width: `${thumb.width}px`, translate: `${thumb.x}px 0`, opacity: thumb.width ? 1 : 0 }"
+      aria-hidden="true"
+    />
     <button
       v-for="option in options"
       :key="option.value"
+      ref="buttons"
       type="button"
       :aria-pressed="model === option.value"
       :class="[
         'segmented__option shrink-0 rounded-full font-medium',
         small ? 'h-8 px-3 text-xs' : 'h-10 px-4 text-sm sm:px-5',
-        model === option.value ? 'is-on bg-white text-ink shadow-sm' : 'text-ink-secondary hover:text-ink',
+        model === option.value ? 'text-ink' : 'text-ink-secondary hover:text-ink',
       ]"
       @click="model = option.value"
     >
@@ -37,35 +77,25 @@ const model = defineModel<T>({ required: true })
 </template>
 
 <style scoped>
-/* Варианты приподнимаются при наведении, выбранный выпрыгивает с пружиной */
 .segmented__option {
+  transition: color 0.3s;
+}
+
+.segmented__thumb.is-ready {
   transition:
-    color 0.25s,
-    background-color 0.25s,
-    translate 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    translate 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    width 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    scale 0.2s ease;
 }
 
-.segmented__option:hover:not(.is-on) {
-  translate: 0 -2px;
-}
-
-.segmented__option.is-on {
-  animation: segmented-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.segmented__option:active {
-  scale: 0.94;
-}
-
-@keyframes segmented-pop {
-  from {
-    scale: 0.85;
-  }
+/* Пока палец на переключателе, ползунок чуть поджимается — как на телефоне */
+.segmented:active .segmented__thumb {
+  scale: 0.96;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .segmented__option {
-    animation: none !important;
+  .segmented__thumb.is-ready {
+    transition: none;
   }
 }
 </style>
