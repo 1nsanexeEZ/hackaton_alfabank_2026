@@ -1,0 +1,85 @@
+# Кредитная политика v2 (синтетическая): v1 плюс стоп-факторы по ГИР БО, Контуру, ФНС и БКИ
+# руководителя — из таблицы стоп-факторов общей схемы (там, где есть данные). Логика правил — в
+# domain/policy.py, здесь — пороги и коэффициенты. Пороги стартовые. Файл проверяется при старте:
+# ошибка → приложение не стартует. policy_v1.yaml не меняется — следующая доработка правил тоже
+# новая версия.
+version: policy_v2
+
+# Ключевая ставка, под которую откалиброваны ставки каталога продуктов. Текущая ключевая —
+# DECISION_KEY_RATE; разница сдвигает ставку внутри коридора продукта.
+key_rate_reference: "16.50"
+
+stop_factors:
+  # Статус по ЕГРЮЛ → причина отказа.
+  registry_statuses:
+    liquidating: STOP_LIQUIDATION
+    liquidated: STOP_LIQUIDATION
+    bankrupt: STOP_BANKRUPTCY
+  # Просрочка компании (максимум из текущей и за 12 месяцев) строго больше — стоп.
+  overdue_days: 90
+  grades: [E]
+  # Текущая просрочка от стольких дней у компании или у руководителя (его БКИ — только с его
+  # согласием) — стоп.
+  current_overdue_days: 30
+  # ФНС: действующие решения о приостановлении операций по счетам.
+  account_blocks: true
+  # ФНС: недоимка строго больше — стоп; меньше, но не ноль — ручная проверка (routing.tax_arrears).
+  tax_arrears_above: "300000"
+  # Контур: сообщения о банкротстве (наблюдение, конкурсное производство).
+  bankruptcy_messages: true
+  # Контур: суммы строго больше доли годовой выручки (ГИР БО, иначе ФНС, иначе отчёт клиента).
+  enforcement_revenue_share: "0.1"
+  lawsuits_revenue_share: "0.2"
+  # ГИР БО: отрицательный собственный капитал в последнем периоде.
+  negative_equity: true
+  # ЕГРЮЛ: адрес массовой регистрации — стоп (в v1 — ручная проверка).
+  mass_address: true
+  # Стоп-лист ОКВЭД банка: двузначные классы основного вида деятельности (92 — азартные игры).
+  okved_classes: ["92"]
+
+info_request:
+  # Флаг revenue_mismatch и закрытого дозапроса с этим документом ещё не было → REQUEST_INFO.
+  revenue_document: bank_statement
+
+limits:
+  # k(грейд) × годовая выручка (меньшая из заявленной и ФНС).
+  revenue_multiplier: {A: "0.5", B: "0.4", C: "0.25", D: "0.15"}
+  # LTV по типу залога — только для залоговых продуктов.
+  ltv: {real_estate: "0.7", vehicle: "0.6", equipment: "0.5", goods: "0.3"}
+  # Платёж ≤ этой доли свободного денежного потока в месяц.
+  payment_share: "0.4"
+  # Нет расходов в отчёте → считаем расходы такой долей выручки.
+  assumed_expense_ratio: "0.8"
+  # Встречное предложение округляем вниз до шага.
+  amount_step: "10000"
+
+pricing:
+  grade_premium: {A: "0", B: "1.5", C: "3.5", D: "6.0"}
+  # Скидка за залог при покрытии (стоимость залога / сумма) не ниже порога.
+  collateral_discount: "1.5"
+  collateral_min_coverage: "1"
+
+routing:
+  # → MANUAL_REVIEW. Плюс всегда: сумма выше auto_decision_limit продукта (у MORTGAGE — 0).
+  grades: [D]
+  # Недоимка по налогам больше нуля (и не выше stop_factors.tax_arrears_above) → ручная проверка.
+  tax_arrears: true
+  # Флаг скоринга → причина. revenue_mismatch сюда доходит только после дозапроса выписки.
+  # thin_file не маршрутизирует (только −10 баллов в скоринге). bureau_unavailable — не ответил
+  # любой внешний источник, в том числе ГИР БО, Контур или БКИ руководителя.
+  flags:
+    verification_mismatch: ROUTE_VERIFICATION_MISMATCH
+    revenue_mismatch: ROUTE_REVENUE_MISMATCH
+    bureau_unavailable: ROUTE_SOURCES_FAILED
+    mass_address: ROUTE_MASS_ADDRESS
+
+alternatives:
+  # Под кассовый разрыв — первый продукт, который проходит eligibility.
+  cash_gap_products: [OVERDRAFT, CREDIT_LINE]
+  # Отказ, а у клиента есть залог для беззалогового продукта.
+  secured_product: SECURED
+  # Отказ, но небольшая сумма возможна.
+  small_amount_product: OVERDRAFT
+
+offer:
+  valid_days: 7

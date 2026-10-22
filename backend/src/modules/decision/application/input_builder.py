@@ -2,7 +2,8 @@
 
 - заявка, снимок компании и копия условий продукта — `applications.get_scoring_input`,
   дозапросы — `applications.get_card`;
-- ЕГРЮЛ, ФНС, БКИ и прогноз по выписке — `enrichment.get_snapshot`;
+- ЕГРЮЛ, ФНС, БКИ компании и руководителя, ГИР БО, Контур и прогноз по выписке —
+  `enrichment.get_snapshot`;
 - грейд, флаги и подсказки — `scoring.get_result`;
 - программа господдержки, поручительство и альтернативы — `products`.
 
@@ -19,12 +20,15 @@ from src.core.exceptions.exceptions import NotFoundError
 from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade, ScoringInputDTO
 from src.modules.clients.facade import FinancialReportDTO, OrganizationSnapshotDTO
 from src.modules.decision.domain.model import (
+    AccountingInput,
     AlternativeInput,
     BureauInput,
     CashflowInput,
     CollateralInput,
     CompanyInput,
+    CounterpartyInput,
     DecisionInput,
+    HeadBureauInput,
     ProductInput,
     RequestInput,
     ScoreInput,
@@ -37,7 +41,7 @@ from src.modules.products.facade import ProductDTO, ProductsFacade
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 
 # Внешние источники: сбой любого — данных для стоп-факторов не хватает, решает андеррайтер.
-_EXTERNAL_SOURCES = ("egrul", "fns", "bki")
+_EXTERNAL_SOURCES = ("egrul", "fns", "bki", "gir_bo", "kontur", "bki_head")
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +89,9 @@ class DecisionInputBuilder:
             sources_failed=_sources_failed(snapshot),
             revenue_info_requested=self._revenue_requested(card),
             alternatives=alternatives,
+            counterparty=_counterparty_input(snapshot),
+            accounting=_accounting_input(snapshot),
+            head_bureau=_head_bureau_input(snapshot),
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -168,6 +175,8 @@ def _company_input(
         disqualified_head=fns.disqualified_head if fns is not None else None,
         in_msp_registry=fns.in_msp_registry if fns is not None else None,
         mass_address=egrul.mass_address if egrul is not None else False,
+        tax_arrears=fns.tax_arrears if fns is not None else None,
+        account_blocks=len(fns.account_blocks) if fns is not None else None,
     )
 
 
@@ -196,7 +205,44 @@ def _bureau_input(
         available=True,
         max_overdue_days=max(current, bki.max_overdue_days_12m),
         monthly_payments=bki.total_monthly_payments,
+        current_overdue_days=current,
     )
+
+
+def _counterparty_input(snapshot: EnrichmentSnapshotDTO | None) -> CounterpartyInput | None:
+    kontur = snapshot.kontur if snapshot is not None else None
+    if kontur is None:
+        return None
+    return CounterpartyInput(
+        bankruptcy_messages=len(kontur.bankruptcy_messages),
+        enforcement_sum=kontur.enforcement.sum,
+        lawsuits_sum=kontur.arbitration.defendant_sum,
+    )
+
+
+def _accounting_input(snapshot: EnrichmentSnapshotDTO | None) -> AccountingInput | None:
+    gir_bo = snapshot.gir_bo if snapshot is not None else None
+    latest = gir_bo.latest if gir_bo is not None and gir_bo.available else None
+    if latest is None:
+        return None
+    return AccountingInput(year=latest.year, revenue=latest.revenue, equity=latest.equity)
+
+
+def _head_bureau_input(snapshot: EnrichmentSnapshotDTO | None) -> HeadBureauInput:
+    """БКИ руководителя: ответ, или почему его нет (не дал согласия, руководитель не найден,
+    бюро не ответило, источник не запрашивали)."""
+    if snapshot is None:
+        return HeadBureauInput("not_requested")
+    if snapshot.bki_head is not None:
+        current = max((o.overdue_days for o in snapshot.bki_head.obligations), default=0)
+        return HeadBureauInput("ok", current)
+    skipped = {e.source: e.code for e in snapshot.sources_skipped}
+    code = skipped.get("bki_head")
+    if code in ("no_consent", "no_head"):
+        return HeadBureauInput(code)  # type: ignore[arg-type]
+    if any(e.source == "bki_head" for e in snapshot.sources_failed):
+        return HeadBureauInput("failed")
+    return HeadBureauInput("not_requested")
 
 
 def _cashflow_input(snapshot: EnrichmentSnapshotDTO | None) -> CashflowInput | None:

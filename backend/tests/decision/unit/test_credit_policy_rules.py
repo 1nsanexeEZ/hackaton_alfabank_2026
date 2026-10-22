@@ -29,10 +29,11 @@ from src.modules.decision.domain.model import (
     SupportProgramInput,
 )
 from src.modules.decision.domain.policy import annuity_payment, max_principal
-from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.config_loader import load_policy
 from src.modules.products.domain.calculator import PaymentCalculator
 
-POLICY = default_policy()
+# Правила v1; что добавила v2 — в test_credit_policy_v2_rules.py.
+POLICY = load_policy("policy_v1")
 KEY_RATE = POLICY.config.key_rate_reference
 RICH = CashflowInput(
     Decimal("10000000"), gap_detected=False, gap_month=None, revenue_confirmed=True

@@ -1,13 +1,15 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
-Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v1.yaml` и
-`config/explanations_ru.yaml`. Оба файла проверяются при старте; невалидный YAML (нет грейда,
+Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v2`); прежние лежат рядом для
+golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста или неизвестная подстановка) → `PolicyConfigError`, и приложение не
 стартует — лучше сразу, чем молча решить не так.
 """
 
 from __future__ import annotations
 
+import re
 import string
 from decimal import Decimal
 from functools import lru_cache
@@ -28,10 +30,11 @@ from src.modules.decision.domain.model import ReasonCode
 from src.modules.decision.domain.policy import CreditPolicy, PolicyConfig
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v1"
+_DEFAULT_POLICY = "policy_v2"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _GRADES = frozenset({"A", "B", "C", "D"})
+_OKVED_CLASS = re.compile(r"^\d{2}$")
 _OUTCOMES = frozenset({"APPROVE", "COUNTER_OFFER", "REQUEST_INFO", "MANUAL_REVIEW", "REJECT"})
 
 
@@ -47,6 +50,16 @@ class _StopFactors(_Strict):
     registry_statuses: dict[str, ReasonCode]
     overdue_days: int = Field(ge=0)
     grades: list[str]
+    # policy_v2: нет ключа — правило выключено.
+    current_overdue_days: int | None = Field(default=None, ge=1)
+    account_blocks: bool = False
+    tax_arrears_above: Decimal | None = Field(default=None, ge=0)
+    bankruptcy_messages: bool = False
+    enforcement_revenue_share: Decimal | None = Field(default=None, gt=0, le=1)
+    lawsuits_revenue_share: Decimal | None = Field(default=None, gt=0, le=1)
+    negative_equity: bool = False
+    mass_address: bool = False
+    okved_classes: list[str] = Field(default_factory=list)
 
 
 class _InfoRequest(_Strict):
@@ -70,6 +83,7 @@ class _Pricing(_Strict):
 class _Routing(_Strict):
     grades: list[str]
     flags: dict[str, ReasonCode]
+    tax_arrears: bool = False  # policy_v2
 
 
 class _Alternatives(_Strict):
@@ -151,6 +165,11 @@ def _check_policy(schema: _PolicySchema, path: Path) -> None:
             raise PolicyConfigError(f"{path}: в {name} нет грейдов {sorted(missing)}")
     if not schema.alternatives.cash_gap_products:
         raise PolicyConfigError(f"{path}: пустой alternatives.cash_gap_products")
+    bad_okved = [c for c in schema.stop_factors.okved_classes if not _OKVED_CLASS.match(c)]
+    if bad_okved:
+        raise PolicyConfigError(
+            f"{path}: в stop_factors.okved_classes нужны двузначные классы: {bad_okved}"
+        )
 
 
 def _check_explanations(schema: _ExplanationsSchema, path: Path) -> None:
@@ -194,6 +213,7 @@ def _check_cross(policy: _PolicySchema, texts: _ExplanationsSchema, path: Path) 
 
 
 def _policy_config(schema: _PolicySchema) -> PolicyConfig:
+    stops = schema.stop_factors
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -215,6 +235,16 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         secured_product=schema.alternatives.secured_product,
         small_amount_product=schema.alternatives.small_amount_product,
         offer_valid_days=schema.offer.valid_days,
+        stop_current_overdue_days=stops.current_overdue_days,
+        stop_account_blocks=stops.account_blocks,
+        stop_tax_arrears_above=stops.tax_arrears_above,
+        stop_bankruptcy_messages=stops.bankruptcy_messages,
+        stop_enforcement_share=stops.enforcement_revenue_share,
+        stop_lawsuits_share=stops.lawsuits_revenue_share,
+        stop_negative_equity=stops.negative_equity,
+        stop_mass_address=stops.mass_address,
+        stop_okved_classes=frozenset(stops.okved_classes),
+        route_tax_arrears=schema.routing.tax_arrears,
     )
 
 

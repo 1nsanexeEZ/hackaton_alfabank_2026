@@ -35,8 +35,11 @@ from src.modules.clients.infrastructure.models import OrganizationModel
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
 from src.modules.enrichment.application.sources import Sources
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
+from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
 from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
+from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
+from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
 from src.modules.identity.models import Account
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, token_for
@@ -69,8 +72,11 @@ def mock_sources() -> Sources:
         path = request.url.path
         if path == "/bki/report":
             source, inn = "bki", json.loads(request.content)["inn"]
+        elif path == "/bki/person-report":
+            source, inn = "bki_head", json.loads(request.content)["company_inn"]
         else:
             source, inn = path.strip("/").split("/", 1)
+            source = source.replace("-", "_")  # /gir-bo/{inn} -> gir_bo
         entry = recorded.get(inn)
         if entry is None:
             return httpx.Response(404, json={"detail": "not found"})
@@ -85,6 +91,9 @@ def mock_sources() -> Sources:
         registry=EgrulHttpSource(client, backoff=backoff),
         tax=FnsHttpSource(client, backoff=backoff),
         bureau=BkiHttpSource(client, backoff=backoff),
+        accounting=GirBoHttpSource(client, backoff=backoff),
+        counterparty=KonturHttpSource(client, backoff=backoff),
+        person_bureau=BkiPersonHttpSource(client, backoff=backoff),
     )
 
 

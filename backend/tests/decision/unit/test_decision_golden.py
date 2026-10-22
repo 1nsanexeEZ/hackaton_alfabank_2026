@@ -1,4 +1,7 @@
-"""Golden S-1…S-7: заявка из демо §9 → решение политики, эталон в JSON рядом.
+"""Golden S-1…S-7 политики v1: заявка из демо §9 → решение, эталон в JSON рядом.
+
+Версия политики закреплена: v1 решает на ЕГРЮЛ, ФНС и БКИ, как в момент её выхода. Golden
+следующей версии — в `test_decision_golden_v2.py`.
 
 Поменялась политика или тексты — golden-файлы покажут, какие сценарии и как сдвинулись.
 Отдельно закреплены исходы из таблицы сценариев и грейды скоринга, на которых они стоят.
@@ -15,7 +18,7 @@ from typing import Any
 import pytest
 
 from src.modules.decision.domain.model import PolicyDecision, ReasonCode
-from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.unit.decision_world import SCENARIOS, DecisionWorld, build_world
 
 _GOLDEN = Path(__file__).resolve().parent / "golden"
@@ -24,7 +27,7 @@ _KEY_RATE = Decimal("16.50")
 
 async def decide(name: str) -> tuple[DecisionWorld, PolicyDecision]:
     world = await build_world(name)
-    policy = default_policy()
+    policy = load_policy("policy_v1")
     collected = await world.builder(policy).collect(world.application_id)
     return world, policy.decide(collected.decision_input, key_rate=_KEY_RATE)
 

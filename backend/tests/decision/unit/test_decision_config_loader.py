@@ -17,6 +17,7 @@ from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO
 from src.modules.decision.infrastructure.config_loader import (
     PolicyConfigError,
     default_policy,
+    load_policy,
     load_policy_files,
 )
 
@@ -32,8 +33,9 @@ def _load(
     tmp_path: Path,
     policy: Callable[[dict[str, Any]], None] | None = None,
     texts: Callable[[dict[str, Any]], None] | None = None,
+    version: str = "policy_v1",
 ) -> None:
-    raw_policy, raw_texts = _raw("policy_v1"), _raw("explanations_ru")
+    raw_policy, raw_texts = _raw(version), _raw("explanations_ru")
     if policy is not None:
         policy(raw_policy)
     if texts is not None:
@@ -46,14 +48,55 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v1"
+    assert policy.version == "policy_v2"
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
     assert policy.config.revenue_multiplier["C"] == Decimal("0.25")
 
 
-def test_roundtrip_of_shipped_files_is_valid(tmp_path: Path) -> None:
-    _load(tmp_path)
+def test_v2_thresholds_live_in_yaml() -> None:
+    config = default_policy().config
+    assert config.stop_current_overdue_days == 30
+    assert config.stop_tax_arrears_above == Decimal("300000")
+    assert config.stop_enforcement_share == Decimal("0.1")
+    assert config.stop_lawsuits_share == Decimal("0.2")
+    assert config.stop_okved_classes == frozenset({"92"})
+    assert config.stop_account_blocks and config.stop_bankruptcy_messages
+    assert config.stop_negative_equity and config.stop_mass_address and config.route_tax_arrears
+
+
+def test_v1_keeps_new_rules_off() -> None:
+    config = load_policy("policy_v1").config
+    assert config.stop_current_overdue_days is None
+    assert config.stop_tax_arrears_above is None
+    assert config.stop_enforcement_share is None and config.stop_lawsuits_share is None
+    assert config.stop_okved_classes == frozenset()
+    assert not (config.stop_account_blocks or config.stop_bankruptcy_messages)
+    assert not (config.stop_negative_equity or config.stop_mass_address)
+    assert not config.route_tax_arrears
+
+
+@pytest.mark.parametrize("version", ["policy_v1", "policy_v2"])
+def test_roundtrip_of_shipped_files_is_valid(tmp_path: Path, version: str) -> None:
+    _load(tmp_path, version=version)
+
+
+@pytest.mark.parametrize(
+    "breaks",
+    [
+        lambda p: p["stop_factors"].update({"okved_classes": ["9"]}),
+        lambda p: p["stop_factors"].update({"okved_classes": ["92.1"]}),
+        lambda p: p["stop_factors"].update({"enforcement_revenue_share": "1.5"}),
+        lambda p: p["stop_factors"].update({"lawsuits_revenue_share": "0"}),
+        lambda p: p["stop_factors"].update({"current_overdue_days": 0}),
+        lambda p: p["stop_factors"].update({"tax_arrears_above": "-1"}),
+    ],
+)
+def test_invalid_v2_thresholds_are_rejected(
+    tmp_path: Path, breaks: Callable[[dict[str, Any]], None]
+) -> None:
+    with pytest.raises(PolicyConfigError):
+        _load(tmp_path, policy=breaks, version="policy_v2")
 
 
 def test_default_key_rate_matches_policy_reference(monkeypatch: pytest.MonkeyPatch) -> None:
