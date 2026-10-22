@@ -1,4 +1,6 @@
-from collections.abc import Sequence
+import calendar
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,18 +9,21 @@ from seed.demo_data import ACCOUNTS, ACCOUNTS_BY_EMAIL, DemoAccount
 from src.core.access.access_context import AccessContext
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
+from src.core.domain.clock import Clock
 from src.core.exceptions.exceptions import (
     BadRequestError,
     ConflictError,
     NotFoundError,
     UnauthorizedError,
 )
-from src.modules.identity.models import Account, Profile, Role
+from src.modules.identity.facade import ConsentType
+from src.modules.identity.models import Account, Consent, Profile, Role
 from src.modules.identity.passwords import PasswordHasher
-from src.modules.identity.repositories import AccountRepository, RoleRepository
+from src.modules.identity.repositories import AccountRepository, ConsentRepository, RoleRepository
 from src.modules.identity.schemas import (
     AccountCreate,
     AccountUpdate,
+    ConsentRead,
     LoginRequest,
     ProfileUpdate,
     RoleCreate,
@@ -278,3 +283,122 @@ def _apply_profile(profile: Profile, data: ProfileUpdate) -> None:
         if value is None and field in ("last_name", "first_name"):
             raise BadRequestError(f"{field} can't be empty")
         setattr(profile, field, value)
+
+
+# --- personal consents --------------------------------------------------------------------
+
+# Edition of the consent text the client is shown; a new text — a new version here.
+CONSENT_TEXT_VERSIONS: dict[ConsentType, str] = {
+    "personal_data": "pd-2026-10",
+    "credit_bureau_personal": "bki-fl-2026-10",
+}
+# None — valid until revoked. A consent to request a credit history is valid for six
+# months (218-FZ, art. 6).
+CONSENT_VALIDITY_MONTHS: dict[ConsentType, int | None] = {
+    "personal_data": None,
+    "credit_bureau_personal": 6,
+}
+
+
+def aware(moment: datetime) -> datetime:
+    """sqlite gives back naive datetimes; they are UTC."""
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
+def add_months(moment: datetime, months: int) -> datetime:
+    """Same day `months` later; a missing day (31 → 30 April) moves to the month's end."""
+    index = moment.month - 1 + months
+    year, month = moment.year + index // 12, index % 12 + 1
+    day = min(moment.day, calendar.monthrange(year, month)[1])
+    return moment.replace(year=year, month=month, day=day)
+
+
+def consent_valid_until(type: ConsentType, given_at: datetime) -> datetime | None:
+    months = CONSENT_VALIDITY_MONTHS[type]
+    return None if months is None else add_months(given_at, months)
+
+
+def consent_is_active(consent: Consent, now: datetime) -> bool:
+    if consent.revoked_at is not None:
+        return False
+    return consent.valid_until is None or aware(consent.valid_until) > now
+
+
+def consent_read(consent: Consent, now: datetime) -> ConsentRead:
+    return ConsentRead(
+        type=consent.type,  # type: ignore[arg-type]
+        given_at=aware(consent.given_at),
+        valid_until=aware(consent.valid_until) if consent.valid_until else None,
+        revoked_at=aware(consent.revoked_at) if consent.revoked_at else None,
+        active=consent_is_active(consent, now),
+        text_version=consent.text_version,
+    )
+
+
+class ConsentService:
+    """Consents a person gives for themselves (not for the company): history is kept,
+    a new consent is a new row, a revocation closes every consent of the type in force."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        accounts: AccountRepository,
+        consents: ConsentRepository,
+        clock: Clock,
+    ) -> None:
+        self._session = session
+        self._accounts = accounts
+        self._consents = consents
+        self._clock = clock
+
+    async def list(self, user_id: UUID) -> Sequence[ConsentRead]:
+        await self._ensure_account(user_id)
+        now = self._clock.now()
+        return [consent_read(c, now) for c in await self._consents.list_for(user_id)]
+
+    async def give(
+        self,
+        user_id: UUID,
+        types: Iterable[ConsentType],
+        *,
+        ip: str | None,
+        user_agent: str | None,
+    ) -> Sequence[ConsentRead]:
+        await self._ensure_account(user_id)
+        now = self._clock.now()
+        given = [
+            Consent(
+                account_id=user_id,
+                type=type,
+                given_at=now,
+                valid_until=consent_valid_until(type, now),
+                revoked_at=None,
+                text_version=CONSENT_TEXT_VERSIONS[type],
+                ip=ip,
+                user_agent=user_agent[:512] if user_agent else None,
+            )
+            for type in dict.fromkeys(types)
+        ]
+        for consent in given:
+            self._consents.add(consent)
+        await self._session.commit()
+        return [consent_read(c, now) for c in given]
+
+    async def revoke(self, user_id: UUID, type: ConsentType) -> None:
+        """Idempotent: nothing in force — nothing changes."""
+        await self._ensure_account(user_id)
+        now = self._clock.now()
+        in_force = [
+            c
+            for c in await self._consents.list_not_revoked(user_id, type)
+            if consent_is_active(c, now)
+        ]
+        if not in_force:
+            return
+        for consent in in_force:
+            consent.revoked_at = now
+        await self._session.commit()
+
+    async def _ensure_account(self, user_id: UUID) -> None:
+        if await self._accounts.get_active_by_id(user_id) is None:
+            raise UnauthorizedError("Account not found")

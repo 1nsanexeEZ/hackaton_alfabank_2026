@@ -15,6 +15,7 @@ from pydantic import (
 
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
+from src.modules.identity.facade import ConsentType
 
 _PHONE_RE = re.compile(r"^\+\d{10,15}$")
 
@@ -159,3 +160,18 @@ class MeRead(AccountRead):
 
 class JwksResponse(BaseModel):
     keys: list[dict[str, Any]]
+
+
+class ConsentGive(BaseModel):
+    types: list[ConsentType] = Field(min_length=1, max_length=2)
+
+
+class ConsentRead(BaseModel):
+    type: ConsentType
+    given_at: datetime
+    valid_until: datetime | None = Field(
+        description="personal_data — null (until revoked), credit_bureau_personal — 6 months"
+    )
+    revoked_at: datetime | None
+    active: bool
+    text_version: str = Field(description="Edition of the consent text that was shown")

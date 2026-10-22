@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.core.domain.clock import FrozenClock
 from src.modules.identity.facade import AccountRefDTO, IdentityFacade
 from src.modules.identity.facade_impl import IdentityFacadeImpl
 from src.modules.identity.passwords import PasswordHasher
@@ -23,7 +24,7 @@ async def session(seeded: async_sessionmaker[AsyncSession]) -> AsyncIterator[Asy
 
 @pytest.fixture
 def facade(session: AsyncSession) -> IdentityFacadeImpl:
-    return IdentityFacadeImpl(session, HASHER)
+    return IdentityFacadeImpl(session, HASHER, FrozenClock())
 
 
 async def test_find_by_phone_as_people_type_it(facade: IdentityFacadeImpl) -> None:

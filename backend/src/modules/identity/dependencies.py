@@ -8,8 +8,14 @@ from src.core.infrastructure.database.session import DbSession
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.core.security import bearer_security
 from src.modules.identity.passwords import PasswordHasher
-from src.modules.identity.repositories import AccountRepository, RoleRepository
-from src.modules.identity.services import AccountService, AuthService, DemoLoginService, RoleService
+from src.modules.identity.repositories import AccountRepository, ConsentRepository, RoleRepository
+from src.modules.identity.services import (
+    AccountService,
+    AuthService,
+    ConsentService,
+    DemoLoginService,
+    RoleService,
+)
 from src.modules.identity.token_adapter import TokenAdapter
 
 
@@ -57,7 +63,14 @@ def get_role_service(session: DbSession) -> RoleService:
     return RoleService(session, RoleRepository(session))
 
 
+def get_consent_service(request: Request, session: DbSession) -> ConsentService:
+    return ConsentService(
+        session, AccountRepository(session), ConsentRepository(session), request.app.state.clock
+    )
+
+
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 DemoLoginServiceDep = Annotated[DemoLoginService, Depends(get_demo_login_service)]
 AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
+ConsentServiceDep = Annotated[ConsentService, Depends(get_consent_service)]

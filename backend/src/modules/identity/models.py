@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.infrastructure.database.base import Base, JSONType
@@ -74,3 +75,22 @@ class Profile(TimestampMixin, Base):
     position: Mapped[str | None] = mapped_column(String(150))
 
     account: Mapped[Account] = relationship(back_populates="profile", lazy="raise")
+
+
+class Consent(UUIDPrimaryKeyMixin, Base):
+    """A personal consent of the account's owner (152-FZ, 218-FZ). Rows are never
+    rewritten: a new consent is a new row, a revocation only sets `revoked_at`."""
+
+    __tablename__ = "identity_consents"
+    __table_args__ = (Index("ix_identity_consents_account_type", "account_id", "type"),)
+
+    account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    type: Mapped[str] = mapped_column(String(32))
+    given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # None — valid until revoked.
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Edition of the consent text the person was shown.
+    text_version: Mapped[str] = mapped_column(String(32))
+    ip: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
