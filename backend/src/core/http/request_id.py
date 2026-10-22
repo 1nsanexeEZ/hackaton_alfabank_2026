@@ -64,3 +64,5 @@ def configure_logging(level: int = logging.INFO) -> None:
     )
     root.addHandler(handler)
     root.setLevel(level)
+    # Kafka client: group rebalances on every start are noise, problems are warnings.
+    logging.getLogger("aiokafka").setLevel(logging.WARNING)

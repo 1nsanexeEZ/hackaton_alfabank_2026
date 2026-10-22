@@ -59,14 +59,17 @@ class CommandService:
         return changed
 
     async def set_client_stage(self, application_id: UUID, client_stage: str | None) -> bool:
-        try:
-            application = await self._repository.get(application_id)
-        except NotFoundError:
+        """The label of the process stage for the client's screen. A step that
+        does not change what the client sees carries no label and is skipped.
+
+        Written past the aggregate on purpose: it is a display label, not the
+        business state, and must not fight for the version with the commands
+        and the client's own actions."""
+        if not client_stage:
             return False
-        if not application.set_client_stage(client_stage, self._clock.now()):
-            return False
-        await self._store(application, causation_id=None)
-        return True
+        return await self._repository.set_client_stage(
+            application_id, client_stage, self._clock.now()
+        )
 
     async def expire_offer(self, application_id: UUID) -> bool:
         application = await self._repository.get(application_id)

@@ -105,6 +105,9 @@ class SqlAlchemyProcessRepository:
                     created_at=now,
                 )
             )
+            # No ORM relationship between the two: the snapshot must reach the
+            # database before the process row that references it.
+            await self._session.flush()
         _GRAPHS.setdefault(workflow.source_hash, workflow)
         record = ProcessRecord(
             id=process.id,
