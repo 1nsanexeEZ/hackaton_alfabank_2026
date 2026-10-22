@@ -2235,13 +2235,62 @@
         }
       }
     },
+    "/applications/{application_id}/contract": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Contract",
+        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.",
+        "operationId": "contract_applications__application_id__contract_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/applications/{application_id}/sign": {
       "post": {
         "tags": [
           "applications"
         ],
         "summary": "Sign",
-        "description": "Simulated signature: the password is asked once more (step-up), the\ndocument goes through the EDO mock; the response says `simulated: true`.",
+        "description": "Simulated signature: the password is asked once more (step-up), the\ndocument goes through the EDO mock; the response says `simulated: true`.\n`offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.",
         "operationId": "sign_applications__application_id__sign_post",
         "security": [
           {
@@ -5635,6 +5684,279 @@
           "credit_bureau_at"
         ],
         "title": "ConsentsOut"
+      },
+      "ContractBorrowerOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "ogrn": {
+            "type": "string",
+            "title": "Ogrn"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "legal_form": {
+            "type": "string",
+            "title": "Legal Form"
+          },
+          "head_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "inn",
+          "ogrn",
+          "kpp",
+          "legal_form",
+          "head_name"
+        ],
+        "title": "ContractBorrowerOut"
+      },
+      "ContractOut": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "offer_hash": {
+            "type": "string",
+            "title": "Offer Hash"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unsigned",
+              "signed"
+            ],
+            "title": "Status"
+          },
+          "borrower": {
+            "$ref": "#/components/schemas/ContractBorrowerOut"
+          },
+          "signers": {
+            "items": {
+              "$ref": "#/components/schemas/ContractSignerOut"
+            },
+            "type": "array",
+            "title": "Signers"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/OfferOut"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ContractScheduleOut"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractSignatureOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "offer_hash",
+          "status",
+          "borrower",
+          "signers",
+          "terms",
+          "schedule",
+          "signature"
+        ],
+        "title": "ContractOut",
+        "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` goes back in `POST /applications/{id}/sign`."
+      },
+      "ContractPaymentOut": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "principal": {
+            "type": "string",
+            "title": "Principal"
+          },
+          "interest": {
+            "type": "string",
+            "title": "Interest"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "balance_after": {
+            "type": "string",
+            "title": "Balance After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "due_date",
+          "principal",
+          "interest",
+          "total",
+          "balance_after"
+        ],
+        "title": "ContractPaymentOut"
+      },
+      "ContractScheduleOut": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          },
+          "repayment": {
+            "type": "string",
+            "title": "Repayment"
+          },
+          "monthly_payment": {
+            "type": "string",
+            "title": "Monthly Payment"
+          },
+          "total_interest": {
+            "type": "string",
+            "title": "Total Interest"
+          },
+          "total_paid": {
+            "type": "string",
+            "title": "Total Paid"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/ContractPaymentOut"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "term_months",
+          "rate",
+          "repayment",
+          "monthly_payment",
+          "total_interest",
+          "total_paid",
+          "payments"
+        ],
+        "title": "ContractScheduleOut"
+      },
+      "ContractSignatureOut": {
+        "properties": {
+          "signed_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Signed By"
+          },
+          "signed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Signed At"
+          },
+          "edo_document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edo Document Id"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signed_by",
+          "signed_at",
+          "edo_document_id",
+          "simulated"
+        ],
+        "title": "ContractSignatureOut"
+      },
+      "ContractSignerOut": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "authority": {
+            "type": "string",
+            "enum": [
+              "registry",
+              "power_of_attorney"
+            ],
+            "title": "Authority"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "name",
+          "authority"
+        ],
+        "title": "ContractSignerOut"
       },
       "Counters": {
         "properties": {
@@ -11331,11 +11653,17 @@
             "format": "password",
             "title": "Password",
             "writeOnly": true
+          },
+          "offer_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Offer Hash"
           }
         },
         "type": "object",
         "required": [
-          "password"
+          "password",
+          "offer_hash"
         ],
         "title": "SignIn"
       },
