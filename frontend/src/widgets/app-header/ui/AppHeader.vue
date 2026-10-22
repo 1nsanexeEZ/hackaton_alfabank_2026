@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { LogIn, LogOut, Menu, UserRound, X } from 'lucide-vue-next'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ChevronDown, LogIn, LogOut, Menu, UserRound, X } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { customer, useCustomer } from '@/entities/customer'
@@ -13,7 +13,7 @@ import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
  */
 const emit = defineEmits<{ apply: []; login: [] }>()
 
-const { isAuthenticated, name, logout } = useCustomer()
+const { me, isAuthenticated, name, logout } = useCustomer()
 
 const isMenuOpen = ref(false)
 const route = useRoute()
@@ -24,6 +24,40 @@ onMounted(() => void customer.restore())
 function closeMenu() {
   isMenuOpen.value = false
 }
+
+/*
+ * Меню аккаунта: имя и «Выйти» в одной кнопке, чтобы шапка помещалась на 1024 px.
+ * Имя на самой кнопке — с 1280 px, в раскрытом меню — всегда.
+ */
+const isAccountOpen = ref(false)
+const account = ref<HTMLElement>()
+const contact = computed(() => me.value?.email ?? me.value?.phone ?? '')
+
+function closeAccount(returnFocus = false) {
+  if (!isAccountOpen.value) return
+  isAccountOpen.value = false
+  if (returnFocus) account.value?.querySelector<HTMLElement>('[aria-haspopup]')?.focus()
+}
+
+function toggleAccount() {
+  isAccountOpen.value = !isAccountOpen.value
+  if (isAccountOpen.value) void nextTick(() => account.value?.querySelector<HTMLElement>('[role=menuitem]')?.focus())
+}
+
+function signOut() {
+  closeAccount()
+  closeMenu()
+  logout()
+}
+
+function onPointerDownOutside(event: PointerEvent) {
+  if (!account.value?.contains(event.target as Node)) closeAccount()
+}
+
+watch(isAccountOpen, (isOpen) => {
+  if (isOpen) document.addEventListener('pointerdown', onPointerDownOutside)
+  else document.removeEventListener('pointerdown', onPointerDownOutside)
+})
 
 function apply() {
   closeMenu()
@@ -36,7 +70,9 @@ function login() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') closeMenu()
+  if (event.key !== 'Escape') return
+  closeMenu()
+  closeAccount(true)
 }
 
 // На десктопе мобильное меню не нужно: закрываем его, если окно расширили
@@ -53,10 +89,17 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('pointerdown', onPointerDownOutside)
   desktopQuery?.removeEventListener('change', onDesktopChange)
 })
 
-watch(() => route.fullPath, closeMenu)
+watch(
+  () => route.fullPath,
+  () => {
+    closeMenu()
+    closeAccount()
+  },
+)
 </script>
 
 <template>
@@ -81,15 +124,53 @@ watch(() => route.fullPath, closeMenu)
 
       <div class="flex items-center gap-2">
         <!-- max-*:hidden, а не hidden sm:inline-flex: у BaseButton свой display, обычный hidden его не перебьёт -->
-        <template v-if="isAuthenticated">
-          <span class="flex max-w-48 items-center gap-2 text-sm font-medium text-on-night max-sm:hidden">
+        <div v-if="isAuthenticated" ref="account" class="relative max-sm:hidden">
+          <BaseButton
+            variant="glass"
+            size="s"
+            aria-haspopup="menu"
+            aria-controls="account-menu"
+            :aria-expanded="isAccountOpen"
+            :aria-label="`Аккаунт: ${name}`"
+            @click="toggleAccount"
+          >
             <UserRound class="size-4 shrink-0" aria-hidden="true" />
-            <span class="truncate">{{ name }}</span>
-          </span>
-          <BaseButton variant="glass" size="s" class="max-sm:hidden" aria-label="Выйти" @click="logout">
-            <LogOut class="size-4" aria-hidden="true" />
+            <span class="max-w-40 truncate max-xl:hidden">{{ name }}</span>
+            <ChevronDown
+              class="size-4 shrink-0 transition-transform duration-200"
+              :class="isAccountOpen && 'rotate-180'"
+              aria-hidden="true"
+            />
           </BaseButton>
-        </template>
+          <Transition
+            enter-from-class="opacity-0 -translate-y-1"
+            enter-active-class="transition duration-150"
+            leave-to-class="opacity-0 -translate-y-1"
+            leave-active-class="transition duration-100"
+          >
+            <div
+              v-if="isAccountOpen"
+              id="account-menu"
+              role="menu"
+              aria-label="Аккаунт"
+              class="absolute top-full right-0 mt-2 w-64 rounded-2xl bg-white p-1.5 text-ink shadow-[0_1.25rem_3rem_rgb(18_18_19/0.18),0_0_0_1px_var(--color-line)]"
+            >
+              <div class="px-3.5 py-2.5">
+                <p class="truncate text-sm font-semibold">{{ name }}</p>
+                <p v-if="contact" class="truncate text-xs text-ink-secondary">{{ contact }}</p>
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                class="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3.5 text-left text-sm font-medium transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
+                @click="signOut"
+              >
+                <LogOut class="size-4 text-ink-secondary" aria-hidden="true" />
+                Выйти
+              </button>
+            </div>
+          </Transition>
+        </div>
         <BaseButton v-else variant="glass" size="s" class="max-sm:hidden" @click="login">
           <LogIn class="size-4" aria-hidden="true" />
           Войти
@@ -131,7 +212,7 @@ watch(() => route.fullPath, closeMenu)
             </ul>
           </nav>
           <div class="mt-6 grid gap-3 sm:grid-cols-2">
-            <BaseButton v-if="isAuthenticated" variant="glass" block @click="logout">
+            <BaseButton v-if="isAuthenticated" variant="glass" block @click="signOut">
               <LogOut class="size-4" aria-hidden="true" />
               Выйти · {{ name }}
             </BaseButton>
