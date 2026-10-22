@@ -161,7 +161,8 @@ function onFocusOut(event: FocusEvent) {
         description="Условия демонстрационные: итоговые ставка и лимит зависят от решения банка по заявке."
       >
         <template #aside>
-          <ProductFilterControl v-model="filter" class="self-start lg:self-auto" />
+          <!-- shrink-0: на 1024 px длинное описание иначе сжимает фильтр и обрезает «Деньги частями» -->
+          <ProductFilterControl v-model="filter" class="self-start lg:shrink-0 lg:self-auto" />
         </template>
       </SectionHeader>
 
