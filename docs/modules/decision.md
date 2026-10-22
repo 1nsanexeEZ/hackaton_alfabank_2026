@@ -197,6 +197,42 @@ Eligibility продукта, срок действия (30 дней) и хра�
 0,7, платёж ровно 40% и на копейку больше, `auto_decision_limit` ровно и +1 ₽, ключевая ставка
 двигает ставку в коридоре продукта, потолок господдержки, `thin_file` не маршрутизирует.
 
+## Runtime: команды, события, API
+
+**Консьюмер `decision.commands`** (group `decision.commands`):
+- `MakeDecision` → `DecisionInputBuilder.collect` → `CreditPolicy.decide` → платёж оффера через
+  `products.calculate_payment` (одна формула на систему) → запись в `decision_results` → outbox
+  `DecisionMade {decision_id, outcome, offer?, decided_by, requested_info?, client_explanation,
+  improvement_hints, alternative_product_code}`, `causation_id` = event_id команды. Оффер есть
+  только у APPROVE (`as_requested`) и COUNTER_OFFER (`counter`), действует 7 дней. Повтор команды
+  с тем же event_id — то же решение и тот же ответ, новой записи нет.
+- `RecordManualDecision` — проверки андеррайтера: комментарий обязателен; APPROVE и COUNTER_OFFER —
+  с условиями, REQUEST_INFO — с документами или полями, MANUAL_REVIEW вручную нельзя; сумма, срок и
+  ставка — в рамках продукта из заявки; сумма ≤ полномочий `underwriter` 50 млн (выше — кредитный
+  комитет). Нарушение → `ManualDecisionRejected {application_id, task_id, reason}`, решение не
+  пишется. Успех → новая запись `decided_by=underwriter`, `override_of` = последнее авторешение
+  (оно остаётся для аудита), проверки — в `rule_trace`, комментарий клиенту не уходит.
+
+**Консьюмер `clients.events`** (group `decision.clients-events`): `FinancialReportSubmitted` и
+`OrganizationVerified` → пересчёт предодобрений: по каждому активному продукту eligibility products
+(не проходит — пропуск) → `scoring.estimate` без БКИ и выписок → `CreditPolicy.pre_approve` →
+предложения на 30 дней, пересчёт перезаписывает все предложения компании →
+`PreApprovedOffersUpdated {organization_id}`. Сид `backend/seed/decision.py` считает их для всех
+демо-компаний тем же use case, без события (сид идёт на каждом старте).
+
+**API** `GET /organizations/{id}/pre-approved-offers` — `organizations.read`; клиент видит только
+свои компании (`clients.ensure_can(view)`, чужая — 404), сотрудник банка — любые. Действующие
+предложения, крупные первыми, с оговоркой «предварительно, окончательное решение — после проверки».
+
+**Таблицы:** `decision_results` (решение неизменяемо; `sequence` — номер решения внутри заявки,
+последнее = наибольший, даже при одинаковом времени; `requested_by_command` уникален —
+идемпотентность), `decision_pre_approved_offers` (PK `organization_id, product_code`).
+
+Тесты — `tests/decision/runtime/`: оба консьюмера через настоящие подписки и inbox, идемпотентность,
+отказы ручного решения (без комментария, вне продукта, сверх полномочий), цепочка `override_of`,
+права API, предодобрение пропускает неподходящие продукты, клиентский DTO без внутренних данных,
+сид на настоящих clients, products и scoring.
+
 ## Моки
 
 Своих моков у decision **нет**: внешние данные приходят через `enrichment` (ЕГРЮЛ, ФНС, БКИ —
