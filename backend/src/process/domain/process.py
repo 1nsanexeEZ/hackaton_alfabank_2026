@@ -11,7 +11,7 @@ duplicate or a late reply from an earlier iteration of a loop is ignored.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Self
 from uuid import UUID, uuid4
@@ -213,6 +213,24 @@ class ProcessInstance:
         self._finish_execution(execution, now, "completed")
         self._move_along(node)
         await self._walk(facts, now, new_id)
+        return True
+
+    async def time_out(self, facts: ProcessFacts, now: datetime, new_id: IdFactory = uuid4) -> bool:
+        """A module did not answer within the node's timeout: the step fails and
+        `on_failure` decides (usually an underwriter takes over)."""
+        token = self.waiting
+        if self.is_finished or token is None or token.kind is not WaitKind.COMMAND_REPLY:
+            return False
+        node = self.current_node
+        timeout = node.config.timeout_seconds
+        if timeout is None or now < token.since + timedelta(seconds=timeout):
+            return False
+        self.waiting = None
+        self.status = ProcessStatus.RUNNING
+        execution = self._open_execution(node)
+        await self._fail_step(
+            node, execution, f"{node.step_code}: no reply in {timeout} s", facts, now, new_id
+        )
         return True
 
     def cancel(self, now: datetime) -> bool:
