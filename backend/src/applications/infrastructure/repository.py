@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.applications.domain.application import CreditApplication
@@ -90,6 +90,24 @@ class SqlAlchemyApplicationRepository:
         stmt = stmt.order_by(ApplicationRecord.updated_at.desc(), ApplicationRecord.id)
         records = (await self._session.scalars(stmt.limit(limit).offset(offset))).all()
         return [to_domain(record) for record in records]
+
+    async def set_client_stage(
+        self, application_id: UUID, client_stage: str, now: datetime
+    ) -> bool:
+        # Core UPDATE: the ORM version column is not bumped, so the label never
+        # makes a concurrent command or a client action retry.
+        stmt = (
+            update(ApplicationRecord)
+            .where(
+                ApplicationRecord.id == application_id,
+                ApplicationRecord.status.not_in(_FINAL),
+                ApplicationRecord.client_stage.is_distinct_from(client_stage),
+            )
+            .values(client_stage=client_stage, updated_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        result = await self._session.execute(stmt)
+        return bool(result.rowcount)
 
     async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]:
         stmt = (

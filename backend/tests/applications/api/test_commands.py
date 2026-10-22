@@ -277,3 +277,30 @@ def test_expires_at_is_kept_with_timezone(world: World) -> None:
     )
     expires = datetime.fromisoformat(card(world, application_id)["offer"]["expires_at"])
     assert expires == terms.expires_at
+
+
+def test_stage_label_does_not_bump_the_version_and_empty_label_is_skipped(world: World) -> None:
+    application_id = submitted(world)
+    send(world, StartReview(application_id=UUID(application_id)))
+    before = card(world, application_id)
+
+    def step(stage: str | None) -> None:
+        send(
+            world,
+            StepCompleted(
+                process_id=uuid4(),
+                application_id=UUID(application_id),
+                node_id="node",
+                step_code="calculate_score",
+                client_stage=stage,
+            ),
+        )
+
+    step("Оцениваем заявку")
+    after = card(world, application_id)
+    assert after["client_stage"] == "Оцениваем заявку"
+    # a display label: no fight for the version with commands and the client
+    assert after["version"] == before["version"]
+
+    step(None)  # a step the client does not see
+    assert card(world, application_id)["client_stage"] == "Оцениваем заявку"
