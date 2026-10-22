@@ -1,0 +1,55 @@
+{
+  "policy_version": "policy_v1",
+  "key_rate": "16.50",
+  "outcome": "REJECT",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "STOP_LIQUIDATION",
+    "STOP_OVERDUE_90",
+    "STOP_GRADE_E"
+  ],
+  "client_explanation": "К сожалению, сейчас мы не можем одобрить заявку. По данным государственного реестра компания находится в процессе ликвидации. Решение принято по результатам проверки кредитной истории. По совокупности данных о компании мы не можем предложить кредит сейчас.",
+  "improvement_hints": [
+    "Погашение текущей задолженности перед другими кредиторами улучшит оценку.",
+    "Вернитесь с новой заявкой, когда обновится отчётность компании.",
+    "В кредитной истории есть просрочки — своевременные платежи улучшат оценку.",
+    "Много недавних кредитных запросов — это временно снижает оценку."
+  ],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "stop.registry_status",
+      "matched": true,
+      "detail": "статус по ЕГРЮЛ: liquidating"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": true,
+      "detail": "максимальная просрочка 120 дн., порог > 90"
+    },
+    {
+      "rule": "stop.grade",
+      "matched": true,
+      "detail": "грейд E (скор 395)"
+    }
+  ],
+  "limits": {
+    "by_product": null,
+    "by_revenue": null,
+    "by_ltv": null,
+    "by_capacity": null,
+    "final": null
+  },
+  "rate": null,
+  "scoring": {
+    "score": 395,
+    "grade": "E",
+    "flags": []
+  }
+}
