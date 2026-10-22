@@ -23,10 +23,9 @@ import {
 } from '@/shared/api'
 import { clamp, errorMessage } from '@/shared/lib'
 
+import { contentTypeOf, fileProblem } from './documentFormats'
 import { fieldTitle, parseNumber, toFormValues, toPayload, validateFieldValues, type FieldValues } from './productFields'
 import { describeViolations, type ViolationView, type WizardStep } from './violations'
-
-const MAX_FILE_BYTES = 25 * 1024 * 1024
 
 export interface CollateralForm {
   type: string
@@ -389,8 +388,9 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   async function uploadDocument(type: string, file: File) {
     const current = application.value
     if (!current) return
-    if (!file.size || file.size > MAX_FILE_BYTES) {
-      uploads[type] = { uploading: false, error: file.size ? 'Файл больше 25 МБ' : 'Файл пустой' }
+    const problem = fileProblem(type, file)
+    if (problem) {
+      uploads[type] = { uploading: false, error: problem }
       return
     }
     uploads[type] = { uploading: true, error: null }
@@ -398,7 +398,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       const { document, upload } = await clientApi.requestDocumentUpload(current.id, {
         type,
         filename: file.name,
-        content_type: file.type || 'application/octet-stream',
+        content_type: contentTypeOf(file),
         size_bytes: file.size,
       })
       await clientApi.uploadFile(upload, file)
