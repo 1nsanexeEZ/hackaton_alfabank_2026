@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronRight } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { BaseBadge } from '@/shared/ui'
@@ -8,15 +9,26 @@ import type { CreditProduct } from '../model/types'
 /**
  * Карточка-«гармошка» для витрины продуктов: в ряду раскрыта одна,
  * остальные свёрнуты в полоски с названием. Раскрытием управляет родитель.
+ *
+ * Движение подсказывает, что карточки кликабельные: свёрнутые по очереди подпрыгивают
+ * «волной», стрелка на них подталкивается, при наведении карточка приподнимается.
+ * У раскрытой внизу бежит полоса автопрокрутки; когда она доходит до конца — событие `finished`.
  */
-const props = defineProps<{
-  product: CreditProduct
-  /** Порядковый номер в ряду, с нуля — от него зависят номер и цвет карточки */
-  index: number
-  expanded: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    product: CreditProduct
+    /** Порядковый номер в ряду, с нуля — от него зависят номер, цвет и задержка волны */
+    index: number
+    expanded: boolean
+    /** Длительность полосы автопрокрутки, мс; 0 — полосы нет */
+    autoplayMs?: number
+    /** Пауза полосы и волны: курсор над рядом или блок вне экрана */
+    paused?: boolean
+  }>(),
+  { autoplayMs: 0, paused: false },
+)
 
-const emit = defineEmits<{ expand: [] }>()
+const emit = defineEmits<{ expand: []; finished: [] }>()
 
 const TONES = [
   'bg-brand text-white',
@@ -32,13 +44,14 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
 <template>
   <article
     class="flex-card relative overflow-hidden rounded-card"
-    :class="[tone, { 'is-expanded': expanded }]"
+    :class="[tone, { 'is-expanded': expanded, 'is-paused': paused }]"
+    :style="{ '--wave-delay': `${index * 0.35}s` }"
   >
     <!-- Свёрнутая карточка целиком кликабельна -->
     <button
       v-if="!expanded"
       type="button"
-      class="absolute inset-0 z-10 cursor-pointer"
+      class="flex-card__cover absolute inset-0 z-10 cursor-pointer"
       :aria-label="`Показать продукт «${product.title}»`"
       :aria-expanded="false"
       @click="emit('expand')"
@@ -57,36 +70,62 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
       {{ product.title }}
     </span>
 
-    <div class="flex-card__content relative flex h-full flex-col justify-end p-6 lg:p-8">
-      <BaseBadge v-if="product.tag" tone="glass" class="self-start">{{ product.tag }}</BaseBadge>
+    <!-- Стрелка-приглашение на свёрнутой карточке -->
+    <span
+      class="flex-card__hint pointer-events-none absolute hidden size-10 items-center justify-center rounded-full bg-white/15 lg:flex"
+      aria-hidden="true"
+    >
+      <ChevronRight class="flex-card__chevron size-[18px]" :stroke-width="2.6" />
+    </span>
 
-      <h3 class="text-title mt-4">{{ product.title }}</h3>
+    <div class="flex-card__content relative flex h-full flex-col justify-end p-6 lg:p-8">
+      <BaseBadge v-if="product.tag" tone="glass" class="flex-card__rise self-start">{{ product.tag }}</BaseBadge>
+
+      <h3 class="flex-card__rise text-title mt-4" style="--rise-delay: 0.05s">{{ product.title }}</h3>
 
       <ul class="mt-4 flex flex-wrap gap-2" aria-label="Коротко о продукте">
         <li
-          v-for="word in product.keywords"
+          v-for="(word, wordIndex) in product.keywords"
           :key="word"
-          class="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium whitespace-nowrap"
+          class="flex-card__rise rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium whitespace-nowrap"
+          :style="{ '--rise-delay': `${0.12 + wordIndex * 0.07}s` }"
         >
           {{ word }}
         </li>
       </ul>
 
-      <div v-if="$slots.actions" class="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div v-if="$slots.actions" class="flex-card__rise mt-6 flex flex-col gap-3 sm:flex-row" style="--rise-delay: 0.3s">
         <slot name="actions" />
       </div>
     </div>
+
+    <!-- Полоса автопрокрутки: CSS-анимация, её конец переключает карточку -->
+    <span
+      v-if="expanded && autoplayMs"
+      class="flex-card__track pointer-events-none absolute right-8 bottom-3.5 left-8 hidden h-[3px] overflow-hidden rounded-full bg-white/20 lg:block"
+      aria-hidden="true"
+    >
+      <span
+        class="flex-card__progress block h-full rounded-full bg-white"
+        :style="{ animationDuration: `${autoplayMs}ms` }"
+        @animationend="emit('finished')"
+      />
+    </span>
   </article>
 </template>
 
 <style scoped>
 .flex-card {
   --ease: cubic-bezier(0.05, 0.61, 0.41, 0.95);
+  --spring: cubic-bezier(0.22, 1, 0.36, 1);
 
   min-height: 4.5rem;
   transition:
     flex-grow 0.6s var(--ease),
+    flex-basis 0.5s var(--spring),
     min-height 0.6s var(--ease),
+    translate 0.35s ease,
+    box-shadow 0.35s ease,
     filter 0.3s;
 }
 
@@ -117,6 +156,10 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   transition: opacity 0.3s;
 }
 
+.flex-card__hint {
+  transition: opacity 0.3s;
+}
+
 .flex-card__content {
   opacity: 0;
   visibility: hidden;
@@ -131,7 +174,8 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   inset: auto 0 0;
 }
 
-.is-expanded .flex-card__label {
+.is-expanded .flex-card__label,
+.is-expanded .flex-card__hint {
   opacity: 0;
 }
 
@@ -141,6 +185,43 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   transition:
     opacity 0.4s 0.25s,
     visibility 0s;
+}
+
+/* Содержимое раскрытой карточки поднимается по очереди */
+.is-expanded .flex-card__rise {
+  animation: flex-card-rise 0.6s var(--spring) both;
+  animation-delay: calc(0.25s + var(--rise-delay, 0s));
+}
+
+@keyframes flex-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}
+
+.flex-card__progress {
+  transform-origin: left;
+  animation: flex-card-progress linear both;
+}
+
+.is-paused .flex-card__progress {
+  animation-play-state: paused;
+}
+
+@keyframes flex-card-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.flex-card__cover:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -6px;
+  border-radius: inherit;
 }
 
 /* Десктоп: карточки в ряд, свёрнутые — узкие вертикальные полоски */
@@ -156,7 +237,16 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   }
 
   .flex-card:not(.is-expanded):hover {
+    flex-basis: 7.5rem;
+    translate: 0 -0.5rem;
+    box-shadow: 0 1.5rem 2.5rem rgb(18 18 19 / 0.22);
     filter: brightness(1.12);
+  }
+
+  /* Волна: свёрнутые карточки по очереди подпрыгивают, пока ряд не трогают */
+  .flex-card:not(.is-expanded, .is-paused) {
+    animation: flex-card-wave 7s ease-in-out infinite;
+    animation-delay: var(--wave-delay);
   }
 
   .flex-card__number {
@@ -173,6 +263,7 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     bottom: auto;
     left: auto;
     translate: none;
+    animation: flex-card-number 0.8s var(--spring) both;
   }
 
   .flex-card__label {
@@ -183,9 +274,67 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     rotate: 180deg;
   }
 
+  .flex-card__hint {
+    top: 50%;
+    left: 50%;
+    translate: -50% 0;
+    animation: flex-card-ring 2.2s ease-out infinite;
+  }
+
+  .flex-card__chevron {
+    animation: flex-card-nudge 1.6s ease-in-out infinite;
+  }
+
   .flex-card__content {
     /* Контент не сжимается вместе с карточкой, а уезжает за край */
     min-width: 30rem;
+  }
+}
+
+@keyframes flex-card-wave {
+  0%,
+  8%,
+  100% {
+    transform: translateY(0);
+  }
+  3% {
+    transform: translateY(-0.625rem);
+  }
+  5.5% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes flex-card-number {
+  from {
+    opacity: 0;
+    transform: translateY(-2.5rem) scale(0.9);
+  }
+}
+
+@keyframes flex-card-nudge {
+  50% {
+    transform: translateX(0.3rem);
+  }
+}
+
+@keyframes flex-card-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.5);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.75rem rgb(255 255 255 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flex-card,
+  .flex-card__hint,
+  .flex-card__chevron,
+  .flex-card__rise,
+  .flex-card__number {
+    animation: none !important;
   }
 }
 </style>
