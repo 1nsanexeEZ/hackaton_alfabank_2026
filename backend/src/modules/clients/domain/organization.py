@@ -2,7 +2,9 @@
 may act for it.
 
 Invariants:
-- requisites never change after registration;
+- INN, OGRN and the legal form never change after registration; the card
+  (name, address, KPP, OKVED, registry status) follows the registry, the head
+  by the registry does not: authority rests on him;
 - an account is a member at most once;
 - a company with members always has one who can manage members: the last
   one cannot be removed or demoted;
@@ -16,7 +18,8 @@ The registry status does not block anything here: the stop factor belongs to
 decision.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from datetime import date, datetime
 from typing import Self
 from uuid import UUID
@@ -46,11 +49,16 @@ from src.modules.clients.domain.rights import (
 )
 from src.modules.clients.domain.value_objects import (
     ENTREPRENEUR_ONLY_REGIMES,
+    MAX_NAME_LENGTH,
     Address,
+    Discrepancy,
+    FieldChange,
     FiscalPeriod,
     LegalForm,
     OkvedCode,
     PersonName,
+    RegistryChanges,
+    RegistryExtract,
     RegistryStatus,
     Requisites,
     TaxRegime,
@@ -58,7 +66,6 @@ from src.modules.clients.domain.value_objects import (
     VerificationStatus,
 )
 
-MAX_NAME_LENGTH = 255
 MAX_EMPLOYEES = 1_000_000
 
 
@@ -212,6 +219,16 @@ class Organization:
             if permission is None or m.can(permission, now)
         ]
 
+    @property
+    def head_role(self) -> MemberRole:
+        """The role of the head by the registry among the members: the
+        entrepreneur himself or the director (founders are not checked)."""
+        return MemberRole.OWNER if self.legal_form.is_entrepreneur else MemberRole.DIRECTOR
+
+    def declared_heads(self) -> list[UUID]:
+        """Members acting as the head: their names are checked against the registry."""
+        return [m.account_id for m in self._members.values() if m.role is self.head_role]
+
     def business_age_months(self, now: datetime) -> int:
         return months_between(self.registered_at, now.date())
 
@@ -334,6 +351,47 @@ class Organization:
 
     # --- registry and financials ----------------------------------------------
 
+    def apply_registry(
+        self,
+        extract: RegistryExtract,
+        now: datetime,
+        *,
+        declared: Mapping[UUID, PersonName] | None = None,
+    ) -> RegistryChanges:
+        """Brings the card to ЕГРЮЛ/ЕГРИП and records the check.
+
+        Name, address, KPP, OKVED and the registry status follow the registry
+        silently. The head does not: a different head by the registry, or a
+        member acting as the head under another name, is a discrepancy, and
+        the check ends in `mismatch`. INN and OGRN are the key of the company.
+        `declared` — names of the members (from identity) by account."""
+        if extract.inn != self._requisites.inn:
+            raise ValueError("The registry extract is for another company")
+        before = self._registry_fields()
+        self.name = extract.name
+        self.address = extract.address
+        if extract.kpp is not None and not self.legal_form.is_entrepreneur:
+            self._requisites = replace(self._requisites, kpp=extract.kpp)
+        self.okved_main = extract.okved_main
+        # The same codes in another order are not a change.
+        if set(extract.okved_extra) != set(self.okved_extra):
+            self.okved_extra = extract.okved_extra
+        self.registry_status = extract.status
+        after = self._registry_fields()
+        updated = tuple(
+            FieldChange(name, value, after[name])
+            for name, value in before.items()
+            if value != after[name]
+        )
+        discrepancies = self._head_discrepancies(extract.head, declared or {})
+        self.record_verification(
+            VerificationResult.mismatch(now, discrepancies)
+            if discrepancies
+            else VerificationResult.verified(now),
+            now,
+        )
+        return RegistryChanges(updated, discrepancies)
+
     def record_verification(self, result: VerificationResult, now: datetime) -> None:
         self.verification = result
         if result.status is VerificationStatus.VERIFIED:
@@ -387,6 +445,36 @@ class Organization:
         )
 
     # --- internals ----------------------------------------------------------
+
+    def _registry_fields(self) -> dict[str, str | None]:
+        """The card field by field, as `updated_fields` names them."""
+        kpp = self._requisites.kpp
+        return {
+            "name": self.name,
+            "address.full": self.address.full,
+            "address.region_code": self.address.region_code,
+            "kpp": kpp.value if kpp else None,
+            "okved_main": self.okved_main.value,
+            "okved_extra": ", ".join(code.value for code in self.okved_extra) or None,
+            "registry_status": self.registry_status.value,
+        }
+
+    def _head_discrepancies(
+        self, head: PersonName, declared: Mapping[UUID, PersonName]
+    ) -> tuple[Discrepancy, ...]:
+        """The head never changes silently: authority rests on him."""
+        found: list[Discrepancy] = []
+        if self.registry_head is None or not self.registry_head.matches(head):
+            known = self.registry_head.short if self.registry_head else None
+            found.append(Discrepancy("head_name", known, head.short))
+        for account_id in self.declared_heads():
+            person = declared.get(account_id)
+            if person is None or person.matches(head):
+                continue
+            discrepancy = Discrepancy("head_name", person.short, head.short)
+            if discrepancy not in found:
+                found.append(discrepancy)
+        return tuple(found)
 
     def _managers(self, now: datetime) -> list[UUID]:
         return self.members_with(OrgPermission.MANAGE_MEMBERS, now)

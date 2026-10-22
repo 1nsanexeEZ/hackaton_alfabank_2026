@@ -135,8 +135,11 @@ class Kpp:
 
 @dataclass(frozen=True, slots=True)
 class Requisites:
-    """Registration identifiers, fixed for the life of the company:
-    ИНН 10 ⇔ ОГРН 13 ⇔ LLC/JSC ⇔ КПП;  ИНН 12 ⇔ ОГРНИП 15 ⇔ IE ⇔ no КПП."""
+    """Registration identifiers:
+    ИНН 10 ⇔ ОГРН 13 ⇔ LLC/JSC ⇔ КПП;  ИНН 12 ⇔ ОГРНИП 15 ⇔ IE ⇔ no КПП.
+    INN, OGRN and the legal form are fixed for the life of the company; КПП
+    follows the registry (it changes when the company moves to another tax
+    office)."""
 
     inn: Inn
     ogrn: Ogrn
@@ -350,3 +353,46 @@ class VerificationResult:
     @classmethod
     def mismatch(cls, now: datetime, discrepancies: tuple[Discrepancy, ...]) -> Self:
         return cls(VerificationStatus.MISMATCH, now, discrepancies)
+
+
+MAX_NAME_LENGTH = 255
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryExtract:
+    """What ЕГРЮЛ/ЕГРИП says about a company, in our value objects. `kpp`
+    None — the registry did not say (an entrepreneur has none anyway)."""
+
+    inn: Inn
+    ogrn: Ogrn
+    name: str
+    address: Address
+    okved_main: OkvedCode
+    status: RegistryStatus
+    head: PersonName
+    kpp: Kpp | None = None
+    okved_extra: tuple[OkvedCode, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.name.strip() or len(self.name) > MAX_NAME_LENGTH:
+            raise _invalid("name", "invalid", "Company name is empty or too long")
+
+
+@dataclass(frozen=True, slots=True)
+class FieldChange:
+    """A field of the card brought to the registry: `address.full` was
+    `before`, now is `after`."""
+
+    field: str
+    before: str | None
+    after: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryChanges:
+    """Outcome of a check against the registry: `updated` — fields that
+    followed the registry silently, `discrepancies` — what is left for a
+    person to look at (the head)."""
+
+    updated: tuple[FieldChange, ...] = ()
+    discrepancies: tuple[Discrepancy, ...] = ()
