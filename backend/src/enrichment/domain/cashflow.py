@@ -142,7 +142,10 @@ def _monthly_history(transactions: list[Transaction]) -> list[CashflowMonthDTO]:
 
 
 def _seasonality(history: list[CashflowMonthDTO], avg_net: Decimal) -> dict[int, Decimal]:
-    if avg_net == 0:
+    # Индекс «поток месяца / средний поток» осмыслен только при положительном среднем: при
+    # отрицательном знак переворачивается, и прогноз повторяет удачные месяцы прошлого года,
+    # не видя падения. Бизнес в среднем сжигает деньги — прогнозируем средним потоком.
+    if avg_net <= 0:
         return {}
     by_month: dict[int, list[Decimal]] = {}
     for item in history:
