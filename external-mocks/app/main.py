@@ -1,4 +1,5 @@
-"""Сервис external-mocks: ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес», БКИ, АБС (выдача), ЭДО (подписание).
+"""Сервис external-mocks: ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес», ГИР БО, Контур.Фокус, БКИ
+компаний и физлиц, АБС (выдача), ЭДО (подписание).
 
 Настоящий HTTP-сервис с «чужим» форматом ответов — бэкенд ходит в него через адаптеры,
 а не перекладывает поля 1:1. Все операции АБС и ЭДО помечены `simulated: true`.
@@ -13,8 +14,9 @@ from fastapi import FastAPI, HTTPException
 
 from app.chaos import chaos_middleware
 from app.config import get_settings
-from app.data import bki_response, egrul_response, fns_response, get_company
-from app.schemas import AbsRequest, BkiRequest, EdoRequest
+from app.data import Company, bki_response, egrul_response, fns_response, get_company
+from app.dossier import gir_bo_response, kontur_response, person_history, person_report_response
+from app.schemas import AbsRequest, BkiRequest, EdoRequest, PersonBkiRequest
 
 app = FastAPI(title="external-mocks", version="0.1.0")
 app.middleware("http")(chaos_middleware)
@@ -27,20 +29,31 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/egrul/{inn}")
-async def egrul(inn: str) -> dict:
+def _company(inn: str) -> Company:
     company = get_company(inn)
     if company is None:
         raise HTTPException(status_code=404, detail=_NOT_FOUND)
-    return egrul_response(company)
+    return company
+
+
+@app.get("/egrul/{inn}")
+async def egrul(inn: str) -> dict:
+    return egrul_response(_company(inn))
 
 
 @app.get("/fns/{inn}")
 async def fns(inn: str) -> dict:
-    company = get_company(inn)
-    if company is None:
-        raise HTTPException(status_code=404, detail=_NOT_FOUND)
-    return fns_response(company)
+    return fns_response(_company(inn))
+
+
+@app.get("/gir-bo/{inn}")
+async def gir_bo(inn: str) -> dict:
+    return gir_bo_response(_company(inn))
+
+
+@app.get("/kontur/{inn}")
+async def kontur(inn: str) -> dict:
+    return kontur_response(_company(inn))
 
 
 @app.post("/bki/report")
@@ -53,6 +66,17 @@ async def bki(req: BkiRequest) -> dict:
     if req.inn in get_settings().bki_always_fail_inns:
         raise HTTPException(status_code=503, detail="Бюро кредитных историй недоступно")
     return bki_response(company)
+
+
+@app.post("/bki/person-report")
+async def bki_person(req: PersonBkiRequest) -> dict:
+    if not req.consent_at:
+        raise HTTPException(status_code=400, detail="Требуется согласие субъекта (consent_at)")
+    if req.company_inn and req.company_inn in get_settings().bki_always_fail_inns:
+        raise HTTPException(status_code=503, detail="Бюро кредитных историй недоступно")
+    company = get_company(req.company_inn) if req.company_inn else None
+    history = person_history(company, req.last_name, req.first_name, req.middle_name)
+    return person_report_response(history, req.last_name, req.first_name, req.middle_name)
 
 
 @app.post("/abs/disbursements")
