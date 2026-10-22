@@ -1,0 +1,110 @@
+{
+  "score": 760,
+  "grade": "A",
+  "data_completeness": "0.727",
+  "flags": [
+    "bureau_unavailable"
+  ],
+  "bank_notes": [],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "60",
+      "bin": "24–60",
+      "points": 30,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": "8.7%",
+      "bin": "0…20%",
+      "points": 20,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "debt_load",
+      "value": "0.05",
+      "bin": "<0,2",
+      "points": 50,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": null,
+      "bin": "источник недоступен",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": null,
+      "bin": "источник недоступен",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    },
+    {
+      "code": "tax_arrears",
+      "value": "0",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "46.90",
+      "bin": "средний",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.04",
+      "bin": "<0,1",
+      "points": 30,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "4.0%",
+      "bin": "≤15%",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": null,
+      "bin": "нет выписки",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    }
+  ]
+}
