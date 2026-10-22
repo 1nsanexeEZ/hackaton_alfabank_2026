@@ -1,0 +1,95 @@
+"""Back office screens: underwriter queue, underwriter card, pipeline metrics.
+
+The queue and the metrics are one projector query each. The card takes the
+application from its owner and everything the bank knows about it: the
+enrichment snapshot with the cash flow forecast, scoring factors, the full
+decision with its rule trace, the bank timeline and where the process is."""
+
+from datetime import date, timedelta
+from uuid import UUID
+
+from src.applications.facade import ApplicationsFacade
+from src.bff.application import views
+from src.bff.application.client_status import client_status
+from src.bff.application.neighbours import Neighbours
+from src.core.exceptions.exceptions import ValidationError
+from src.decision.facade import DecisionFacade
+from src.enrichment.facade import EnrichmentFacade
+from src.process.facade import ProcessFacade, UserTaskDTO
+from src.products.facade import ProductsFacade
+from src.projector.facade import BackofficeMetricsDTO, ProjectorFacade, QueuePageDTO, QueueSort
+from src.scoring.facade import ScoringFacade
+
+UNDERWRITER_ROLE = "underwriter"
+METRICS_DEFAULT_DAYS = 30
+METRICS_MAX_DAYS = 366
+# Open tasks scanned to find the one of the application: the process facade
+# looks tasks up by role, and the open queue is short.
+_OPEN_TASKS_SCAN = 500
+
+
+class BackofficeScreens:
+    def __init__(self, neighbours: Neighbours) -> None:
+        self._n = neighbours
+
+    async def queue(self, status: str, sort: QueueSort, limit: int, offset: int) -> QueuePageDTO:
+        return await self._n(ProjectorFacade).get_underwriting_queue(
+            UNDERWRITER_ROLE, status, sort, limit, offset
+        )
+
+    async def metrics(
+        self, today: date, date_from: date | None, date_to: date | None
+    ) -> BackofficeMetricsDTO:
+        date_to = date_to or today
+        date_from = date_from or date_to - timedelta(days=METRICS_DEFAULT_DAYS - 1)
+        if date_from > date_to:
+            raise ValidationError("date_from is after date_to")
+        if (date_to - date_from).days >= METRICS_MAX_DAYS:
+            raise ValidationError(f"The period is longer than {METRICS_MAX_DAYS} days")
+        return await self._n(ProjectorFacade).get_backoffice_metrics(date_from, date_to)
+
+    async def application(self, application_id: UUID) -> views.UnderwriterCard:
+        card = await self._n(ApplicationsFacade).get_card(application_id)
+        enrichment = await self._n.optional(
+            "enrichment", lambda: self._n(EnrichmentFacade).get_snapshot(application_id), None
+        )
+        scoring = await self._n.optional(
+            "scoring", lambda: self._n(ScoringFacade).get_result(application_id), None
+        )
+        decision = await self._n.optional(
+            "decision", lambda: self._n(DecisionFacade).get_decision(application_id), None
+        )
+        product_fit = await self._n.optional(
+            "product_fit",
+            lambda: self._n(ProductsFacade).check_eligibility(
+                card.product_code, card.organization_id
+            ),
+            None,
+        )
+        timeline = await self._n.optional(
+            "timeline", lambda: self._n(ProjectorFacade).get_timeline(application_id, "bank"), []
+        )
+        process = await self._n.optional(
+            "process", lambda: self._n(ProcessFacade).get_process_view(application_id), None
+        )
+        task = await self._n.optional("task", lambda: self._open_task(application_id), None)
+        return views.UnderwriterCard(
+            application=card,
+            client_status=client_status(
+                card.status, card.client_stage, card.offer.kind if card.offer else None
+            ),
+            enrichment=enrichment,
+            scoring=scoring,
+            decision=decision,
+            product_fit=product_fit,
+            timeline=timeline,
+            process=process,
+            task=task,
+            degraded=self._n.degraded,
+        )
+
+    async def _open_task(self, application_id: UUID) -> UserTaskDTO | None:
+        tasks = await self._n(ProcessFacade).list_open_tasks(
+            UNDERWRITER_ROLE, limit=_OPEN_TASKS_SCAN
+        )
+        return next((t for t in tasks if t.application_id == application_id), None)
