@@ -6,6 +6,7 @@ import { readStorage, writeStorage } from '@/shared/lib'
 /**
  * Сессия сотрудника. Храним только access-токен и время его жизни (refresh у бэкенда нет):
  * после истечения — повторный вход. Права берём из /me, как их видит бэкенд по токену.
+ * С клиентом на сайте не связана: у сайта своя сессия (entities/customer) со своим токеном.
  */
 const STORAGE_KEY = 'admin:session'
 
@@ -40,13 +41,16 @@ function validToken(): string | null {
   return state.token
 }
 
-configureAuth({
-  getToken: validToken,
-  onUnauthorized: () => {
-    clear()
-    expiredListeners.forEach((listener) => listener())
+configureAuth(
+  {
+    getToken: validToken,
+    onUnauthorized: () => {
+      clear()
+      expiredListeners.forEach((listener) => listener())
+    },
   },
-})
+  'staff',
+)
 
 /** Подписка на истечение сессии: роутер уводит на экран входа */
 export function onSessionExpired(listener: () => void): () => void {
@@ -60,15 +64,16 @@ export function hasPermission(me: MeDto | null, permission: Permission): boolean
 }
 
 /**
- * Вход в админку — для сотрудников. Клиент тоже читает заявки, но только свои (own_only),
- * поэтому его не пускаем.
+ * Вход в админку — для сотрудников. Клиент тоже читает заявки, но только своих компаний
+ * (own_only в моке, org_member на бэкенде), поэтому его не пускаем.
  */
 export function canEnterAdmin(me: MeDto | null): boolean {
   if (!me) return false
   if (me.permissions.includes('admin')) return true
-  const ownOnly = me.policies['requests.read']?.includes('own_only') ?? false
+  const policies = me.policies['requests.read'] ?? []
+  const clientScope = policies.includes('own_only') || policies.includes('org_member')
   return (
-    (hasPermission(me, 'requests.read') && !ownOnly) ||
+    (hasPermission(me, 'requests.read') && !clientScope) ||
     hasPermission(me, 'accounts.read') ||
     hasPermission(me, 'roles.read')
   )

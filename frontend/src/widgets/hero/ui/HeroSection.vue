@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { Sparkles } from 'lucide-vue-next'
+import { computed } from 'vue'
 
 import { ApplicationStatusCard } from '@/entities/application'
+import type { CreditProduct } from '@/entities/credit-product'
 import { SECTION_ID, sectionHref } from '@/shared/config'
 import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
-import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
+import { HERO_DEMO_APPLICATION, heroStats } from '../model/content'
+
+const props = defineProps<{ products: readonly CreditProduct[] | null }>()
+
+const stats = computed(() => heroStats(props.products))
 </script>
 
 <template>
@@ -47,12 +53,13 @@ import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
 
       <ul class="mt-12 grid grid-cols-2 gap-3 lg:mt-20 lg:grid-cols-4 lg:gap-4">
         <li
-          v-for="stat in HERO_STATS"
+          v-for="stat in stats"
           :key="stat.caption"
           class="flex min-h-32 flex-col justify-between gap-4 rounded-3xl bg-night-glass p-4 lg:min-h-40 lg:rounded-card lg:p-6"
         >
           <div>
-            <p class="text-lg font-bold lg:text-2xl">{{ stat.value }}</p>
+            <p v-if="stat.value" class="text-lg font-bold lg:text-2xl">{{ stat.value }}</p>
+            <p v-else class="h-7 w-28 animate-pulse rounded-lg bg-white/10 lg:h-8" aria-label="Загружаем" />
             <p class="mt-1 text-sm text-on-night-secondary">{{ stat.caption }}</p>
           </div>
           <span class="flex size-10 items-center justify-center self-end rounded-full bg-white/10">
