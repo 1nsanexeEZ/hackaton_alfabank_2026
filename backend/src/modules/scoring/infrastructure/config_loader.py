@@ -1,23 +1,37 @@
-"""Загрузка скоркарты из YAML с валидацией Pydantic.
+"""Загрузка скоркарты и PD-модели из YAML с валидацией Pydantic.
 
-Карта — данные, а не код: баллы корзин, база и пороги грейдов живут в
-`config/scorecard_v1.yaml`. Файл проверяется при старте; невалидный YAML (нет фактора, корзины
-или не то число) → `ScorecardConfigError`, и приложение не стартует — лучше сразу, чем молча
-посчитать не так.
+Модель — данные, а не код: баллы корзин, база и пороги грейдов scorecard_v1 живут в
+`config/scorecard_v1.yaml`, сегменты, бины, WoE, калибровка и шкала A–J действующей модели — в
+`config/pd_model_v2.yaml`. Файлы проверяются при старте; невалидный YAML (нет признака, бина,
+бины с дыркой или не то число) → `ScorecardConfigError`, и приложение не стартует — лучше сразу,
+чем молча посчитать не так.
 """
 
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from src.modules.scoring.domain.features import FEATURES
+from src.modules.scoring.domain.model import Grade, Segment
+from src.modules.scoring.domain.pd_model import (
+    BinSpec,
+    Calibration,
+    FeatureSpec,
+    PdModel,
+    PdModelConfig,
+    ScorecardSpec,
+)
 from src.modules.scoring.domain.scorecard import Scorecard, ScorecardConfig
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _DEFAULT_CARD = "scorecard_v1"
+_DEFAULT_MODEL = "pd_model_v2"
 
 # Фактор → обязательные корзины (должны совпадать с логикой в domain/scorecard.py).
 _REQUIRED_BUCKETS: dict[str, frozenset[str]] = {
@@ -101,3 +115,191 @@ def _check_completeness(schema: _Schema, path: Path) -> None:
     for section in ("low", "high"):
         if section not in schema.industry_sections:
             raise ScorecardConfigError(f"Скоркарта {path}: нет секции industry_sections.{section}")
+
+
+# --- PD-модель ---------------------------------------------------------------------------------
+
+_SEGMENTS: frozenset[Segment] = frozenset({"legal_entity", "entrepreneur", "new_client"})
+_PD_GRADES: tuple[Grade, ...] = ("A", "B", "C", "D", "E", "F", "G", "H", "I")
+# Категории, которые отдают признаки (features.py): у каждой должен быть бин.
+_CATEGORIES: dict[str, frozenset[str]] = {
+    "bureau_overdue": frozenset({"thin"}),
+    "tax_arrears": frozenset({"none", "any"}),
+    "industry_risk": frozenset({"low", "mid", "high"}),
+    "verification": frozenset({"verified", "mismatch", "other"}),
+    "cash_gap": frozenset({"gap", "no_gap"}),
+}
+_NUMERIC = frozenset(FEATURES) - {"tax_arrears", "industry_risk", "verification", "cash_gap"}
+# Без этих признаков скоркарта не опишет заёмщика; остальные — по сегменту.
+_REQUIRED_FEATURES = frozenset(
+    {"business_age", "debt_load", "bureau_overdue", "amount_to_revenue", "collateral_coverage"}
+)
+
+
+class _Bin(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    label: str = Field(min_length=1)
+    woe: Decimal
+    points: int
+    category: str | None = None
+    lower: Decimal | None = Field(default=None, alias="from")
+    upper: Decimal | None = Field(default=None, alias="to")
+
+
+class _Missing(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = "нет данных"
+    woe: Decimal
+    points: int
+
+
+class _Feature(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    floor: Decimal | None = None
+    cap: Decimal | None = None
+    optional: bool = False
+    bins: list[_Bin] = Field(min_length=1)
+    missing: _Missing
+
+
+class _Calibration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    score: int
+    odds: Decimal = Field(gt=0)
+    pdo: int = Field(gt=0)
+
+
+class _Card(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1)
+    base: int
+    calibration: _Calibration
+    features: dict[str, _Feature]
+
+
+class _ModelSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    min_turnover_months: int = Field(ge=0)
+    industry_sections: dict[str, list[int]]
+    revenue_mismatch_share: Decimal = Field(gt=0, le=1)
+    grades: dict[str, Decimal]
+    scorecards: dict[str, _Card]
+
+
+def load_pd_model(name: str = _DEFAULT_MODEL) -> PdModel:
+    return load_pd_model_file(_CONFIG_DIR / f"{name}.yaml")
+
+
+def load_pd_model_file(path: Path) -> PdModel:
+    try:
+        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScorecardConfigError(f"Не удалось прочитать модель {path}: {exc}") from exc
+    try:
+        schema = _ModelSchema.model_validate(raw)
+    except ValidationError as exc:
+        raise ScorecardConfigError(f"Модель {path} не прошла схему: {exc}") from exc
+    _check_model(schema, path)
+    return PdModel(
+        PdModelConfig(
+            version=schema.version,
+            min_turnover_months=schema.min_turnover_months,
+            scorecards={
+                segment: _card(card)  # type: ignore[misc]
+                for segment, card in schema.scorecards.items()
+            },
+            grades=tuple((grade, schema.grades[grade]) for grade in _PD_GRADES),
+            industry_low=frozenset(schema.industry_sections.get("low", [])),
+            industry_high=frozenset(schema.industry_sections.get("high", [])),
+            revenue_mismatch_share=schema.revenue_mismatch_share,
+        )
+    )
+
+
+@lru_cache(maxsize=4)
+def default_model() -> PdModel:
+    """Действующая модель, загружается один раз на процесс."""
+    return load_pd_model()
+
+
+def _card(card: _Card) -> ScorecardSpec:
+    return ScorecardSpec(
+        code=card.code,
+        base=card.base,
+        calibration=Calibration(
+            card.calibration.score, card.calibration.odds, card.calibration.pdo
+        ),
+        features=tuple(
+            FeatureSpec(
+                code=code,
+                bins=tuple(
+                    BinSpec(b.label, b.woe, b.points, b.category, b.lower, b.upper)
+                    for b in feature.bins
+                ),
+                missing=BinSpec(feature.missing.label, feature.missing.woe, feature.missing.points),
+                floor=feature.floor,
+                cap=feature.cap,
+                optional=feature.optional,
+            )
+            for code, feature in card.features.items()
+        ),
+    )
+
+
+def _check_model(schema: _ModelSchema, path: Path) -> None:
+    if set(schema.scorecards) != _SEGMENTS:
+        raise ScorecardConfigError(f"Модель {path}: нужны скоркарты сегментов {sorted(_SEGMENTS)}")
+    if set(schema.grades) != set(_PD_GRADES):
+        raise ScorecardConfigError(f"Модель {path}: нужны границы PD грейдов {list(_PD_GRADES)}")
+    bounds = [schema.grades[grade] for grade in _PD_GRADES]
+    if any(low >= high for low, high in zip(bounds, bounds[1:], strict=False)) or not (
+        0 < bounds[0] and bounds[-1] < 1
+    ):
+        raise ScorecardConfigError(f"Модель {path}: границы PD грейдов должны расти в (0; 1)")
+    for section in ("low", "high"):
+        if section not in schema.industry_sections:
+            raise ScorecardConfigError(f"Модель {path}: нет секции industry_sections.{section}")
+    for segment, card in schema.scorecards.items():
+        where = f"Модель {path}, скоркарта {segment}"
+        unknown = set(card.features) - set(FEATURES)
+        if unknown:
+            raise ScorecardConfigError(f"{where}: неизвестные признаки {sorted(unknown)}")
+        missing = _REQUIRED_FEATURES - set(card.features)
+        if missing:
+            raise ScorecardConfigError(f"{where}: нет признаков {sorted(missing)}")
+        for code, feature in card.features.items():
+            _check_bins(f"{where}, признак {code!r}", code, feature)
+
+
+def _check_bins(where: str, code: str, feature: _Feature) -> None:
+    categories = {b.category for b in feature.bins if b.category is not None}
+    lacking = _CATEGORIES.get(code, frozenset()) - categories
+    if lacking:
+        raise ScorecardConfigError(f"{where}: нет бинов категорий {sorted(lacking)}")
+    numeric = sorted(
+        (b for b in feature.bins if b.category is None),
+        key=lambda b: b.lower if b.lower is not None else Decimal("-Infinity"),
+    )
+    if code not in _NUMERIC:
+        if numeric:
+            raise ScorecardConfigError(f"{where}: у категориального признака интервальные бины")
+        return
+    if not numeric:
+        raise ScorecardConfigError(f"{where}: нет интервальных бинов")
+    first, last = numeric[0], numeric[-1]
+    if first.lower is not None and (feature.floor is None or first.lower > feature.floor):
+        raise ScorecardConfigError(f"{where}: бины не покрывают значения ниже {first.lower}")
+    if last.upper is not None and (feature.cap is None or last.upper <= feature.cap):
+        raise ScorecardConfigError(f"{where}: бины не покрывают значения от {last.upper}")
+    for left, right in zip(numeric, numeric[1:], strict=False):
+        if left.upper is None or left.upper != right.lower:
+            raise ScorecardConfigError(
+                f"{where}: дырка или перекрытие бинов между {left.label!r} и {right.label!r}"
+            )

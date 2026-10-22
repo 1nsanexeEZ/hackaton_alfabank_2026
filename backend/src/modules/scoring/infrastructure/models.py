@@ -30,3 +30,8 @@ class ScoringResultRecord(Base):
     bank_notes: Mapped[list[str]] = mapped_column(JSONType)
     data_completeness: Mapped[Decimal] = mapped_column(Numeric(4, 3))
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # PD-модель (scoring_0002); у результатов scorecard_v1 — пусто.
+    segment: Mapped[str | None] = mapped_column(String(16), default=None)
+    scorecard: Mapped[str | None] = mapped_column(String(32), default=None)
+    pd_12m: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), default=None)
+    reason_codes: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
