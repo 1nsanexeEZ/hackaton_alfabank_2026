@@ -40,6 +40,13 @@ class ApplicationRepository(Protocol):
 
     async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]: ...
 
+    async def set_client_stage(
+        self, application_id: UUID, client_stage: str, now: datetime
+    ) -> bool:
+        """Update the stage label of a not closed application without touching
+        its version; False — closed, unknown or already this label."""
+        ...
+
     async def record_signature_details(
         self,
         application_id: UUID,
