@@ -10,6 +10,7 @@ from src.modules.clients.domain.financial_report import FinancialReport
 from src.modules.clients.domain.member import Member
 from src.modules.clients.domain.organization import Organization
 from src.modules.clients.domain.rights import MemberRole, OrgPermission, ordered
+from src.modules.clients.domain.value_objects import RegistryChanges
 from src.modules.identity.facade import AccountRefDTO
 
 LegalForm = Literal["LLC", "IE", "JSC"]
@@ -108,6 +109,39 @@ class OrganizationRead(OrganizationSummaryRead):
                 ],
             ),
             version=org.version,
+        )
+
+
+class FieldChangeRead(BaseModel):
+    # `name`, `address.full`, `address.region_code`, `kpp`, `okved_main`,
+    # `okved_extra` (codes joined with ", "), `registry_status`.
+    field: str
+    before: str | None
+    after: str | None
+
+
+class VerificationResultRead(BaseModel):
+    """Outcome of the check against ЕГРЮЛ/ЕГРИП: what followed the registry
+    silently and what is left for a person."""
+
+    organization: OrganizationRead
+    updated_fields: list[FieldChangeRead]
+    discrepancies: list[DiscrepancyRead]
+
+    @classmethod
+    def of(
+        cls, org: Organization, changes: RegistryChanges, account_id: UUID, now: datetime
+    ) -> Self:
+        return cls(
+            organization=OrganizationRead.of(org, account_id, now),
+            updated_fields=[
+                FieldChangeRead(field=c.field, before=c.before, after=c.after)
+                for c in changes.updated
+            ],
+            discrepancies=[
+                DiscrepancyRead(field=d.field, declared=d.declared, registry=d.registry)
+                for d in changes.discrepancies
+            ],
         )
 
 

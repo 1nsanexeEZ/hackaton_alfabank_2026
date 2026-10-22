@@ -108,8 +108,10 @@ date;amount;counterparty_inn;counterparty_name;purpose
 
 - `get_snapshot(application_id)` — последний снимок для `scoring`, `decision`, карточки андеррайтера
   (bff).
-- `lookup_registry(inn)` — только ЕГРЮЛ, кеш в памяти 10 минут; для «подключить компанию по ИНН».
-  Не найдено → `None`; реестр недоступен → `InfrastructureError` (bff отдаёт 503).
+- `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
+  мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
+  недоступен → `InfrastructureError` (503).
+- В выписке `RegistryExtractDTO` есть `kpp` (`None` у ИП и в снимках, сохранённых до него).
 
 ## Моки (для README и `THIRD_PARTY_NOTICES`)
 

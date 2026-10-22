@@ -1087,6 +1087,55 @@
         }
       }
     },
+    "/organizations/{organization_id}/verification": {
+      "post": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Verify Organization",
+        "description": "Check against ЕГРЮЛ/ЕГРИП, past the cache. Name, address, KPP, OKVED\nand the registry status follow the registry (`updated_fields`); a\ndifferent head is a discrepancy and the check ends in `mismatch`. A\nmember of the company or bank staff; unknown INN — 422\n`registry_not_found`; the registry did not answer — 503, nothing changes.",
+        "operationId": "verify_organization_organizations__organization_id__verification_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationResultRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizations/{organization_id}/members": {
       "get": {
         "tags": [
@@ -7302,6 +7351,43 @@
         ],
         "title": "FeedPage"
       },
+      "FieldChangeRead": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "FieldChangeRead"
+      },
       "FinancialReportCreate": {
         "properties": {
           "period_year": {
@@ -11179,6 +11265,17 @@
           "mass_address": {
             "type": "boolean",
             "title": "Mass Address"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
           }
         },
         "type": "object",
@@ -12826,6 +12923,35 @@
           "discrepancies"
         ],
         "title": "VerificationRead"
+      },
+      "VerificationResultRead": {
+        "properties": {
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationRead"
+          },
+          "updated_fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeRead"
+            },
+            "type": "array",
+            "title": "Updated Fields"
+          },
+          "discrepancies": {
+            "items": {
+              "$ref": "#/components/schemas/DiscrepancyRead"
+            },
+            "type": "array",
+            "title": "Discrepancies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "updated_fields",
+          "discrepancies"
+        ],
+        "title": "VerificationResultRead",
+        "description": "Outcome of the check against ЕГРЮЛ/ЕГРИП: what followed the registry\nsilently and what is left for a person."
       },
       "ViolationOut": {
         "properties": {

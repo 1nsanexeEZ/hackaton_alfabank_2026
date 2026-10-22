@@ -95,8 +95,10 @@ def _poa_from_json(data: dict[str, Any] | None) -> PowerOfAttorney | None:
 def _organization_values(org: Organization) -> dict[str, Any]:
     """Columns that may change after registration."""
     verification = org.verification
+    kpp = org.requisites.kpp
     return {
         "name": org.name,
+        "kpp": kpp.value if kpp else None,
         "address": org.address.full,
         "region_code": org.address.region_code,
         "okved_main": org.okved_main.value,
@@ -199,7 +201,6 @@ class SqlAlchemyOrganizationRepository:
                 id=org.id,
                 inn=requisites.inn.value,
                 ogrn=requisites.ogrn.value,
-                kpp=requisites.kpp.value if requisites.kpp else None,
                 legal_form=requisites.legal_form.value,
                 registered_at=org.registered_at,
                 version=org.version,

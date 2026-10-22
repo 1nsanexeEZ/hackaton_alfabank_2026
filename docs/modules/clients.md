@@ -10,7 +10,7 @@
 | `Member` | `domain/member.py` | `account_id`, роль, полномочие, доверенность, кто и когда добавил. Меняется только через агрегат |
 | `FinancialReport` (агрегат) | `domain/financial_report.py` | Показатели за период (год или квартал) из одного источника: `declared`, `fns`, `bank_statement` |
 | Права | `domain/rights.py` | `OrgPermission`, роли, полномочия, `PowerOfAttorney`, таблица прав |
-| VO | `domain/value_objects.py` | `Inn`, `Ogrn`, `Kpp`, `Requisites`, `OkvedCode`, `Address`, `FiscalPeriod`, `PersonName`, `VerificationResult` |
+| VO | `domain/value_objects.py` | `Inn`, `Ogrn`, `Kpp`, `Requisites`, `OkvedCode`, `Address`, `FiscalPeriod`, `PersonName`, `VerificationResult`, `RegistryExtract`, `FieldChange`, `RegistryChanges` |
 
 Все VO проверяют себя в конструкторе и бросают `ValidationError` с `details = {field, code}`:
 
@@ -19,11 +19,12 @@
 | `Inn` | 10 цифр (ЮЛ): контрольная цифра по весам `2,4,10,3,5,9,4,6,8`; 12 цифр (ИП): две контрольные по `7,2,4,10,3,5,9,4,6,8` и `3,7,2,4,10,3,5,9,4,6,8`; `sum % 11 % 10` |
 | `Ogrn` | ОГРН — 13 цифр, первая 1 или 5, `int(v[:12]) % 11 % 10 == v[12]`; ОГРНИП — 15 цифр, первая 3, `int(v[:14]) % 13 % 10 == v[14]` |
 | `Kpp` | `^\d{4}[\dA-Z]{2}\d{3}$` |
-| `Requisites` | ИНН 10 ⇔ ОГРН 13 ⇔ LLC/JSC ⇔ есть КПП; ИНН 12 ⇔ ОГРНИП 15 ⇔ IE ⇔ КПП нет. Неизменяемы |
+| `Requisites` | ИНН 10 ⇔ ОГРН 13 ⇔ LLC/JSC ⇔ есть КПП; ИНН 12 ⇔ ОГРНИП 15 ⇔ IE ⇔ КПП нет. ИНН, ОГРН и форма не меняются, КПП следует за реестром |
 | `OkvedCode` | `^\d{2}(\.\d{1,2}){0,2}$`, раздел A…U по первым двум цифрам (несуществующий класс — ошибка) |
 | `PersonName` | `normalized()` — нижний регистр, ё → е, одиночные пробелы; `repr()` маскирует ФИО, чтобы оно не попало в логи и трейсбеки |
 | `PowerOfAttorney` | номер, `issued_at`, `valid_until` (включительно, даты UTC), `scope` ⊆ {`submit_application`, `sign`} |
 | `VerificationResult` | `unverified` (без даты), `verified` (с датой), `mismatch` (с датой и расхождениями `field / declared / registry`) |
+| `RegistryExtract` | выписка ЕГРЮЛ/ЕГРИП в наших VO: ИНН, ОГРН, наименование (не пустое, до 255), адрес, КПП, ОКВЭД, статус, руководитель |
 
 ## Права внутри компании
 
@@ -39,7 +40,7 @@
 
 ## Инварианты
 
-- Реквизиты не меняются (у агрегата нет сеттера, `Requisites` — frozen).
+- ИНН, ОГРН и форма не меняются (у агрегата нет сеттера, `Requisites` — frozen). Карточку — наименование, адрес, КПП, ОКВЭД, статус в реестре — меняет только сверка с реестром; руководителя по реестру не меняет и она.
 - Аккаунт в компании — не больше одного раза (`409 already_member`).
 - В компании с участниками всегда есть кто-то с `manage_members`: последнего не удалить и не понизить (`409 last_manager`); первый участник обязан его иметь.
 - Участниками управляет только участник с `manage_members` или банк (сиды, бэк-офис).
@@ -77,12 +78,13 @@
 
 ## API
 
-Пермишны `organizations.read` (чтение) и `organizations.update` (изменения), у клиента — с политикой `org_member`. Чужая компания — **404**: фильтр по членству отсекает её ещё в репозитории. Внутри своей компании решает таблица прав: нет `manage_members` / `edit_financials` — **403**. Андеррайтер (без политик) видит любые компании на чтение, `my_role` у него `null`. Admin меняет участников как банк — без проверки прав внутри компании.
+Пермишны `organizations.read` (чтение) и `organizations.update` (изменения), у клиента — с политикой `org_member`. Чужая компания — **404**: фильтр по членству отсекает её ещё в репозитории. Внутри своей компании решает таблица прав: нет `manage_members` / `edit_financials` — **403**. Андеррайтер (оба пермишна без политик) видит любые компании, `my_role` у него `null`; из изменений ему доступна только сверка с реестром, остальные — **403** `not_a_member`: компания от него не скрыта, поэтому не 404. Admin меняет участников как банк — без проверки прав внутри компании.
 
 | Метод | Путь | Что | Ответ |
 |---|---|---|---|
 | GET | `/organizations` | мои компании (банк — все): `my_role`, `my_permissions` | 200 |
 | GET | `/organizations/{id}` | карточка: реквизиты, адрес, ОКВЭД, возраст бизнеса, руководитель по реестру, сверка, мои права | 200 / 404 |
+| POST | `/organizations/{id}/verification` | сверка с ЕГРЮЛ/ЕГРИП, без тела: `{organization, updated_fields, discrepancies}` — см. «Сверка с реестром» | 200 / 404 / 422 / 503 |
 | GET | `/organizations/{id}/members` | участники с ФИО (из identity), полномочием, доверенностью и действующими правами | 200 / 404 |
 | POST | `/organizations/{id}/members` | `{login, role}` — существующий аккаунт по email или телефону | 201 / 403 / 409 / 422 |
 | PATCH | `/organizations/{id}/members/{account_id}` | `{role}` | 200 / 403 / 404 / 409 / 422 |
@@ -93,7 +95,7 @@
 
 Логин, которого нет в identity, — **422** `{field: "login", code: "account_not_found"}`, а не 404: запрос корректен, но ссылается на несуществующий аккаунт, и 404 путался бы с «компания не найдена». Права проверяются до поиска логина: участник без `manage_members` не узнаёт, какие логины существуют.
 
-Коды ошибок в `details.code`: `already_member`, `last_manager`, `owner_exists`, `owner_must_be_entrepreneur`, `entrepreneur_owner_fixed`, `manager_required`, `not_allowed` (директор у ИП), `cannot_issue_power_of_attorney`, `self_power_of_attorney`, `expired`, `period_not_closed`, `org_permission_required` (+ `permission`), `version_conflict`, `report_exists`.
+Коды ошибок в `details.code`: `registry_not_found` (422), `bad_registry_data` (503), `not_a_member`, `already_member`, `last_manager`, `owner_exists`, `owner_must_be_entrepreneur`, `entrepreneur_owner_fixed`, `manager_required`, `not_allowed` (директор у ИП), `cannot_issue_power_of_attorney`, `self_power_of_attorney`, `expired`, `period_not_closed`, `org_permission_required` (+ `permission`), `version_conflict`, `report_exists`.
 
 ## События
 
@@ -105,9 +107,39 @@
 | `MemberRoleChanged` | роль изменилась (`role` — новая) |
 | `MemberRemoved` | участник удалён |
 | `FinancialReportSubmitted` | отчёт подан или уточнён |
-| `OrganizationVerified` / `OrganizationVerificationMismatch` | записан результат сверки (`Organization.record_verification`; ручки пока нет) |
+| `OrganizationVerified` / `OrganizationVerificationMismatch` | записан результат сверки с реестром: по ручке или автосверка (`Organization.apply_registry`) |
 
 Выдача доверенности события не публикует: контракта нет, а права всё равно читаются через фасад на момент `now`. Сиды событий не публикуют: это начальное состояние, а не изменение.
+
+## Сверка с реестром
+
+Шаг 5 схемы: «Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые».
+
+`Organization.apply_registry(extract, now, *, declared) -> RegistryChanges` сравнивает карточку с выпиской и сам вызывает `record_verification`:
+
+| Поле реестра | Что делаем | `field` в `updated_fields` |
+|---|---|---|
+| наименование | обновляем молча | `name` |
+| адрес | обновляем молча | `address.full`, `address.region_code` |
+| КПП | обновляем молча; реестр не назвал — оставляем; у ИП КПП нет | `kpp` |
+| ОКВЭД основной и дополнительные | обновляем молча; те же коды в другом порядке — не изменение | `okved_main`, `okved_extra` (коды через «, ») |
+| статус в реестре | обновляем молча, стоп-фактор — забота decision | `registry_status` |
+| руководитель | молча не меняем: на нём полномочия → `discrepancies`, `mismatch` | — |
+| ИНН, ОГРН | не трогаем: ключ компании; выписка с другим ИНН — `ValueError` | — |
+
+Расхождение `head_name` бывает двух видов, одинаковые не дублируются:
+- руководитель в выписке не совпал с `registry_head` (или его нет): `declared` — прежний руководитель по реестру, `registry_head` не меняется, полномочия участников — тоже;
+- участник в роли руководителя (`Organization.head_role`: директор, у ИП — владелец; учредители ООО не сверяются) с другим ФИО: `declared` — его ФИО. Имена участников приходят из identity (`declared`), участник без имени не сравнивается.
+
+ФИО сравниваются через `PersonName.matches`, в расхождении — краткая форма (`Петров П. П.`).
+
+`VerifyOrganizationUseCase` (`application/verification.py`), два входа:
+- `execute(access, organization_id)` — ручка `POST /organizations/{id}/verification`. Своя транзакция; реестр через порт `RegistryLookup` мимо кэша. Нет компании или чужая — 404; реестр не знает ИНН — 422 `registry_not_found`; реестр не ответил — 503, ничего не меняется.
+- `apply_extract(organization_id, extract, …)` — автосверка в транзакции обработчика: `infrastructure/consumers.py` слушает `enrichment.events` → `EnrichmentCompleted` (group `clients.enrichment-events`), берёт выписку из снимка заявки (`EnrichmentFacade.get_snapshot`). Снимка или выписки нет (ЕГРЮЛ не ответил), выписка нечитаемая или с чужим ИНН — пропуск. Идемпотентность — inbox платформы.
+
+Адаптер `EnrichmentRegistryLookup` (`infrastructure/registry.py`) зовёт `EnrichmentFacade.lookup_registry(inn, fresh=True)` и переводит выписку в `RegistryExtract`. Полное наименование из реестра сокращается до формы карточки: «Общество с ограниченной ответственностью «Ромашка»» → «ООО «Ромашка»» (также АО, ПАО, ИП). Выписку, которую VO не принимают, считаем ошибкой реестра: 503 `bad_registry_data`.
+
+Сохранение — та же оптимистическая блокировка: сверка увеличивает `version`, параллельное изменение — `409 version_conflict` (в автосверке — повтор обработчика).
 
 ## Фасад и порт `org_member`
 
@@ -138,6 +170,8 @@ S-8 на фасаде: бухгалтер Ромашки проходит `ensur
 
 - Регистрации и онбординга компании нет: компании появляются только из сидов.
 - Подключение ещё одной компании по ИНН через `enrichment.lookup_registry` (Could) не сделано.
+- Расхождение по руководителю закрыть нечем: принять нового руководителя из реестра может только будущая ручка бэк-офиса. Пока `mismatch` ведёт заявку на ручную проверку.
+- Автосверка идёт после каждого сбора данных по заявке, и каждая пишет запись в ленту участников (notifications слушает `OrganizationVerified` / `OrganizationVerificationMismatch`).
 - Отзыва доверенности нет — только замена новой; действие доверенности ограничено датами.
 - Учредители ООО и акционеры АО в реестре не сверяются: полномочие по реестру подтверждается только для руководителя (у ИП — для самого предпринимателя).
 - Повышение до директора полномочие не подтверждает: подписывать сможет только тот, чьё ФИО совпало с реестром, или по доверенности.

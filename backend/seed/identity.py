@@ -58,6 +58,8 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.REQUESTS_READ,
             Permissions.CREDITS_READ,
             Permissions.ORGANIZATIONS_READ,
+            # Without a policy: the registry check of any company.
+            Permissions.ORGANIZATIONS_UPDATE,
             Permissions.TASKS_READ,
             Permissions.TASKS_UPDATE,
             Permissions.DECISIONS_READ,

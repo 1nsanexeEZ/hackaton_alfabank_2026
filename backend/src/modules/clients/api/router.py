@@ -2,7 +2,8 @@
 
 `organizations.read` / `organizations.update` with the `org_member` policy:
 somebody else's company is 404. Inside the company the rights table decides:
-no `manage_members` / `edit_financials` — 403.
+no `manage_members` / `edit_financials` — 403. Bank staff (no policy) read
+every company and run the registry check, but change nothing else — 403.
 """
 
 from decimal import Decimal
@@ -11,7 +12,13 @@ from uuid import UUID
 from fastapi import APIRouter, Response, status
 
 from src.core.domain import Money
-from src.modules.clients.api.dependencies import IdentityDep, ReadAccess, ServiceDep, UpdateAccess
+from src.modules.clients.api.dependencies import (
+    IdentityDep,
+    ReadAccess,
+    ServiceDep,
+    UpdateAccess,
+    VerifyDep,
+)
 from src.modules.clients.api.schemas import (
     FinancialReportCreate,
     FinancialReportRead,
@@ -21,6 +28,7 @@ from src.modules.clients.api.schemas import (
     OrganizationRead,
     OrganizationSummaryRead,
     PowerOfAttorneyCreate,
+    VerificationResultRead,
 )
 from src.modules.clients.domain.financial_report import ReportFigures
 from src.modules.clients.domain.rights import PowerOfAttorney
@@ -51,6 +59,19 @@ async def get_organization(
 ) -> OrganizationRead:
     org = await service.get(access, organization_id)
     return OrganizationRead.of(org, access.user_id, service.now())
+
+
+@router.post("/{organization_id}/verification", response_model=VerificationResultRead)
+async def verify_organization(
+    organization_id: UUID, access: UpdateAccess, use_case: VerifyDep
+) -> VerificationResultRead:
+    """Check against ЕГРЮЛ/ЕГРИП, past the cache. Name, address, KPP, OKVED
+    and the registry status follow the registry (`updated_fields`); a
+    different head is a discrepancy and the check ends in `mismatch`. A
+    member of the company or bank staff; unknown INN — 422
+    `registry_not_found`; the registry did not answer — 503, nothing changes."""
+    org, changes = await use_case.execute(access, organization_id)
+    return VerificationResultRead.of(org, changes, access.user_id, use_case.now())
 
 
 # --- members ------------------------------------------------------------------

@@ -53,10 +53,10 @@ class EnrichmentFacadeImpl:
             cashflow=snapshot.cashflow(),
         )
 
-    async def lookup_registry(self, inn: str) -> RegistryExtractDTO | None:
+    async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         now = datetime.now(UTC)
         cached = _lookup_cache.get(inn)
-        if cached is not None and cached[0] > now:
+        if not fresh and cached is not None and cached[0] > now:
             return cached[1]
         try:
             extract = await self._registry.fetch(inn)

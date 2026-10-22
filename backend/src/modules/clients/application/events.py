@@ -46,9 +46,15 @@ def to_contract(event: domain.OrganizationEvent) -> IntegrationMessage:
 
 
 async def stage(
-    outbox: EventOutbox, events: Iterable[domain.OrganizationEvent], correlation_id: UUID
+    outbox: EventOutbox,
+    events: Iterable[domain.OrganizationEvent],
+    correlation_id: UUID,
+    causation_id: UUID | None = None,
 ) -> None:
     for event in events:
         await outbox.add(
-            to_contract(event), key=event.organization_id, correlation_id=correlation_id
+            to_contract(event),
+            key=event.organization_id,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
         )

@@ -50,4 +50,5 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
         address=str(raw["Адрес"]["Полный"]),
         region_code=str(raw["Адрес"]["КодРегиона"]),
         mass_address=bool(raw["МассовыйАдрес"]),
+        kpp=str(raw["КПП"]) if raw.get("КПП") else None,
     )

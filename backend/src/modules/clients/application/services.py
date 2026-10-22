@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 from src.core.access.access_context import AccessContext
 from src.core.access.permissions import Permissions
 from src.core.domain.clock import Clock
-from src.core.exceptions.exceptions import ValidationError
+from src.core.exceptions.exceptions import PermissionDeniedError, ValidationError
 from src.core.uow import UnitOfWork
 from src.modules.clients.application.events import stage
 from src.modules.clients.application.ports import (
@@ -71,6 +71,17 @@ class OrganizationService:
             raise organization_not_found()
         return org
 
+    async def get_to_change(self, access: AccessContext, organization_id: UUID) -> Organization:
+        """Members and reports are changed by a member or the admin. Bank staff
+        see every company (no `org_member` policy), so for them it is 403, not
+        404: the company is not hidden. They only run the registry check."""
+        org = await self.get(access, organization_id)
+        if not actor_of(access).is_bank and not org.is_member(access.user_id):
+            raise PermissionDeniedError(
+                "Only a member of the company changes it", details={"code": "not_a_member"}
+            )
+        return org
+
     async def list_members(
         self, access: AccessContext, organization_id: UUID, identity: IdentityFacade
     ) -> list[tuple[Member, AccountRefDTO | None]]:
@@ -95,7 +106,7 @@ class OrganizationService:
     ) -> tuple[Member, AccountRefDTO]:
         """The account must exist already: there is no registration."""
         async with self._uow:
-            org = await self.get(access, organization_id)
+            org = await self.get_to_change(access, organization_id)
             # Rights first: a member without manage_members learns nothing about logins.
             actor = actor_of(access)
             if not actor.is_bank:
@@ -114,7 +125,7 @@ class OrganizationService:
         self, access: AccessContext, organization_id: UUID, account_id: UUID, role: MemberRole
     ) -> Member:
         async with self._uow:
-            org = await self.get(access, organization_id)
+            org = await self.get_to_change(access, organization_id)
             member = org.change_role(actor_of(access), account_id, role, self.now())
             await self._commit(org)
         return member
@@ -123,7 +134,7 @@ class OrganizationService:
         self, access: AccessContext, organization_id: UUID, account_id: UUID
     ) -> None:
         async with self._uow:
-            org = await self.get(access, organization_id)
+            org = await self.get_to_change(access, organization_id)
             org.remove_member(actor_of(access), account_id, self.now())
             await self._commit(org)
 
@@ -135,7 +146,7 @@ class OrganizationService:
         power_of_attorney: PowerOfAttorney,
     ) -> Member:
         async with self._uow:
-            org = await self.get(access, organization_id)
+            org = await self.get_to_change(access, organization_id)
             member = org.grant_power_of_attorney(
                 actor_of(access), account_id, power_of_attorney, self.now()
             )
@@ -153,7 +164,7 @@ class OrganizationService:
     ) -> tuple[FinancialReport, bool]:
         """Declared report; returns it and whether it is new (False — revised)."""
         async with self._uow:
-            org = await self.get(access, organization_id)
+            org = await self.get_to_change(access, organization_id)
             existing = await self._reports.find(org.id, period, ReportSource.DECLARED)
             report = org.submit_financial_report(
                 actor_of(access),

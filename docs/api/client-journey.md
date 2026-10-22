@@ -39,7 +39,7 @@
 | 2 | Авторизован? → вход в ЛК | клиент | `GET /me` (401 — на вход), `GET /auth/demo-accounts`, `POST /auth/demo-login`, `POST /auth/login` | ✅ |
 | 3 | Есть ли бизнес? | банк | `GET /bff/dashboard`: `organizations`, `onboarding` | 🟡 ветки «нет (стартап)» нет — [4.6](#46-ветка-стартапа) |
 | 4 | Подтянули данные из базы банка | банк | `GET /organizations/{id}`, `GET /organizations/{id}/financial-reports` | ✅ |
-| 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | только чтение `OrganizationRead.verification` | ❌ запустить сверку нечем — [4.2](#42-сверка-с-егрюл-по-запросу) |
+| 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | `POST /organizations/{id}/verification`, результат — в `OrganizationRead.verification` | ✅ бэк сверяет и сам — по выписке из каждой заявки, [4.2](#42-сверка-с-егрюл) |
 | 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `POST /bff/products/{code}/calculate`, `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility` | ✅ график по ставке предодобрения; сверх предодобренного — причина и подсказка, не ошибка — [3.4](#34-выбор-условий-шаг-7) |
 | 8 | Согласие: БКИ физлица + ПДн | клиент | `PATCH /applications/{id}` → `consents` | 🟡 согласие только в заявке и только на БКИ компании — [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
@@ -150,6 +150,7 @@ Dashboard {
 |---|---|---|
 | `GET /organizations` | мои компании | `[{id, name, inn, legal_form, registry_status, my_role, my_permissions}]` |
 | `GET /organizations/{id}` | карточка: реквизиты, адрес, ОКВЭД, возраст бизнеса, руководитель по реестру, сверка | `OrganizationRead`, в нём `verification {status: unverified \| verified \| mismatch, checked_at, discrepancies: [{field, declared, registry}]}` |
+| `POST /organizations/{id}/verification` | сверить с ЕГРЮЛ/ЕГРИП и подкачать изменения | `VerificationResultRead {organization, updated_fields, discrepancies}`, подробно — [4.2](#42-сверка-с-егрюл) |
 | `GET /organizations/{id}/financial-reports` | отчётность | `[{id, period_year, period_quarter, source: declared \| fns \| bank_statement, revenue, expenses, net_profit, total_liabilities, monthly_debt_payments, submitted_by, submitted_at}]` |
 | `POST /organizations/{id}/financial-reports` | подать отчёт | тело `{period_year, period_quarter?, revenue, expenses?, net_profit?, total_liabilities?, monthly_debt_payments?}` → 201 новый / 200 уточнён. Запускает пересчёт предодобрения |
 | `GET /organizations/{id}/pre-approved-offers` | предодобрение | `[{product_code, max_amount, rate_from, term_max_months, valid_until, basis: estimate \| full, note}]` |
@@ -335,7 +336,7 @@ Dashboard {
 | # | Что | Шаг схемы | Изменение API | Приоритет | Модули |
 |---|---|---|---|---|---|
 | 4.1 | Калькулятор с учётом предскоринга — ✅ сделано | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
-| 4.2 | Сверка с ЕГРЮЛ по запросу | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment |
+| 4.2 | Сверка с ЕГРЮЛ — ✅ сделано | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment, decision |
 | 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, enrichment |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
 | 4.5 | Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
@@ -356,19 +357,19 @@ Must нет: основной путь (компания с оборотами �
 
 Подачу сверх предодобренного не блокируем ни на бэке, ни на фронте: только причина и подсказка.
 
-### 4.2. Сверка с ЕГРЮЛ по запросу
+### 4.2. Сверка с ЕГРЮЛ
 
-**Зачем.** На схеме: «Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые». В домене `Organization.record_verification` есть, ручки нет: результат сверки сейчас только из сидов ([clients.md](../modules/clients.md)).
+**Сделано.** На схеме: «Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые». Сверка запускается ручкой и сама — после сбора данных по каждой заявке.
 
-**Ручка.** `POST /organizations/{organization_id}/verification`, без тела. Право — `organizations.update`: клиент — участник компании, андеррайтер — любая компания. Кроме ручки предлагаем, чтобы бэк сам запускал сверку при создании заявки, если `verification.checked_at` старше суток. Фронт в этом случае только читает результат.
+**Ручка.** `POST /organizations/{organization_id}/verification`, без тела. Право — `organizations.update`: клиент — любой участник компании, андеррайтер — любая компания. Реестр спрашиваем мимо кэша.
 
 Ответ 200 `VerificationResultRead`:
 
 ```json
 {
-  "organization": { "…": "OrganizationRead с обновлённым verification" },
+  "organization": { "…": "OrganizationRead с новым verification и version" },
   "updated_fields": [
-    { "field": "address.full", "before": "г. Москва, ул. Старая, 1", "after": "г. Москва, ул. Новая, 5" }
+    { "field": "address.full", "before": "г. Москва, ул. Тверская, д. 12, стр. 1", "after": "г. Москва, ул. Тверская, д. 1" }
   ],
   "discrepancies": [
     { "field": "head_name", "declared": "Петров П. П.", "registry": "Сидоров С. С." }
@@ -376,10 +377,33 @@ Must нет: основной путь (компания с оборотами �
 }
 ```
 
-- `updated_fields` — что подкачали из реестра молча: наименование, адрес, КПП, ОКВЭД, статус в реестре.
-- `discrepancies` — что молча не меняем, потому что от этого зависят полномочия (руководитель). Статус становится `mismatch`, заявка уйдёт на ручную проверку (`ROUTE_VERIFICATION_MISMATCH` уже есть).
-- Реестр не ответил — 503 `unavailable`, сверка не меняется.
-- События `OrganizationVerified` / `OrganizationVerificationMismatch` уже есть, на них подписан пересчёт предодобрения: после сверки `pre_approved` обновится сам.
+| Поле реестра | Что делаем | `field` |
+|---|---|---|
+| наименование | обновляем молча → `updated_fields`. Реестр отдаёт полное наименование, храним краткое: «Общество с ограниченной ответственностью «Ромашка»» → «ООО «Ромашка»» | `name` |
+| адрес | обновляем молча | `address.full`, `address.region_code` |
+| КПП | обновляем молча; реестр не назвал КПП — оставляем | `kpp` |
+| ОКВЭД основной и дополнительные | обновляем молча; те же коды в другом порядке — не изменение | `okved_main`, `okved_extra` (коды через «, ») |
+| статус в реестре | обновляем молча; стоп-фактор применяет decision | `registry_status` |
+| руководитель | молча не меняем: от него зависят полномочия → `discrepancies`, `verification.status = mismatch` | `head_name` |
+| ИНН, ОГРН | не меняются, это ключ компании | — |
+
+Расхождение по руководителю бывает двух видов:
+- в реестре другой руководитель, чем знает банк: `declared` — прежний руководитель по реестру;
+- руководитель в кабинете (директор, у ИП — владелец) с другим ФИО, чем в реестре: `declared` — его ФИО. Так у «Вектора»: в кабинете Петров, в реестре Сидоров.
+
+Нет расхождений — `verified`. Заявка с `mismatch` уходит на ручную проверку (`ROUTE_VERIFICATION_MISMATCH`).
+
+| Код | Когда |
+|---|---|
+| 404 `not_found` | компании нет или она чужая |
+| 422 `validation_error`, `details.code = registry_not_found` | реестр не знает этот ИНН |
+| 503 `unavailable` | реестр не ответил или ответил тем, что не разобрать (`details.code = bad_registry_data`); сверка не меняется |
+
+**Автосверка.** После каждого `EnrichmentCompleted` бэк сверяет компанию по выписке ЕГРЮЛ из снимка заявки — без лишнего запроса в реестр. Источник ЕГРЮЛ не ответил — сверка пропускается. Фронту отдельно ничего делать не нужно: свежий результат — в `OrganizationRead.verification`.
+
+**После сверки.** Уходит `OrganizationVerified` или `OrganizationVerificationMismatch`. На оба подписан пересчёт предодобрения: `pre_approved` обновится сам. В ленте участников появится запись о сверке; при расхождении — `info_requested` со списком расхождений.
+
+Андеррайтер с `organizations.update` больше ничего в компании не меняет: участники, доверенности и отчёты — 403, `details.code = not_a_member`.
 
 ### 4.3. Личные согласия: ПДн и БКИ физлица
 

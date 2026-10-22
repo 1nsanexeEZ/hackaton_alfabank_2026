@@ -7,7 +7,7 @@ from src.core.access.access_context import AccessContext
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.modules.clients.domain.financial_report import FinancialReport, ReportSource
 from src.modules.clients.domain.organization import Organization
-from src.modules.clients.domain.value_objects import FiscalPeriod
+from src.modules.clients.domain.value_objects import FiscalPeriod, RegistryExtract
 
 
 class OrganizationRepository(Protocol):
@@ -55,3 +55,12 @@ class EventOutbox(Protocol):
         correlation_id: UUID,
         causation_id: UUID | None = None,
     ) -> UUID: ...
+
+
+class RegistryLookup(Protocol):
+    """ЕГРЮЛ/ЕГРИП by INN, asked past any cache."""
+
+    async def lookup(self, inn: str) -> RegistryExtract | None:
+        """None — the registry does not know the INN; InfrastructureError — it
+        did not answer or answered with something we cannot read."""
+        ...

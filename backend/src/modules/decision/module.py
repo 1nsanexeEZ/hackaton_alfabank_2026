@@ -8,7 +8,11 @@ from decimal import Decimal
 from fastapi import FastAPI
 
 from src.core.messaging import topics
-from src.core.messaging.contracts.clients import FinancialReportSubmitted, OrganizationVerified
+from src.core.messaging.contracts.clients import (
+    FinancialReportSubmitted,
+    OrganizationVerificationMismatch,
+    OrganizationVerified,
+)
 from src.core.messaging.contracts.decision import MakeDecision, RecordManualDecision
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
@@ -103,7 +107,8 @@ async def _on_command(ctx: HandlerContext, payload: MakeDecision | RecordManualD
 
 
 async def _on_clients_event(
-    ctx: HandlerContext, payload: FinancialReportSubmitted | OrganizationVerified
+    ctx: HandlerContext,
+    payload: FinancialReportSubmitted | OrganizationVerified | OrganizationVerificationMismatch,
 ) -> None:
     await _pre_approval(ctx).on_event(
         payload.organization_id, event_id=ctx.envelope.event_id, outbox=ctx.outbox
@@ -124,6 +129,14 @@ def subscribers() -> list[Subscription]:
             topic=topics.CLIENTS_EVENTS,
             group_id="decision.clients-events",
             handler=_on_clients_event,
-            message_types=frozenset({FinancialReportSubmitted.TYPE, OrganizationVerified.TYPE}),
+            # A check against the registry may change the status or the head:
+            # the pre-approval follows either outcome.
+            message_types=frozenset(
+                {
+                    FinancialReportSubmitted.TYPE,
+                    OrganizationVerified.TYPE,
+                    OrganizationVerificationMismatch.TYPE,
+                }
+            ),
         ),
     ]
