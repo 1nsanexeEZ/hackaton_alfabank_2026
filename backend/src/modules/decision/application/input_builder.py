@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -28,11 +29,13 @@ from src.modules.decision.domain.model import (
     CompanyInput,
     CounterpartyInput,
     DecisionInput,
+    Grade,
     HeadBureauInput,
     ProductInput,
     RequestInput,
     ScoreInput,
     SupportProgramInput,
+    on_scale,
 )
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.domain.result import DecisionInputRefs
@@ -79,8 +82,8 @@ class DecisionInputBuilder:
             request=RequestInput(
                 amount=source.request.amount, term_months=source.request.term_months
             ),
-            company=_company_input(source.organization, snapshot),
-            score=_score_input(result),
+            company=_company_input(source.organization, snapshot, source.submitted_at.date()),
+            score=_score_input(result, self._policy.config.grade_scale),
             bureau=_bureau_input(source.organization, snapshot),
             cashflow=_cashflow_input(snapshot),
             collateral=CollateralInput(source.collateral.type, source.collateral.declared_value)
@@ -159,11 +162,12 @@ def _product_input(source: ScoringInputDTO, product: ProductDTO | None) -> Produ
 
 
 def _company_input(
-    organization: OrganizationSnapshotDTO, snapshot: EnrichmentSnapshotDTO | None
+    organization: OrganizationSnapshotDTO, snapshot: EnrichmentSnapshotDTO | None, as_of: date
 ) -> CompanyInput:
     egrul = snapshot.egrul if snapshot is not None else None
     fns = snapshot.fns if snapshot is not None else None
     report = latest_annual_report(organization)
+    head_since = egrul.head_since if egrul is not None else None
     return CompanyInput(
         legal_form=organization.legal_form,
         okved_main=organization.okved_main,
@@ -177,17 +181,28 @@ def _company_input(
         mass_address=egrul.mass_address if egrul is not None else False,
         tax_arrears=fns.tax_arrears if fns is not None else None,
         account_blocks=len(fns.account_blocks) if fns is not None else None,
+        head_tenure_months=_full_months(head_since, as_of) if head_since is not None else None,
+        head_since_registration=(
+            egrul is not None and head_since is not None and head_since <= egrul.registered_at
+        ),
     )
 
 
-def _score_input(result: ScoringResultDTO | None) -> ScoreInput | None:
+def _full_months(since: date, until: date) -> int:
+    months = (until.year - since.year) * 12 + until.month - since.month
+    return max(months - (1 if until.day < since.day else 0), 0)
+
+
+def _score_input(result: ScoringResultDTO | None, scale: tuple[Grade, ...]) -> ScoreInput | None:
+    """Грейд — на шкалу политики: результат scorecard_v1 (A–E, без PD) и PD-модели (A–J)."""
     if result is None:
         return None
     return ScoreInput(
         score=result.score,
-        grade=result.grade,
+        grade=on_scale(result.grade, from_pd_model=result.pd_12m is not None, scale=scale),
         flags=frozenset(result.flags),
         client_hints=tuple(f.client_hint for f in result.factors if f.client_hint),
+        pd_12m=result.pd_12m,
     )
 
 
@@ -206,6 +221,7 @@ def _bureau_input(
         max_overdue_days=max(current, bki.max_overdue_days_12m),
         monthly_payments=bki.total_monthly_payments,
         current_overdue_days=current,
+        debt_balance=sum((o.balance for o in bki.obligations), Decimal(0)),
     )
 
 
@@ -256,6 +272,8 @@ def _cashflow_input(snapshot: EnrichmentSnapshotDTO | None) -> CashflowInput | N
         gap_detected=cashflow.gap_detected,
         gap_month=cashflow.gap_month,
         revenue_confirmed=cashflow.revenue_confirmed,
+        monthly_inflows=tuple(month.inflow for month in cashflow.months_history),
+        annual_inflow=cashflow.annual_inflow,
     )
 
 

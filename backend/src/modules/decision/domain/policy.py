@@ -20,19 +20,32 @@
 Кассовый разрыв по выписке не меняет исход, но даёт условие в оффере, альтернативу
 (овердрафт или кредитная линия — что проходит eligibility) и объяснение клиенту.
 
+policy_v3 — «Стратегия решения» общей схемы на грейдах A–J PD-модели:
+- мягкие триггеры (недоимка, смена руководителя, «разгон» оборотов по выписке) → ручная
+  проверка, они в `triggers`; вместе со сбоем источников идут раньше матрицы;
+- матрица грейд × сумма по корзинам грейдов → одобрить (дальше лимиты) / ручная / отказ;
+- лимит — минимум из ограничений: продукт, выручка, обороты по счёту, платёжеспособность,
+  грейд, кредиты группы, для залоговых — LTV; `binding` — какое дало минимум;
+- ставка = фондирование (ключевая + спред) + EL (PD × LGD) + капитал + маржа, в коридоре
+  продукта, разбивка — в `rate_breakdown`;
+- поручительство собственника — для слабых грейдов и крупных сумм.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
-входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 включаются своими ключами в YAML:
-нет ключа — нет правила и нет строки в трассе, поэтому решения policy_v1 не меняются.
+входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
+ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
+не меняются.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
+from typing import Literal
 
 from src.modules.decision.domain.explanations import ExplanationCatalog, month_in, render, rub
 from src.modules.decision.domain.model import (
+    LEGACY_SCALE,
     AlternativeInput,
     CompanyInput,
     DecisionInput,
@@ -45,23 +58,58 @@ from src.modules.decision.domain.model import (
     PreApproval,
     PreApprovalInput,
     ProductInput,
+    RateBreakdown,
     ReasonCode,
     RuleHit,
     ScoreInput,
+    Trigger,
 )
 
 _ZERO = Decimal(0)
 _CENT = Decimal("0.01")
+_HUNDRED = Decimal(100)
 _MONTHLY_DIVISOR = Decimal(1200)  # 12 месяцев × 100 %
 _TWELVE = Decimal(12)
 _MAX_HINTS = 4
-_GRADE_ORDER: tuple[Grade, ...] = ("A", "B", "C", "D", "E")
 _HEAD_BUREAU_SKIPPED = {
     "no_consent": "нет согласия руководителя на запрос его БКИ — проверка не выполнена",
     "no_head": "руководитель по реестру не найден среди участников — проверка не выполнена",
     "failed": "БКИ руководителя не ответило — проверка не выполнена",
     "not_requested": "БКИ руководителя не запрашивалось — проверка не выполнена",
 }
+
+
+MatrixVerdict = Literal["approve", "manual", "reject"]
+
+
+@dataclass(frozen=True, slots=True)
+class MatrixBand:
+    """Корзина грейдов матрицы policy_v3: до какой суммы решает автоматика, до какой — человек;
+    выше — отказ. `manual_up_to` None — без верхней границы."""
+
+    label: str  # «A–C»
+    grades: frozenset[str]
+    approve_up_to: Decimal
+    manual_up_to: Decimal | None
+
+    def verdict(self, amount: Decimal) -> MatrixVerdict:
+        if amount <= self.approve_up_to:
+            return "approve"
+        if self.manual_up_to is None or amount <= self.manual_up_to:
+            return "manual"
+        return "reject"
+
+
+@dataclass(frozen=True, slots=True)
+class RateComponents:
+    """Ставка policy_v3 из компонент, проценты годовых; LGD и PD — доли."""
+
+    funding_spread: Decimal  # фондирование = ключевая + спред
+    lgd_unsecured: Decimal
+    lgd_secured: Decimal  # залог покрывает сумму не меньше collateral_min_coverage
+    capital: Decimal
+    margin: Decimal
+    pd_if_unknown: Decimal  # у результата scorecard_v1 PD нет — берём осторожную
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +145,31 @@ class PolicyConfig:
     stop_mass_address: bool = False
     stop_okved_classes: frozenset[str] = frozenset()  # двузначные классы ОКВЭД
     route_tax_arrears: bool = False  # недоимка > 0 (не выше стоп-порога) → ручная проверка
+    # policy_v3. Пусто / None — правило выключено (так ведут себя policy_v1 и policy_v2).
+    grade_scale: tuple[Grade, ...] = LEGACY_SCALE
+    risk_matrix: tuple[MatrixBand, ...] = ()
+    trigger_tax_arrears: bool = False
+    trigger_head_change_months: int | None = None  # руководитель сменился меньше N мес. назад
+    trigger_turnover_months: int | None = None  # последние N месяцев выписки…
+    trigger_turnover_ratio: Decimal | None = None  # …к среднему за прежние больше — «разгон»
+    turnover_multiplier: Decimal | None = None  # лимит ≤ k × обороты по счёту за год
+    grade_max_amount: Mapping[str, Decimal] = field(default_factory=dict)
+    group_exposure_max: Decimal | None = None  # лимит ≤ потолок − долг по действующим кредитам
+    rate_components: RateComponents | None = None
+    guarantee_grades: frozenset[str] = frozenset()
+    guarantee_amount_above: Decimal | None = None
+
+    def band(self, grade: str) -> MatrixBand | None:
+        return next((b for b in self.risk_matrix if grade in b.grades), None)
+
+    @property
+    def full_limits(self) -> bool:
+        """policy_v3: лимит — минимум из всех ограничений, с тем, какое сработало."""
+        return (
+            bool(self.grade_max_amount)
+            or self.group_exposure_max is not None
+            or self.turnover_multiplier is not None
+        )
 
 
 class CreditPolicy:
@@ -165,41 +238,19 @@ def quote_rate(
     coverage: Decimal | None,
     okved_main: str,
     in_msp_registry: bool | None,
-) -> tuple[Decimal, list[RuleHit]]:
-    """Ставка по шагам: база + надбавка за грейд − скидка за залог + сдвиг ключевой ставки, в
-    коридоре продукта; господдержка — не выше потолка программы, если компания проходит."""
-    hits: list[RuleHit] = []
-    premium = config.grade_premium.get(grade, _ZERO)
-    discount = (
-        config.collateral_discount
-        if coverage is not None and coverage >= config.collateral_min_coverage
-        else _ZERO
-    )
-    market = key_rate - config.key_rate_reference
-    raw = product.rate_base + premium - discount + market
+    pd: Decimal | None = None,
+) -> tuple[Decimal, list[RuleHit], RateBreakdown | None]:
+    """Ставка по шагам, в коридоре продукта; господдержка — не выше потолка программы, если
+    компания проходит. policy_v1/v2: база + надбавка за грейд − скидка за залог + сдвиг ключевой
+    ставки; policy_v3: фондирование + EL (PD × LGD) + капитал + маржа, разбивка — третьим."""
+    parts: RateBreakdown | None = None
+    if config.rate_components is not None:
+        raw, hits, parts = _component_rate(
+            config, config.rate_components, key_rate=key_rate, coverage=coverage, pd=pd
+        )
+    else:
+        raw, hits = _grade_rate(config, product, grade, key_rate=key_rate, coverage=coverage)
     rate = min(max(raw, product.rate_base), product.rate_max)
-
-    hits.append(
-        RuleHit("pricing.base", True, f"базовая ставка {product.code}: {_pct(product.rate_base)}")
-    )
-    hits.append(RuleHit("pricing.grade_premium", premium != 0, f"грейд {grade}: +{_pct(premium)}"))
-    hits.append(
-        RuleHit(
-            "pricing.collateral_discount",
-            discount != 0,
-            "залога нет"
-            if coverage is None
-            else f"покрытие залогом {coverage.quantize(_CENT)}: −{_pct(discount)}",
-        )
-    )
-    hits.append(
-        RuleHit(
-            "pricing.key_rate",
-            market != 0,
-            f"ключевая {_pct(key_rate)} − опорная {_pct(config.key_rate_reference)} "
-            f"= {'+' if market >= 0 else ''}{_pct(market)}",
-        )
-    )
     hits.append(
         RuleHit(
             "pricing.corridor",
@@ -225,7 +276,87 @@ def quote_rate(
             )
         )
         rate = capped
-    return rate.quantize(_CENT, rounding=ROUND_HALF_UP), hits
+    final = rate.quantize(_CENT, rounding=ROUND_HALF_UP)
+    if parts is not None:
+        parts = replace(parts, total=final)
+    return final, hits, parts
+
+
+def _grade_rate(
+    config: PolicyConfig,
+    product: ProductInput,
+    grade: Grade,
+    *,
+    key_rate: Decimal,
+    coverage: Decimal | None,
+) -> tuple[Decimal, list[RuleHit]]:
+    """policy_v1/v2: база продукта + надбавка за грейд − скидка за залог + сдвиг ключевой."""
+    premium = config.grade_premium.get(grade, _ZERO)
+    discount = (
+        config.collateral_discount
+        if coverage is not None and coverage >= config.collateral_min_coverage
+        else _ZERO
+    )
+    market = key_rate - config.key_rate_reference
+    hits = [
+        RuleHit("pricing.base", True, f"базовая ставка {product.code}: {_pct(product.rate_base)}"),
+        RuleHit("pricing.grade_premium", premium != 0, f"грейд {grade}: +{_pct(premium)}"),
+        RuleHit(
+            "pricing.collateral_discount",
+            discount != 0,
+            "залога нет"
+            if coverage is None
+            else f"покрытие залогом {coverage.quantize(_CENT)}: −{_pct(discount)}",
+        ),
+        RuleHit(
+            "pricing.key_rate",
+            market != 0,
+            f"ключевая {_pct(key_rate)} − опорная {_pct(config.key_rate_reference)} "
+            f"= {'+' if market >= 0 else ''}{_pct(market)}",
+        ),
+    ]
+    return product.rate_base + premium - discount + market, hits
+
+
+def _component_rate(
+    config: PolicyConfig,
+    parts: RateComponents,
+    *,
+    key_rate: Decimal,
+    coverage: Decimal | None,
+    pd: Decimal | None,
+) -> tuple[Decimal, list[RuleHit], RateBreakdown]:
+    """policy_v3: фондирование + ожидаемые потери + капитал + маржа."""
+    secured = coverage is not None and coverage >= config.collateral_min_coverage
+    lgd = parts.lgd_secured if secured else parts.lgd_unsecured
+    known_pd = pd if pd is not None else parts.pd_if_unknown
+    funding = key_rate + parts.funding_spread
+    expected_loss = (known_pd * lgd * _HUNDRED).quantize(_CENT, rounding=ROUND_HALF_UP)
+    raw = funding + expected_loss + parts.capital + parts.margin
+    pd_note = f"PD {known_pd}" if pd is not None else f"PD неизвестна, берём {known_pd}"
+    collateral = (
+        "залога нет"
+        if coverage is None
+        else f"покрытие залогом {coverage.quantize(_CENT)}"
+        + (" — LGD залогового" if secured else " — меньше порога, LGD беззалогового")
+    )
+    hits = [
+        RuleHit(
+            "pricing.funding",
+            True,
+            f"фондирование: ключевая {_pct(key_rate)} + спред {_pct(parts.funding_spread)} "
+            f"= {_pct(funding)}",
+        ),
+        RuleHit(
+            "pricing.expected_loss",
+            True,
+            f"ожидаемые потери: {pd_note} × LGD {lgd} = {_pct(expected_loss)} ({collateral})",
+        ),
+        RuleHit("pricing.capital", True, f"стоимость капитала {_pct(parts.capital)}"),
+        RuleHit("pricing.margin", True, f"маржа {_pct(parts.margin)}"),
+    ]
+    breakdown = RateBreakdown(funding, expected_loss, parts.capital, parts.margin, raw)
+    return raw, hits, breakdown
 
 
 def _qualifies_for_program(
@@ -242,22 +373,34 @@ def _qualifies_for_program(
 def _pre_approve(
     config: PolicyConfig, inp: PreApprovalInput, key_rate: Decimal
 ) -> PreApproval | None:
-    """Предодобрение по облегчённым данным (без БКИ и выписок): лимит на грейд осторожнее."""
+    """Предодобрение по облегчённым данным (без БКИ и выписок): лимит на грейд осторожнее.
+    В policy_v3 лимит не выше и того, что по этому грейду одобряет автоматика (матрица и
+    ограничение по грейду): клиенту не предлагают сумму, которую потом не дадут."""
     if inp.registry_status in config.stop_registry_statuses or inp.grade in config.stop_grades:
         return None
-    revenue = inp.annual_revenue
-    position = _GRADE_ORDER.index(inp.grade) + 1
-    if position >= len(_GRADE_ORDER):
+    scale = config.grade_scale
+    if inp.grade not in scale:
         return None
-    cautious = _GRADE_ORDER[position]
+    revenue = inp.annual_revenue
+    position = scale.index(inp.grade) + 1
+    if position >= len(scale):
+        return None
+    cautious = scale[position]
     k = config.revenue_multiplier.get(cautious)
     if revenue is None or revenue <= 0 or k is None or cautious in config.stop_grades:
         return None
     product = inp.product
-    limit = round_down(min(product.amount_max, k * revenue), config.amount_step)
+    ceilings = [product.amount_max]
+    band = config.band(cautious)
+    if band is not None:
+        ceilings.append(band.approve_up_to)
+    if config.grade_max_amount:
+        ceilings.append(config.grade_max_amount.get(cautious, _ZERO))
+    ceiling = min(ceilings)
+    limit = round_down(min(ceiling, k * revenue), config.amount_step)
     if limit < product.amount_min:
         return None
-    rate, _ = quote_rate(
+    rate, _, _ = quote_rate(
         config,
         product,
         inp.grade,
@@ -265,16 +408,18 @@ def _pre_approve(
         coverage=None,
         okved_main=inp.okved_main,
         in_msp_registry=inp.in_msp_registry,
+        pd=inp.pd_12m,
     )
+    pd = f", PD {inp.pd_12m}" if inp.pd_12m is not None else ""
     return PreApproval(
         product_code=product.code,
         max_amount=limit,
         rate_from=rate,
         term_max_months=product.term_max_months,
         factors_summary=(
-            f"оценка без кредитной истории: грейд {inp.grade} (скор {inp.score})",
+            f"оценка без кредитной истории: грейд {inp.grade} (скор {inp.score}{pd})",
             f"лимит на ступень осторожнее: k({cautious}) {k} × выручка {_num(revenue)}, "
-            f"не больше {_num(product.amount_max)} → {_num(limit)}",
+            f"не больше {_num(ceiling)} → {_num(limit)}",
             f"ставка от {_pct(rate)}: база {_pct(product.rate_base)}, грейд {inp.grade}, "
             f"ключевая {_pct(key_rate)}",
         ),
@@ -311,6 +456,8 @@ class _Evaluation:
         self._trace: list[RuleHit] = []
         self._limits = Limits()
         self._rate: Decimal | None = None
+        self._rate_breakdown: RateBreakdown | None = None
+        self._triggers: list[Trigger] = []
 
     def run(self) -> PolicyDecision:
         score = self._in.score
@@ -328,12 +475,22 @@ class _Evaluation:
                 "REQUEST_INFO", (ReasonCode.INFO_REVENUE_NOT_CONFIRMED,), requested_info=info
             )
 
-        self._rate = self._pricing(score.grade)
+        self._rate = self._pricing(score)
         max_payment = self._limits_for(score.grade, self._rate)
-        routes = self._routing(score)
+        routes = list(self._routing(score))
+        self._soft_triggers()
+        verdict = self._risk_matrix(score.grade)
         gap, gap_alternative = self._cash_gap(score)
+        if self._triggers:
+            routes.append(ReasonCode.ROUTE_SOFT_TRIGGER)
+        # Неполные данные и мягкие триггеры — раньше матрицы: решает человек, а не отказ.
+        early = bool(self._triggers) or ReasonCode.ROUTE_SOURCES_FAILED in routes
+        if verdict == "reject" and not early:
+            return self._result("REJECT", (ReasonCode.STOP_RISK_MATRIX,))
+        if verdict in ("manual", "reject"):
+            routes.append(ReasonCode.ROUTE_RISK_MATRIX)
         if routes:
-            return self._result("MANUAL_REVIEW", routes)
+            return self._result("MANUAL_REVIEW", tuple(routes))
         return self._outcome(self._rate, max_payment, gap, gap_alternative)
 
     # --- 1. стоп-факторы ---------------------------------------------------------------------
@@ -380,10 +537,12 @@ class _Evaluation:
 
         self._external_stops(reasons)
 
-        grade_stop = score.grade in self._c.stop_grades
-        self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
-        if grade_stop:
-            reasons.append(ReasonCode.STOP_GRADE_E)
+        # В policy_v3 грейд отсекает матрица, а не стоп-фактор.
+        if self._c.stop_grades:
+            grade_stop = score.grade in self._c.stop_grades
+            self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
+            if grade_stop:
+                reasons.append(ReasonCode.STOP_GRADE_E)
         return tuple(reasons)
 
     def _external_stops(self, reasons: list[ReasonCode]) -> None:
@@ -584,19 +743,21 @@ class _Evaluation:
 
     # --- 3. ставка -------------------------------------------------------------------------------
 
-    def _pricing(self, grade: Grade) -> Decimal:
+    def _pricing(self, score: ScoreInput) -> Decimal:
         collateral, amount = self._in.collateral, self._in.request.amount
         coverage = collateral.value / amount if collateral is not None and amount > 0 else None
-        rate, hits = quote_rate(
+        rate, hits, breakdown = quote_rate(
             self._c,
             self._in.product,
-            grade,
+            score.grade,
             key_rate=self._key_rate,
             coverage=coverage,
             okved_main=self._in.company.okved_main,
             in_msp_registry=self._in.company.in_msp_registry,
+            pd=score.pd_12m,
         )
         self._trace.extend(hits)
+        self._rate_breakdown = breakdown
         return rate
 
     # --- 4. лимит --------------------------------------------------------------------------------
@@ -650,15 +811,84 @@ class _Evaluation:
             f"сумма до {_num(by_capacity)}",
         )
 
-        final = min(v for v in (by_product, by_revenue, by_ltv, by_capacity) if v is not None)
+        by_turnover = self._turnover_limit()
+        by_grade = self._grade_limit(grade)
+        by_group = self._group_limit()
+
+        candidates = {
+            "by_product": by_product,
+            "by_revenue": by_revenue,
+            "by_turnover": by_turnover,
+            "by_capacity": by_capacity,
+            "by_grade": by_grade,
+            "by_group": by_group,
+            "by_ltv": by_ltv,
+        }
+        present = {name: value for name, value in candidates.items() if value is not None}
+        final = min(present.values())
+        binding = None
+        if self._c.full_limits:
+            binding = next(name for name, value in present.items() if value == final)
+            self._hit("limits.final", True, f"лимит {_num(final)}: минимум — {binding}")
         self._limits = Limits(
             by_product=by_product,
             by_revenue=by_revenue,
             by_ltv=by_ltv,
             by_capacity=by_capacity,
             final=final,
+            by_turnover=by_turnover,
+            by_grade=by_grade,
+            by_group=by_group,
+            binding=binding,
         )
         return max_payment
+
+    def _turnover_limit(self) -> Decimal | None:
+        """policy_v3: не больше k × обороты по счёту за год (выписка)."""
+        k = self._c.turnover_multiplier
+        if k is None:
+            return None
+        cashflow = self._in.cashflow
+        inflow = cashflow.annual_inflow if cashflow is not None else None
+        if inflow is None:
+            self._hit("limits.turnover", False, "выписки нет — по оборотам не ограничиваем")
+            return None
+        limit = (k * inflow).quantize(_CENT, rounding=ROUND_DOWN)
+        self._hit(
+            "limits.turnover",
+            limit < self._in.request.amount,
+            f"k {k} × обороты по счёту за год {_num(inflow)} = {_num(limit)}",
+        )
+        return limit
+
+    def _grade_limit(self, grade: Grade) -> Decimal | None:
+        if not self._c.grade_max_amount:
+            return None
+        limit = self._c.grade_max_amount.get(grade, _ZERO).quantize(_CENT)
+        self._hit(
+            "limits.grade",
+            limit < self._in.request.amount,
+            f"максимум для грейда {grade}: {_num(limit)}",
+        )
+        return limit
+
+    def _group_limit(self) -> Decimal | None:
+        """policy_v3: потолок на группу заёмщика минус долг по её действующим кредитам. Связанных
+        компаний в данных нет — группа это сама компания, долг — остаток по БКИ."""
+        ceiling = self._c.group_exposure_max
+        if ceiling is None:
+            return None
+        debt = self._in.bureau.debt_balance
+        if debt is None:
+            self._hit("limits.group", False, "БКИ недоступно — долг группы неизвестен")
+            return None
+        limit = max(ceiling - debt, _ZERO).quantize(_CENT)
+        self._hit(
+            "limits.group",
+            limit < self._in.request.amount,
+            f"потолок на группу {_num(ceiling)} − долг по кредитам {_num(debt)} = {_num(limit)}",
+        )
+        return limit
 
     def _max_payment(self) -> Decimal:
         """Платёж ≤ доли свободного денежного потока; поток по выписке приоритетнее отчёта."""
@@ -717,10 +947,12 @@ class _Evaluation:
         if over_limit:
             reasons.append(ReasonCode.ROUTE_AMOUNT_OVER_AUTO_LIMIT)
 
-        grade_review = score.grade in self._c.manual_review_grades
-        self._hit("route.grade", grade_review, f"грейд {score.grade}")
-        if grade_review:
-            reasons.append(ReasonCode.ROUTE_GRADE_D)
+        # В policy_v3 грейд направляет к человеку матрица грейд × сумма.
+        if self._c.manual_review_grades:
+            grade_review = score.grade in self._c.manual_review_grades
+            self._hit("route.grade", grade_review, f"грейд {score.grade}")
+            if grade_review:
+                reasons.append(ReasonCode.ROUTE_GRADE_D)
 
         if self._c.route_tax_arrears:
             arrears = company.tax_arrears
@@ -754,6 +986,89 @@ class _Evaluation:
         thin = "thin_file" in flags
         self._hit("route.thin_file", False, "тонкое досье не маршрутизирует" if thin else "нет")
         return tuple(reasons)
+
+    # --- policy_v3: мягкие триггеры и матрица грейд × сумма --------------------------------------
+
+    def _soft_triggers(self) -> None:
+        """Не стоп-факторы, а поводы, чтобы заявку посмотрел человек: недоимка, недавняя смена
+        руководителя, «разгон» оборотов по выписке. Каждое правило — только если оно в YAML."""
+        company = self._in.company
+        if self._c.trigger_tax_arrears:
+            arrears = company.tax_arrears
+            matched = arrears is not None and arrears > 0
+            detail = (
+                "ФНС не ответила — проверка не выполнена"
+                if arrears is None
+                else f"недоимка по налогам {_num(arrears)}"
+            )
+            self._trigger("tax_arrears", matched, detail)
+
+        months = self._c.trigger_head_change_months
+        if months is not None:
+            tenure = company.head_tenure_months
+            if tenure is None:
+                matched = False
+                detail = "ЕГРЮЛ не сообщил дату записи о руководителе — проверка не выполнена"
+            elif company.head_since_registration:
+                matched = False
+                detail = "руководитель по ЕГРЮЛ не менялся с регистрации"
+            else:
+                matched = tenure < months
+                detail = f"руководитель сменился {tenure} мес. назад (ЕГРЮЛ), порог < {months}"
+            self._trigger("head_change", matched, detail)
+
+        recent, ratio = self._c.trigger_turnover_months, self._c.trigger_turnover_ratio
+        if recent is not None and ratio is not None:
+            self._turnover_spike(recent, ratio)
+
+    def _turnover_spike(self, recent: int, ratio: Decimal) -> None:
+        cashflow = self._in.cashflow
+        inflows = cashflow.monthly_inflows if cashflow is not None else ()
+        if len(inflows) < recent * 2:
+            self._trigger(
+                "turnover_spike",
+                False,
+                "выписки нет или она короче двух периодов — проверка не выполнена",
+            )
+            return
+        last = sum(inflows[-recent:], _ZERO) / recent
+        earlier = inflows[:-recent]
+        before = sum(earlier, _ZERO) / len(earlier)
+        growth = last / before if before > 0 else None
+        matched = growth is not None and growth > ratio
+        shown = f"{growth.quantize(_CENT)}" if growth is not None else "—"
+        self._trigger(
+            "turnover_spike",
+            matched,
+            f"поступления за последние {recent} мес. в среднем {_num(last)} против {_num(before)} "
+            f"раньше: ×{shown}, порог > ×{ratio}",
+        )
+
+    def _trigger(self, code: str, matched: bool, detail: str) -> None:
+        self._hit(f"trigger.{code}", matched, detail)
+        if matched:
+            self._triggers.append(Trigger(code, detail))
+
+    def _risk_matrix(self, grade: Grade) -> MatrixVerdict | None:
+        if not self._c.risk_matrix:
+            return None
+        band = self._c.band(grade)
+        amount = self._in.request.amount
+        if band is None:
+            self._hit("strategy.risk_matrix", True, f"грейда {grade} нет в матрице — отказ")
+            return "reject"
+        verdict = band.verdict(amount)
+        manual = "без ограничения" if band.manual_up_to is None else f"до {_num(band.manual_up_to)}"
+        outcome = {"approve": "автоматическое решение", "manual": "ручная проверка"}.get(
+            verdict, "отказ"
+        )
+        self._hit(
+            "strategy.risk_matrix",
+            verdict != "approve",
+            f"грейд {grade} (корзина {band.label}), сумма {_num(amount)}: автоматика до "
+            f"{_num(band.approve_up_to)}, ручная {manual} → {outcome}",
+        )
+        return verdict
 
     # --- кассовый разрыв -------------------------------------------------------------------------
 
@@ -796,7 +1111,15 @@ class _Evaluation:
         gap_codes = (ReasonCode.CASH_GAP_FORECAST,) if gap else ()
         ceiling = min(
             v
-            for v in (request.amount, limits.by_product, limits.by_revenue, limits.by_ltv)
+            for v in (
+                request.amount,
+                limits.by_product,
+                limits.by_revenue,
+                limits.by_ltv,
+                limits.by_turnover,
+                limits.by_grade,
+                limits.by_group,
+            )
             if v is not None
         )
         term_in_product = product.term_min_months <= request.term_months <= product.term_max_months
@@ -887,8 +1210,11 @@ class _Evaluation:
         limits = self._limits
         pairs = (
             (limits.by_revenue, ReasonCode.LIMIT_BY_REVENUE),
+            (limits.by_turnover, ReasonCode.LIMIT_BY_TURNOVER),
             (limits.by_ltv, ReasonCode.LIMIT_BY_LTV),
             (limits.by_capacity, ReasonCode.LIMIT_BY_PAYMENT_CAPACITY),
+            (limits.by_grade, ReasonCode.LIMIT_BY_GRADE),
+            (limits.by_group, ReasonCode.LIMIT_BY_GROUP),
             (limits.by_product, ReasonCode.LIMIT_BY_PRODUCT),
         )
         return tuple(code for value, code in pairs if value is not None and value < amount)
@@ -900,7 +1226,10 @@ class _Evaluation:
             return ReasonCode.LIMIT_BY_PAYMENT_CAPACITY
         candidates = (
             (limits.by_revenue, ReasonCode.LIMIT_BY_REVENUE),
+            (limits.by_turnover, ReasonCode.LIMIT_BY_TURNOVER),
             (limits.by_ltv, ReasonCode.LIMIT_BY_LTV),
+            (limits.by_grade, ReasonCode.LIMIT_BY_GRADE),
+            (limits.by_group, ReasonCode.LIMIT_BY_GROUP),
             (limits.by_product, ReasonCode.LIMIT_BY_PRODUCT),
         )
         for value, code in candidates:
@@ -943,7 +1272,9 @@ class _Evaluation:
                     {"collateral": self._x.collateral_name(collateral.type)},
                 )
             )
-        if product.guarantee == "owner":
+        if product.guarantee == "owner" or (
+            product.guarantee == "none" and self._guarantee_needed(amount)
+        ):
             items.append(conditions["guarantee_owner"])
         elif product.guarantee == "msp_corporation":
             items.append(conditions["guarantee_msp_corporation"])
@@ -958,6 +1289,24 @@ class _Evaluation:
             schedule_type=product.repayment_options[0] if product.repayment_options else "annuity",
             conditions=tuple(items),
         )
+
+    def _guarantee_needed(self, amount: Decimal) -> bool:
+        """policy_v3: поручительство собственника для слабых грейдов и крупных сумм."""
+        grades, above = self._c.guarantee_grades, self._c.guarantee_amount_above
+        if not grades and above is None:
+            return False
+        grade = self._in.score.grade if self._in.score is not None else None
+        by_grade = grade in grades
+        by_amount = above is not None and amount > above
+        needed = by_grade or by_amount
+        threshold = f"сумма > {_num(above)}" if above is not None else "по сумме — нет"
+        self._hit(
+            "offer.guarantee",
+            needed,
+            f"грейд {grade}, {_num(amount)}: поручительство для грейдов "
+            f"{', '.join(sorted(grades)) or '—'} или {threshold}",
+        )
+        return needed
 
     def _values(
         self, alternative: AlternativeInput | None, extra: Mapping[str, str] | None = None
@@ -1020,6 +1369,8 @@ class _Evaluation:
             rule_trace=tuple(self._trace),
             limits=self._limits,
             rate=self._rate,
+            triggers=tuple(self._triggers),
+            rate_breakdown=self._rate_breakdown,
         )
 
     def _hit(self, rule: str, matched: bool, detail: str) -> None:

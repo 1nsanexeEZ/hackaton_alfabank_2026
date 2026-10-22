@@ -16,13 +16,17 @@ from src.modules.decision.infrastructure.serialization import (
     dump_info,
     dump_inputs,
     dump_limits,
+    dump_rate_breakdown,
     dump_terms,
     dump_trace,
+    dump_triggers,
     load_info,
     load_inputs,
     load_limits,
+    load_rate_breakdown,
     load_terms,
     load_trace,
+    load_triggers,
 )
 
 
@@ -115,6 +119,8 @@ def _to_record(result: DecisionResult, sequence: int) -> DecisionResultRecord:
         override_of=result.override_of,
         comment=result.comment,
         decided_at=result.decided_at,
+        triggers=dump_triggers(result.triggers),
+        rate_breakdown=dump_rate_breakdown(result.rate_breakdown),
     )
 
 
@@ -140,6 +146,8 @@ def _to_domain(record: DecisionResultRecord) -> DecisionResult:
         override_of=record.override_of,
         comment=record.comment,
         decided_at=record.decided_at,
+        triggers=load_triggers(record.triggers),
+        rate_breakdown=load_rate_breakdown(record.rate_breakdown),
     )
 
 

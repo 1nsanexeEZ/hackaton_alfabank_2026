@@ -46,6 +46,9 @@ class DecisionResultRecord(Base):
     override_of: Mapped[UUID | None] = mapped_column(Uuid, default=None)
     comment: Mapped[str | None] = mapped_column(Text, default=None)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # policy_v3 (decision_0002): мягкие триггеры и ставка по компонентам.
+    triggers: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONType, default=None)
+    rate_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSONType, default=None)
 
 
 class PreApprovedOfferRecord(Base):

@@ -1,0 +1,111 @@
+# Кредитная политика v3 (синтетическая): «Стратегия решения» общей схемы на грейдах A–J PD-модели
+# (scoring, pd_model_v2) поверх стоп-факторов v2. Логика правил — в domain/policy.py, здесь — пороги
+# и коэффициенты. Пороги стартовые. Файл проверяется при старте: ошибка → приложение не стартует.
+# policy_v1.yaml и policy_v2.yaml не меняются — следующая доработка правил тоже новая версия.
+version: policy_v3
+
+# Ключевая ставка, под которую откалиброваны ставки каталога продуктов. Текущая ключевая —
+# DECISION_KEY_RATE; от неё считается фондирование.
+key_rate_reference: "16.50"
+
+# Шкала грейдов PD-модели. Грейд результата scorecard_v1 (A–E) переводится на неё
+# (decision/domain/model.py, FROM_LEGACY).
+grades: [A, B, C, D, E, F, G, H, I, J]
+
+stop_factors:
+  registry_statuses:
+    liquidating: STOP_LIQUIDATION
+    liquidated: STOP_LIQUIDATION
+    bankrupt: STOP_BANKRUPTCY
+  overdue_days: 90
+  # Слабый грейд отсекает матрица strategy.risk_matrix, а не стоп-фактор.
+  grades: []
+  current_overdue_days: 30
+  account_blocks: true
+  tax_arrears_above: "300000"
+  bankruptcy_messages: true
+  enforcement_revenue_share: "0.1"
+  lawsuits_revenue_share: "0.2"
+  negative_equity: true
+  mass_address: true
+  okved_classes: ["92"]
+
+info_request:
+  revenue_document: bank_statement
+
+limits:
+  # k(грейд) × годовая выручка (меньшая из заявленной и ФНС).
+  revenue_multiplier:
+    {A: "0.5", B: "0.45", C: "0.4", D: "0.3", E: "0.25", F: "0.2", G: "0.15", H: "0.1", I: "0.05", J: "0"}
+  ltv: {real_estate: "0.7", vehicle: "0.6", equipment: "0.5", goods: "0.3"}
+  payment_share: "0.4"
+  assumed_expense_ratio: "0.8"
+  amount_step: "10000"
+  # Не больше этой доли оборотов по счёту за год (по выписке; нет выписки — не ограничиваем).
+  turnover_multiplier: "0.5"
+  # Не больше суммы на грейд.
+  grade_max_amount:
+    A: "60000000"
+    B: "50000000"
+    C: "40000000"
+    D: "30000000"
+    E: "20000000"
+    F: "10000000"
+    G: "5000000"
+    H: "2000000"
+    I: "1000000"
+    J: "0"
+  # Потолок на группу заёмщика минус её долг по действующим кредитам (остаток по БКИ).
+  group_exposure_max: "100000000"
+
+pricing:
+  # Покрытие залогом (стоимость / сумма) от этого порога — LGD залогового кредита.
+  collateral_min_coverage: "1"
+  # Ставка = фондирование (ключевая + спред) + PD × LGD + капитал + маржа, в коридоре продукта.
+  components:
+    funding_spread: "1.0"
+    lgd_unsecured: "0.45"
+    lgd_secured: "0.25"
+    capital: "2.0"
+    margin: "3.5"
+    # У результата scorecard_v1 PD нет — берём осторожную.
+    pd_if_unknown: "0.10"
+
+routing:
+  # Грейд направляет к человеку матрица; плюс всегда: сумма выше auto_decision_limit продукта.
+  grades: []
+  flags:
+    verification_mismatch: ROUTE_VERIFICATION_MISMATCH
+    revenue_mismatch: ROUTE_REVENUE_MISMATCH
+    bureau_unavailable: ROUTE_SOURCES_FAILED
+    mass_address: ROUTE_MASS_ADDRESS
+
+strategy:
+  # Мягкие триггеры → ручная проверка (ROUTE_SOFT_TRIGGER), идут раньше матрицы.
+  soft_triggers:
+    # Недоимка больше нуля, но не выше stop_factors.tax_arrears_above.
+    tax_arrears: true
+    # Запись о руководителе в ЕГРЮЛ моложе стольких месяцев.
+    head_change_months: 6
+    # Поступления за последние recent_months месяцев выписки в среднем больше ratio × средних
+    # за прежние месяцы.
+    turnover_spike: {recent_months: 3, ratio: "1.5"}
+  # Корзины грейдов: автоматическое решение до approve_up_to, ручная проверка до manual_up_to
+  # (нет ключа — без верхней границы), выше — отказ.
+  risk_matrix:
+    - {label: "A–C", grades: [A, B, C], approve_up_to: "50000000"}
+    - {label: "D–E", grades: [D, E], approve_up_to: "15000000", manual_up_to: "50000000"}
+    - {label: "F–G", grades: [F, G], approve_up_to: "5000000", manual_up_to: "20000000"}
+    - {label: "H–J", grades: [H, I, J], approve_up_to: "0", manual_up_to: "3000000"}
+  # Поручительство собственника в оффере — для этих грейдов или суммы строго больше.
+  guarantee:
+    grades: [F, G]
+    amount_above: "20000000"
+
+alternatives:
+  cash_gap_products: [OVERDRAFT, CREDIT_LINE]
+  secured_product: SECURED
+  small_amount_product: OVERDRAFT
+
+offer:
+  valid_days: 7

@@ -12,8 +12,10 @@ from src.modules.decision.facade import (
     DecisionTermsDTO,
     LimitsDTO,
     PreApprovedOfferDTO,
+    RateBreakdownDTO,
     RequestedInfoDTO,
     RuleTraceDTO,
+    TriggerDTO,
 )
 
 
@@ -35,12 +37,28 @@ def decision_dto(result: DecisionResult) -> DecisionDTO:
             by_revenue=result.limits.by_revenue,
             by_ltv=result.limits.by_ltv,
             by_capacity=result.limits.by_capacity,
+            by_product=result.limits.by_product,
+            by_turnover=result.limits.by_turnover,
+            by_grade=result.limits.by_grade,
+            by_group=result.limits.by_group,
+            final=result.limits.final,
+            binding=result.limits.binding,
         ),
         decided_by_type=result.decided_by_type,
         decided_by_id=result.decided_by_id,
         override_of=result.override_of,
         comment=result.comment,
         decided_at=result.decided_at,
+        triggers=tuple(TriggerDTO(t.code, t.detail) for t in result.triggers),
+        rate_breakdown=RateBreakdownDTO(
+            funding=result.rate_breakdown.funding,
+            expected_loss=result.rate_breakdown.expected_loss,
+            capital=result.rate_breakdown.capital,
+            margin=result.rate_breakdown.margin,
+            total=result.rate_breakdown.total,
+        )
+        if result.rate_breakdown is not None
+        else None,
     )
 
 
