@@ -23,5 +23,10 @@ export {
 } from './model/types'
 export { useLoanSchedule, type LoanParams, type LoanSchedule } from './model/useLoanSchedule'
 export { useProductCatalog } from './model/useProductCatalog'
+export {
+  useRecommendations,
+  type ProductRecommendation,
+  type RecommendationNeed,
+} from './model/useRecommendations'
 export { default as ProductCard } from './ui/ProductCard.vue'
 export { default as ProductFlexCard } from './ui/ProductFlexCard.vue'
