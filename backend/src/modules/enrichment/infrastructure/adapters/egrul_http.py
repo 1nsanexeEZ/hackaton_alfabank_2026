@@ -30,6 +30,7 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
     if status is None:
         raise ValueError(f"неизвестный статус {raw['Статус']['Код']!r}")
     parts = str(raw["Руководитель"]["ФИО"]).split()
+    head_since = raw["Руководитель"].get("ДатаЗаписи")
     return RegistryExtractDTO(
         inn=str(raw["ИНН"]),
         ogrn=str(raw["ОГРН"]),
@@ -50,4 +51,5 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
         address=str(raw["Адрес"]["Полный"]),
         region_code=str(raw["Адрес"]["КодРегиона"]),
         mass_address=bool(raw["МассовыйАдрес"]),
+        head_since=date.fromisoformat(head_since) if head_since else None,
     )

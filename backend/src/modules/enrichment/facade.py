@@ -34,6 +34,8 @@ class RegistryExtractDTO:
     address: str
     region_code: str
     mass_address: bool
+    # Дата записи о нынешнем руководителе; None — реестр её не сообщил (снимки до неё).
+    head_since: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
