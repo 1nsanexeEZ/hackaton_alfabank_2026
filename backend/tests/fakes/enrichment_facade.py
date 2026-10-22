@@ -19,5 +19,5 @@ class FakeEnrichmentFacade:
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None:
         return self.snapshots.get(application_id)
 
-    async def lookup_registry(self, inn: str) -> RegistryExtractDTO | None:
+    async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         return self.registry.get(inn)
