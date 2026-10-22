@@ -41,3 +41,24 @@ def test_egrul_llc_has_kpp(client: TestClient) -> None:
 
 def test_egrul_invalid_inn_404(client: TestClient) -> None:
     assert client.get("/egrul/1234567890").status_code == 404
+
+
+@pytest.mark.parametrize("inn", DEMO_INNS)
+def test_egrul_demo_head_did_not_change(client: TestClient, inn: str) -> None:
+    """Демо-компании не ловят триггер «смена руководителя»: запись — с регистрации."""
+    body = client.get(f"/egrul/{inn}").json()
+    assert body["Руководитель"]["ДатаЗаписи"] == body["ДатаРег"]
+
+
+def _valid_inn(base: int) -> str:
+    digits = [int(d) for d in f"{base:09d}"]
+    weights = (2, 4, 10, 3, 5, 9, 4, 6, 8)
+    check = sum(d * w for d, w in zip(digits, weights, strict=True)) % 11 % 10
+    return f"{base:09d}{check}"
+
+
+def test_egrul_some_generated_companies_changed_the_head(client: TestClient) -> None:
+    bodies = [client.get(f"/egrul/{_valid_inn(770100000 + n)}").json() for n in range(80)]
+    changed = [b for b in bodies if b["Руководитель"]["ДатаЗаписи"] > b["ДатаРег"]]
+    assert changed and len(changed) < len(bodies)
+    assert all(b["Руководитель"]["ДатаЗаписи"] >= b["ДатаРег"] for b in bodies)

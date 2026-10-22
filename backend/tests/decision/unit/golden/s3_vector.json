@@ -131,9 +131,15 @@
     "by_revenue": "7250000.00",
     "by_ltv": null,
     "by_capacity": "0",
-    "final": "0"
+    "final": "0",
+    "by_turnover": null,
+    "by_grade": null,
+    "by_group": null,
+    "binding": null
   },
   "rate": "25.50",
+  "triggers": [],
+  "rate_breakdown": null,
   "scoring": {
     "score": 620,
     "grade": "C",

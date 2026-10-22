@@ -46,8 +46,8 @@
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
 | 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | ✅ ЕГРЮЛ/ЕГРИП, ФНС с блокировками счетов, ГИР БО, Контур, БКИ компании и руководителя (с его согласия), выписки — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
 | 11 | Стоп-фактор? → отказано | банк | без фронта (`decision`, причины `STOP_*`); клиенту — `client_status = rejected` и `decision.client_explanation` | ✅ `policy_v2`: стоп-факторы ГИР БО, Контура, ФНС и БКИ руководителя — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
-| 12 | Модель оценки PD | банк | без фронта (`scoring`); андеррайтеру — `UnderwriterCard.scoring` | 🟡 грейды A–E, PD не считается — [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
-| 13 | Стратегия решения: approve / counteroffer / отказ / ручная | банк | без фронта (`decision`); клиенту — `offer` и `decision` в карточке | ✅ детали расходятся — [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
+| 12 | Модель оценки PD | банк | без фронта (`scoring`); андеррайтеру — `UnderwriterCard.scoring`: сегмент, PD, грейд A–J, коды причин | ✅ [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
+| 13 | Стратегия решения: approve / counteroffer / отказ / ручная | банк | без фронта (`decision`); клиенту — `offer` и `decision` в карточке; андеррайтеру — триггеры, матрица в `rule_trace`, лимиты с `binding`, `rate_breakdown` | ✅ [4.7](#47-скоринг-и-стратегия-как-на-схеме) |
 | 14 | Ручная проверка | андеррайтер | `GET /bff/backoffice/queue`, `GET /bff/backoffice/applications/{id}`, `POST /tasks/{id}/claim`, `POST /tasks/{id}/complete` | ✅ |
 | 15 | Решение клиенту | клиент | `GET /bff/applications/{id}`, `GET /feed` + SSE | ✅ |
 | 16 | counteroffer — клиент подтверждает | клиент | `POST …/offer/accept`, `POST …/offer/decline` | ✅ |
@@ -351,7 +351,7 @@ Dashboard {
 | Ручка | Что |
 |---|---|
 | `GET /bff/backoffice/queue?status=&sort=&limit=&offset=` | `{items: [{task_id, application_id, number, company_name, inn, product_code, amount, score, risk_grade, cash_gap, routing_reasons[], due_at, overdue, assignee_id, status, created_at}], total}` |
-| `GET /bff/backoffice/applications/{id}` | `UnderwriterCard`: `application`, `client_status`, `enrichment` (что ответили источники), `scoring` (балл, грейд, факторы), `decision` (`rule_trace`, `limits`, `reason_codes`), `product_fit`, `timeline`, `process`, `task`, `degraded` |
+| `GET /bff/backoffice/applications/{id}` | `UnderwriterCard`: `application`, `client_status`, `enrichment` (что ответили источники), `scoring` (сегмент, скоркарта, балл, `pd_12m`, грейд A–J, факторы, `reason_codes`), `decision` (`rule_trace`, `limits` с `binding`, `reason_codes`, `triggers`, `rate_breakdown`), `product_fit`, `timeline`, `process`, `task`, `degraded` |
 | `POST /tasks/{id}/claim` | взять задачу → `TaskOut` |
 | `POST /tasks/{id}/complete` | `{decision: approve \| counter_offer \| reject \| request_info, amount?, term_months?, rate?, conditions[]?, requested_documents[]?, comment}` → `TaskOut` |
 | `GET /tasks?role=&status=`, `GET /tasks/{id}` | задачи; деталь — вместе с процессом |
@@ -372,7 +372,7 @@ Dashboard {
 | 4.4 | ✅ Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, process, external-mocks |
 | 4.5 | ✅ Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
 | 4.6 | Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
-| 4.7 | Скоринг и стратегия как на схеме | 12–13 | без новых ручек: поля в DTO андеррайтера | Could | scoring, decision |
+| 4.7 | ✅ Скоринг и стратегия как на схеме | 12–13 | без новых ручек: поля в DTO андеррайтера | Could | scoring, decision |
 
 Must нет: основной путь (компания с оборотами в банке) проходит и сейчас. Всё ниже закрывает расхождения со схемой.
 
@@ -557,22 +557,31 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 ### 4.7. Скоринг и стратегия как на схеме
 
-**Зачем.** «Модель оценки PD» и «Стратегия решения» на схеме подробнее текущей реализации ([decision.md](../modules/decision.md)). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Меняются DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`.
+Сделано: PD-модель `pd_model_v2` ([scoring.md](../modules/scoring.md)) и политика `policy_v3` ([decision.md](../modules/decision.md)). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Новые поля — в DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`:
 
-| На схеме | Сейчас | Что добавить в DTO |
-|---|---|---|
-| Сегмент ЮЛ / ИП / новый клиент, у каждого своя скоркарта | одна модель, для предодобрения — `scoring.estimate` | `scoring.segment: legal_entity \| entrepreneur \| new_client`, `scoring.scorecard` |
-| Калибровка: балл → PD на 12 мес. | PD нет | `scoring.pd_12m` — доля строкой, `"0.034"` |
-| Грейды A–J, матрица грейд × сумма (A–C / D–E / F–G / H–J) | A–E | `grade`: A…J |
-| Коды причин: топ-3 признака | `factors[]` с `points` и `direction` | `scoring.reason_codes[]` (топ-3) |
-| Мягкие триггеры: налоги, смена руководителя, «разгон» оборотов → ручная проверка | нет | `decision.triggers: [{code, detail}]`, причина `ROUTE_SOFT_TRIGGER` |
-| Лимит — минимум из 6 ограничений: обороты, выручка, нагрузка, грейд, продукт, группа | 4: продукт, выручка, LTV, платёжеспособность | `limits` + `by_product`, `by_turnover`, `by_grade`, `by_group`, `binding` (какое ограничение сработало) |
-| Ставка = фондирование + EL (PD × LGD) + капитал + маржа | база + надбавка за грейд − скидка за залог + сдвиг ключевой ставки | `decision.rate_breakdown: {funding, expected_loss, capital, margin, total}` |
-| Срок и платёж: сначала удлиняем срок, потом снижаем сумму | counteroffer режет сумму | только логика, контракт тот же |
-| Обеспечение: поручительство для F–G и крупных сумм | условия из продукта | без изменений: `offer.conditions` |
-| Вызов модели: заявка или ночной пакет | заявка и события clients | ночной пересчёт предодобрения — только бэк, контракт тот же |
+```text
+scoring: {
+  …, grade: "A" … "J",                     // было A–E: шкала поменялась
+  segment: legal_entity | entrepreneur | new_client | null,   // null — результат до pd_model_v2
+  scorecard: string | null,                // legal_entity_v1 | entrepreneur_v1 | new_client_v1
+  pd_12m: string | null,                   // доля: "0.0345" — 3,45%
+  reason_codes: string[]                   // топ-3 признака по потере баллов: "debt_load", …
+}
+decision: {
+  …,
+  limits: { by_revenue, by_ltv, by_capacity, by_product, by_turnover, by_grade, by_group, final,
+            binding: string | null },      // binding — какое ограничение дало минимум
+  triggers: [{ code: tax_arrears | head_change | turnover_spike, detail }],
+  rate_breakdown: { funding, expected_loss, capital, margin, total } | null   // проценты годовых
+}
+```
 
-В моке админки сейчас третья шкала: `RiskClass` A–D и балл 0–100. При любом варианте её надо привести к шкале бэка.
+- Матрица грейд × сумма и мягкие триггеры видны в `rule_trace` (`strategy.risk_matrix`, `trigger.*`), причины — `ROUTE_RISK_MATRIX`, `STOP_RISK_MATRIX`, `ROUTE_SOFT_TRIGGER`, `LIMIT_BY_TURNOVER`, `LIMIT_BY_GRADE`, `LIMIT_BY_GROUP`.
+- `QueueItemDTO.risk_grade` в очереди андеррайтера — тоже A–J.
+- Встречное предложение: сначала удлиняем срок в рамках продукта, потом снижаем сумму — контракт тот же. Поручительство для F–G и сумм больше 20 млн — в `offer.conditions`.
+- Ночной пакетный пересчёт предодобрения не сделан: пересчёт по событиям clients, контракт тот же.
+
+В моке админки третья шкала: `RiskClass` A–D и балл 0–100. Её надо привести к A–J и PD бэка.
 
 ---
 

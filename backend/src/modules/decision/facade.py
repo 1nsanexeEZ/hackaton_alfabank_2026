@@ -40,6 +40,33 @@ class LimitsDTO:
     by_revenue: Decimal | None
     by_ltv: Decimal | None
     by_capacity: Decimal | None
+    # policy_v3: the limit is the minimum of every constraint, `binding` names it.
+    by_product: Decimal | None = None
+    by_turnover: Decimal | None = None
+    by_grade: Decimal | None = None
+    by_group: Decimal | None = None
+    final: Decimal | None = None
+    binding: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TriggerDTO:
+    """A soft trigger (policy_v3): not a refusal, a reason for a person to look."""
+
+    code: str  # tax_arrears | head_change | turnover_spike
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class RateBreakdownDTO:
+    """policy_v3 rate in percent a year: funding + expected loss + capital + margin;
+    `total` is the rate within the product's corridor."""
+
+    funding: Decimal
+    expected_loss: Decimal
+    capital: Decimal
+    margin: Decimal
+    total: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +89,8 @@ class DecisionDTO:
     override_of: UUID | None
     comment: str | None
     decided_at: datetime
+    triggers: tuple[TriggerDTO, ...] = ()
+    rate_breakdown: RateBreakdownDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

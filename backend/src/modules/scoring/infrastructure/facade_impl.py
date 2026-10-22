@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.domain.model import (
     BureauInput,
     CashflowInput,
@@ -15,7 +16,6 @@ from src.modules.scoring.domain.model import (
     ScoringInput,
     TaxInput,
 )
-from src.modules.scoring.domain.scorecard import Scorecard
 from src.modules.scoring.facade import CompanyProfileDTO, EstimateDTO, FactorDTO, ScoringResultDTO
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 
@@ -28,7 +28,7 @@ _ESTIMATE_RATE_BASE = Decimal("21.5")
 class ScoringFacadeImpl:
     """Чтение результата для decision/bff и быстрый estimate для предодобрения."""
 
-    def __init__(self, session: AsyncSession, scorecard: Scorecard) -> None:
+    def __init__(self, session: AsyncSession, scorecard: ScoringModel) -> None:
         self._repo = SqlAlchemyScoringRepository(session)
         self._scorecard = scorecard
 
@@ -56,6 +56,10 @@ class ScoringFacadeImpl:
             flags=tuple(result.flags),
             data_completeness=result.data_completeness,
             computed_at=result.computed_at,
+            segment=result.segment,
+            scorecard=result.scorecard,
+            pd_12m=result.pd_12m,
+            reason_codes=result.reason_codes,
         )
 
     def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
@@ -113,4 +117,6 @@ class ScoringFacadeImpl:
                 )
                 for f in output.factors
             ),
+            segment=output.segment,
+            pd_12m=output.pd_12m,
         )

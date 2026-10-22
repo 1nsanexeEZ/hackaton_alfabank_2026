@@ -36,6 +36,8 @@ class RegistryExtractDTO:
     mass_address: bool
     # None for an entrepreneur and in snapshots taken before it was stored.
     kpp: str | None = None
+    # Дата записи о нынешнем руководителе; None — реестр её не сообщил (снимки до неё).
+    head_since: date | None = None
 
 
 @dataclass(frozen=True, slots=True)

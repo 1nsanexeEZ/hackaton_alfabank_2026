@@ -12,7 +12,15 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from src.modules.decision.domain.model import InfoNeed, Limits, Outcome, PolicyDecision, RuleHit
+from src.modules.decision.domain.model import (
+    InfoNeed,
+    Limits,
+    Outcome,
+    PolicyDecision,
+    RateBreakdown,
+    RuleHit,
+    Trigger,
+)
 
 DecidedByType = Literal["auto", "underwriter"]
 
@@ -60,6 +68,9 @@ class DecisionResult:
     override_of: UUID | None
     comment: str | None
     decided_at: datetime
+    # policy_v3; у решений прежних версий и ручных — пусто.
+    triggers: tuple[Trigger, ...] = ()
+    rate_breakdown: RateBreakdown | None = None
 
 
 def automatic_result(
@@ -107,4 +118,6 @@ def automatic_result(
         override_of=None,
         comment=None,
         decided_at=now,
+        triggers=decision.triggers,
+        rate_breakdown=decision.rate_breakdown,
     )

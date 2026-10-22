@@ -1,5 +1,5 @@
-"""Use case CalculateScore: по команде собрать вход из соседей, посчитать скоркартой,
-сохранить с input_snapshot и опубликовать результат.
+"""Use case CalculateScore: по команде собрать вход из соседей, посчитать PD-моделью
+(сегмент, скоркарта, PD, грейд A–J), сохранить с input_snapshot и опубликовать результат.
 
 - идемпотентность по event_id команды: повтор возвращает тот же результат и повторно публикует
   ScoreCalculated (causation_id = event_id команды);
@@ -17,17 +17,16 @@ from src.core.messaging.outbox import OutboxWriter
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.input_builder import build_scoring_input
-from src.modules.scoring.application.ports import ScoringRepository
+from src.modules.scoring.application.ports import ScoringModel, ScoringRepository
 from src.modules.scoring.application.serialization import dump_input, input_hash
 from src.modules.scoring.domain.model import ScoringResult
-from src.modules.scoring.domain.scorecard import Scorecard
 
 
 class CalculateScoreUseCase:
     def __init__(
         self,
         repository: ScoringRepository,
-        scorecard: Scorecard,
+        scorecard: ScoringModel,
         applications: ApplicationsFacade,
         enrichment: EnrichmentFacade,
         clock: Clock,
@@ -75,6 +74,10 @@ class CalculateScoreUseCase:
             computed_at=self._clock.now(),
             input_hash=input_hash(stored),
             bank_notes=output.bank_notes,
+            segment=output.segment,
+            scorecard=output.scorecard,
+            pd_12m=output.pd_12m,
+            reason_codes=output.reason_codes,
         )
         await self._repository.add(result, input_snapshot=stored)
         await self._publish_calculated(outbox, result, command_event_id)

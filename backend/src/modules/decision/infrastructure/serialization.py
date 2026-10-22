@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from src.modules.decision.domain.model import InfoNeed, Limits, RuleHit
+from src.modules.decision.domain.model import InfoNeed, Limits, RateBreakdown, RuleHit, Trigger
 from src.modules.decision.domain.result import ApprovedTerms, DecisionInputRefs
 
 
@@ -87,16 +87,57 @@ def dump_limits(limits: Limits) -> dict[str, Any]:
         "by_ltv": _dec_str(limits.by_ltv),
         "by_capacity": _dec_str(limits.by_capacity),
         "final": _dec_str(limits.final),
+        "by_turnover": _dec_str(limits.by_turnover),
+        "by_grade": _dec_str(limits.by_grade),
+        "by_group": _dec_str(limits.by_group),
+        "binding": limits.binding,
     }
 
 
 def load_limits(raw: dict[str, Any]) -> Limits:
+    """Решения до policy_v3 хранят только первые пять ключей."""
     return Limits(
         by_product=_dec(raw.get("by_product")),
         by_revenue=_dec(raw.get("by_revenue")),
         by_ltv=_dec(raw.get("by_ltv")),
         by_capacity=_dec(raw.get("by_capacity")),
         final=_dec(raw.get("final")),
+        by_turnover=_dec(raw.get("by_turnover")),
+        by_grade=_dec(raw.get("by_grade")),
+        by_group=_dec(raw.get("by_group")),
+        binding=raw.get("binding"),
+    )
+
+
+def dump_triggers(triggers: tuple[Trigger, ...]) -> list[dict[str, Any]]:
+    return [{"code": t.code, "detail": t.detail} for t in triggers]
+
+
+def load_triggers(raw: list[dict[str, Any]] | None) -> tuple[Trigger, ...]:
+    return tuple(Trigger(t["code"], t["detail"]) for t in raw or ())
+
+
+def dump_rate_breakdown(breakdown: RateBreakdown | None) -> dict[str, Any] | None:
+    if breakdown is None:
+        return None
+    return {
+        "funding": str(breakdown.funding),
+        "expected_loss": str(breakdown.expected_loss),
+        "capital": str(breakdown.capital),
+        "margin": str(breakdown.margin),
+        "total": str(breakdown.total),
+    }
+
+
+def load_rate_breakdown(raw: dict[str, Any] | None) -> RateBreakdown | None:
+    if raw is None:
+        return None
+    return RateBreakdown(
+        funding=Decimal(raw["funding"]),
+        expected_loss=Decimal(raw["expected_loss"]),
+        capital=Decimal(raw["capital"]),
+        margin=Decimal(raw["margin"]),
+        total=Decimal(raw["total"]),
     )
 
 

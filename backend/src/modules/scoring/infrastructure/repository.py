@@ -7,7 +7,14 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.scoring.domain.model import Direction, Factor, Grade, RiskFlag, ScoringResult
+from src.modules.scoring.domain.model import (
+    Direction,
+    Factor,
+    Grade,
+    RiskFlag,
+    ScoringResult,
+    Segment,
+)
 from src.modules.scoring.infrastructure.models import ScoringResultRecord
 
 
@@ -51,6 +58,10 @@ def _to_record(result: ScoringResult, input_snapshot: dict[str, Any]) -> Scoring
         bank_notes=list(result.bank_notes),
         data_completeness=result.data_completeness,
         computed_at=result.computed_at,
+        segment=result.segment,
+        scorecard=result.scorecard,
+        pd_12m=result.pd_12m,
+        reason_codes=list(result.reason_codes) if result.pd_12m is not None else None,
     )
 
 
@@ -68,6 +79,10 @@ def _to_domain(record: ScoringResultRecord) -> ScoringResult:
         computed_at=record.computed_at,
         input_hash=record.input_hash,
         bank_notes=tuple(record.bank_notes),
+        segment=cast(Segment | None, record.segment),
+        scorecard=record.scorecard,
+        pd_12m=Decimal(str(record.pd_12m)) if record.pd_12m is not None else None,
+        reason_codes=tuple(record.reason_codes or ()),
     )
 
 

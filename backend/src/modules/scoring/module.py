@@ -10,16 +10,16 @@ from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
-from src.modules.scoring.domain.scorecard import Scorecard
+from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.facade import ScoringFacade
-from src.modules.scoring.infrastructure.config_loader import default_scorecard
+from src.modules.scoring.infrastructure.config_loader import default_model
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 
 NAME = "scoring"
 
-# Карта грузится один раз на процесс; невалидный YAML → исключение при старте.
-_scorecard: Scorecard | None = None
+# Модель грузится один раз на процесс; невалидный YAML → исключение при старте.
+_scorecard: ScoringModel | None = None
 
 
 def register(app: FastAPI) -> None:
@@ -28,7 +28,7 @@ def register(app: FastAPI) -> None:
 
 def wire(app: FastAPI) -> None:
     global _scorecard
-    _scorecard = default_scorecard()
+    _scorecard = default_model()
     scorecard = _scorecard
     app.state.facades.register(ScoringFacade, lambda session: ScoringFacadeImpl(session, scorecard))
 

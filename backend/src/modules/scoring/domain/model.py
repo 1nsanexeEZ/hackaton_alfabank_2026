@@ -13,8 +13,11 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-Grade = Literal["A", "B", "C", "D", "E"]
+# scorecard_v1 ставит A–E по баллу; PD-модель (pd_model_v2) — A–J по вероятности дефолта.
+Grade = Literal["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 Direction = Literal["positive", "negative", "neutral"]
+# ЮЛ и ИП с оборотами в банке от 6 месяцев — свои скоркарты, остальные — упрощённая.
+Segment = Literal["legal_entity", "entrepreneur", "new_client"]
 
 # Сигналы для decision, которые не сводятся к баллам.
 RiskFlag = Literal[
@@ -117,3 +120,8 @@ class ScoringResult:
     bank_notes: tuple[str, ...] = field(
         default_factory=tuple
     )  # пояснения для банка (кассовый разрыв)
+    # PD-модель; у результатов scorecard_v1 их нет.
+    segment: Segment | None = None
+    scorecard: str | None = None
+    pd_12m: Decimal | None = None  # доля, 0.0340 — 3,4%
+    reason_codes: tuple[str, ...] = ()  # топ-3 признака по потере баллов

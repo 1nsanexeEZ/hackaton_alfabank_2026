@@ -65,6 +65,8 @@ class Company:
     okved_extra: tuple[str, ...] = ()
     bki_no_history: bool = False
     account_blocks: tuple[AccountBlock, ...] = ()
+    # Сколько дней назад внесена запись о нынешнем руководителе; None — с регистрации.
+    head_days_ago: int | None = None
 
 
 _RUB = 100  # копеек в рубле
@@ -350,6 +352,8 @@ def generate_company(inn: str) -> Company:
             ),
         )
     suffix = inn[-4:]
+    # Каждая восьмая компания недавно сменила руководителя (1–6 месяцев назад).
+    head_days_ago = 30 + (s >> 43) % 150 if (s >> 42) % 8 == 0 else None
     return Company(
         inn=inn,
         form="ИП" if is_ie else "ООО",
@@ -379,6 +383,7 @@ def generate_company(inn: str) -> Company:
         bki_obligations=obligations,
         bki_inquiries_30d=(s >> 28) % 6,
         account_blocks=blocks,
+        head_days_ago=min(head_days_ago, reg_days) if head_days_ago is not None else None,
     )
 
 
@@ -395,6 +400,12 @@ def _reg_date(company: Company) -> str:
     return (date.today() - timedelta(days=company.reg_days_ago)).isoformat()
 
 
+def _head_date(company: Company) -> str:
+    if company.head_days_ago is None:
+        return _reg_date(company)
+    return (date.today() - timedelta(days=company.head_days_ago)).isoformat()
+
+
 def egrul_response(company: Company) -> dict:
     data: dict = {
         "ИНН": company.inn,
@@ -404,7 +415,11 @@ def egrul_response(company: Company) -> dict:
         "ДатаРег": _reg_date(company),
         "ОКВЭДОсн": {"Код": company.okved},
         "ОКВЭДДоп": [{"Код": code} for code in company.okved_extra],
-        "Руководитель": {"ФИО": company.head_fio, "Должность": company.head_position},
+        "Руководитель": {
+            "ФИО": company.head_fio,
+            "Должность": company.head_position,
+            "ДатаЗаписи": _head_date(company),
+        },
         "Учредители": [{"ФИО": fio, "Доля": share} for fio, share in company.founders],
         "Адрес": {"Полный": company.address, "КодРегиона": company.region_code},
         "МассовыйАдрес": company.mass_address,

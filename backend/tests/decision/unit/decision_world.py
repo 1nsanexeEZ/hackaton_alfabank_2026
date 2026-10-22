@@ -7,7 +7,8 @@
   настоящий `CashflowBuilder` по `seed/statements/<код>.csv`. Мир policy_v1 опрашивает ЕГРЮЛ,
   ФНС и БКИ, как в момент её выхода; мир policy_v2 — все источники, руководитель по реестру
   дал согласие на свою кредитную историю;
-- результат скоринга — настоящая скоркарта на том же входе, что собрал бы scoring.
+- результат скоринга — настоящая модель на том же входе, что собрал бы scoring: действующая
+  PD-модель или, для golden policy_v1 и policy_v2, scorecard_v1 их времени.
 """
 
 from __future__ import annotations
@@ -35,8 +36,9 @@ from src.modules.enrichment.facade import EnrichmentSnapshotDTO, SourceErrorDTO
 from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
 from src.modules.scoring.application.input_builder import build_scoring_input
+from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.facade import FactorDTO, ScoringResultDTO
-from src.modules.scoring.infrastructure.config_loader import default_scorecard
+from src.modules.scoring.infrastructure.config_loader import default_model
 from tests.assessment.assessment_world import mock_sources
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
@@ -101,9 +103,14 @@ class DecisionWorld:
 
 
 async def build_world(
-    name: str, *, sources: Sequence[str] = V1_SOURCES, head_consent: bool = False
+    name: str,
+    *,
+    sources: Sequence[str] = V1_SOURCES,
+    head_consent: bool = False,
+    scoring_model: ScoringModel | None = None,
 ) -> DecisionWorld:
-    """`head_consent` — руководитель по реестру дал личное согласие на запрос своего БКИ."""
+    """`head_consent` — руководитель по реестру дал личное согласие на запрос своего БКИ;
+    `scoring_model` — чем считать скоринг, по умолчанию действующая PD-модель."""
     scenario = SCENARIOS[name]
     organization = builders.organization_snapshot(scenario.code)
     products = _products(organization)
@@ -170,12 +177,13 @@ async def build_world(
 
     scoring = FakeScoringFacade()
     source = await applications.get_scoring_input(card.id)
-    output = default_scorecard().calculate(build_scoring_input(source, snapshot))
+    model = scoring_model or default_model()
+    output = model.calculate(build_scoring_input(source, snapshot))
     scoring.add_result(
         ScoringResultDTO(
             id=uuid4(),
             application_id=card.id,
-            model_version=default_scorecard().version,
+            model_version=model.version,
             score=output.score,
             grade=output.grade,
             factors=tuple(
@@ -185,6 +193,10 @@ async def build_world(
             flags=output.flags,
             data_completeness=output.data_completeness,
             computed_at=NOW,
+            segment=output.segment,
+            scorecard=output.scorecard,
+            pd_12m=output.pd_12m,
+            reason_codes=output.reason_codes,
         )
     )
     return DecisionWorld(card.id, organization.id, applications, enrichment, scoring, products)

@@ -6980,6 +6980,24 @@
             "type": "string",
             "format": "date-time",
             "title": "Decided At"
+          },
+          "triggers": {
+            "items": {
+              "$ref": "#/components/schemas/TriggerDTO"
+            },
+            "type": "array",
+            "title": "Triggers",
+            "default": []
+          },
+          "rate_breakdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateBreakdownDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8900,6 +8918,72 @@
               }
             ],
             "title": "By Capacity"
+          },
+          "by_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Product"
+          },
+          "by_turnover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Turnover"
+          },
+          "by_grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Grade"
+          },
+          "by_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Group"
+          },
+          "final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
           }
         },
         "type": "object",
@@ -11773,6 +11857,40 @@
         ],
         "title": "QueuePageDTO"
       },
+      "RateBreakdownDTO": {
+        "properties": {
+          "funding": {
+            "type": "string",
+            "title": "Funding"
+          },
+          "expected_loss": {
+            "type": "string",
+            "title": "Expected Loss"
+          },
+          "capital": {
+            "type": "string",
+            "title": "Capital"
+          },
+          "margin": {
+            "type": "string",
+            "title": "Margin"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "funding",
+          "expected_loss",
+          "capital",
+          "margin",
+          "total"
+        ],
+        "title": "RateBreakdownDTO",
+        "description": "policy_v3 rate in percent a year: funding + expected loss + capital + margin;\n`total` is the rate within the product's corridor."
+      },
       "ReadAllResult": {
         "properties": {
           "updated": {
@@ -12188,6 +12306,18 @@
               }
             ],
             "title": "Kpp"
+          },
+          "head_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Since"
           }
         },
         "type": "object",
@@ -12612,7 +12742,12 @@
               "B",
               "C",
               "D",
-              "E"
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
             ],
             "title": "Grade"
           },
@@ -12638,6 +12773,52 @@
             "type": "string",
             "format": "date-time",
             "title": "Computed At"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "legal_entity",
+                  "entrepreneur",
+                  "new_client"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "scorecard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scorecard"
+          },
+          "pd_12m": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pd 12M"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes",
+            "default": []
           }
         },
         "type": "object",
@@ -13533,6 +13714,25 @@
           "expires_in"
         ],
         "title": "TokenResponse"
+      },
+      "TriggerDTO": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "TriggerDTO",
+        "description": "A soft trigger (policy_v3): not a refusal, a reason for a person to look."
       },
       "UnderwriterCard": {
         "properties": {

@@ -91,6 +91,7 @@ def _registry_to_json(dto: RegistryExtractDTO) -> dict[str, Any]:
         "region_code": dto.region_code,
         "mass_address": dto.mass_address,
         "kpp": dto.kpp,
+        "head_since": dto.head_since.isoformat() if dto.head_since else None,
     }
 
 
@@ -116,6 +117,7 @@ def _registry_from_json(raw: dict[str, Any]) -> RegistryExtractDTO:
         region_code=raw["region_code"],
         mass_address=raw["mass_address"],
         kpp=raw.get("kpp"),
+        head_since=date.fromisoformat(raw["head_since"]) if raw.get("head_since") else None,
     )
 
 

@@ -1,4 +1,5 @@
-"""Предодобрение: та же политика по облегчённым данным, лимит на грейд осторожнее."""
+"""Предодобрение: та же политика по облегчённым данным, лимит на грейд осторожнее.
+Здесь — policy_v2 на шкале A–E; предодобрение policy_v3 — в test_credit_policy_v3_rules.py."""
 
 from __future__ import annotations
 
@@ -9,9 +10,9 @@ from typing import Any
 import pytest
 
 from src.modules.decision.domain.model import PreApprovalInput, ProductInput, SupportProgramInput
-from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.config_loader import load_policy
 
-POLICY = default_policy()
+POLICY = load_policy("policy_v2")
 KEY_RATE = POLICY.config.key_rate_reference
 
 UNSECURED = ProductInput(

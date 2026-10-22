@@ -2,6 +2,8 @@
 
 По событиям clients (отчётность подана, компания проверена) и в демо-сиде:
 1. компания — снимок clients, оценка — `scoring.estimate` без БКИ и выписок (консервативно);
+   новому клиенту (оборотов в банке меньше полугода) предодобрения нет — его оценивает только
+   полный скоринг по заявке;
 2. для каждого активного продукта: не проходит eligibility — пропускаем; дальше политика
    (`CreditPolicy.pre_approve`): стоп-факторы, лимит на грейд осторожнее, ставка от;
 3. предложения действуют 30 дней; пересчёт перезаписывает все предложения компании —
@@ -20,7 +22,12 @@ from src.core.messaging.outbox import OutboxWriter
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.application.input_builder import latest_annual_report
 from src.modules.decision.application.ports import PreApprovedOffer, PreApprovedOfferRepository
-from src.modules.decision.domain.model import PreApprovalInput, ProductInput, SupportProgramInput
+from src.modules.decision.domain.model import (
+    PreApprovalInput,
+    ProductInput,
+    SupportProgramInput,
+    on_scale,
+)
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.products.facade import ProductDTO, ProductsFacade
 from src.modules.scoring.facade import CompanyProfileDTO, ScoringFacade
@@ -67,6 +74,9 @@ class RecalculatePreApprovedUseCase:
         valid_until = (now + timedelta(days=PRE_APPROVAL_VALID_DAYS)).date()
 
         offers: list[PreApprovedOffer] = []
+        if estimate.segment == "new_client":
+            await self._repository.replace_for_organization(organization_id, offers)
+            return offers
         for product in await self._products.list_active():
             check = await self._products.check_eligibility(product.code, organization_id)
             if not check.eligible:
@@ -74,11 +84,16 @@ class RecalculatePreApprovedUseCase:
             approval = self._policy.pre_approve(
                 PreApprovalInput(
                     product=product_input(product),
-                    grade=estimate.grade,
+                    grade=on_scale(
+                        estimate.grade,
+                        from_pd_model=estimate.pd_12m is not None,
+                        scale=self._policy.config.grade_scale,
+                    ),
                     score=estimate.score,
                     registry_status=company.registry_status,
                     annual_revenue=report.revenue if report is not None else None,
                     okved_main=company.okved_main,
+                    pd_12m=estimate.pd_12m,
                 ),
                 key_rate=self._key_rate,
             )

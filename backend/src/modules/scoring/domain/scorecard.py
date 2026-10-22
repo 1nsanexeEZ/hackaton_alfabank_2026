@@ -19,13 +19,14 @@ from src.modules.scoring.domain.model import (
     Grade,
     RiskFlag,
     ScoringInput,
+    Segment,
 )
 
 _ZERO = Decimal(0)
 _SCORE_MIN, _SCORE_MAX = 0, 1000
 
 # Подсказки клиенту по негативным факторам (конкретные числа модели клиенту не показываем).
-_CLIENT_HINTS: dict[str, str] = {
+CLIENT_HINTS: dict[str, str] = {
     "business_age": "Срок работы бизнеса небольшой — с ростом истории условия станут лучше.",
     "debt_load": "Высокая долговая нагрузка — рассмотрите меньшую сумму или больший срок.",
     "amount_to_revenue": "Сумма велика относительно годовой выручки — попробуйте меньшую.",
@@ -36,7 +37,7 @@ _CLIENT_HINTS: dict[str, str] = {
     "tax_arrears": "Есть налоговая задолженность — погашение улучшит оценку.",
     "cash_gap": "По выписке возможен кассовый разрыв — удобнее овердрафт или кредитная линия.",
 }
-_MAX_CLIENT_HINTS = 3
+MAX_CLIENT_HINTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +58,11 @@ class ScorecardOutput:
     flags: tuple[RiskFlag, ...]
     data_completeness: Decimal
     bank_notes: tuple[str, ...]
+    # Только у PD-модели (domain/pd_model.py): сегмент, скоркарта, PD и коды причин.
+    segment: Segment | None = None
+    scorecard: str | None = None
+    pd_12m: Decimal | None = None
+    reason_codes: tuple[str, ...] = ()
 
 
 class Scorecard:
@@ -145,7 +151,8 @@ class Scorecard:
             current = inp.bureau.total_monthly_payments
         else:
             current = inp.company.monthly_debt_payments_declared or _ZERO
-        new_payment = _annuity(inp.request.amount, inp.request.term_months, inp.request.rate_base)
+        request = inp.request
+        new_payment = estimated_payment(request.amount, request.term_months, request.rate_base)
         ratio = (current + new_payment) / avg_monthly
         if ratio < Decimal("0.2"):
             bucket, label = "lt02", "<0,2"
@@ -203,7 +210,7 @@ class Scorecard:
         return self._factor("tax_arrears", str(arrears), label, self._p("tax_arrears", bucket))
 
     def _industry_risk(self, inp: ScoringInput) -> Factor:
-        section = _okved_section(inp.company.okved_main)
+        section = okved_section(inp.company.okved_main)
         if section in self._c.industry_low:
             bucket, label = "low", "низкий"
         elif section in self._c.industry_high:
@@ -301,7 +308,7 @@ class Scorecard:
         self, code: str, value: str | None, label: str, points: int, *, has_data: bool = True
     ) -> Factor:
         direction = _direction(points)
-        hint = _CLIENT_HINTS.get(code) if direction == "negative" else None
+        hint = CLIENT_HINTS.get(code) if direction == "negative" else None
         return Factor(
             code=code,
             value=value,
@@ -320,8 +327,8 @@ class Scorecard:
     def _keep_top_hints(self, factors: list[Factor]) -> list[Factor]:
         """Подсказки клиенту оставляем только у 2–3 самых негативных факторов."""
         ranked = sorted((f for f in factors if f.client_hint is not None), key=lambda f: f.points)
-        keep = {id(f) for f in ranked[:_MAX_CLIENT_HINTS]}
-        return [f if id(f) in keep or f.client_hint is None else _drop_hint(f) for f in factors]
+        keep = {id(f) for f in ranked[:MAX_CLIENT_HINTS]}
+        return [f if id(f) in keep or f.client_hint is None else without_hint(f) for f in factors]
 
     def _completeness(self, factors: list[Factor]) -> Decimal:
         if not factors:
@@ -353,7 +360,7 @@ def _direction(points: int) -> Direction:
     return "neutral"
 
 
-def _drop_hint(factor: Factor) -> Factor:
+def without_hint(factor: Factor) -> Factor:
     return Factor(
         code=factor.code,
         value=factor.value,
@@ -365,12 +372,12 @@ def _drop_hint(factor: Factor) -> Factor:
     )
 
 
-def _okved_section(okved_main: str) -> int:
+def okved_section(okved_main: str) -> int:
     head = okved_main.split(".", 1)[0].strip()
     return int(head) if head.isdigit() else -1
 
 
-def _annuity(amount: Decimal, term_months: int, annual_rate_percent: Decimal) -> Decimal:
+def estimated_payment(amount: Decimal, term_months: int, annual_rate_percent: Decimal) -> Decimal:
     """Оценочный аннуитетный платёж по новому кредиту — консервативная нагрузка, не решение."""
     if term_months <= 0:
         return amount

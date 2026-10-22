@@ -1,0 +1,312 @@
+# PD-модель pd_model_v2 (синтетическая): сегмент → скоркарта → балл → PD на 12 мес. → грейд A–J.
+# Логика — в src/modules/scoring/domain/pd_model.py, признаки — в features.py; здесь — сегменты,
+# бины, WoE, баллы, калибровка и границы грейдов. Файл проверяется при старте: невалидный YAML →
+# приложение не стартует. scorecard_v1.yaml не меняется — по нему считаются старые результаты.
+#
+# Бины: интервал [from; to), граница не указана — открытая; категория — `category`. Пропуск —
+# бин `missing` («нет данных»). `floor` / `cap` — винзоризация: выброс прижимается к границе.
+# Баллы ≈ WoE × pdo / ln 2 (≈ 72 × WoE при pdo 50), константа модели — в `base`.
+# Ориентиры калибровки на демо: romashka (S-1) → A, ivanov (S-2) → E, vector (S-3) → F.
+version: pd_model_v2
+
+# Обороты в банке не короче — своя скоркарта ЮЛ или ИП; моложе — упрощённая new_client.
+min_turnover_months: 6
+
+# Секции ОКВЭД по уровню отраслевого риска (целая часть кода до точки).
+industry_sections:
+  low: [62, 63, 69, 70, 71, 72, 73, 74, 86]
+  high: [41, 42, 43, 55, 56, 79]
+
+# Заявленная выручка расходится с ФНС больше чем на эту долю — флаг revenue_mismatch.
+revenue_mismatch_share: "0.30"
+
+# Верхние границы PD по грейдам (PD строго меньше); выше границы I — грейд J.
+grades:
+  A: "0.0050"
+  B: "0.0100"
+  C: "0.0175"
+  D: "0.0275"
+  E: "0.0400"
+  F: "0.0600"
+  G: "0.0900"
+  H: "0.1400"
+  I: "0.2200"
+
+scorecards:
+  # ЮЛ с оборотами в банке от 6 месяцев.
+  legal_entity:
+    code: legal_entity_v1
+    base: 600
+    # Шансы «хороший : плохой» 15 : 1 на 600 баллах, удвоение каждые 50 баллов.
+    calibration: {score: 600, odds: "15", pdo: 50}
+    features:
+      business_age: # месяцы с регистрации
+        floor: "0"
+        cap: "240"
+        bins:
+          - {label: "<12", to: "12", woe: "-0.55", points: -40}
+          - {label: "12–24", from: "12", to: "24", woe: "-0.14", points: -10}
+          - {label: "24–60", from: "24", to: "60", woe: "0.35", points: 25}
+          - {label: "≥60", from: "60", woe: "0.69", points: 50}
+        missing: {woe: "0", points: 0}
+      revenue_trend: # выручка год к году, доля
+        floor: "-1"
+        cap: "3"
+        bins:
+          - {label: "<−20%", to: "-0.2", woe: "-0.69", points: -50}
+          - {label: "−20…0%", from: "-0.2", to: "0", woe: "-0.14", points: -10}
+          - {label: "0…20%", from: "0", to: "0.2", woe: "0.21", points: 15}
+          - {label: "≥20%", from: "0.2", woe: "0.42", points: 30}
+        missing: {woe: "-0.14", points: -10}
+      debt_load: # (платежи по БКИ + оценочный платёж) / средняя месячная выручка
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<0,2", to: "0.2", woe: "0.69", points: 50}
+          - {label: "0,2–0,4", from: "0.2", to: "0.4", woe: "0.21", points: 15}
+          - {label: "0,4–0,6", from: "0.4", to: "0.6", woe: "-0.21", points: -15}
+          - {label: "≥0,6", from: "0.6", woe: "-1.39", points: -100}
+        missing: {woe: "-0.28", points: -20}
+      bureau_overdue: # максимальная просрочка за 12 месяцев, дней; бюро не ответило — без штрафа
+        floor: "0"
+        cap: "365"
+        bins:
+          - {label: "истории нет", category: thin, woe: "-0.21", points: -15}
+          - {label: "0", to: "1", woe: "0.55", points: 40}
+          - {label: "1–30", from: "1", to: "31", woe: "-0.42", points: -30}
+          - {label: "31–90", from: "31", to: "91", woe: "-1.66", points: -120}
+          - {label: ">90", from: "91", woe: "-2.77", points: -200}
+        missing: {woe: "0", points: 0}
+      bureau_inquiries: # кредитных запросов за 30 дней
+        floor: "0"
+        cap: "30"
+        bins:
+          - {label: "≤2", to: "3", woe: "0", points: 0}
+          - {label: "3–5", from: "3", to: "6", woe: "-0.21", points: -15}
+          - {label: ">5", from: "6", woe: "-0.55", points: -40}
+        missing: {woe: "0", points: 0}
+      tax_arrears: # недоимка ФНС
+        bins:
+          - {label: "0", category: none, woe: "0.14", points: 10}
+          - {label: ">0", category: any, woe: "-0.83", points: -60}
+        missing: {woe: "0", points: 0}
+      industry_risk:
+        bins:
+          - {label: "низкий", category: low, woe: "0.28", points: 20}
+          - {label: "средний", category: mid, woe: "0", points: 0}
+          - {label: "высокий", category: high, woe: "-0.42", points: -30}
+        missing: {woe: "0", points: 0}
+      amount_to_revenue: # сумма заявки / годовая выручка
+        floor: "0"
+        cap: "3"
+        bins:
+          - {label: "<0,1", to: "0.1", woe: "0.42", points: 30}
+          - {label: "0,1–0,3", from: "0.1", to: "0.3", woe: "0", points: 0}
+          - {label: "0,3–0,5", from: "0.3", to: "0.5", woe: "-0.35", points: -25}
+          - {label: "≥0,5", from: "0.5", woe: "-0.55", points: -40}
+        missing: {woe: "-0.28", points: -20}
+      revenue_consistency: # расхождение заявленной выручки с ФНС, доля
+        floor: "0"
+        cap: "1"
+        bins:
+          - {label: "<15%", to: "0.15", woe: "0.14", points: 10}
+          - {label: "15–30%", from: "0.15", to: "0.3", woe: "-0.28", points: -20}
+          - {label: "≥30%", from: "0.3", woe: "-0.83", points: -60}
+        missing: {woe: "0", points: 0}
+      verification: # сверка с реестром
+        bins:
+          - {label: "подтверждена", category: verified, woe: "0.14", points: 10}
+          - {label: "расхождение", category: mismatch, woe: "-0.42", points: -30}
+          - {label: "не подтверждена", category: other, woe: "0", points: 0}
+        missing: {woe: "0", points: 0}
+      collateral_coverage: # стоимость залога / сумма — только у заявок с залогом
+        optional: true
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<1", to: "1", woe: "0", points: 0}
+          - {label: "1–2", from: "1", to: "2", woe: "0.28", points: 20}
+          - {label: "≥2", from: "2", woe: "0.55", points: 40}
+        missing: {woe: "0", points: 0}
+      cash_gap: # прогноз кассового разрыва по выписке
+        bins:
+          - {label: "прогнозируется", category: gap, woe: "-0.21", points: -15}
+          - {label: "не прогнозируется", category: no_gap, woe: "0.14", points: 10}
+        missing: {woe: "0", points: 0}
+
+  # ИП с оборотами в банке от 6 месяцев: моложе и чаще без истории в бюро и прошлого года.
+  entrepreneur:
+    code: entrepreneur_v1
+    base: 600
+    # Тот же наклон, опорная точка ниже: у ИП те же баллы — меньше PD, чем у ЮЛ.
+    calibration: {score: 520, odds: "15", pdo: 50}
+    features:
+      business_age:
+        floor: "0"
+        cap: "240"
+        bins:
+          - {label: "<12", to: "12", woe: "-0.07", points: -5}
+          - {label: "12–36", from: "12", to: "36", woe: "0.14", points: 10}
+          - {label: "≥36", from: "36", woe: "0.55", points: 40}
+        missing: {woe: "0", points: 0}
+      revenue_trend:
+        floor: "-1"
+        cap: "3"
+        bins:
+          - {label: "<−20%", to: "-0.2", woe: "-0.55", points: -40}
+          - {label: "−20…0%", from: "-0.2", to: "0", woe: "-0.14", points: -10}
+          - {label: "0…20%", from: "0", to: "0.2", woe: "0.21", points: 15}
+          - {label: "≥20%", from: "0.2", woe: "0.35", points: 25}
+        missing: {woe: "-0.07", points: -5}
+      debt_load:
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<0,2", to: "0.2", woe: "0.69", points: 50}
+          - {label: "0,2–0,4", from: "0.2", to: "0.4", woe: "0.21", points: 15}
+          - {label: "0,4–0,6", from: "0.4", to: "0.6", woe: "-0.21", points: -15}
+          - {label: "≥0,6", from: "0.6", woe: "-1.39", points: -100}
+        missing: {woe: "-0.28", points: -20}
+      bureau_overdue:
+        floor: "0"
+        cap: "365"
+        bins:
+          - {label: "истории нет", category: thin, woe: "-0.07", points: -5}
+          - {label: "0", to: "1", woe: "0.55", points: 40}
+          - {label: "1–30", from: "1", to: "31", woe: "-0.42", points: -30}
+          - {label: "31–90", from: "31", to: "91", woe: "-1.66", points: -120}
+          - {label: ">90", from: "91", woe: "-2.77", points: -200}
+        missing: {woe: "0", points: 0}
+      bureau_inquiries:
+        floor: "0"
+        cap: "30"
+        bins:
+          - {label: "≤2", to: "3", woe: "0", points: 0}
+          - {label: "3–5", from: "3", to: "6", woe: "-0.21", points: -15}
+          - {label: ">5", from: "6", woe: "-0.55", points: -40}
+        missing: {woe: "0", points: 0}
+      tax_arrears:
+        bins:
+          - {label: "0", category: none, woe: "0.14", points: 10}
+          - {label: ">0", category: any, woe: "-0.83", points: -60}
+        missing: {woe: "0", points: 0}
+      industry_risk:
+        bins:
+          - {label: "низкий", category: low, woe: "0.28", points: 20}
+          - {label: "средний", category: mid, woe: "0", points: 0}
+          - {label: "высокий", category: high, woe: "-0.42", points: -30}
+        missing: {woe: "0", points: 0}
+      amount_to_revenue:
+        floor: "0"
+        cap: "3"
+        bins:
+          - {label: "<0,1", to: "0.1", woe: "0.42", points: 30}
+          - {label: "0,1–0,3", from: "0.1", to: "0.3", woe: "0", points: 0}
+          - {label: "0,3–0,5", from: "0.3", to: "0.5", woe: "-0.35", points: -25}
+          - {label: "≥0,5", from: "0.5", woe: "-0.55", points: -40}
+        missing: {woe: "-0.28", points: -20}
+      revenue_consistency:
+        floor: "0"
+        cap: "1"
+        bins:
+          - {label: "<15%", to: "0.15", woe: "0.14", points: 10}
+          - {label: "15–30%", from: "0.15", to: "0.3", woe: "-0.28", points: -20}
+          - {label: "≥30%", from: "0.3", woe: "-0.83", points: -60}
+        missing: {woe: "0", points: 0}
+      verification:
+        bins:
+          - {label: "подтверждена", category: verified, woe: "0.14", points: 10}
+          - {label: "расхождение", category: mismatch, woe: "-0.42", points: -30}
+          - {label: "не подтверждена", category: other, woe: "0", points: 0}
+        missing: {woe: "0", points: 0}
+      collateral_coverage:
+        optional: true
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<1", to: "1", woe: "0", points: 0}
+          - {label: "1–2", from: "1", to: "2", woe: "0.28", points: 20}
+          - {label: "≥2", from: "2", woe: "0.55", points: 40}
+        missing: {woe: "0", points: 0}
+      cash_gap:
+        bins:
+          - {label: "прогнозируется", category: gap, woe: "-0.21", points: -15}
+          - {label: "не прогнозируется", category: no_gap, woe: "0.14", points: 10}
+        missing: {woe: "0", points: 0}
+
+  # Новый клиент — оборотов в банке меньше 6 месяцев: упрощённая карта, только полный скоринг
+  # по заявке (предодобрения по оборотам нет). Без динамики выручки, сверки с ФНС и выписки.
+  new_client:
+    code: new_client_v1
+    base: 600
+    # Опорная точка выше: при тех же баллах PD нового клиента больше.
+    calibration: {score: 640, odds: "15", pdo: 50}
+    features:
+      business_age:
+        floor: "0"
+        cap: "6"
+        bins:
+          - {label: "<3", to: "3", woe: "-0.28", points: -20}
+          - {label: "3–6", from: "3", woe: "0", points: 0}
+        missing: {woe: "0", points: 0}
+      debt_load:
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<0,2", to: "0.2", woe: "0.55", points: 40}
+          - {label: "0,2–0,4", from: "0.2", to: "0.4", woe: "0.14", points: 10}
+          - {label: "0,4–0,6", from: "0.4", to: "0.6", woe: "-0.28", points: -20}
+          - {label: "≥0,6", from: "0.6", woe: "-1.39", points: -100}
+        missing: {woe: "-0.28", points: -20}
+      bureau_overdue:
+        floor: "0"
+        cap: "365"
+        bins:
+          - {label: "истории нет", category: thin, woe: "0", points: 0}
+          - {label: "0", to: "1", woe: "0.42", points: 30}
+          - {label: "1–30", from: "1", to: "31", woe: "-0.55", points: -40}
+          - {label: "31–90", from: "31", to: "91", woe: "-1.66", points: -120}
+          - {label: ">90", from: "91", woe: "-2.77", points: -200}
+        missing: {woe: "0", points: 0}
+      bureau_inquiries:
+        floor: "0"
+        cap: "30"
+        bins:
+          - {label: "≤2", to: "3", woe: "0", points: 0}
+          - {label: "3–5", from: "3", to: "6", woe: "-0.28", points: -20}
+          - {label: ">5", from: "6", woe: "-0.69", points: -50}
+        missing: {woe: "0", points: 0}
+      tax_arrears:
+        bins:
+          - {label: "0", category: none, woe: "0.14", points: 10}
+          - {label: ">0", category: any, woe: "-0.83", points: -60}
+        missing: {woe: "0", points: 0}
+      industry_risk:
+        bins:
+          - {label: "низкий", category: low, woe: "0.28", points: 20}
+          - {label: "средний", category: mid, woe: "0", points: 0}
+          - {label: "высокий", category: high, woe: "-0.42", points: -30}
+        missing: {woe: "0", points: 0}
+      amount_to_revenue:
+        floor: "0"
+        cap: "3"
+        bins:
+          - {label: "<0,1", to: "0.1", woe: "0.28", points: 20}
+          - {label: "0,1–0,3", from: "0.1", to: "0.3", woe: "0", points: 0}
+          - {label: "≥0,3", from: "0.3", woe: "-0.55", points: -40}
+        missing: {woe: "-0.28", points: -20}
+      verification:
+        bins:
+          - {label: "подтверждена", category: verified, woe: "0.14", points: 10}
+          - {label: "расхождение", category: mismatch, woe: "-0.42", points: -30}
+          - {label: "не подтверждена", category: other, woe: "0", points: 0}
+        missing: {woe: "0", points: 0}
+      collateral_coverage:
+        optional: true
+        floor: "0"
+        cap: "5"
+        bins:
+          - {label: "<1", to: "1", woe: "0", points: 0}
+          - {label: "1–2", from: "1", to: "2", woe: "0.28", points: 20}
+          - {label: "≥2", from: "2", woe: "0.55", points: 40}
+        missing: {woe: "0", points: 0}

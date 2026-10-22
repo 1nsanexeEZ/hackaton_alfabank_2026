@@ -30,7 +30,7 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 
 | `Source` | Что | Порт → адаптер | Мок | В снимке |
 |---|---|---|---|---|
-| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель, учредители, адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
+| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель и дата записи о нём (`head_since`, «Руководитель.ДатаЗаписи» — для мягкого триггера смены руководителя в policy_v3), учредители, адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
 | `fns` | ФНС «Прозрачный бизнес»: недоимка, выручка, блокировки счетов | `TaxSource` → `fns_http.py` | `GET /fns/{inn}` | `fns: TaxProfileDTO` (+ `account_blocks`) |
 | `bki` | БКИ компании | `CreditBureauSource` → `bki_http.py` | `POST /bki/report` | `bki: CreditHistoryDTO` |
 | `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
