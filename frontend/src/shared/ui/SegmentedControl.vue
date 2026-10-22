@@ -15,7 +15,7 @@ const props = withDefaults(
 const model = defineModel<T>({ required: true })
 
 /*
- * Как переключатель в настройках телефона: под выбранным вариантом лежит белый ползунок,
+ * Как переключатель в настройках телефона: под выбранным вариантом лежит фирменный красный ползунок,
  * при выборе другого он переезжает под него. Положение и ширину берём из самой кнопки.
  */
 const buttons = ref<HTMLButtonElement[]>([])
@@ -53,7 +53,7 @@ watch([model, () => props.options], () => nextTick(measure))
     class="segmented relative isolate inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-surface p-1 [scrollbar-width:none]"
   >
     <span
-      class="segmented__thumb pointer-events-none absolute top-1 bottom-1 left-0 -z-10 rounded-full bg-white shadow-sm"
+      class="segmented__thumb pointer-events-none absolute top-1 bottom-1 left-0 -z-10 rounded-full bg-brand shadow-sm"
       :class="{ 'is-ready': ready }"
       :style="{ width: `${thumb.width}px`, translate: `${thumb.x}px 0`, opacity: thumb.width ? 1 : 0 }"
       aria-hidden="true"
@@ -67,7 +67,7 @@ watch([model, () => props.options], () => nextTick(measure))
       :class="[
         'segmented__option shrink-0 rounded-full font-medium',
         small ? 'h-8 px-3 text-xs' : 'h-10 px-4 text-sm sm:px-5',
-        model === option.value ? 'text-ink' : 'text-ink-secondary hover:text-ink',
+        model === option.value ? 'text-white' : 'text-ink-secondary hover:text-ink',
       ]"
       @click="model = option.value"
     >
