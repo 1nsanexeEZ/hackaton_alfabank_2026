@@ -42,7 +42,7 @@
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | `POST /organizations/{id}/verification`, результат — в `OrganizationRead.verification` | ✅ бэк сверяет и сам — по выписке из каждой заявки, [4.2](#42-сверка-с-егрюл) |
 | 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `POST /bff/products/{code}/calculate`, `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility` | ✅ график по ставке предодобрения; сверх предодобренного — причина и подсказка, не ошибка — [3.4](#34-выбор-условий-шаг-7) |
-| 8 | Согласие: БКИ физлица + ПДн | клиент | `PATCH /applications/{id}` → `consents` | 🟡 согласие только в заявке и только на БКИ компании — [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
+| 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `PATCH /applications/{id}` → `consents` — согласия компании в заявке | ✅ плашка в карточке заявки и `todo` на дашборде — следующим шагом, [4.3](#43-личные-согласия-пдн-и-бки-физлица) |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
 | 10 | Запросы: ГИР БО, Контур, ФНС, БКИ ЮЛ, БКИ ФЛ | банк | без фронта (`enrichment`); результат — в `UnderwriterCard.enrichment` и в `degraded` | 🟡 есть ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и выписки; нет ГИР БО, Контура, БКИ ФЛ — [4.4](#44-источники-гир-бо-контур-бки-физлица) |
 | 11 | Стоп-фактор? → отказано | банк | без фронта (`decision`, причины `STOP_*`); клиенту — `client_status = rejected` и `decision.client_explanation` | ✅ |
@@ -238,7 +238,8 @@ Dashboard {
    - браузер грузит файл сам по `upload.url` с `upload.method` и `upload.headers` (MinIO через nginx `/credit-documents/`, до 25 МБ);
    - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`);
    - `GET …/documents/{document_id}/download` → `{url}`; `DELETE …/documents/{document_id}` → 204.
-5. **`POST /applications/{id}/submit`** → `ApplicationOut`, `status = submitted`. Неполная заявка — 422 с `details.violations` (тот же формат, что у completeness). При подаче фиксируется снимок компании: поле `organization` в ответе.
+5. **Личные согласия руководителя** — не в заявке, а на аккаунте: `POST /me/consents {"types": ["personal_data", "credit_bureau_personal"]}` ([4.3](#43-личные-согласия-пдн-и-бки-физлица)). Без `credit_bureau_personal` руководителя по реестру банк не запрашивает его кредитную историю; подать заявку это не мешает.
+6. **`POST /applications/{id}/submit`** → `ApplicationOut`, `status = submitted`. Неполная заявка — 422 с `details.violations` (тот же формат, что у completeness). При подаче фиксируется снимок компании: поле `organization` в ответе.
 
 ### 3.6. Пока банк думает (шаги 10–15 глазами клиента)
 
@@ -357,7 +358,7 @@ Dashboard {
 |---|---|---|---|---|---|
 | 4.1 | Калькулятор с учётом предскоринга — ✅ сделано | 7 | новая `POST /bff/products/{code}/calculate` | Should | bff |
 | 4.2 | Сверка с ЕГРЮЛ — ✅ сделано | 5 | новая `POST /organizations/{organization_id}/verification` | Should | clients, enrichment, decision |
-| 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, enrichment |
+| 4.3 | ✅ Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, clients, process |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, external-mocks |
 | 4.5 | ✅ Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
 | 4.6 | Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
@@ -427,31 +428,37 @@ Must нет: основной путь (компания с оборотами �
 
 ### 4.3. Личные согласия: ПДн и БКИ физлица
 
-**Зачем.** На схеме согласие «БКИ физлица + ПДн» даётся до предскоринга, а в запросах есть «БКИ по физлицам: какие кредиты есть на руководителя». Сейчас согласия живут только в черновике заявки (`consents.personal_data`, `consents.credit_bureau` — это БКИ компании). Даёт их тот, кто заполняет заявку, а это может быть бухгалтер. Кредитную историю физлица по 218-ФЗ можно запросить только с согласия самого человека.
-
-**Ручки** — на аккаунт, а не на заявку:
+✅ Ручки есть (identity). Кредитную историю физлица по 218-ФЗ можно запросить только с согласия самого человека, а согласия в черновике заявки (`consents.personal_data`, `consents.credit_bureau` — БКИ компании) даёт тот, кто её заполняет, а это может быть бухгалтер. Поэтому личные согласия живут на аккаунте, а не на заявке.
 
 | Ручка | Тело | Ответ |
 |---|---|---|
-| `GET /me/consents` | — | `ConsentRead[]` |
-| `POST /me/consents` | `{"types": ["personal_data", "credit_bureau_personal"]}` | 201 `ConsentRead[]` |
-| `DELETE /me/consents/{type}` | — | 204, отзыв |
+| `GET /me/consents` | — | `ConsentRead[]`: действующие и история, новые сверху |
+| `POST /me/consents` | `{"types": ["personal_data", "credit_bureau_personal"]}` | 201 `ConsentRead[]` — данные согласия |
+| `DELETE /me/consents/{type}` | — | 204; повторный отзыв или отзыв не данного согласия — тоже 204 |
+
+Нужен только вход: согласие человек даёт за себя, пермишн не нужен.
 
 ```text
 ConsentRead {
   type: "personal_data" | "credit_bureau_personal"
   given_at: date-time
-  valid_until: date-time        // срок задаёт бэк; для БКИ по 218-ФЗ — 6 месяцев
+  valid_until: date-time | null // personal_data — бессрочно (null), credit_bureau_personal — 6 календарных месяцев
   revoked_at: date-time | null
-  text_version: string          // какую редакцию текста согласия показали
+  active: boolean               // не отозвано и срок не истёк
+  text_version: string          // редакция текста согласия, которую показали
 }
 ```
 
-Что меняется рядом:
-- enrichment запрашивает БКИ руководителя, только если у руководителя по реестру есть действующее `credit_bureau_personal`. Иначе источник `skipped` — так же, как сейчас с БКИ компании без согласия.
-- В карточке заявки появляется `consents.head_credit_bureau: {given: boolean, given_at: date-time | null}`, чтобы показать «руководитель ещё не дал согласие».
-- В `Dashboard.todo` руководителю приходит новый `kind: consent_required`.
-- Согласия компании в заявке (`consents.*`) остаются как есть.
+- История не перезаписывается: каждое `POST` — новая строка, отзыв только ставит `revoked_at` действующим согласиям этого типа. Истёкшее согласие при отзыве не трогаем: оно закончилось само.
+- Повторное `credit_bureau_personal` до истечения продлевает срок: действует самое свежее.
+- С согласием хранятся IP и `User-Agent` запроса — доказательство, кто и откуда его дал.
+- Неизвестный тип в `POST` или `DELETE` — 422.
+
+Как согласие доходит до запроса в БКИ: при сборке `FetchEnrichment` процесс находит руководителя по реестру (`ClientsFacade.get_registry_head` — участник, чьё ФИО совпало с руководителем в ЕГРЮЛ) и его действующее согласие (`IdentityFacade.get_active_consent`). В команду уходят `head` и `head_bki_consent_at`; без согласия — `head_bki_consent_at = null`, и БКИ руководителя не запрашивается ([4.4](#44-источники-гир-бо-контур-бки-физлица)).
+
+Ещё не сделано (applications и BFF):
+- в карточке заявки — `consents.head_credit_bureau: {required, given, given_at, head_name}`, чтобы показать «руководитель ещё не дал согласие»;
+- в `Dashboard.todo` руководителю — `kind: consent_required`, если есть заявка в работе, а его согласия нет.
 
 ### 4.4. Источники ГИР БО, Контур, БКИ физлица
 

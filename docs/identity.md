@@ -28,6 +28,7 @@
 | `roles` | `id`, `name` (unique), `description`, `permissions` (JSONB), `policies` (JSONB), `created_at`, `updated_at` | Удалить роль, пока на ней есть аккаунты, нельзя (409) |
 | `accounts` | `id`, `email`, `phone`, `password_hash` (argon2id), `role_id`, `created_at`, `updated_at`, `deleted_at` | Нужен email или телефон. Уникальность только среди неудалённых. Удаление мягкое |
 | `profiles` | `account_id` (PK), `last_name`, `first_name`, `middle_name`, `position` | 1:1 с аккаунтом |
+| `identity_consents` | `id`, `account_id` (FK, `ON DELETE CASCADE`), `type`, `given_at`, `valid_until`, `revoked_at`, `text_version`, `ip`, `user_agent` | Личные согласия, см. [ниже](#личные-согласия). Строки не перезаписываются |
 
 Роль клиента так, как она лежит в БД:
 
@@ -115,6 +116,9 @@
 | GET | `/.well-known/jwks.json` | — | Публичный ключ для проверки токенов |
 | GET | `/me` | любой валидный токен | Аккаунт, роль, профиль, пермишны и политики из токена |
 | PATCH | `/me/profile` | `profile.update` | Правка своего профиля |
+| GET | `/me/consents` | любой валидный токен | Свои личные согласия: действующие и история, новые сверху |
+| POST | `/me/consents` | любой валидный токен | `{types: [...]}` → 201, данные согласия |
+| DELETE | `/me/consents/{type}` | любой валидный токен | Отзыв; повторный отзыв — тоже 204 |
 | GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit`/`offset` |
 | GET | `/accounts/{id}` | `accounts.read` | 404, если строка отфильтрована политикой |
 | POST | `/accounts` | `accounts.create` | Аккаунт + профиль |
@@ -136,6 +140,7 @@
 | `get_account(account_id)` | `AccountRefDTO` (id, email, phone, role_name, ФИО, position) или `None` |
 | `find_by_login(login)` | Email в любом регистре или телефон в любом формате — та же нормализация, что у `/auth/login` |
 | `verify_password(account_id, password)` | Повторная проверка пароля (step-up перед подписанием) |
+| `get_active_consent(account_id, type)` | `ConsentDTO` (`given_at`, `valid_until`, `text_version`) — самое свежее действующее согласие этого типа, или `None`: не давал, отозвал, срок истёк |
 
 Удалённые учётки для фасада не существуют: `get_account` и `find_by_login` возвращают `None`, `verify_password` — `False`.
 
@@ -147,6 +152,22 @@ identity = ctx.facade(IdentityFacade)
 ```
 
 В тестах соседей — `tests/fakes/identity_facade.py` (`install(app, IdentityFacade, FakeIdentityFacade())`).
+
+## Личные согласия
+
+Согласие человек даёт за себя, а не за компанию: по 218-ФЗ кредитную историю физлица (руководителя) можно запросить только с его согласия. Согласия компании в заявке (`consents.personal_data`, `consents.credit_bureau`) остаются в applications.
+
+| Тип | Что разрешает | Срок | Редакция текста |
+|---|---|---|---|
+| `personal_data` | обработку своих ПДн (ст. 9 152-ФЗ) | бессрочно (`valid_until = null`) | `pd-2026-10` |
+| `credit_bureau_personal` | запрос своей кредитной истории (ст. 6 218-ФЗ) | 6 календарных месяцев; нет такого числа — последний день месяца | `bki-fl-2026-10` |
+
+- `POST /me/consents` — каждый тип становится новой строкой с `given_at = now`, IP и `User-Agent` запроса. Повторное согласие до истечения не трогает старое: действует самое свежее.
+- `DELETE /me/consents/{type}` ставит `revoked_at = now` всем действующим согласиям типа. Истёкшие не трогаются, повторный отзыв ничего не меняет и тоже отвечает 204.
+- `active` в ответе — не отозвано и `valid_until` позже текущего момента. Время — по `app.state.clock`.
+- Редакции текста — `CONSENT_TEXT_VERSIONS` в `services.py`: новый текст согласия — новая версия там.
+
+Кто читает: процесс при сборке `FetchEnrichment` берёт руководителя по реестру (`ClientsFacade.get_registry_head`) и его `get_active_consent(..., "credit_bureau_personal")`. Есть согласие — в команде `head_bki_consent_at`, и enrichment запрашивает БКИ руководителя; нет — `null`.
 
 ## Как подключить права в своём модуле
 

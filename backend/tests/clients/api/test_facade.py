@@ -84,6 +84,24 @@ def test_permissions_and_members(demo: Demo) -> None:
     demo.facade_call(check)
 
 
+def test_registry_head_is_the_member_matched_by_name(demo: Demo) -> None:
+    """Smirnova matched the registry as the director of Romashka; Petrov's name differs
+    from the registry head of Vector, so Vector has no head to ask for a consent."""
+
+    async def heads(facade: ClientsFacadeImpl):  # type: ignore[no-untyped-def]
+        return (
+            await facade.get_registry_head(demo.orgs["romashka"]),
+            await facade.get_registry_head(demo.orgs["ivanov"]),
+            await facade.get_registry_head(demo.orgs["vector"]),
+            await facade.get_registry_head(uuid4()),
+        )
+
+    romashka, ivanov, vector, unknown = demo.facade_call(heads)
+    assert romashka == demo.id_of(SMIRNOVA)
+    assert ivanov == demo.id_of(IVANOV)
+    assert vector is None and unknown is None
+
+
 def test_my_organizations(demo: Demo) -> None:
     async def load(facade: ClientsFacadeImpl):  # type: ignore[no-untyped-def]
         return await facade.list_my_organizations(demo.id_of(KUZNETSOVA))

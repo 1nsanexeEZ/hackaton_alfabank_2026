@@ -218,6 +218,131 @@
         ]
       }
     },
+    "/me/consents": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "List My Consents",
+        "description": "Personal consents in force and the history, newest first.",
+        "operationId": "list_my_consents_me_consents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentRead"
+                  },
+                  "type": "array",
+                  "title": "Response List My Consents Me Consents Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Give My Consents",
+        "description": "Each type is a new consent row; the request's IP and User-Agent are kept with it.",
+        "operationId": "give_my_consents_me_consents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentGive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentRead"
+                  },
+                  "type": "array",
+                  "title": "Response Give My Consents Me Consents Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/me/consents/{type}": {
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Revoke My Consent",
+        "description": "Revoking an absent or already revoked consent is also 204.",
+        "operationId": "revoke_my_consent_me_consents__type__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "personal_data",
+                "credit_bureau_personal"
+              ],
+              "type": "string",
+              "title": "Type"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/accounts": {
       "get": {
         "tags": [
@@ -5702,6 +5827,89 @@
           "violations"
         ],
         "title": "CompletenessOut"
+      },
+      "ConsentGive": {
+        "properties": {
+          "types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "personal_data",
+                "credit_bureau_personal"
+              ]
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "types"
+        ],
+        "title": "ConsentGive"
+      },
+      "ConsentRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personal_data",
+              "credit_bureau_personal"
+            ],
+            "title": "Type"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Given At"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until",
+            "description": "personal_data — null (until revoked), credit_bureau_personal — 6 months"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "text_version": {
+            "type": "string",
+            "title": "Text Version",
+            "description": "Edition of the consent text that was shown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "given_at",
+          "valid_until",
+          "revoked_at",
+          "active",
+          "text_version"
+        ],
+        "title": "ConsentRead"
       },
       "ConsentsDTO": {
         "properties": {

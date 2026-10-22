@@ -24,6 +24,8 @@ class FakeClientsFacade:
     def __init__(self) -> None:
         self.organizations: dict[UUID, OrganizationSnapshotDTO] = {}
         self.members: dict[tuple[UUID, UUID], tuple[MemberRole, frozenset[str]]] = {}
+        # organization -> the member whose name matched the head in the registry.
+        self.registry_heads: dict[UUID, UUID] = {}
 
     def add_organization(self, snapshot: OrganizationSnapshotDTO) -> OrganizationSnapshotDTO:
         self.organizations[snapshot.id] = snapshot
@@ -90,3 +92,6 @@ class FakeClientsFacade:
             for (acc, org), (_, permissions) in self.members.items()
             if org == organization_id and (permission is None or str(permission) in permissions)
         ]
+
+    async def get_registry_head(self, organization_id: UUID) -> UUID | None:
+        return self.registry_heads.get(organization_id)

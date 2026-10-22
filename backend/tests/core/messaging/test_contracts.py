@@ -146,3 +146,19 @@ def test_duplicate_type_is_rejected() -> None:
 def test_unknown_type() -> None:
     with pytest.raises(LookupError):
         get_contract("NoSuchMessage")
+
+
+def test_fetch_enrichment_without_the_head_still_reads() -> None:
+    """A command written before personal consents: no head, no head consent."""
+    old = {
+        "application_id": str(uuid4()),
+        "organization_id": str(uuid4()),
+        "inn": "7701158817",
+        "sources": ["egrul", "fns", "bki"],
+        "bki_consent_at": NOW.isoformat(),
+    }
+
+    command = get_contract("FetchEnrichment").model_validate(old)
+
+    assert command.head is None  # type: ignore[attr-defined]
+    assert command.head_bki_consent_at is None  # type: ignore[attr-defined]

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.access.access_context import AccessContext
 from src.core.access.apply_helper import apply_access_context
-from src.modules.identity.models import Account, Role
+from src.modules.identity.models import Account, Consent, Role
 
 
 class AccountRepository:
@@ -93,3 +93,33 @@ class RoleRepository:
 
     async def delete(self, role: Role) -> None:
         await self._session.delete(role)
+
+
+class ConsentRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_for(self, account_id: UUID) -> Sequence[Consent]:
+        """Every consent of the account, newest first."""
+        stmt = (
+            select(Consent)
+            .where(Consent.account_id == account_id)
+            .order_by(Consent.given_at.desc(), Consent.id)
+        )
+        return (await self._session.scalars(stmt)).all()
+
+    async def list_not_revoked(self, account_id: UUID, type: str) -> Sequence[Consent]:
+        """Consents of this type that were never revoked, newest first; some may have run out."""
+        stmt = (
+            select(Consent)
+            .where(
+                Consent.account_id == account_id,
+                Consent.type == type,
+                Consent.revoked_at.is_(None),
+            )
+            .order_by(Consent.given_at.desc(), Consent.id)
+        )
+        return (await self._session.scalars(stmt)).all()
+
+    def add(self, consent: Consent) -> None:
+        self._session.add(consent)

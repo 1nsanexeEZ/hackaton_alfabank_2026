@@ -19,9 +19,11 @@ def register(app: FastAPI) -> None:
 def wire(app: FastAPI) -> None:
     """The core token port and IdentityFacade are implemented here."""
     app.dependency_overrides[get_current_token] = get_current_request_token
-    # The hasher is created on startup (lifespan), so it's read when a facade is built.
+    # The hasher is created on startup (lifespan), so it's read when a facade is built;
+    # the clock too: tests may swap app.state.clock.
     app.state.facades.register(
-        IdentityFacade, lambda session: IdentityFacadeImpl(session, app.state.password_hasher)
+        IdentityFacade,
+        lambda session: IdentityFacadeImpl(session, app.state.password_hasher, app.state.clock),
     )
 
 
