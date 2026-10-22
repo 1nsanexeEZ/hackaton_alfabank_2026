@@ -6,7 +6,8 @@ export {
   RISK_CLASS_META,
   RISK_RATE_PREMIUM,
 } from './model/review'
-export { APPLICATION_STATUS_META } from './model/status'
+export { loanDraft } from './model/draft'
+export { APPLICATION_STATUS_META, SERVER_STATUS_META } from './model/status'
 export type {
   ApplicationDraft,
   ApplicationPreview,

@@ -95,6 +95,7 @@ export interface AccountUpdateInput {
   profile?: Partial<ProfileDto>
 }
 
+/** Identity для рабочего места сотрудников; запросы подписываются токеном сотрудника */
 export interface IdentityApi {
   login(login: string, password: string): Promise<TokenResponse>
   me(): Promise<MeDto>

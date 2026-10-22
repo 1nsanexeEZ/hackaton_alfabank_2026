@@ -6,6 +6,7 @@ import { readStorage, writeStorage } from '@/shared/lib'
 /**
  * Сессия сотрудника. Храним только access-токен и время его жизни (refresh у бэкенда нет):
  * после истечения — повторный вход. Права берём из /me, как их видит бэкенд по токену.
+ * С клиентом на сайте не связана: у сайта своя сессия (entities/customer) со своим токеном.
  */
 const STORAGE_KEY = 'admin:session'
 
@@ -40,13 +41,16 @@ function validToken(): string | null {
   return state.token
 }
 
-configureAuth({
-  getToken: validToken,
-  onUnauthorized: () => {
-    clear()
-    expiredListeners.forEach((listener) => listener())
+configureAuth(
+  {
+    getToken: validToken,
+    onUnauthorized: () => {
+      clear()
+      expiredListeners.forEach((listener) => listener())
+    },
   },
-})
+  'staff',
+)
 
 /** Подписка на истечение сессии: роутер уводит на экран входа */
 export function onSessionExpired(listener: () => void): () => void {
