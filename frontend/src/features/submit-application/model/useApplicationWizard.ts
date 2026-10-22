@@ -13,6 +13,7 @@ import { customer } from '@/entities/customer'
 import {
   ApiError,
   clientApi,
+  eligibilityMessage,
   type ApplicationDto,
   type ApplicationUpdateInput,
   type CollateralType,
@@ -81,6 +82,38 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   const legalForm = computed(() => organization.value?.legal_form ?? 'LLC')
   const collateralNeeded = computed(() => needsCollateral(product.value, terms.amount))
   const withFields = computed(() => hasProductFields(product.value))
+
+  /*
+   * Подходит ли компания под продукт (форма бизнеса, возраст, выручка) — спрашиваем бэкенд сразу
+   * при выборе, чтобы не узнавать об отказе после «Далее». Ответ кешируем по паре компания + продукт.
+   */
+  const eligibilityByKey = reactive<Record<string, { eligible: boolean; message: string | null }>>({})
+  const eligibilityKey = computed(() =>
+    terms.organizationId ? `${terms.organizationId}:${product.value.code}` : null,
+  )
+  /** Почему компания не подходит; null — подходит или проверить не удалось (тогда решит бэкенд при создании) */
+  const ineligibleReason = computed(() =>
+    eligibilityKey.value ? (eligibilityByKey[eligibilityKey.value]?.message ?? null) : null,
+  )
+
+  watch(
+    eligibilityKey,
+    async (key) => {
+      delete fieldErrors.value['request.product']
+      if (!key || key in eligibilityByKey) return
+      const [organizationId, code] = key.split(':') as [string, string]
+      try {
+        const result = await clientApi.eligibility(code, organizationId)
+        eligibilityByKey[key] = {
+          eligible: result.eligible,
+          message: result.eligible ? null : eligibilityMessage(result.reasons),
+        }
+      } catch {
+        eligibilityByKey[key] = { eligible: true, message: null }
+      }
+    },
+    { immediate: true },
+  )
 
   const documents = computed<DocumentSlot[]>(() =>
     requiredDocumentsFor(product.value, terms.amount, legalForm.value).map((required) => ({
@@ -271,6 +304,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     if (!organization.value) errors.organization = 'Выберите компанию'
     else if (!organization.value.my_permissions.includes('submit_application')) {
       errors.organization = 'У вас нет права подавать заявки от этой компании'
+    } else if (ineligibleReason.value) {
+      errors['request.product'] = ineligibleReason.value
     } else if (!isAvailableFor(product.value, organization.value.legal_form)) {
       errors['request.product'] = 'Продукт недоступен для этой формы бизнеса'
     }
@@ -416,6 +451,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     product,
     collateralNeeded,
     withFields,
+    ineligibleReason,
     documents,
     busy,
     error,

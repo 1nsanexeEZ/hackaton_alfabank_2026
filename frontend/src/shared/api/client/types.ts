@@ -124,6 +124,21 @@ export interface PaymentScheduleDto {
   payments: PaymentDto[]
 }
 
+/** Одно условие продукта для компании: форма бизнеса, возраст, выручка. message — по-русски */
+export interface EligibilityReasonDto {
+  code: string
+  passed: boolean
+  message: string
+}
+
+/** Подходит ли компания под продукт (GET /products/{code}/eligibility) */
+export interface EligibilityDto {
+  product_code: string
+  organization_id: string
+  eligible: boolean
+  reasons: EligibilityReasonDto[]
+}
+
 /** Действие с компанией внутри неё: подать заявку, подписать и т. п. */
 export type OrgPermission = 'view' | 'submit_application' | 'sign' | 'manage_members' | 'edit_financials'
 
@@ -272,6 +287,8 @@ export interface ClientApi {
   listProducts(): Promise<ProductDto[]>
   /** График платежей по базовой ставке продукта, без входа. За рамками продукта — 422 */
   calculate(code: string, input: CalculateInput): Promise<PaymentScheduleDto>
+  /** Подходит ли компания под продукт — те же проверки, что при создании заявки */
+  eligibility(code: string, organizationId: string): Promise<EligibilityDto>
   /** Компании, где пользователь участник */
   listOrganizations(): Promise<OrganizationSummaryDto[]>
   /** Уже есть заявка по продукту в работе — 409, details.code = duplicate_active, details.application_id */

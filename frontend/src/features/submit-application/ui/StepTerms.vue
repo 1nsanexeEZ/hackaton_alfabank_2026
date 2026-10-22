@@ -17,7 +17,7 @@ import type { ApplicationWizard } from '../model/useApplicationWizard'
 
 const props = defineProps<{ wizard: ApplicationWizard; products: ProductCatalog }>()
 
-const { terms, organizations, organization, product, fieldErrors } = props.wizard
+const { terms, organizations, organization, product, fieldErrors, ineligibleReason } = props.wizard
 
 const organizationOptions = computed(() =>
   (organizations.value ?? []).map((item) => ({ value: item.id, label: `${item.name} · ИНН ${item.inn}` })),
@@ -62,8 +62,8 @@ const { schedule, pending } = useLoanSchedule(() => ({
 
     <div>
       <SelectField v-model="terms.productId" label="Продукт" :options="productOptions" />
-      <p v-if="fieldErrors['request.product']" class="mt-1.5 text-sm text-brand">
-        {{ fieldErrors['request.product'] }}
+      <p v-if="ineligibleReason || fieldErrors['request.product']" class="mt-1.5 text-sm text-brand" role="alert">
+        {{ ineligibleReason ?? fieldErrors['request.product'] }}
       </p>
     </div>
 

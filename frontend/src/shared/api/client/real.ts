@@ -14,6 +14,8 @@ export const realClientApi: ClientApi = {
   me: () => call('/me'),
   listProducts: () => call('/products'),
   calculate: (code, input) => call(`/products/${code}/calculate`, { method: 'POST', body: input }),
+  eligibility: (code, organizationId) =>
+    call(`/products/${code}/eligibility`, { query: { organization_id: organizationId } }),
   listOrganizations: () => call('/organizations'),
   createApplication: (organizationId, productCode) =>
     call('/applications', { method: 'POST', body: { organization_id: organizationId, product_code: productCode } }),
