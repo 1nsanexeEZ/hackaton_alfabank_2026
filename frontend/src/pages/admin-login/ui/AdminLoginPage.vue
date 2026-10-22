@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChartNoAxesCombined, FileSearch, ShieldCheck } from 'lucide-vue-next'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { LoginForm } from '@/features/auth-by-login'
 import { ADMIN_ROUTE, ROUTE_PATH } from '@/shared/config'
@@ -27,9 +27,8 @@ function onSuccess() {
   <div class="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
     <section class="relative flex flex-col overflow-hidden bg-night px-6 py-8 text-on-night sm:px-10 lg:px-14 lg:py-12">
       <PatternBackground />
-      <RouterLink :to="ROUTE_PATH.home" class="relative self-start rounded-lg" aria-label="На главную">
-        <AppLogo inverted />
-      </RouterLink>
+      <!-- Рабочее место не связано с сайтом для клиентов: логотип без ссылки на него -->
+      <AppLogo inverted class="relative self-start" />
       <div class="relative my-10 max-w-lg lg:my-auto">
         <p class="text-sm font-semibold tracking-wider text-brand uppercase">Для сотрудников банка</p>
         <h1 class="mt-3 text-3xl font-bold tracking-tight lg:text-5xl lg:leading-[1.1]">Рабочее место кредитного аналитика</h1>

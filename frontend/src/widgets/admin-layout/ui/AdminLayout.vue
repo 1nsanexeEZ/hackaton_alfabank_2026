@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ExternalLink, LogOut, Menu, UserRound, X } from 'lucide-vue-next'
+import { LogOut, Menu, UserRound, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { roleTitle } from '@/entities/role'
 import { useSession } from '@/entities/session'
 import { API_MODE } from '@/shared/api'
-import { ADMIN_ROUTE, ROUTE_PATH } from '@/shared/config'
+import { ADMIN_ROUTE } from '@/shared/config'
 import { AppLogo } from '@/shared/ui'
 
 import { ADMIN_NAVIGATION } from '../model/navigation'
@@ -104,16 +104,6 @@ watch(() => route.fullPath, () => (isMenuOpen.value = false))
               </RouterLink>
             </li>
           </ul>
-        </div>
-
-        <div class="mt-6 border-t border-night-line pt-4">
-          <RouterLink
-            :to="ROUTE_PATH.home"
-            class="flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-on-night-secondary transition-colors hover:bg-night-glass hover:text-on-night"
-          >
-            <ExternalLink class="size-[18px]" aria-hidden="true" />
-            Сайт для клиентов
-          </RouterLink>
         </div>
       </nav>
 
