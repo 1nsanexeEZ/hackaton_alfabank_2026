@@ -59,7 +59,7 @@
 | `requests.update` | ✓ `org_member` | — | applications |
 | `credits.read` | ✓ | ✓ | products |
 | `organizations.read` | ✓ `org_member` | ✓ | clients |
-| `organizations.update` | ✓ `org_member` | — | clients |
+| `organizations.update` | ✓ `org_member` | ✓ только сверка с реестром | clients |
 | `tasks.read`, `tasks.update` | — | ✓ | process |
 | `decisions.read` | — | ✓ | decision |
 | `backoffice.read` | — | ✓ | bff |

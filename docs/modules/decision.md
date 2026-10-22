@@ -213,8 +213,9 @@ Eligibility продукта, срок действия (30 дней) и хра�
   пишется. Успех → новая запись `decided_by=underwriter`, `override_of` = последнее авторешение
   (оно остаётся для аудита), проверки — в `rule_trace`, комментарий клиенту не уходит.
 
-**Консьюмер `clients.events`** (group `decision.clients-events`): `FinancialReportSubmitted` и
-`OrganizationVerified` → пересчёт предодобрений: по каждому активному продукту eligibility products
+**Консьюмер `clients.events`** (group `decision.clients-events`): `FinancialReportSubmitted`,
+`OrganizationVerified` и `OrganizationVerificationMismatch` (сверка с реестром могла сменить статус
+или найти расхождение) → пересчёт предодобрений: по каждому активному продукту eligibility products
 (не проходит — пропуск) → `scoring.estimate` без БКИ и выписок → `CreditPolicy.pre_approve` →
 предложения на 30 дней, пересчёт перезаписывает все предложения компании →
 `PreApprovedOffersUpdated {organization_id}`. Сид `backend/seed/decision.py` считает их для всех
