@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { BellRing, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import {
+  ACTION_REQUIRED_LABEL,
   ApplicationStatusCard,
   clientStages,
+  isActiveApplication,
   myApplications,
-  toClientStatus,
   type ApplicationDraft,
   type ApplicationPreview,
 } from '@/entities/application'
 import type { CreditProduct } from '@/entities/credit-product'
 import { customer, useCustomer } from '@/entities/customer'
+import { liveFeed } from '@/entities/notification'
 import { BaseButton } from '@/shared/ui'
 
 import { HERO_DEMO_APPLICATION } from '../model/content'
@@ -23,7 +25,7 @@ import { HERO_DEMO_APPLICATION } from '../model/content'
  */
 const props = defineProps<{ products: readonly CreditProduct[] | null }>()
 
-const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft] }>()
+const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft]; open: [applicationId: string] }>()
 
 const { me } = useCustomer()
 const { state } = myApplications
@@ -35,30 +37,37 @@ watch(
   { immediate: true },
 )
 
+// Банк поменял заявку (этап, решение, запрос) — статус на карточке меняется сам, без перезагрузки
+const stopLive = liveFeed.onApplication(() => void myApplications.refresh())
+onBeforeUnmount(stopLive)
+
+/** На первом экране — только заявки в работе; закрытые видны в «Моих заявках» */
+const active = computed(() => state.items?.filter(isActiveApplication) ?? null)
+
 const index = ref(0)
 // Список перезагрузили (например, после мастера заявки) — показываем самую свежую
-watch(() => state.items, () => (index.value = 0))
+watch(active, () => (index.value = 0))
 
 const mode = computed<'example' | 'loading' | 'error' | 'empty' | 'list'>(() => {
   // Токен есть, а профиль ещё не подтянулся — это не «не вошёл», пример не показываем
   if (!customer.state.token) return 'example'
-  if (state.items?.length) return 'list'
-  if (state.items) return 'empty'
+  if (active.value?.length) return 'list'
+  if (active.value) return 'empty'
   return state.error ? 'error' : 'loading'
 })
 
-const count = computed(() => state.items?.length ?? 0)
-const current = computed(() => state.items?.[index.value] ?? null)
+const count = computed(() => active.value?.length ?? 0)
+const current = computed(() => active.value?.[index.value] ?? null)
 
 const productOf = (code: string) => props.products?.find((product) => product.code === code)
 
 const preview = computed<ApplicationPreview | null>(() => {
   const item = current.value
   if (!item) return null
-  const status = toClientStatus(item.status, item.client_stage) ?? 'submitted'
+  const status = item.client_status
   return {
     number: item.number,
-    productTitle: productOf(item.product_code)?.title ?? item.product_code,
+    productTitle: item.product_name || productOf(item.product_code)?.title || item.product_code,
     organizationName: item.organization_name,
     amount: item.amount === null ? null : Number(item.amount),
     termMonths: item.term_months,
@@ -113,8 +122,20 @@ function continueDraft() {
           </div>
         </div>
       </template>
-      <template v-if="preview.status === 'draft'" #footer>
-        <BaseButton block class="mt-6" @click="continueDraft">Продолжить заявку</BaseButton>
+      <template #footer>
+        <p
+          v-if="current && ACTION_REQUIRED_LABEL[current.action_required]"
+          class="mt-5 flex items-center gap-2 rounded-xl bg-brand/15 px-3 py-2 text-sm font-medium text-on-night"
+        >
+          <BellRing class="size-4 shrink-0 text-brand" aria-hidden="true" />
+          {{ ACTION_REQUIRED_LABEL[current.action_required] }}
+        </p>
+        <BaseButton v-if="preview.status === 'draft'" block class="mt-6" @click="continueDraft">
+          Продолжить заявку
+        </BaseButton>
+        <BaseButton v-else-if="current" block variant="glass" class="mt-6" @click="emit('open', current.id)">
+          Подробнее о заявке
+        </BaseButton>
       </template>
     </ApplicationStatusCard>
 

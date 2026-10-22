@@ -13,7 +13,7 @@ import HeroApplication from './HeroApplication.vue'
 const props = defineProps<{ products: readonly CreditProduct[] | null }>()
 
 /** Куда вести «Оформить» и «Продолжить заявку», решает страница: виджет про поток заявки не знает */
-const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft] }>()
+const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft]; open: [applicationId: string] }>()
 
 const stats = computed(() => heroStats(props.products))
 </script>
@@ -57,6 +57,7 @@ const stats = computed(() => heroStats(props.products))
           class="w-full lg:justify-self-end"
           @apply="emit('apply')"
           @continue="(draft) => emit('continue', draft)"
+          @open="(id) => emit('open', id)"
         />
       </div>
 

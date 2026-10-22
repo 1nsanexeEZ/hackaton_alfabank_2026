@@ -1,18 +1,19 @@
 import { reactive, readonly } from 'vue'
 
-import { clientApi, type ApplicationStatusCode, type ApplicationSummaryDto } from '@/shared/api'
+import { clientApi, type ApplicationRowDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
-/** Заявка закрыта: по продукту можно подавать новую, на первом экране её не показываем */
-const FINAL_STATUSES: readonly ApplicationStatusCode[] = ['disbursed', 'rejected', 'offer_declined', 'expired', 'cancelled']
+import { CLOSED_CLIENT_STATUSES } from './status'
 
-export interface MyApplication extends ApplicationSummaryDto {
-  organization_name: string | null
+export interface MyApplication extends ApplicationRowDto {
+  organization_id: string
+  organization_name: string
 }
 
 /**
- * Активные заявки вошедшего клиента по всем его компаниям, свежие первыми. Загружает тот,
- * кто знает про вход (первый экран), перезагружает тот, кто меняет заявки (мастер заявки).
+ * Заявки вошедшего клиента по всем его компаниям, свежие первыми — строки BFF
+ * (`GET /bff/applications`): клиентский статус, этап и «что ждёт банк» считает бэкенд.
+ * Загружает тот, кто знает про вход (первый экран), перезагружает тот, кто меняет заявки.
  */
 const state = reactive<{ items: MyApplication[] | null; loading: boolean; error: string | null }>({
   items: null,
@@ -28,16 +29,37 @@ async function load(): Promise<void> {
   state.loading = true
   state.error = null
   try {
-    const [applications, organizations] = await Promise.all([
-      clientApi.listApplications(100),
-      clientApi.listOrganizations(),
-    ])
+    // Сотрудник банка видит все компании, но не участник ни одной — у клиента только свои
+    const [all, plain] = await Promise.all([clientApi.listOrganizations(), clientApi.listApplications(100)])
+    const organizations = all.filter((item) => item.my_role !== null)
+    const lists = await Promise.all(
+      organizations.map(async (organization) =>
+        (await clientApi.listApplicationRows(organization.id, 100)).items.map((row) => ({
+          ...row,
+          organization_id: organization.id,
+          organization_name: organization.name,
+        })),
+      ),
+    )
     if (id !== requestId) return
-    const names = new Map(organizations.map((item) => [item.id, item.name]))
-    state.items = applications
-      .filter((item) => !FINAL_STATUSES.includes(item.status))
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-      .map((item) => ({ ...item, organization_name: names.get(item.organization_id) ?? null }))
+    const rows: MyApplication[] = lists.flat()
+    // Модель чтения BFF строится по событиям подачи — черновиков в ней нет, берём их из GET /applications
+    const known = new Set(rows.map((row) => row.id))
+    const names = new Map(organizations.map((organization) => [organization.id, organization.name]))
+    for (const draft of plain) {
+      const organizationName = names.get(draft.organization_id)
+      if (draft.status !== 'draft' || known.has(draft.id) || !organizationName) continue
+      rows.push({
+        ...draft,
+        product_name: '',
+        client_status: 'draft',
+        action_required: 'none',
+        offer_amount: null,
+        offer_rate: null,
+        organization_name: organizationName,
+      })
+    }
+    state.items = rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
   } catch (caught) {
     if (id !== requestId) return
     state.error = errorMessage(caught)
@@ -57,6 +79,11 @@ function clear(): void {
 /** Перезагрузить, только если список уже показывали: без входа загружать нечего */
 async function refresh(): Promise<void> {
   if (state.items || state.error) await load()
+}
+
+/** Заявка ещё в работе: черновик, рассмотрение, предложение, подписание */
+export function isActiveApplication(item: Pick<ApplicationRowDto, 'client_status'>): boolean {
+  return !CLOSED_CLIENT_STATUSES.includes(item.client_status)
 }
 
 export const myApplications = {

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ChevronDown, LogIn, LogOut, Menu, UserRound, X } from 'lucide-vue-next'
+import { Bell, Building2, ChevronDown, FileText, LogIn, LogOut, Menu, UserRound, X, type LucideIcon } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { customer, useCustomer } from '@/entities/customer'
+import { liveFeed } from '@/entities/notification'
 import { LANDING_NAV, ROUTE_PATH, sectionHref } from '@/shared/config'
 import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
 
@@ -11,7 +12,25 @@ import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
  * Кнопки «Оформить заявку» и «Войти» не решают сами, куда вести: страница или приложение
  * передают это в поток заявки, где проверяется вход.
  */
-const emit = defineEmits<{ apply: []; login: [] }>()
+const emit = defineEmits<{ apply: []; login: []; open: [section: CabinetSection] }>()
+
+/** Разделы кабинета клиента — открываются модалками поверх сайта (widgets/apply-flow) */
+type CabinetSection = 'applications' | 'notifications' | 'company' | 'profile'
+
+const CABINET_LINKS: readonly { section: CabinetSection; label: string; icon: LucideIcon }[] = [
+  { section: 'applications', label: 'Мои заявки', icon: FileText },
+  { section: 'notifications', label: 'Уведомления', icon: Bell },
+  { section: 'company', label: 'Компания', icon: Building2 },
+  { section: 'profile', label: 'Профиль', icon: UserRound },
+]
+
+const unread = computed(() => liveFeed.state.unread)
+
+function openSection(section: CabinetSection) {
+  closeAccount()
+  closeMenu()
+  emit('open', section)
+}
 
 const { me, isAuthenticated, name, logout } = useCustomer()
 
@@ -131,11 +150,18 @@ watch(
             aria-haspopup="menu"
             aria-controls="account-menu"
             :aria-expanded="isAccountOpen"
-            :aria-label="`Аккаунт: ${name}`"
+            :aria-label="unread ? `Аккаунт: ${name}, новых уведомлений: ${unread}` : `Аккаунт: ${name}`"
             @click="toggleAccount"
           >
             <UserRound class="size-4 shrink-0" aria-hidden="true" />
             <span class="max-w-40 truncate max-xl:hidden">{{ name }}</span>
+            <span
+              v-if="unread"
+              class="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-white"
+              :aria-label="`Новых уведомлений: ${unread}`"
+            >
+              {{ unread > 99 ? '99+' : unread }}
+            </span>
             <ChevronDown
               class="size-4 shrink-0 transition-transform duration-200"
               :class="isAccountOpen && 'rotate-180'"
@@ -160,6 +186,24 @@ watch(
                 <p v-if="contact" class="truncate text-xs text-ink-secondary">{{ contact }}</p>
               </div>
               <button
+                v-for="link in CABINET_LINKS"
+                :key="link.section"
+                type="button"
+                role="menuitem"
+                class="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3.5 text-left text-sm font-medium transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
+                @click="openSection(link.section)"
+              >
+                <component :is="link.icon" class="size-4 text-ink-secondary" aria-hidden="true" />
+                <span class="flex-1">{{ link.label }}</span>
+                <span
+                  v-if="link.section === 'notifications' && unread"
+                  class="rounded-full bg-brand px-1.5 py-0.5 text-[11px] leading-none font-bold text-white"
+                >
+                  {{ unread }}
+                </span>
+              </button>
+              <div class="my-1 h-px bg-line" aria-hidden="true" />
+              <button
                 type="button"
                 role="menuitem"
                 class="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3.5 text-left text-sm font-medium transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
@@ -178,7 +222,7 @@ watch(
         <BaseButton size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
         <button
           type="button"
-          class="-mr-2 flex size-10 items-center justify-center rounded-lg text-on-night transition-colors hover:bg-night-glass lg:hidden"
+          class="relative -mr-2 flex size-10 items-center justify-center rounded-lg text-on-night transition-colors hover:bg-night-glass lg:hidden"
           :aria-expanded="isMenuOpen"
           aria-controls="mobile-menu"
           :aria-label="isMenuOpen ? 'Закрыть меню' : 'Открыть меню'"
@@ -186,6 +230,7 @@ watch(
         >
           <X v-if="isMenuOpen" class="size-6" aria-hidden="true" />
           <Menu v-else class="size-6" aria-hidden="true" />
+          <span v-if="isAuthenticated && unread && !isMenuOpen" class="absolute top-2 right-1.5 size-2.5 rounded-full bg-brand ring-2 ring-night" aria-hidden="true" />
         </button>
       </div>
     </BaseContainer>
@@ -211,6 +256,21 @@ watch(
               </li>
             </ul>
           </nav>
+          <ul v-if="isAuthenticated" class="mt-4 grid grid-cols-2 gap-2" aria-label="Кабинет">
+            <li v-for="link in CABINET_LINKS" :key="link.section">
+              <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-xl bg-night-glass px-3.5 py-3 text-left text-sm font-medium text-on-night"
+                @click="openSection(link.section)"
+              >
+                <component :is="link.icon" class="size-4 shrink-0" aria-hidden="true" />
+                <span class="flex-1">{{ link.label }}</span>
+                <span v-if="link.section === 'notifications' && unread" class="rounded-full bg-brand px-1.5 py-0.5 text-[11px] leading-none font-bold text-white">
+                  {{ unread }}
+                </span>
+              </button>
+            </li>
+          </ul>
           <div class="mt-6 grid gap-3 sm:grid-cols-2">
             <BaseButton v-if="isAuthenticated" variant="glass" block @click="signOut">
               <LogOut class="size-4" aria-hidden="true" />

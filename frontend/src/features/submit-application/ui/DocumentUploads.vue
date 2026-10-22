@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { CircleCheck, FileUp, Trash2 } from 'lucide-vue-next'
 
+import { documentFormat } from '@/entities/application'
 import { BaseButton } from '@/shared/ui'
 
-import { documentFormat } from '../model/documentFormats'
 import type { DocumentSlot } from '../model/useApplicationWizard'
 
 /** Документы, которые требует продукт при этой сумме и форме бизнеса. Файл уходит в хранилище сразу при выборе */

@@ -44,6 +44,15 @@ export function formatTerm(months: number): string {
 }
 
 /** Оставляет в строке только цифры: «1 500 000 ₽» → «1500000» */
+/** «до 3 лет», «до 1 года», «до 18 месяцев» — срок как предел */
+export function formatTermLimit(months: number): string {
+  if (months % 12 === 0) {
+    const years = months / 12
+    return `до ${years} ${years % 10 === 1 && years % 100 !== 11 ? 'года' : 'лет'}`
+  }
+  return `до ${months} ${months % 10 === 1 && months % 100 !== 11 ? 'месяца' : 'месяцев'}`
+}
+
 export function onlyDigits(value: string): string {
   return value.replace(/\D/g, '')
 }

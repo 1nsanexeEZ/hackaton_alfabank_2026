@@ -7,7 +7,7 @@ import { fitLoanParams, getDefaultLoanParams } from '@/features/calculate-loan'
 import { SECTION_ID } from '@/shared/config'
 import { scrollToSection } from '@/shared/lib'
 import { AsyncState, BaseContainer } from '@/shared/ui'
-import { startApplication } from '@/widgets/apply-flow'
+import { openApplicationCard, startApplication } from '@/widgets/apply-flow'
 import { BenefitsSection } from '@/widgets/benefits'
 import { FaqSection } from '@/widgets/faq'
 import { HeroSection } from '@/widgets/hero'
@@ -55,7 +55,7 @@ function continueApplication(draft: ApplicationDraft) {
 </script>
 
 <template>
-  <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" />
+  <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" @open="openApplicationCard" />
   <BenefitsSection />
   <template v-if="products">
     <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />

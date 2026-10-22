@@ -1,6 +1,12 @@
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 
-import { APPLICATION_STATUS_META, loanDraft, toClientStatus } from '@/entities/application'
+import {
+  APPLICATION_STATUS_META,
+  fileProblem,
+  loanDraft,
+  toClientStatus,
+  uploadApplicationDocument,
+} from '@/entities/application'
 import {
   findProduct,
   hasProductFields,
@@ -23,7 +29,6 @@ import {
 } from '@/shared/api'
 import { clamp, errorMessage } from '@/shared/lib'
 
-import { contentTypeOf, fileProblem } from './documentFormats'
 import { fieldTitle, parseNumber, toFormValues, toPayload, validateFieldValues, type FieldValues } from './productFields'
 import { describeViolations, type ViolationView, type WizardStep } from './violations'
 
@@ -208,6 +213,9 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       terms.productId = fromSite.id
     }
     if (!Object.keys(productFields.value).length) productFields.value = toFormValues(product.value.fieldsSchema)
+    // Цель черновика, который продолжают с карточки заявки; берём один раз
+    if (loanDraft.purpose && product.value.purposes.includes(loanDraft.purpose)) terms.purpose = loanDraft.purpose
+    loanDraft.purpose = undefined
     if (!terms.purpose) terms.purpose = product.value.purposes[0] ?? ''
     if (!collateral.type) collateral.type = product.value.collateralTypes[0] ?? ''
     if (!organizations.value && !organizationsLoading.value) void loadOrganizations()
@@ -408,14 +416,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
     uploads[type] = { uploading: true, error: null }
     try {
-      const { document, upload } = await clientApi.requestDocumentUpload(current.id, {
-        type,
-        filename: file.name,
-        content_type: contentTypeOf(file),
-        size_bytes: file.size,
-      })
-      await clientApi.uploadFile(upload, file)
-      await clientApi.confirmDocument(current.id, document.id)
+      await uploadApplicationDocument(current.id, type, file)
       // Документы меняют версию черновика — перечитываем заявку целиком
       application.value = await clientApi.getApplication(current.id)
       delete uploads[type]

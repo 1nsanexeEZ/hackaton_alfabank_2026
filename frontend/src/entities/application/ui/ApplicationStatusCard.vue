@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import { formatMoney, formatTerm } from '@/shared/lib'
 import { BaseBadge } from '@/shared/ui'
 
-import { APPLICATION_STATUS_META } from '../model/status'
+import { CLIENT_STATUS_META } from '../model/status'
 import type { ApplicationPreview } from '../model/types'
 
 /**
@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{ application: ApplicationPreview; label?
   label: 'Пример заявки в кабинете',
 })
 
-const statusMeta = computed(() => APPLICATION_STATUS_META[props.application.status])
+const statusMeta = computed(() => CLIENT_STATUS_META[props.application.status])
 </script>
 
 <template>
