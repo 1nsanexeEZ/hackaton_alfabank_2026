@@ -48,11 +48,10 @@ const SIZE_CLASS: Record<Size, string> = {
 
 /*
  * Движение у каждого варианта своё, чтобы кнопки звали нажать, но не спорили друг с другом:
- * главная — блик, дышащее кольцо, притяжение к курсору и искры по клику;
+ * главная — блик, дышащее кольцо, увеличение с пружиной и искры по клику;
  * второстепенная — тёмная заливка слева; стеклянная — бегущая подсветка контура;
  * белая и прозрачная — текст прокручивается вверх. У всех — волна от клика и сжатие при нажатии.
  */
-const MAGNET_STRENGTH = 0.3
 const SPARK_COLORS = ['#ef3124', '#ffd03d', '#4d8dff', '#2ec98f', '#ffffff']
 
 const tag = computed(() => (props.to ? RouterLink : props.href ? 'a' : 'button'))
@@ -89,11 +88,6 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
 
 const ripples = ref<Burst[]>([])
 const sparks = ref<Burst[]>([])
-const magnet = ref({ x: 0, y: 0 })
-
-const magnetStyle = computed(() =>
-  magnet.value.x || magnet.value.y ? { translate: `${magnet.value.x}px ${magnet.value.y}px` } : undefined,
-)
 
 function onPointerDown(event: PointerEvent) {
   if (isInactive.value || reducedMotion) return
@@ -101,19 +95,6 @@ function onPointerDown(event: PointerEvent) {
   const id = ++seq
   ripples.value.push({ id, style: { left: `${event.clientX - rect.left}px`, top: `${event.clientY - rect.top}px` } })
   later(() => (ripples.value = ripples.value.filter((item) => item.id !== id)), 700)
-}
-
-function onPointerMove(event: PointerEvent) {
-  if (props.variant !== 'primary' || event.pointerType !== 'mouse' || isInactive.value || reducedMotion) return
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  magnet.value = {
-    x: Math.round((event.clientX - rect.left - rect.width / 2) * MAGNET_STRENGTH),
-    y: Math.round((event.clientY - rect.top - rect.height / 2) * MAGNET_STRENGTH),
-  }
-}
-
-function onPointerLeave() {
-  magnet.value = { x: 0, y: 0 }
 }
 
 function onClick() {
@@ -148,10 +129,7 @@ function onClick() {
       SIZE_CLASS[size],
       block && 'w-full',
     ]"
-    :style="magnetStyle"
     @pointerdown="onPointerDown"
-    @pointermove="onPointerMove"
-    @pointerleave="onPointerLeave"
     @click="onClick"
   >
     <!-- Слой эффектов: обрезан по форме кнопки, сама кнопка не обрезает искры -->
@@ -181,7 +159,6 @@ function onClick() {
   --spring: cubic-bezier(0.22, 1, 0.36, 1);
 
   transition:
-    translate 0.3s var(--spring),
     scale 0.2s var(--spring),
     background-color 0.25s,
     color 0.3s,
@@ -238,9 +215,18 @@ function onClick() {
   animation: btn-pulse 2.6s ease-out infinite;
 }
 
-.btn--primary:hover {
+/*
+ * Наведение: кнопка увеличивается с лёгкой пружиной, по ней пробегает блик и снизу разгорается
+ * красное свечение. scale не меняет размер в потоке — соседние элементы остаются на месте.
+ */
+.btn--primary:hover:not(:active) {
   animation: none;
-  box-shadow: 0 0.875rem 1.875rem rgb(239 49 36 / 0.35);
+  scale: 1.05;
+  transition-duration: 0.45s;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 0.875rem 1.875rem rgb(239 49 36 / 0.35),
+    0 0 0 0.25rem rgb(239 49 36 / 0.12);
 }
 
 .btn--primary:disabled,
