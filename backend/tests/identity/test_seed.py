@@ -32,6 +32,7 @@ UNDERWRITER_PERMISSIONS = [
     "requests.read",
     "credits.read",
     "organizations.read",
+    "organizations.update",
     "tasks.read",
     "tasks.update",
     "decisions.read",
