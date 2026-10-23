@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.enrichment.facade import CreditHistoryDTO
 from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.domain.model import (
     BureauInput,
@@ -16,7 +17,16 @@ from src.modules.scoring.domain.model import (
     ScoringInput,
     TaxInput,
 )
-from src.modules.scoring.facade import CompanyProfileDTO, EstimateDTO, FactorDTO, ScoringResultDTO
+from src.modules.scoring.domain.prescreen import FounderPrescreen, PersonHistoryInput
+from src.modules.scoring.facade import (
+    CompanyProfileDTO,
+    EstimateDTO,
+    FactorDTO,
+    PersonPrescreenDTO,
+    PrescreenReasonDTO,
+    ScoringResultDTO,
+)
+from src.modules.scoring.infrastructure.config_loader import default_prescreen
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 
 # Предодобрение оценивает компанию без заявки: номинальные параметры запроса и
@@ -26,11 +36,36 @@ _ESTIMATE_RATE_BASE = Decimal("21.5")
 
 
 class ScoringFacadeImpl:
-    """Чтение результата для decision/bff и быстрый estimate для предодобрения."""
+    """Чтение результата для decision/bff, быстрый estimate для предодобрения и предскрин
+    учредителя стартапа."""
 
-    def __init__(self, session: AsyncSession, scorecard: ScoringModel) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        scorecard: ScoringModel,
+        prescreen: FounderPrescreen | None = None,
+    ) -> None:
         self._repo = SqlAlchemyScoringRepository(session)
         self._scorecard = scorecard
+        self._prescreen = prescreen or default_prescreen()
+
+    def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
+        output = self._prescreen.check(
+            None
+            if history is None
+            else PersonHistoryInput(
+                current_overdue_days=max((o.overdue_days for o in history.obligations), default=0),
+                max_overdue_days_12m=history.max_overdue_days_12m,
+                inquiries_last_30d=history.inquiries_last_30d,
+                monthly_payments=history.total_monthly_payments,
+                obligations=len(history.obligations),
+            )
+        )
+        return PersonPrescreenDTO(
+            version=output.version,
+            passed=output.passed,
+            reasons=tuple(PrescreenReasonDTO(r.code, r.passed, r.message) for r in output.reasons),
+        )
 
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None:
         result = await self._repo.latest_for_application(application_id)

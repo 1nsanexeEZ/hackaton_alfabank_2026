@@ -27,11 +27,13 @@ from src.modules.scoring.domain.pd_model import (
     PdModelConfig,
     ScorecardSpec,
 )
+from src.modules.scoring.domain.prescreen import FounderPrescreen, PrescreenConfig
 from src.modules.scoring.domain.scorecard import Scorecard, ScorecardConfig
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _DEFAULT_CARD = "scorecard_v1"
 _DEFAULT_MODEL = "pd_model_v2"
+_DEFAULT_PRESCREEN = "prescreen_v1"
 
 # Фактор → обязательные корзины (должны совпадать с логикой в domain/scorecard.py).
 _REQUIRED_BUCKETS: dict[str, frozenset[str]] = {
@@ -115,6 +117,40 @@ def _check_completeness(schema: _Schema, path: Path) -> None:
     for section in ("low", "high"):
         if section not in schema.industry_sections:
             raise ScorecardConfigError(f"Скоркарта {path}: нет секции industry_sections.{section}")
+
+
+# --- предскрин учредителя ----------------------------------------------------------------------
+
+
+class _PrescreenSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    current_overdue_days: int = Field(ge=1)
+    max_overdue_days_12m: int = Field(ge=0)
+    inquiries_30d: int = Field(ge=0)
+    monthly_payments: Decimal = Field(gt=0)
+
+
+def load_prescreen(name: str = _DEFAULT_PRESCREEN) -> FounderPrescreen:
+    return load_prescreen_file(_CONFIG_DIR / f"{name}.yaml")
+
+
+def load_prescreen_file(path: Path) -> FounderPrescreen:
+    try:
+        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScorecardConfigError(f"Не удалось прочитать предскрин {path}: {exc}") from exc
+    try:
+        schema = _PrescreenSchema.model_validate(raw)
+    except ValidationError as exc:
+        raise ScorecardConfigError(f"Предскрин {path} не прошёл схему: {exc}") from exc
+    return FounderPrescreen(PrescreenConfig(**schema.model_dump()))
+
+
+@lru_cache(maxsize=4)
+def default_prescreen() -> FounderPrescreen:
+    return load_prescreen()
 
 
 # --- PD-модель ---------------------------------------------------------------------------------
