@@ -91,10 +91,51 @@ export interface ObligationDto {
   overdue_days: number
 }
 
+export type EnrichmentSource = 'egrul' | 'fns' | 'bki' | 'statement' | 'gir_bo' | 'kontur' | 'bki_head'
+
+export interface SourceErrorDto {
+  source: EnrichmentSource
+  code: string
+  message: string
+}
+
+export interface CreditHistoryDto {
+  obligations: ObligationDto[]
+  inquiries_last_30d: number
+  has_active_overdue: boolean
+  max_overdue_days_12m: number
+  total_monthly_payments: string
+}
+
+/** Бухотчётность из ГИР БО за год */
+export interface AccountingPeriodDto {
+  year: number
+  revenue: string
+  net_profit: string
+  equity: string
+  total_assets: string
+  total_liabilities: string
+  receivables: string
+  cash: string
+}
+
+/** Контур: надёжность, суды, приставы, банкротство, госконтракты */
+export interface CounterpartyRiskDto {
+  reliability: 'green' | 'yellow' | 'red'
+  notes: string[]
+  arbitration: { as_defendant: number; as_plaintiff: number; defendant_sum: string }
+  enforcement: { active: number; sum: string }
+  bankruptcy_messages: { date: string; type: string; case: string }[]
+  gov_contracts: { count: number; sum: string }
+  active_pledges: number
+}
+
 export interface EnrichmentDto {
   collected_at: string
-  sources_ok: string[]
-  sources_failed: { source: string; code: string; message: string }[]
+  sources_ok: EnrichmentSource[]
+  sources_failed: SourceErrorDto[]
+  /** Не запрошены: БКИ — нет согласия, БКИ руководителя — нет согласия или руководителя */
+  sources_skipped?: SourceErrorDto[]
   egrul: {
     full_name: string
     status: string
@@ -107,6 +148,9 @@ export interface EnrichmentDto {
     founders: { name: string; share_percent: string }[]
     address: string
     mass_address: boolean
+    kpp?: string | null
+    /** С какой даты руководитель в реестре */
+    head_since?: string | null
   } | null
   fns: {
     tax_arrears: string
@@ -116,14 +160,14 @@ export interface EnrichmentDto {
     tax_regime: string
     disqualified_head: boolean
     in_msp_registry: boolean
+    /** Приостановления операций по счетам */
+    account_blocks?: { decision_number: string; date: string; authority_code: string; reason: string }[]
   } | null
-  bki: {
-    obligations: ObligationDto[]
-    inquiries_last_30d: number
-    has_active_overdue: boolean
-    max_overdue_days_12m: number
-    total_monthly_payments: string
-  } | null
+  bki: CreditHistoryDto | null
+  /** БКИ руководителя — только с его личным согласием */
+  bki_head?: CreditHistoryDto | null
+  gir_bo?: { available: boolean; reason: string | null; periods: AccountingPeriodDto[] } | null
+  kontur?: CounterpartyRiskDto | null
   cashflow: {
     months_history: { month: string; inflow: string; outflow: string; net: string; balance: string }[]
     forecast: { month: string; projected_balance: string }[]
@@ -138,11 +182,30 @@ export interface EnrichmentDto {
 export interface ScoringDto {
   model_version: string
   score: number
-  grade: 'A' | 'B' | 'C' | 'D' | 'E'
+  grade: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
   factors: { code: string; value: string | null; bin: string; points: number; direction: 'positive' | 'negative' | 'neutral'; client_hint: string | null }[]
   flags: string[]
   data_completeness: string
   computed_at: string
+  segment?: 'legal_entity' | 'entrepreneur' | 'new_client' | null
+  scorecard?: string | null
+  /** Вероятность дефолта за 12 месяцев, доля */
+  pd_12m?: string | null
+  /** Факторы, сильнее всего снизившие балл */
+  reason_codes?: string[]
+}
+
+/** Лимиты движка; binding — какой из них дал итоговый минимум */
+export interface LimitsDto {
+  by_revenue: string | null
+  by_ltv: string | null
+  by_capacity: string | null
+  by_product?: string | null
+  by_turnover?: string | null
+  by_grade?: string | null
+  by_group?: string | null
+  final?: string | null
+  binding?: string | null
 }
 
 export interface DecisionDto {
@@ -154,10 +217,14 @@ export interface DecisionDto {
   reason_codes: string[]
   client_explanation: string
   rule_trace: { rule: string; matched: boolean; detail: string }[]
-  limits: { by_revenue: string | null; by_ltv: string | null; by_capacity: string | null }
+  limits: LimitsDto
   decided_by_type: 'auto' | 'underwriter'
   comment: string | null
   decided_at: string
+  /** Мягкие триггеры, из-за которых заявка ушла на ручную проверку */
+  triggers?: { code: string; detail: string }[]
+  /** Из чего сложилась ставка, процентные пункты */
+  rate_breakdown?: { funding: string; expected_loss: string; capital: string; margin: string; total: string } | null
 }
 
 export interface UnderwriterTaskDto {

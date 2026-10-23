@@ -9,8 +9,11 @@ import {
   FLAG_LABEL,
   GRADE_TONE,
   label,
+  LIMIT_LABEL,
   OUTCOME_LABEL,
   REASON_LABEL,
+  RELIABILITY,
+  SEGMENT_LABEL,
   SOURCE_LABEL,
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
@@ -51,6 +54,34 @@ async function download(documentId: string) {
 }
 
 const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].sort((a, b) => Math.abs(b.points) - Math.abs(a.points)))
+
+/** Кредитные истории: компании и руководителя (вторая — только с его личным согласием) */
+const bureaus = computed(() => {
+  const enrichment = data.value?.enrichment
+  return [
+    { key: 'bki', title: 'Бюро кредитных историй', history: enrichment?.bki ?? null },
+    { key: 'bki_head', title: 'БКИ руководителя', history: enrichment?.bki_head ?? null },
+  ].filter((item) => item.history)
+})
+
+/** Бухотчётность ГИР БО — последние годы сверху */
+const accountingPeriods = computed(() => [...(data.value?.enrichment?.gir_bo?.periods ?? [])].sort((a, b) => b.year - a.year).slice(0, 3))
+
+/** Лимиты движка, какие посчитаны; binding — тот, что дал итоговую сумму */
+const limits = computed(() => {
+  const value = data.value?.decision?.limits
+  if (!value) return []
+  return Object.entries(LIMIT_LABEL)
+    .map(([key, title]) => ({ key, title, amount: value[key as keyof typeof value] ?? null, binding: value.binding === key }))
+    .filter((item) => item.amount !== null)
+})
+
+const RATE_PARTS = [
+  { key: 'funding', title: 'Фондирование' },
+  { key: 'expected_loss', title: 'Ожидаемые потери' },
+  { key: 'capital', title: 'Капитал' },
+  { key: 'margin', title: 'Маржа' },
+] as const
 </script>
 
 <template>
@@ -193,16 +224,26 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
             <BaseBadge v-for="failed in data.enrichment.sources_failed" :key="failed.source" tone="brand">
               {{ label(SOURCE_LABEL, failed.source) }}: не ответил
             </BaseBadge>
+            <BaseBadge v-for="skipped in data.enrichment.sources_skipped ?? []" :key="`skip-${skipped.source}`" :title="skipped.message">
+              {{ label(SOURCE_LABEL, skipped.source) }}: не запрашивали
+            </BaseBadge>
           </div>
+          <ul v-if="data.enrichment.sources_skipped?.length" class="mt-2 space-y-0.5 text-xs text-ink-secondary">
+            <li v-for="skipped in data.enrichment.sources_skipped" :key="`why-${skipped.source}`">
+              {{ label(SOURCE_LABEL, skipped.source) }} — {{ skipped.message }}
+            </li>
+          </ul>
 
           <div class="mt-5 grid gap-5 lg:grid-cols-2">
             <section v-if="data.enrichment.egrul" class="text-sm">
               <p class="font-semibold text-ink">ЕГРЮЛ / ЕГРИП</p>
               <ul class="mt-2 space-y-1 text-ink">
                 <li>Статус: {{ REGISTRY_STATUS[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
+                <li v-if="data.enrichment.egrul.kpp">КПП: {{ data.enrichment.egrul.kpp }}</li>
                 <li>
                   Руководитель: {{ data.enrichment.egrul.head_last_name }} {{ data.enrichment.egrul.head_first_name }}
-                  {{ data.enrichment.egrul.head_middle_name ?? '' }}, {{ data.enrichment.egrul.head_position }}
+                  {{ data.enrichment.egrul.head_middle_name ?? '' }}, {{ data.enrichment.egrul.head_position
+                  }}{{ data.enrichment.egrul.head_since ? `, с ${formatDate(data.enrichment.egrul.head_since)}` : '' }}
                 </li>
                 <li v-if="data.enrichment.egrul.founders.length">
                   Учредители: {{ data.enrichment.egrul.founders.map((item) => `${item.name} (${Number(item.share_percent)}%)`).join(', ') }}
@@ -225,19 +266,26 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
                   Дисквалификация руководителя: {{ data.enrichment.fns.disqualified_head ? 'есть' : 'нет' }}
                 </li>
                 <li>Реестр МСП: {{ data.enrichment.fns.in_msp_registry ? 'есть' : 'нет' }}</li>
+                <li :class="data.enrichment.fns.account_blocks?.length ? 'text-brand' : ''">
+                  Приостановления по счетам: {{ data.enrichment.fns.account_blocks?.length ? '' : 'нет' }}
+                </li>
+                <li v-for="block in data.enrichment.fns.account_blocks ?? []" :key="block.decision_number" class="pl-3 text-xs text-brand">
+                  № {{ block.decision_number }} от {{ formatDate(block.date) }}, ИФНС {{ block.authority_code }} — {{ block.reason }}
+                </li>
               </ul>
             </section>
 
-            <section v-if="data.enrichment.bki" class="text-sm lg:col-span-2">
-              <p class="font-semibold text-ink">Бюро кредитных историй</p>
+            <section v-for="bureau in bureaus" :key="bureau.key" class="text-sm lg:col-span-2">
+              <p class="font-semibold text-ink">{{ bureau.title }}</p>
               <p class="mt-2 text-ink">
-                Платежи по кредитам: {{ money(data.enrichment.bki.total_monthly_payments) }} в месяц · запросов за 30 дней:
-                {{ data.enrichment.bki.inquiries_last_30d }} ·
-                <span :class="data.enrichment.bki.max_overdue_days_12m > 0 && 'text-brand'">
-                  макс. просрочка за 12 мес.: {{ data.enrichment.bki.max_overdue_days_12m }} дн.
+                Платежи по кредитам: {{ money(bureau.history!.total_monthly_payments) }} в месяц · запросов за 30 дней:
+                {{ bureau.history!.inquiries_last_30d }} ·
+                <span :class="bureau.history!.max_overdue_days_12m > 0 && 'text-brand'">
+                  макс. просрочка за 12 мес.: {{ bureau.history!.max_overdue_days_12m }} дн.
                 </span>
+                <span v-if="bureau.history!.has_active_overdue" class="text-brand"> · есть текущая просрочка</span>
               </p>
-              <div v-if="data.enrichment.bki.obligations.length" class="mt-2 overflow-x-auto">
+              <div v-if="bureau.history!.obligations.length" class="mt-2 overflow-x-auto">
                 <table class="w-full min-w-[36rem] text-left text-sm">
                   <thead class="text-xs text-ink-secondary">
                     <tr>
@@ -248,11 +296,64 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-line">
-                    <tr v-for="(item, index) in data.enrichment.bki.obligations" :key="index">
+                    <tr v-for="(item, index) in bureau.history!.obligations" :key="index">
                       <td class="py-2">{{ item.creditor }} <span class="text-ink-secondary">· {{ item.kind }}</span></td>
                       <td class="py-2 text-right tabular-nums">{{ money(item.balance) }}</td>
                       <td class="py-2 text-right tabular-nums">{{ money(item.monthly_payment) }}</td>
                       <td class="py-2 text-right tabular-nums" :class="item.overdue_days > 0 && 'text-brand'">{{ item.overdue_days }} дн.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section v-if="data.enrichment.kontur" class="text-sm">
+              <p class="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                Контур
+                <BaseBadge :tone="RELIABILITY[data.enrichment.kontur.reliability]?.tone ?? 'neutral'">
+                  {{ RELIABILITY[data.enrichment.kontur.reliability]?.label ?? data.enrichment.kontur.reliability }}
+                </BaseBadge>
+              </p>
+              <ul class="mt-2 space-y-1 text-ink">
+                <li :class="data.enrichment.kontur.arbitration.as_defendant > 0 && 'text-warning'">
+                  Суды: ответчик {{ data.enrichment.kontur.arbitration.as_defendant }} на {{ money(data.enrichment.kontur.arbitration.defendant_sum) }},
+                  истец {{ data.enrichment.kontur.arbitration.as_plaintiff }}
+                </li>
+                <li :class="data.enrichment.kontur.enforcement.active > 0 && 'text-warning'">
+                  Исполнительные производства: {{ data.enrichment.kontur.enforcement.active }} на {{ money(data.enrichment.kontur.enforcement.sum) }}
+                </li>
+                <li :class="data.enrichment.kontur.bankruptcy_messages.length > 0 && 'text-brand'">
+                  Сообщения о банкротстве: {{ data.enrichment.kontur.bankruptcy_messages.length || 'нет' }}
+                </li>
+                <li>
+                  Госконтракты: {{ data.enrichment.kontur.gov_contracts.count }} на {{ money(data.enrichment.kontur.gov_contracts.sum) }} · залогов:
+                  {{ data.enrichment.kontur.active_pledges }}
+                </li>
+                <li v-for="note in data.enrichment.kontur.notes" :key="note" class="text-xs text-ink-secondary">{{ note }}</li>
+              </ul>
+            </section>
+
+            <section v-if="data.enrichment.gir_bo" class="text-sm">
+              <p class="font-semibold text-ink">ГИР БО — бухотчётность</p>
+              <p v-if="!data.enrichment.gir_bo.available || !accountingPeriods.length" class="mt-2 text-ink-secondary">
+                {{ data.enrichment.gir_bo.reason ?? 'Отчётности в ГИР БО нет' }}
+              </p>
+              <div v-else class="mt-2 overflow-x-auto">
+                <table class="w-full min-w-[22rem] text-left text-xs">
+                  <thead class="text-ink-secondary">
+                    <tr>
+                      <th class="py-1.5 font-medium">Год</th>
+                      <th class="py-1.5 text-right font-medium">Выручка</th>
+                      <th class="py-1.5 text-right font-medium">Чистая прибыль</th>
+                      <th class="py-1.5 text-right font-medium">Капитал</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-line tabular-nums">
+                    <tr v-for="period in accountingPeriods" :key="period.year">
+                      <td class="py-1.5">{{ period.year }}</td>
+                      <td class="py-1.5 text-right">{{ money(period.revenue) }}</td>
+                      <td class="py-1.5 text-right" :class="Number(period.net_profit) < 0 && 'text-brand'">{{ money(period.net_profit) }}</td>
+                      <td class="py-1.5 text-right" :class="Number(period.equity) < 0 && 'text-brand'">{{ money(period.equity) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -331,11 +432,28 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
           <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
         </PanelCard>
 
-        <PanelCard v-if="data.scoring" title="Скоринг" :description="`Модель ${data.scoring.model_version} · полнота данных ${data.scoring.data_completeness}`">
-          <div class="flex items-center gap-3">
+        <PanelCard
+          v-if="data.scoring"
+          title="Скоринг"
+          :description="[
+            `Модель ${data.scoring.model_version}`,
+            data.scoring.scorecard && `скоркарта ${data.scoring.scorecard}`,
+            data.scoring.segment && (SEGMENT_LABEL[data.scoring.segment] ?? data.scoring.segment),
+            `полнота данных ${data.scoring.data_completeness}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')"
+        >
+          <div class="flex flex-wrap items-center gap-3">
             <span class="text-3xl font-bold text-ink tabular-nums">{{ data.scoring.score }}</span>
             <BaseBadge :tone="GRADE_TONE[data.scoring.grade] ?? 'neutral'">Грейд {{ data.scoring.grade }}</BaseBadge>
+            <span v-if="data.scoring.pd_12m" class="text-sm text-ink-secondary">
+              PD 12 мес.: {{ formatPercent(Number(data.scoring.pd_12m) * 100) }}
+            </span>
           </div>
+          <p v-if="data.scoring.reason_codes?.length" class="mt-2 text-xs text-ink-secondary">
+            Сильнее всего снизили балл: {{ data.scoring.reason_codes.map((code) => label(FACTOR_LABEL, code)).join(', ') }}
+          </p>
           <div v-if="data.scoring.flags.length" class="mt-3 flex flex-wrap gap-1.5">
             <BaseBadge v-for="flag in data.scoring.flags" :key="flag" tone="warning">{{ label(FLAG_LABEL, flag) }}</BaseBadge>
           </div>
@@ -368,6 +486,12 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
           <ul v-if="data.decision.reason_codes.length" class="mt-3 space-y-1 text-sm text-ink">
             <li v-for="code in data.decision.reason_codes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
           </ul>
+          <div v-if="data.decision.triggers?.length" class="mt-3 rounded-lg bg-warning-soft p-2.5 text-sm">
+            <p class="text-xs font-medium text-ink">Сработали триггеры ручной проверки</p>
+            <ul class="mt-1 space-y-0.5 text-ink">
+              <li v-for="trigger in data.decision.triggers" :key="trigger.code">• {{ trigger.detail }}</li>
+            </ul>
+          </div>
           <dl v-if="data.decision.terms" class="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div class="rounded-lg bg-surface-soft p-2">
               <dt class="text-xs text-ink-secondary">Сумма</dt>
@@ -378,12 +502,29 @@ const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].s
               <dd class="font-semibold">{{ formatPercent(Number(data.decision.terms.rate)) }}</dd>
             </div>
           </dl>
-          <dl class="mt-3 space-y-1 text-xs text-ink-secondary">
-            <div v-if="data.decision.limits.by_revenue">Лимит по выручке: {{ money(data.decision.limits.by_revenue) }}</div>
-            <div v-if="data.decision.limits.by_ltv">Лимит по залогу: {{ money(data.decision.limits.by_ltv) }}</div>
-            <div v-if="data.decision.limits.by_capacity">Лимит по платёжеспособности: {{ money(data.decision.limits.by_capacity) }}</div>
-            <div>Политика {{ data.decision.policy_version }} · ключевая ставка {{ formatPercent(Number(data.decision.key_rate)) }}</div>
-          </dl>
+          <div v-if="limits.length" class="mt-3 text-xs">
+            <p class="font-medium text-ink">
+              Лимиты<template v-if="data.decision.limits.final"> · итог {{ money(data.decision.limits.final) }}</template>
+            </p>
+            <dl class="mt-1 space-y-0.5 text-ink-secondary">
+              <div v-for="item in limits" :key="item.key" class="flex justify-between gap-3" :class="item.binding && 'font-semibold text-ink'">
+                <dt>{{ item.title }}<template v-if="item.binding"> — ограничил сумму</template></dt>
+                <dd class="tabular-nums">{{ money(item.amount) }}</dd>
+              </div>
+            </dl>
+          </div>
+          <div v-if="data.decision.rate_breakdown" class="mt-3 text-xs">
+            <p class="font-medium text-ink">Ставка {{ formatPercent(Number(data.decision.rate_breakdown.total)) }}</p>
+            <dl class="mt-1 space-y-0.5 text-ink-secondary">
+              <div v-for="part in RATE_PARTS" :key="part.key" class="flex justify-between gap-3">
+                <dt>{{ part.title }}</dt>
+                <dd class="tabular-nums">{{ formatPercent(Number(data.decision.rate_breakdown[part.key])) }}</dd>
+              </div>
+            </dl>
+          </div>
+          <p class="mt-3 text-xs text-ink-secondary">
+            Политика {{ data.decision.policy_version }} · ключевая ставка {{ formatPercent(Number(data.decision.key_rate)) }}
+          </p>
           <details class="mt-3 text-sm">
             <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Как движок пришёл к решению</summary>
             <ul class="mt-2 space-y-1.5">
