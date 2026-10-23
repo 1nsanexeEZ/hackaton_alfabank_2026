@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 from uuid import UUID
 
-from src.modules.scoring.domain.model import ScoringInput, ScoringResult
+from src.modules.scoring.domain.model import MlScore, ScoringInput, ScoringResult
 from src.modules.scoring.domain.scorecard import ScorecardOutput
 
 
@@ -17,6 +17,15 @@ class ScoringModel(Protocol):
     def version(self) -> str: ...
 
     def calculate(self, inp: ScoringInput) -> ScorecardOutput: ...
+
+
+class MlScoringModel(Protocol):
+    """ML-модель: считается рядом с PD-моделью на том же входе."""
+
+    @property
+    def version(self) -> str: ...
+
+    def predict(self, inp: ScoringInput) -> MlScore: ...
 
 
 class ScoringRepository(Protocol):

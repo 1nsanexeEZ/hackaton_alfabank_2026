@@ -86,6 +86,11 @@ class ReasonCode(StrEnum):
     LIMIT_BY_GROUP = "LIMIT_BY_GROUP"
     # policy_v4: ветка стартапа.
     STOP_FOUNDER_PRESCREEN = "STOP_FOUNDER_PRESCREEN"
+    # policy_v5: две модели — PD и ML.
+    STOP_MODELS_HIGH_RISK = "STOP_MODELS_HIGH_RISK"
+    ROUTE_MODELS_CHECK = "ROUTE_MODELS_CHECK"
+    ROUTE_MODELS_DISAGREE = "ROUTE_MODELS_DISAGREE"
+    ROUTE_ML_UNAVAILABLE = "ROUTE_ML_UNAVAILABLE"
 
 
 # --- вход политики -----------------------------------------------------------
@@ -209,6 +214,9 @@ class ScoreInput:
     flags: frozenset[str]
     client_hints: tuple[str, ...] = ()
     pd_12m: Decimal | None = None  # PD-модель; у scorecard_v1 нет
+    # ML-модель рядом с PD-моделью (policy_v5); грейд всегда на шкале A–J. None — оценки нет.
+    ml_grade: Grade | None = None
+    ml_pd_12m: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

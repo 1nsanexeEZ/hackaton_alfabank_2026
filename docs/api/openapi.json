@@ -7113,6 +7113,21 @@
                 "type": "null"
               }
             ]
+          },
+          "review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "check",
+                  "dispute"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review"
           }
         },
         "type": "object",
@@ -9667,6 +9682,63 @@
         ],
         "title": "MemberUpdate"
       },
+      "MlScoreDTO": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "pd_12m": {
+            "type": "string",
+            "title": "Pd 12M"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "Grade"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/FactorDTO"
+            },
+            "type": "array",
+            "title": "Factors"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "pd_12m",
+          "score",
+          "grade",
+          "factors",
+          "reason_codes"
+        ],
+        "title": "MlScoreDTO",
+        "description": "The ML model's estimate, computed next to the PD model on the same input and graded\non the same A–J scale, so the underwriter compares the two directly."
+      },
       "NeedBody": {
         "properties": {
           "purpose": {
@@ -12092,6 +12164,21 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "check",
+                  "dispute"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review"
           }
         },
         "type": "object",
@@ -13098,6 +13185,16 @@
             "type": "array",
             "title": "Reason Codes",
             "default": []
+          },
+          "ml": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MlScoreDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

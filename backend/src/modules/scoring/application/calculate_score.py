@@ -1,10 +1,12 @@
 """Use case CalculateScore: по команде собрать вход из соседей, посчитать PD-моделью
-(сегмент, скоркарта, PD, грейд A–J), сохранить с input_snapshot и опубликовать результат.
+(сегмент, скоркарта, PD, грейд A–J) и рядом ML-моделью на том же входе, сохранить обе оценки
+с input_snapshot и опубликовать результат.
 
 - идемпотентность по event_id команды: повтор возвращает тот же результат и повторно публикует
   ScoreCalculated (causation_id = event_id команды);
 - нет снимка обогащения → ScoringFailed (считать не на чем — решит процесс по on_failure);
-- scoring ничего не знает про ставки и лимиты и не меняет статусы.
+- scoring ничего не знает про ставки и лимиты и не меняет статусы;
+- ScoreCalculated несёт оценку PD-модели, как раньше; ML-оценку decision читает из результата.
 """
 
 from __future__ import annotations
@@ -17,7 +19,11 @@ from src.core.messaging.outbox import OutboxWriter
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.input_builder import build_scoring_input
-from src.modules.scoring.application.ports import ScoringModel, ScoringRepository
+from src.modules.scoring.application.ports import (
+    MlScoringModel,
+    ScoringModel,
+    ScoringRepository,
+)
 from src.modules.scoring.application.serialization import dump_input, input_hash
 from src.modules.scoring.domain.model import ScoringResult
 
@@ -30,9 +36,11 @@ class CalculateScoreUseCase:
         applications: ApplicationsFacade,
         enrichment: EnrichmentFacade,
         clock: Clock,
+        ml_model: MlScoringModel | None = None,
     ) -> None:
         self._repository = repository
         self._scorecard = scorecard
+        self._ml_model = ml_model
         self._applications = applications
         self._enrichment = enrichment
         self._clock = clock
@@ -78,6 +86,7 @@ class CalculateScoreUseCase:
             scorecard=output.scorecard,
             pd_12m=output.pd_12m,
             reason_codes=output.reason_codes,
+            ml=self._ml_model.predict(scoring_input) if self._ml_model is not None else None,
         )
         await self._repository.add(result, input_snapshot=stored)
         await self._publish_calculated(outbox, result, command_event_id)

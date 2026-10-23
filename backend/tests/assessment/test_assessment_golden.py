@@ -53,9 +53,11 @@ class Scenario:
     gap_month: str | None = None
     score: int
     grade: str
+    ml_grade: str  # ML-модель рядом с PD-моделью, та же шкала A–J
     flags: frozenset[str] = field(default_factory=frozenset)
     # решение
     outcome: str
+    review: str | None = None  # MANUAL_REVIEW: check или dispute
     reasons: frozenset[str] = field(default_factory=frozenset)  # все должны быть
     any_reason: frozenset[str] = field(default_factory=frozenset)  # хотя бы одна
     offer: str | None = None  # сумма оффера ровно
@@ -74,6 +76,7 @@ SCENARIOS = (
         term=24,
         score=800,
         grade="A",
+        ml_grade="C",
         outcome="APPROVE",
         offer="3000000",
     ),
@@ -90,13 +93,14 @@ SCENARIOS = (
         gap_month="2026-11",
         score=565,
         grade="E",
+        ml_grade="E",
         flags=frozenset({"thin_file", "cash_gap"}),
-        outcome="COUNTER_OFFER",
-        reasons=frozenset({"CASH_GAP_FORECAST"}),
-        any_reason=frozenset({"LIMIT_BY_REVENUE", "LIMIT_BY_PAYMENT_CAPACITY"}),
-        offer_between=("300000", "5000000"),
-        alternative="OVERDRAFT",
-        explains="кассов",
+        # policy_v5: обе модели в жёлтой зоне — проверка андеррайтером (в policy_v4 —
+        # встречное предложение с овердрафтом).
+        outcome="MANUAL_REVIEW",
+        review="check",
+        reasons=frozenset({"ROUTE_MODELS_CHECK"}),
+        explains="посмотрит заявку",
     ),
     Scenario(
         name="S-3 vector CREDIT_LINE 10 млн",
@@ -108,9 +112,11 @@ SCENARIOS = (
         documents=("financial_report",),
         score=630,
         grade="F",
+        ml_grade="F",
         flags=frozenset({"verification_mismatch"}),
         outcome="MANUAL_REVIEW",
-        reasons=frozenset({"ROUTE_VERIFICATION_MISMATCH"}),
+        review="dispute",
+        reasons=frozenset({"ROUTE_VERIFICATION_MISMATCH", "ROUTE_MODELS_CHECK"}),
     ),
     Scenario(
         name="S-4 zakat UNSECURED 2 млн",
@@ -121,6 +127,7 @@ SCENARIOS = (
         term=12,
         score=400,
         grade="J",
+        ml_grade="J",
         outcome="REJECT",
         reasons=frozenset({"STOP_LIQUIDATION", "STOP_OVERDUE_90"}),
     ),
@@ -134,8 +141,10 @@ SCENARIOS = (
         sources_failed=("bki",),
         score=775,
         grade="B",
+        ml_grade="C",
         flags=frozenset({"bureau_unavailable"}),
         outcome="MANUAL_REVIEW",
+        review="dispute",
         reasons=frozenset({"ROUTE_SOURCES_FAILED"}),
     ),
     Scenario(
@@ -160,7 +169,9 @@ SCENARIOS = (
         },
         score=715,
         grade="C",
+        ml_grade="D",
         outcome="MANUAL_REVIEW",
+        review="check",
         reasons=frozenset({"ROUTE_AMOUNT_OVER_AUTO_LIMIT"}),
     ),
 )
@@ -222,6 +233,7 @@ def test_assessment_scenario(assessment: Assessment, scenario: Scenario) -> None
     assert set(scored["flags"]) == scenario.flags
     result = assessment.facade(ScoringFacade, lambda f: f.get_result(application_id))
     assert result is not None and result.score == scenario.score
+    assert result.ml is not None and result.ml.grade == scenario.ml_grade, result.ml
 
     made = assessment.make_decision(application_id)
     assert made["outcome"] == scenario.outcome
@@ -230,6 +242,7 @@ def test_assessment_scenario(assessment: Assessment, scenario: Scenario) -> None
     _check_offer(made, scenario)
     decision = assessment.decision(application_id)
     assert decision is not None and decision.outcome == scenario.outcome
+    assert decision.review == scenario.review
     assert scenario.reasons <= set(decision.reason_codes), decision.reason_codes
     if scenario.any_reason:
         assert scenario.any_reason & set(decision.reason_codes), decision.reason_codes

@@ -21,6 +21,7 @@ from src.core.messaging.contracts.decision import (
 )
 from src.modules.decision.application.make_decision import MakeDecisionUseCase
 from src.modules.decision.application.record_manual_decision import RecordManualDecisionUseCase
+from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.domain.result import DecisionResult
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO
 from src.modules.decision.infrastructure.config_loader import default_policy
@@ -38,9 +39,12 @@ Sessions = async_sessionmaker[AsyncSession]
 
 
 async def make_decision(
-    sessions: Sessions, world: DecisionWorld, event_id: UUID | None = None
+    sessions: Sessions,
+    world: DecisionWorld,
+    event_id: UUID | None = None,
+    policy: CreditPolicy | None = None,
 ) -> FakeOutboxWriter:
-    policy = default_policy()
+    policy = policy or default_policy()
     outbox = FakeOutboxWriter()
     async with sessions() as session:
         use_case = MakeDecisionUseCase(

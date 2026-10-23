@@ -26,6 +26,20 @@ class FactorDTO:
 
 
 @dataclass(frozen=True, slots=True)
+class MlScoreDTO:
+    """The ML model's estimate, computed next to the PD model on the same input and graded
+    on the same A–J scale, so the underwriter compares the two directly."""
+
+    model_version: str
+    pd_12m: Decimal
+    score: int
+    grade: Grade
+    factors: tuple[FactorDTO, ...]
+    # Top three features by the points lost against their best bin.
+    reason_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ScoringResultDTO:
     id: UUID
     application_id: UUID
@@ -42,6 +56,8 @@ class ScoringResultDTO:
     pd_12m: Decimal | None = None
     # Top three features by the points lost.
     reason_codes: tuple[str, ...] = ()
+    # The ML model next to the PD model; None for results computed before it.
+    ml: MlScoreDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
