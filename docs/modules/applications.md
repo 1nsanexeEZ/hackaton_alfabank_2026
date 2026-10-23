@@ -78,6 +78,27 @@ applications/
 документа ЭДО) и событие — одной транзакцией. Выдача: вызов АБС вне транзакции, ключ идемпотентности
 на стороне АБС — id заявки.
 
+## Согласия из профиля
+
+По схеме банка согласия на ПДн и БКИ клиент даёт до заявки, сразу после выбора условий. Они живут
+в identity: `personal_data` — у аккаунта (`/me/consents`), `credit_bureau_company` — у компании
+(`/organizations/{id}/consents`, [identity.md](../identity.md#согласия-компании)).
+
+- **Когда берутся.** При создании черновика (`CreateDraftUseCase`) и при подаче
+  (`SubmitApplicationUseCase`) через `IdentityFacade`: `personal_data` того, кто действует, и
+  `credit_bureau_company` компании, если они действуют в этот момент.
+- **Только недостающие.** Галочка, уже поставленная в черновике, не меняется. После подачи
+  согласия заморожены: отзыв в профиле поданную заявку не трогает.
+- **Что пишется в заявку** (`CreditApplication.take_profile_consents`). `consents.*_at` — момент,
+  когда согласие дали в профиле, `given_by` — кто действовал. Для аудита — ещё и
+  `*_profile`: кто дал, когда, редакция текста (`ProfileConsent`, в JSON `consents`, миграции не нужно).
+- **В ответе.** `consents.personal_data_source`, `consents.credit_bureau_source`: `application`
+  (галочка), `profile` (из профиля), `null` (нет).
+- Без обоих согласий подать нельзя, как и раньше: 422 с `consents.personal_data` /
+  `consents.credit_bureau`. Галочки `PATCH /applications/{id}` → `consents` работают как раньше.
+  Снятая галочка убирает и ссылку на согласие из профиля, но при подаче действующее согласие
+  возьмётся снова: отказаться от него — отозвать в профиле.
+
 ## API
 
 Права — `requests.read` / `requests.create` / `requests.update`; клиент видит только заявки своих

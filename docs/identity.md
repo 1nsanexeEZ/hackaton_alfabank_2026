@@ -131,6 +131,9 @@
 | GET | `/me/consents` | любой валидный токен | Свои личные согласия: действующие и история, новые сверху |
 | POST | `/me/consents` | любой валидный токен | `{types: [...]}` → 201, данные согласия |
 | DELETE | `/me/consents/{type}` | любой валидный токен | Отзыв; повторный отзыв — тоже 204 |
+| GET | `/organizations/{id}/consents` | любой валидный токен + `view` в компании | Согласия компании: действующие и история, новые сверху |
+| POST | `/organizations/{id}/consents` | любой валидный токен + `submit_application` в компании | `{types: ["credit_bureau_company"]}` → 201 |
+| DELETE | `/organizations/{id}/consents/{type}` | любой валидный токен + `submit_application` в компании | Отзыв любым представителем; повторный — тоже 204 |
 | GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit`/`offset` |
 | GET | `/accounts/{id}` | `accounts.read` | 404, если строка отфильтрована политикой |
 | POST | `/accounts` | `accounts.create` | Аккаунт + профиль |
@@ -152,7 +155,8 @@
 | `get_account(account_id)` | `AccountRefDTO` (id, email, phone, role_name, ФИО, position) или `None` |
 | `find_by_login(login)` | Email в любом регистре или телефон в любом формате — та же нормализация, что у `/auth/login` |
 | `verify_password(account_id, password)` | Повторная проверка пароля (step-up перед подписанием) |
-| `get_active_consent(account_id, type)` | `ConsentDTO` (`given_at`, `valid_until`, `text_version`) — самое свежее действующее согласие этого типа, или `None`: не давал, отозвал, срок истёк |
+| `get_active_consent(account_id, type)` | `ConsentDTO` (`given_at`, `valid_until`, `text_version`) — самое свежее действующее личное согласие этого типа, или `None`: не давал, отозвал, срок истёк |
+| `get_active_organization_consent(organization_id, type)` | То же для согласия компании; `account_id` — представитель, который его дал, `organization_id` — компания |
 
 Удалённые учётки для фасада не существуют: `get_account` и `find_by_login` возвращают `None`, `verify_password` — `False`.
 
@@ -167,7 +171,7 @@ identity = ctx.facade(IdentityFacade)
 
 ## Личные согласия
 
-Согласие человек даёт за себя, а не за компанию: по 218-ФЗ кредитную историю физлица (руководителя) можно запросить только с его согласия. Согласия компании в заявке (`consents.personal_data`, `consents.credit_bureau`) остаются в applications.
+Согласие человек даёт за себя, а не за компанию: по 218-ФЗ кредитную историю физлица (руководителя) можно запросить только с его согласия. Согласие компании — в [следующем разделе](#согласия-компании).
 
 | Тип | Что разрешает | Срок | Редакция текста |
 |---|---|---|---|
@@ -179,7 +183,21 @@ identity = ctx.facade(IdentityFacade)
 - `active` в ответе — не отозвано и `valid_until` позже текущего момента. Время — по `app.state.clock`.
 - Редакции текста — `CONSENT_TEXT_VERSIONS` в `domain/enums.py`: новый текст согласия — новая версия там.
 
-Кто читает: процесс при сборке `FetchEnrichment` берёт руководителя по реестру (`ClientsFacade.get_registry_head`) и его `get_active_consent(..., "credit_bureau_personal")`. Есть согласие — в команде `head_bki_consent_at`, и enrichment запрашивает БКИ руководителя; нет — `null`.
+Кто читает: процесс при сборке `FetchEnrichment` берёт руководителя по реестру (`ClientsFacade.get_registry_head`) и его `get_active_consent(..., "credit_bureau_personal")`. Есть согласие — в команде `head_bki_consent_at`, и enrichment запрашивает БКИ руководителя; нет — `null`. `personal_data` берёт applications при создании черновика и подаче заявки.
+
+## Согласия компании
+
+По схеме банка согласие «БКИ + ПДн» даётся до заявки, сразу после выбора условий. Согласие на запрос кредитной истории компании даёт её представитель — за компанию, а не за себя.
+
+| Тип | Что разрешает | Срок | Редакция текста |
+|---|---|---|---|
+| `credit_bureau_company` | запрос кредитной истории компании (у ИП — его самого), ст. 6 218-ФЗ | 6 календарных месяцев | `bki-ul-2026-10` |
+
+- Хранится в той же `identity_consents`: `account_id` — представитель, `organization_id` — компания (у личных согласий `NULL`). Миграция `identity_0003`.
+- Права в компании проверяет clients (`ClientsFacade.ensure_can`): смотреть — `view`, давать и отзывать — `submit_application`, как галочки в черновике. Не участник компании — 404.
+- Отозвать может любой представитель с правом: `revoked_at` и `revoked_by` ставятся всем действующим согласиям типа. Согласие не пропадает, если представитель потом ушёл из компании: он давал его с правом.
+- `/me/consents` согласий компании не показывает и не принимает (422).
+- Кто читает: applications берёт согласие при создании черновика и подаче заявки, если в черновике нет галочки ([applications.md](modules/applications.md#согласия-из-профиля)); bff показывает его на дашборде (`Dashboard.consents`).
 
 ## Как подключить права в своём модуле
 
