@@ -306,10 +306,10 @@ def _check_strategy(schema: _PolicySchema, scale: tuple[str, ...], path: Path) -
 
 
 def _check_two_models(strategy: _Strategy, path: Path) -> None:
+    """policy_v5/v6 — две модели вместо матрицы; policy_v7 — обе: зоны моделей решают, можно ли
+    одобрить автоматически, корзина грейда — до какой суммы. Итог — строже из двух."""
     models = strategy.two_models
     assert models is not None
-    if strategy.risk_matrix:
-        raise PolicyConfigError(f"{path}: strategy.two_models заменяет risk_matrix — оставьте одно")
     # ML-модель всегда ставит грейд на шкале A–J — зоны покрывают её, а не шкалу политики.
     zoned = [g for grades in models.zones.values() for g in grades]
     if len(zoned) != len(set(zoned)) or set(zoned) != set(PD_SCALE):
