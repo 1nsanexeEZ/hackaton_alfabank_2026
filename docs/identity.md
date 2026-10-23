@@ -92,7 +92,7 @@
 
 ## Демо-учётки
 
-Сид создаёт 8 учёток из `backend/seed/demo_data.py` (`ACCOUNTS`) с профилем (ФИО и короткая должность). Пароль у всех один — `DEMO_PASSWORD`, по умолчанию `Demo-2026!`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). Уже существующую учётку сид не трогает и пароль не сбрасывает; если email или телефон занят другим аккаунтом, учётка пропускается.
+Сид создаёт 9 учёток из `backend/seed/demo_data.py` (`ACCOUNTS`) с профилем (ФИО и короткая должность). Пароль у всех один — `DEMO_PASSWORD`, по умолчанию `Demo-2026!`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). Уже существующую учётку сид не трогает и пароль не сбрасывает; если email или телефон занят другим аккаунтом, учётка пропускается.
 
 | Email | Телефон | Роль | Подпись |
 |---|---|---|---|
@@ -103,6 +103,7 @@
 | `owner@zakat.test` | `+79990000005` | `client` | Директор ООО «Закат» |
 | `owner@progress.test` | `+79990000006` | `client` | Директор ООО «Прогресс» |
 | `owner@sboy.test` | `+79990000007` | `client` | Директор ООО «Сбой» |
+| `owner@start.test` | `+79990000008` | `client` | Учредитель и директор ООО «Старт» (стартап) |
 | `underwriter@bank.test` | `+79990000101` | `underwriter` | Андеррайтер |
 
 Админ — `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (в compose по умолчанию `admin@example.com` / `Admin-2026!`). Компании и участие в них заводит сид модуля clients.
@@ -218,11 +219,11 @@ stmt = apply_access_context(select(CreditApplication), CreditApplication, access
 
 ```bash
 docker compose up --build        # миграции и сиды применяются при старте backend
-# http://localhost:8000/docs
 
 cd backend
 uv sync
 uv run pytest                    # sqlite, Postgres не нужен
+uv run uvicorn src.main:app      # локально без Docker (MESSAGING_MODE=in_process, свой DATABASE_URL): http://localhost:8000/docs
 uv run ruff check . && uv run ruff format --check .
 ```
 

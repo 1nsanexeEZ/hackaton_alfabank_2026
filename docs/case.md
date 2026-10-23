@@ -196,27 +196,29 @@
 
 ## 3. Чек-лист сдачи
 
-| Артефакт | Статус | Где лежит в репо (предложение) |
+Колонка «Где лежит» — состояние на 23.10.2026; **нет** — артефакта пока нет.
+
+| Артефакт | Статус | Где лежит |
 |---|---|---|
 | GitHub-репо с историей коммитов | обязательно | этот репо; ветки и история не чистим |
-| Идентификатор версии на дедлайн | обязательно | git-тег `round1` + commit hash в форме сдачи и в README |
+| Идентификатор версии на дедлайн | обязательно | git-тег на `main` (например, `round1`) + commit hash в форме сдачи и в README — ставится при сдаче |
 | Доступ для `alfa-hack-2026` (если репо приватный) | обязательно | Settings → Collaborators; проверить приглашение заранее |
-| Docker и единый воспроизводимый запуск на обычном ПК | обязательно | `docker-compose.yml` в корне, `backend/Dockerfile`, `frontend/Dockerfile`, `.env.example` |
-| Lock-файлы, версии языка и библиотек | обязательно | `backend/uv.lock`, `backend/.python-version`, `frontend/package-lock.json`, теги образов в compose с версией (не `latest`) |
+| Docker и единый воспроизводимый запуск на обычном ПК | обязательно | `docker-compose.yml` в корне, `backend/Dockerfile`, `frontend/Dockerfile`, `external-mocks/Dockerfile`, `.env.example` |
+| Lock-файлы, версии языка и библиотек | обязательно | `backend/uv.lock`, `backend/.python-version`, `external-mocks/uv.lock`, `frontend/package-lock.json`; теги образов с версией — кроме `minio:latest` и `nginx:alpine` (**не зафиксированы**) |
 | README.md: назначение, архитектура, требования к окружению, запуск, конфигурации и env, компоненты, пошаговый сценарий проверки | обязательно | `README.md` в корне |
-| Синтетические тестовые данные | обязательно | `backend/seed/` (генератор + фикстуры), грузятся автоматически при `docker compose up` |
+| Синтетические тестовые данные | обязательно | `backend/seed/` (фикстуры и выписки, генератор — `backend/scripts/generate_statements.py`), `external-mocks/app/`; грузятся автоматически при `docker compose up` |
 | Тестовые учётные записи | обязательно (для e2e) | таблица логинов в `README.md`, создаются сидером |
-| THIRD_PARTY_NOTICES (компоненты, модели, датасеты, сервисы, смоделированные интеграции) | обязательно | `THIRD_PARTY_NOTICES` в корне (без расширения, как в требовании) |
-| Архитектурная схема | обязательно | `docs/architecture.md` (mermaid) |
-| Описание API | обязательно | `docs/api.md` |
-| OpenAPI/Swagger | обязательно | `/docs` у FastAPI + выгрузка `docs/openapi.json` |
-| Коллекция запросов | обязательно | `docs/api-collection/` (Postman или Bruno, с environment для localhost) |
+| THIRD_PARTY_NOTICES (компоненты, модели, датасеты, сервисы, смоделированные интеграции) | обязательно | `THIRD_PARTY_NOTICES.md` в корне (в требовании имя без расширения) |
+| Архитектурная схема | обязательно | `docs/architecture/architecture.md` (mermaid) + `architecture.drawio` |
+| Описание API | обязательно | `docs/api/client-journey.md` (путь клиента и BFF) + документы модулей |
+| OpenAPI/Swagger | обязательно | `/docs` у FastAPI + выгрузка `docs/api/openapi.json` |
+| Коллекция запросов | обязательно | **нет** (план: `docs/api-collection/`, Postman или Bruno, с environment для localhost) |
 | Диаграмма состояний заявки | обязательно | `docs/state-machine.md` (mermaid `stateDiagram`) |
-| Модель данных | обязательно | `docs/data-model.md` (mermaid `erDiagram`) |
-| Тестовые сценарии | обязательно | `docs/test-scenarios.md` (ручные e2e) + `backend/tests/` (автотесты) |
+| Модель данных | обязательно | **нет** (план: `docs/data-model.md`, mermaid `erDiagram`) |
+| Тестовые сценарии | обязательно | S-1…S-9 в `README.md` + автотесты `backend/tests/` (сквозные — `backend/tests/scenarios`); отдельного описания ручных e2e (`docs/test-scenarios.md`) **нет** |
 | Работающий интерактивный прототип, а не только заранее подготовленные экраны | обязательно (врезка стр. 7) | сам продукт; скриншоты в README — дополнение, не замена |
-| Облачный стенд | желательно (кейс рекомендует бесплатный внешний сервер) | VPS из GitHub Actions; ссылка в README. Проверяемая версия от стенда не зависит, основной путь — локальный `docker compose up` |
-| Демо «новостной ленты под клиента» | неясно, см. раздел 5 | — |
+| Облачный стенд | желательно (кейс рекомендует бесплатный внешний сервер) | VPS из GitHub Actions (`.github/workflows/deploy.yml`); ссылки в README пока нет. Проверяемая версия от стенда не зависит, основной путь — локальный `docker compose up` |
+| Демо «новостной ленты под клиента» | неясно, см. раздел 5 | лента событий и персональные новости — `docs/modules/notifications.md` |
 
 ---
 
