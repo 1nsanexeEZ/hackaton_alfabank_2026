@@ -2,7 +2,8 @@
 
 ## Правило
 
-Каждый модуль в `backend/src/modules/<module>/` устроен одинаково. Эталон — `identity`.
+Каждый модуль в `backend/src/modules/<module>/` устроен одинаково. Эталоны — `identity` (HTTP API)
+и `enrichment` (команды из Kafka, внешние HTTP-источники).
 
 ```
 <module>/
@@ -32,7 +33,8 @@
     ├── __init__.py
     ├── api/                роутеры FastAPI
     ├── schemas/            pydantic-схемы запросов и ответов
-    └── dependencies.py     сборка use cases для роутеров (DI)
+    ├── consumers.py        обработчики команд и событий из Kafka — если модуль их слушает
+    └── dependencies.py     сборка use cases для роутеров и обработчиков (DI)
 ```
 
 - Папки из дерева обязательны. Пока папка пустая — кладём в неё `.gitkeep`.
@@ -60,7 +62,9 @@
 - **DTO отдельно.** `application/dto/` — frozen dataclass, без pydantic. Pydantic живёт только в `presentation/schemas/`, ORM — только в `infrastructure/database/`. Роутер переводит схему запроса в DTO, use case возвращает DTO, роутер отдаёт схему ответа (`model_validate(dto)` с `from_attributes=True`).
 - **PATCH.** «Поле не прислали» и «прислали null» различаем сентинелом `UNSET` в DTO; presentation собирает DTO из `model_dump(exclude_unset=True)`.
 - **Исключения.** Домен бросает свои исключения без HTTP-статусов. `infrastructure/exception_handler.py` переводит их в ответ того же формата, что у core (`{code, message}`), и регистрируется в `module.register(app)`.
-- **Домен без ORM.** Репозиторий отдаёт и принимает доменные сущности; ORM-модели наружу из `infrastructure` не выходят.
+- **Домен без ORM и DTO.** Репозиторий отдаёт и принимает доменные сущности; ORM-модели наружу из `infrastructure` не выходят. DTO домен не импортирует: у него свои сущности и value objects, в DTO их переводит application.
+- **DTO фасада внутри модуля.** Если DTO, которые модуль отдаёт соседям, нужны и его use cases (как в `enrichment`), они живут в `application/dto/`, а `facade.py` их реэкспортирует. Внутри модуля импортируем из `application/dto/`.
+- **`date: date`.** Если поле DTO названо как свой тип и DTO попадает в pydantic-схему, в файле не пишем `from __future__ import annotations` — иначе pydantic не соберёт схему.
 
 ## Как перевести модуль
 
@@ -69,8 +73,9 @@
 3. `application/ports.py` → `application/interfaces/`; `service.py`, `commands.py` → `application/use_cases/` (класс на операцию); DTO → `application/dto/`.
 4. `infrastructure/models.py` → `infrastructure/database/models.py`, обновить импорт в `backend/src/models.py`.
 5. `infrastructure/facade_impl.py` и клиенты внешних систем → `infrastructure/adapters/`; репозитории → `infrastructure/repositories/`.
-6. Исключения модуля → `domain/exceptions.py` + `infrastructure/exception_handler.py`.
+6. Исключения модуля → `domain/exceptions.py` + `infrastructure/exception_handler.py`. Обработчики Kafka из `module.py` → `presentation/consumers.py`.
 7. HTTP-контракт и схема БД не меняются: тесты модуля проходят без правок, кроме импортов; `uv run alembic check` — без изменений.
-8. Проверка: `uv run pytest -q`, `uv run lint-imports`, `uv run ruff check .`, `uv run mypy src/modules/<module>`.
+8. Модуль добавить в `containers` контракта «Layered modules» в `backend/pyproject.toml`: он проверяет порядок слоёв внутри модуля.
+9. Проверка: `uv run pytest -q`, `uv run lint-imports`, `uv run ruff check .`, `uv run mypy src/modules/<module>`.
 
 Один модуль — одна ветка и один PR.
