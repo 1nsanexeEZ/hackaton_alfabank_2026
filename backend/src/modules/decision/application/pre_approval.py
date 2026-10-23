@@ -1,12 +1,15 @@
 """Use case RecalculatePreApproved: «вам доступно до …» на главной кабинета.
 
-По событиям clients (отчётность подана, компания проверена) и в демо-сиде:
-1. компания — снимок clients, оценка — `scoring.estimate` без БКИ и выписок (консервативно);
-   новому клиенту (оборотов в банке меньше полугода) предодобрения нет — его оценивает только
-   полный скоринг по заявке;
-2. для каждого активного продукта: не проходит eligibility — пропускаем; дальше политика
+По событиям clients (отчётность подана, сверка с реестром) и в демо-сиде:
+1. компания — снимок clients; сверка с ЕГРЮЛ обязательна: компания не `verified` (сверки не было
+   или реестр расходится с кабинетом) — предложений нет, прежние снимаются. Сверку decision сам
+   не запускает: её запускает клиент (`POST /organizations/{id}/verification`) или заявка
+   (выписка ЕГРЮЛ из обогащения), а итог приходит событием clients и пересчитывает предложения;
+2. оценка — `scoring.estimate` без БКИ и выписок (консервативно); новому клиенту (оборотов в
+   банке меньше полугода) предодобрения нет — его оценивает только полный скоринг по заявке;
+3. для каждого активного продукта: не проходит eligibility — пропускаем; дальше политика
    (`CreditPolicy.pre_approve`): стоп-факторы, лимит на грейд осторожнее, ставка от;
-3. предложения действуют 30 дней; пересчёт перезаписывает все предложения компании —
+4. предложения действуют 30 дней; пересчёт перезаписывает все предложения компании —
    продукт, который больше не подходит, пропадает.
 """
 
@@ -57,23 +60,32 @@ class RecalculatePreApprovedUseCase:
     async def on_event(
         self, organization_id: UUID, *, event_id: UUID, outbox: OutboxWriter
     ) -> list[PreApprovedOffer]:
+        return await self.execute(organization_id, outbox=outbox, causation_id=event_id)
+
+    async def execute(
+        self, organization_id: UUID, *, outbox: OutboxWriter, causation_id: UUID | None = None
+    ) -> list[PreApprovedOffer]:
+        """Пересчёт и `PreApprovedOffersUpdated` — и когда предложения сняты."""
         offers = await self.recalculate(organization_id)
         await outbox.add(
             PreApprovedOffersUpdated(organization_id=organization_id),
             key=organization_id,
             correlation_id=organization_id,
-            causation_id=event_id,
+            causation_id=causation_id,
         )
         return offers
 
     async def recalculate(self, organization_id: UUID) -> list[PreApprovedOffer]:
         company = await self._clients.get_snapshot(organization_id)
+        offers: list[PreApprovedOffer] = []
+        if company.verification_status != "verified":
+            await self._repository.replace_for_organization(organization_id, offers)
+            return offers
         estimate = self._scoring.estimate(_company_profile(company))
         report = latest_annual_report(company)
         now = self._clock.now()
         valid_until = (now + timedelta(days=PRE_APPROVAL_VALID_DAYS)).date()
 
-        offers: list[PreApprovedOffer] = []
         if estimate.segment == "new_client":
             await self._repository.replace_for_organization(organization_id, offers)
             return offers

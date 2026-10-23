@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -69,6 +70,10 @@ class _World:
                 reasons=(EligibilityReasonDTO("revenue", False, "Мало выручки"),),
             )
         )
+
+    def verification(self, status: str) -> None:
+        self.company = replace(self.company, verification_status=status)  # type: ignore[arg-type]
+        self.clients.add_organization(self.company)
 
     def eligible_codes(self) -> set[str]:
         return {
@@ -173,6 +178,36 @@ async def test_new_client_gets_no_pre_approval(session_factory: Sessions) -> Non
     assert await world.offers(session_factory) == {}
     [staged] = outbox.messages
     assert staged.message == PreApprovedOffersUpdated(organization_id=world.company.id)
+
+
+async def test_unverified_company_gets_no_offers(session_factory: Sessions) -> None:
+    """Сверки с ЕГРЮЛ не было — предскоринга нет; событие уходит, как при любом пересчёте."""
+    world = _World("romashka")
+    world.verification("unverified")
+
+    outbox = await world.recalculate(session_factory)
+
+    assert await world.offers(session_factory) == {}
+    [staged] = outbox.messages
+    assert staged.message == PreApprovedOffersUpdated(organization_id=world.company.id)
+
+
+async def test_registry_mismatch_removes_offers(session_factory: Sessions) -> None:
+    """OrganizationVerificationMismatch: прежние предложения компании снимаются."""
+    world = _World("romashka")
+    await world.recalculate(session_factory)
+    assert await world.offers(session_factory)
+
+    world.verification("mismatch")
+    outbox = await world.recalculate(session_factory)
+
+    assert await world.offers(session_factory) == {}
+    [staged] = outbox.messages
+    assert staged.message == PreApprovedOffersUpdated(organization_id=world.company.id)
+
+    world.verification("verified")
+    await world.recalculate(session_factory)
+    assert await world.offers(session_factory)
 
 
 async def test_expired_offers_are_not_shown(session_factory: Sessions) -> None:
