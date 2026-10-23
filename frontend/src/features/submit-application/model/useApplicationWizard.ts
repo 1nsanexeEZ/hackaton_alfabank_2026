@@ -1,6 +1,12 @@
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 
-import { loanDraft } from '@/entities/application'
+import {
+  APPLICATION_STATUS_META,
+  fileProblem,
+  loanDraft,
+  toClientStatus,
+  uploadApplicationDocument,
+} from '@/entities/application'
 import {
   findProduct,
   hasProductFields,
@@ -13,6 +19,7 @@ import { customer } from '@/entities/customer'
 import {
   ApiError,
   clientApi,
+  eligibilityMessage,
   type ApplicationDto,
   type ApplicationUpdateInput,
   type CollateralType,
@@ -24,8 +31,6 @@ import { clamp, errorMessage } from '@/shared/lib'
 
 import { fieldTitle, parseNumber, toFormValues, toPayload, validateFieldValues, type FieldValues } from './productFields'
 import { describeViolations, type ViolationView, type WizardStep } from './violations'
-
-const MAX_FILE_BYTES = 25 * 1024 * 1024
 
 export interface CollateralForm {
   type: string
@@ -46,6 +51,7 @@ export interface DocumentSlot {
  * Заявка по контракту docs/api/client-journey.md §3.5:
  * черновик (POST /applications) → автосохранение (PATCH с version) → документы → комплектность → submit.
  * Состояние живёт, пока жива модалка: закрыл и открыл снова — продолжаешь с того же места.
+ * После перезагрузки страницы черновик находится по 409 duplicate_active и продолжается (resume).
  */
 export function useApplicationWizard(products: () => ProductCatalog) {
   const step = ref<WizardStep>('terms')
@@ -80,6 +86,38 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   const legalForm = computed(() => organization.value?.legal_form ?? 'LLC')
   const collateralNeeded = computed(() => needsCollateral(product.value, terms.amount))
   const withFields = computed(() => hasProductFields(product.value))
+
+  /*
+   * Подходит ли компания под продукт (форма бизнеса, возраст, выручка) — спрашиваем бэкенд сразу
+   * при выборе, чтобы не узнавать об отказе после «Далее». Ответ кешируем по паре компания + продукт.
+   */
+  const eligibilityByKey = reactive<Record<string, { eligible: boolean; message: string | null }>>({})
+  const eligibilityKey = computed(() =>
+    terms.organizationId ? `${terms.organizationId}:${product.value.code}` : null,
+  )
+  /** Почему компания не подходит; null — подходит или проверить не удалось (тогда решит бэкенд при создании) */
+  const ineligibleReason = computed(() =>
+    eligibilityKey.value ? (eligibilityByKey[eligibilityKey.value]?.message ?? null) : null,
+  )
+
+  watch(
+    eligibilityKey,
+    async (key) => {
+      delete fieldErrors.value['request.product']
+      if (!key || key in eligibilityByKey) return
+      const [organizationId, code] = key.split(':') as [string, string]
+      try {
+        const result = await clientApi.eligibility(code, organizationId)
+        eligibilityByKey[key] = {
+          eligible: result.eligible,
+          message: result.eligible ? null : eligibilityMessage(result.reasons),
+        }
+      } catch {
+        eligibilityByKey[key] = { eligible: true, message: null }
+      }
+    },
+    { immediate: true },
+  )
 
   const documents = computed<DocumentSlot[]>(() =>
     requiredDocumentsFor(product.value, terms.amount, legalForm.value).map((required) => ({
@@ -132,7 +170,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
       organizations.value = list
       const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      terms.organizationId = preferred?.id ?? ''
+      terms.organizationId = takeRequestedOrganization(list) ?? preferred?.id ?? ''
     } catch (caught) {
       organizationsError.value = errorMessage(caught)
     } finally {
@@ -140,7 +178,14 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
   }
 
-  /** Модалка открылась: подхватываем то, что клиент выбрал в каталоге или калькуляторе */
+  /** Компания черновика, который клиент продолжает с первого экрана; берём один раз */
+  function takeRequestedOrganization(list: OrganizationSummaryDto[]): string | undefined {
+    const requested = loanDraft.organizationId
+    loanDraft.organizationId = undefined
+    return list.some((item) => item.id === requested) ? requested : undefined
+  }
+
+  /** Модалка открылась: подхватываем то, что клиент выбрал в каталоге, калькуляторе или на карточке заявки */
   function prepare() {
     const me = customer.state.me?.id ?? null
     if (me !== loadedFor) {
@@ -149,6 +194,12 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       organizations.value = null
     }
     if (step.value === 'done') reset()
+
+    const requested = organizations.value ? takeRequestedOrganization(organizations.value) : undefined
+    if (requested && requested !== terms.organizationId) {
+      terms.organizationId = requested
+      step.value = 'terms'
+    }
 
     const fromSite = findProduct(products(), loanDraft.productId)
     if (step.value === 'terms' || fromSite.id !== terms.productId) {
@@ -162,6 +213,9 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       terms.productId = fromSite.id
     }
     if (!Object.keys(productFields.value).length) productFields.value = toFormValues(product.value.fieldsSchema)
+    // Цель черновика, который продолжают с карточки заявки; берём один раз
+    if (loanDraft.purpose && product.value.purposes.includes(loanDraft.purpose)) terms.purpose = loanDraft.purpose
+    loanDraft.purpose = undefined
     if (!terms.purpose) terms.purpose = product.value.purposes[0] ?? ''
     if (!collateral.type) collateral.type = product.value.collateralTypes[0] ?? ''
     if (!organizations.value && !organizationsLoading.value) void loadOrganizations()
@@ -218,8 +272,51 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     ) {
       return
     }
+    try {
+      application.value = await clientApi.createApplication(terms.organizationId, product.value.code)
+    } catch (caught) {
+      const existingId = duplicateOf(caught)
+      if (!existingId) throw caught
+      await resume(existingId)
+    }
+    // Старый черновик отменяем, только когда новый уже есть: иначе при отказе клиент потерял бы оба
     if (current?.status === 'draft') await clientApi.cancelApplication(current.id).catch(() => undefined)
-    application.value = await clientApi.createApplication(terms.organizationId, product.value.code)
+  }
+
+  /** Бэкенд не даёт вторую активную заявку по продукту и отдаёт id той, что уже есть */
+  function duplicateOf(caught: unknown): string | null {
+    if (!(caught instanceof ApiError) || caught.status !== 409 || caught.details.code !== 'duplicate_active') return null
+    return typeof caught.details.application_id === 'string' ? caught.details.application_id : null
+  }
+
+  /**
+   * Заявка по продукту уже есть. Черновик (например, начатый до перезагрузки страницы) продолжаем:
+   * условия перезапишутся тем, что клиент ввёл сейчас, а залог, анкета и документы подтянутся из него.
+   * Заявку, которая уже в работе, не трогаем — объясняем, почему новую подать нельзя.
+   */
+  async function resume(id: string) {
+    const existing = await clientApi.getApplication(id)
+    if (existing.status !== 'draft') {
+      const status = toClientStatus(existing.status, existing.client_stage)
+      const state = status ? ` в статусе «${APPLICATION_STATUS_META[status].label}»` : ''
+      throw new ApiError(
+        409,
+        'conflict',
+        `По этому продукту у компании уже есть заявка № ${existing.number}${state}. Новую можно подать, когда по ней будет решение`,
+      )
+    }
+    application.value = existing
+    if (existing.collateral) {
+      Object.assign(collateral, {
+        type: existing.collateral.type,
+        description: existing.collateral.description,
+        declaredValue: String(Number(existing.collateral.declared_value)),
+        owner: existing.collateral.owner,
+      })
+    }
+    if (Object.keys(existing.product_fields).length) {
+      productFields.value = toFormValues(product.value.fieldsSchema, existing.product_fields)
+    }
   }
 
   function validateTerms(): boolean {
@@ -227,10 +324,15 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     if (!organization.value) errors.organization = 'Выберите компанию'
     else if (!organization.value.my_permissions.includes('submit_application')) {
       errors.organization = 'У вас нет права подавать заявки от этой компании'
+    } else if (ineligibleReason.value) {
+      errors['request.product'] = ineligibleReason.value
     } else if (!isAvailableFor(product.value, organization.value.legal_form)) {
       errors['request.product'] = 'Продукт недоступен для этой формы бизнеса'
     }
     if (!terms.purpose) errors['request.purpose'] = 'Выберите цель кредита'
+    else if (!product.value.purposes.includes(terms.purpose)) {
+      errors['request.purpose'] = 'Этот продукт не для такой цели — выберите один из подходящих выше'
+    }
     fieldErrors.value = errors
     return Object.keys(errors).length === 0
   }
@@ -310,20 +412,14 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   async function uploadDocument(type: string, file: File) {
     const current = application.value
     if (!current) return
-    if (!file.size || file.size > MAX_FILE_BYTES) {
-      uploads[type] = { uploading: false, error: file.size ? 'Файл больше 25 МБ' : 'Файл пустой' }
+    const problem = fileProblem(type, file)
+    if (problem) {
+      uploads[type] = { uploading: false, error: problem }
       return
     }
     uploads[type] = { uploading: true, error: null }
     try {
-      const { document, upload } = await clientApi.requestDocumentUpload(current.id, {
-        type,
-        filename: file.name,
-        content_type: file.type || 'application/octet-stream',
-        size_bytes: file.size,
-      })
-      await clientApi.uploadFile(upload, file)
-      await clientApi.confirmDocument(current.id, document.id)
+      await uploadApplicationDocument(current.id, type, file)
       // Документы меняют версию черновика — перечитываем заявку целиком
       application.value = await clientApi.getApplication(current.id)
       delete uploads[type]
@@ -372,6 +468,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     product,
     collateralNeeded,
     withFields,
+    ineligibleReason,
     documents,
     busy,
     error,

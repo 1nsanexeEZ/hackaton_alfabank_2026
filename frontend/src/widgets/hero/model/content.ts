@@ -23,7 +23,7 @@ export function heroStats(products: readonly CreditProduct[] | null): HeroStat[]
   ]
 }
 
-/** Иллюстрация на первом экране: так выглядит заявка в кабинете */
+/** Иллюстрация на первом экране для тех, кто не вошёл: так выглядит заявка в кабинете */
 export const HERO_DEMO_APPLICATION: ApplicationPreview = {
   number: 'ЗК-104582',
   productTitle: 'Кредит без залога',

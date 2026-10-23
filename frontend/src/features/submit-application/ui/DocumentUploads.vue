@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CircleCheck, FileUp, Trash2 } from 'lucide-vue-next'
 
+import { documentFormat } from '@/entities/application'
 import { BaseButton } from '@/shared/ui'
 
 import type { DocumentSlot } from '../model/useApplicationWizard'
@@ -37,11 +38,12 @@ function size(bytes: number) {
             <CircleCheck v-if="slot.files.length" class="size-4 shrink-0 text-success" aria-hidden="true" />
             {{ slot.title }}
           </p>
-          <p class="mt-0.5 text-xs text-ink-secondary">PDF, изображение или таблица, до 25 МБ</p>
+          <p class="mt-0.5 text-xs text-ink-secondary">{{ documentFormat(slot.type).kinds }}, до 20 МБ</p>
         </div>
         <input
           :ref="(element) => (inputs[slot.type] = element as HTMLInputElement | null)"
           type="file"
+          :accept="documentFormat(slot.type).accept"
           class="sr-only"
           tabindex="-1"
           aria-hidden="true"

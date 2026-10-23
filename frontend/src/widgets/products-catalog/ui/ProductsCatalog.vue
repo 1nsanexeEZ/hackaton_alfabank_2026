@@ -7,6 +7,8 @@ import { ProductFilterControl, useProductFilter } from '@/features/filter-produc
 import { SECTION_ID } from '@/shared/config'
 import { BaseButton, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
+import { useCardWindow } from '../model/useCardWindow'
+
 const props = defineProps<{ products: ProductCatalog }>()
 
 const emit = defineEmits<{
@@ -39,11 +41,64 @@ function go(offset: number) {
 }
 
 /*
+ * Десктоп: ряд — окно. Раскрытая карточка не уже 30rem, рядом столько полосок, сколько влезает,
+ * остальные за краем; окно едет за раскрытой (стрелки, автопрокрутка, индикатор).
+ * Телефон и планшет: лента полных карточек, листается свайпом, индикатор следит за прокруткой.
+ */
+const viewport = ref<HTMLElement>()
+const track = ref<HTMLElement>()
+const { offset, expandedWidth, inWindow, hasBefore, hasAfter } = useCardWindow(
+  viewport,
+  () => filteredProducts.value.length,
+  () => activeIndex.value,
+)
+
+const trackStyle = computed(() =>
+  isDesktop.value
+    ? { transform: `translateX(-${offset.value}px)`, '--catalog-expanded-w': `${expandedWidth.value}px` }
+    : undefined,
+)
+
+const pad = (value: number) => String(value).padStart(2, '0')
+
+function scrollToCard(index: number, behavior: ScrollBehavior) {
+  const card = track.value?.children[index] as HTMLElement | undefined
+  viewport.value?.scrollTo({ left: card ? card.offsetLeft - (track.value?.offsetLeft ?? 0) : 0, behavior })
+}
+
+/** Индикатор: на десктопе раскрывает продукт, на телефоне листает ленту к нему */
+function show(index: number) {
+  const product = filteredProducts.value[index]
+  if (!product) return
+  if (isDesktop.value) expandedId.value = product.id
+  else scrollToCard(index, 'smooth')
+}
+
+// На телефоне «текущая» карточка — та, что ближе всех к левому краю ленты
+function onScroll() {
+  if (isDesktop.value) return
+  const cards = [...(track.value?.children ?? [])] as HTMLElement[]
+  const left = (viewport.value?.scrollLeft ?? 0) + (track.value?.offsetLeft ?? 0)
+  let nearest = 0
+  cards.forEach((card, index) => {
+    if (Math.abs(card.offsetLeft - left) < Math.abs((cards[nearest]?.offsetLeft ?? 0) - left)) nearest = index
+  })
+  const product = filteredProducts.value[nearest]
+  if (product) expandedId.value = product.id
+}
+
+// Сменили фильтр: лента остаётся на текущем продукте, а если его в списке нет — на первом
+watch(filteredProducts, () => !isDesktop.value && scrollToCard(Math.max(activeIndex.value, 0), 'instant'), {
+  flush: 'post',
+})
+
+/*
  * Автопрокрутка только на десктопе, где карточки стоят в ряд: на телефоне они в столбик,
  * и само раскрытие сдвигало бы страницу. Без анимации по настройкам системы — тоже нет.
  */
 const row = ref<HTMLElement>()
-const isDesktop = ref(false)
+// Сразу, а не в onMounted: иначе на десктопе первый кадр рисуется лентой и карточки схлопываются на глазах
+const isDesktop = ref(typeof window !== 'undefined' && window.matchMedia('(min-width: 64rem)').matches)
 const reducedMotion = ref(false)
 const isHovered = ref(false)
 const hasFocusInside = ref(false)
@@ -90,7 +145,8 @@ function onFocusOut(event: FocusEvent) {
 </script>
 
 <template>
-  <section :id="SECTION_ID.products" class="py-16 lg:py-24">
+  <!-- overflow-x-clip: стикер справа выглядывает из-за края окна, но не расширяет страницу -->
+  <section :id="SECTION_ID.products" class="overflow-x-clip py-16 lg:py-24">
     <BaseContainer class="relative">
       <DecorSticker
         class="absolute -top-12 right-24"
@@ -105,7 +161,8 @@ function onFocusOut(event: FocusEvent) {
         description="Условия демонстрационные: итоговые ставка и лимит зависят от решения банка по заявке."
       >
         <template #aside>
-          <ProductFilterControl v-model="filter" class="self-start lg:self-auto" />
+          <!-- shrink-0: на 1024 px длинное описание иначе сжимает фильтр и обрезает «Деньги частями» -->
+          <ProductFilterControl v-model="filter" class="self-start lg:shrink-0 lg:self-auto" />
         </template>
       </SectionHeader>
 
@@ -136,54 +193,74 @@ function onFocusOut(event: FocusEvent) {
 
       <div
         ref="row"
-        class="relative isolate mt-8 flex flex-col gap-3 lg:mt-5 lg:h-[28rem] lg:flex-row lg:gap-4"
+        class="relative isolate mt-8 lg:mt-5"
         @mouseenter="isHovered = true"
         @mouseleave="isHovered = false"
         @focusin="hasFocusInside = true"
         @focusout="onFocusOut"
       >
         <PeekSticker art="rocket" from="right" class="absolute top-28 -right-20 -z-10" :tilt="62" :delay="1" />
-        <ProductFlexCard
-          v-for="(product, index) in filteredProducts"
-          :key="product.id"
-          :product="product"
-          :index="index"
-          :expanded="product.id === expandedId"
-          :autoplay-ms="autoplayMs"
-          :paused="paused"
-          @expand="expandedId = product.id"
-          @finished="go(1)"
+        <!-- Телефон: лента с прокруткой до краёв экрана. Десктоп: окно, лишнее обрезано по бокам, но не сверху — карточки подпрыгивают -->
+        <div
+          ref="viewport"
+          class="catalog-viewport relative -mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:snap-none lg:overflow-x-clip lg:px-0"
+          @scroll.passive="onScroll"
         >
-          <template #actions>
-            <BaseButton variant="inverted" @click="emit('apply', product.id)">Оформить</BaseButton>
-            <BaseButton variant="glass" @click="emit('calculate', product.id)">
-              <Calculator class="size-4" aria-hidden="true" />
-              Рассчитать платёж
-            </BaseButton>
-          </template>
-        </ProductFlexCard>
+          <div ref="track" class="catalog-track flex w-max gap-3 lg:h-[28rem] lg:gap-4" :style="trackStyle">
+            <ProductFlexCard
+              v-for="(product, index) in filteredProducts"
+              :key="product.id"
+              :product="product"
+              :index="index"
+              :expanded="!isDesktop || product.id === expandedId"
+              :autoplay-ms="autoplayMs"
+              :paused="paused"
+              :inert="(isDesktop && !inWindow(index)) || undefined"
+              class="w-[82vw] shrink-0 snap-start sm:w-[56vw] lg:w-auto"
+              @expand="expandedId = product.id"
+              @finished="go(1)"
+            >
+              <template #actions>
+                <BaseButton variant="inverted" @click="emit('apply', product.id)">Оформить</BaseButton>
+                <BaseButton variant="glass" @click="emit('calculate', product.id)">
+                  <Calculator class="size-4" aria-hidden="true" />
+                  Рассчитать платёж
+                </BaseButton>
+              </template>
+            </ProductFlexCard>
+          </div>
+          <!-- Затухание с той стороны, где за краем есть ещё продукты -->
+          <span v-if="isDesktop && hasBefore" class="catalog-fade catalog-fade--start" aria-hidden="true" />
+          <span v-if="isDesktop && hasAfter" class="catalog-fade catalog-fade--end" aria-hidden="true" />
+        </div>
       </div>
 
-      <!-- Индикаторы как в сторис: активный длиннее и заполняется вместе с полосой в карточке -->
-      <div class="mt-6 hidden items-center gap-2 lg:flex">
-        <button
-          v-for="product in filteredProducts"
-          :key="product.id"
-          type="button"
-          class="catalog-seg relative h-1.5 overflow-hidden rounded-full bg-surface-strong"
-          :class="product.id === expandedId ? 'w-16' : 'w-7'"
-          :aria-label="`Показать продукт «${product.title}»`"
-          :aria-current="product.id === expandedId || undefined"
-          @click="expandedId = product.id"
-        >
-          <span
-            v-if="product.id === expandedId"
-            :key="expandedId"
-            class="catalog-seg__fill absolute inset-0 rounded-full bg-brand"
-            :class="{ 'is-static': !autoplayMs, 'is-paused': paused }"
-            :style="{ animationDuration: `${autoplayMs}ms` }"
-          />
-        </button>
+      <!-- Индикаторы как в сторис: номер из скольких и сегменты, которые сжимаются под любое число продуктов -->
+      <div class="mt-6 flex items-center gap-4">
+        <p class="shrink-0 text-sm font-semibold text-ink tabular-nums" aria-live="polite">
+          {{ pad(activeIndex + 1) }}
+          <span class="font-medium text-ink-muted">/ {{ pad(filteredProducts.length) }}</span>
+        </p>
+        <div class="flex max-w-md flex-1 items-center gap-1.5">
+          <button
+            v-for="(product, index) in filteredProducts"
+            :key="product.id"
+            type="button"
+            class="catalog-seg relative h-1.5 min-w-1 flex-1 overflow-hidden rounded-full bg-surface-strong"
+            :class="product.id === expandedId && 'is-active'"
+            :aria-label="`Показать продукт «${product.title}»`"
+            :aria-current="product.id === expandedId || undefined"
+            @click="show(index)"
+          >
+            <span
+              v-if="product.id === expandedId"
+              :key="expandedId"
+              class="catalog-seg__fill absolute inset-0 rounded-full bg-brand"
+              :class="{ 'is-static': !autoplayMs, 'is-paused': paused }"
+              :style="{ animationDuration: `${autoplayMs}ms` }"
+            />
+          </button>
+        </div>
       </div>
     </BaseContainer>
   </section>
@@ -225,7 +302,45 @@ function onFocusOut(event: FocusEvent) {
 }
 
 .catalog-seg {
-  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: flex-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.catalog-seg.is-active {
+  flex-grow: 4;
+}
+
+/* Лента на телефоне листается без полосы прокрутки */
+.catalog-viewport {
+  scrollbar-width: none;
+}
+
+.catalog-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.catalog-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 4rem;
+  pointer-events: none;
+}
+
+.catalog-fade--start {
+  left: 0;
+  background: linear-gradient(to right, var(--color-white, #fff), transparent);
+}
+
+.catalog-fade--end {
+  right: 0;
+  background: linear-gradient(to left, var(--color-white, #fff), transparent);
+}
+
+@media (width >= 64rem) {
+  .catalog-track {
+    transition: transform 0.6s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+  }
 }
 
 .catalog-seg__fill {
@@ -266,6 +381,27 @@ function onFocusOut(event: FocusEvent) {
   .catalog-dot,
   .catalog-arrow {
     animation: none;
+  }
+
+  .catalog-track {
+    transition: none;
+  }
+}
+</style>
+
+<style>
+/*
+ * Не scoped: ширину раскрытой карточки ряд передаёт через переменную, а при наведении на полоску
+ * (она расширяется на 2rem) забирает эти 2rem у раскрытой — иначе ряд вылез бы за окно.
+ */
+@media (width >= 64rem) {
+  .catalog-track > .flex-card.is-expanded {
+    --flex-card-expanded-w: var(--catalog-expanded-w);
+    --flex-card-expanded-grow: 0;
+  }
+
+  .catalog-track:has(> .flex-card:not(.is-expanded):hover) > .flex-card.is-expanded {
+    --flex-card-expanded-w: calc(var(--catalog-expanded-w) - 2rem);
   }
 }
 </style>

@@ -231,8 +231,12 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     min-height: 0;
   }
 
+  /*
+   * Раскрытая забирает всё свободное место ряда. Ряд-окно задаёт ей точную ширину:
+   * --flex-card-expanded-w и --flex-card-expanded-grow: 0, чтобы длинный заголовок её не растягивал.
+   */
   .flex-card.is-expanded {
-    flex-grow: 1;
+    flex: var(--flex-card-expanded-grow, 1) 0 var(--flex-card-expanded-w, 5.5rem);
     min-height: 0;
   }
 
@@ -266,16 +270,21 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     animation: flex-card-number 0.8s var(--spring) both;
   }
 
+  /* Подпись — от верха до стрелки; длинное название не наезжает на неё, а обрезается */
   .flex-card__label {
     top: 2rem;
     left: 50%;
+    max-height: calc(100% - 10rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
     translate: -50% 0;
     writing-mode: vertical-rl;
     rotate: 180deg;
   }
 
+  /* Стрелка — над номером внизу */
   .flex-card__hint {
-    top: 50%;
+    bottom: 4.5rem;
     left: 50%;
     translate: -50% 0;
     animation: flex-card-ring 2.2s ease-out infinite;
