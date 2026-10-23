@@ -70,6 +70,22 @@ services:
     networks:
       - alfa_network
 
+  # Моки внешних систем (ЕГРЮЛ, ФНС, БКИ, АБС, ЭДО) — настоящий HTTP-сервис, backend ходит в него
+  # через адаптеры. Для демо «хаос» выключен: небольшая задержка, без случайных 503
+  # (для проверки устойчивости поднимите MOCK_FAILURE_RATE). «Сбой» в БКИ отвечает 503 всегда — сценарий S-6.
+  external-mocks:
+    build: ./external-mocks
+    container_name: alfa_credit_external_mocks
+    restart: unless-stopped
+    environment:
+      MOCK_LATENCY_MS_MIN: ${MOCK_LATENCY_MS_MIN:-100}
+      MOCK_LATENCY_MS_MAX: ${MOCK_LATENCY_MS_MAX:-400}
+      MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0}
+      MOCK_BKI_ALWAYS_FAIL_INNS: ${MOCK_BKI_ALWAYS_FAIL_INNS:-7705729405}
+    mem_limit: 192m
+    networks:
+      - alfa_network
+
   backend:
     build: ./backend
     container_name: alfa_credit_backend
@@ -87,12 +103,19 @@ services:
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-credit-documents}
       # Host the browser uses for presigned URLs (nginx proxies /credit-documents/ to MinIO).
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost}
-      APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-}
+      # Signing (EDO) and payout (ABS) go through the external mocks (simulated, marked in API answers).
+      APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-http://external-mocks:8100}
+      ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
+      ENRICHMENT_SOURCE_TIMEOUT_SECONDS: ${ENRICHMENT_SOURCE_TIMEOUT_SECONDS:-3}
+      ENRICHMENT_RETRIES: ${ENRICHMENT_RETRIES:-3}
+      # Key rate of the Bank of Russia, % per year: the base of the offer rate in decision.
+      DECISION_KEY_RATE: ${DECISION_KEY_RATE:-16.50}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo-2026!}
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-false}
     volumes:
       - jwt-keys:/app/keys
     depends_on:
@@ -102,7 +125,16 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      external-mocks:
+        condition: service_healthy
     mem_limit: 768m
+    networks:
+      - alfa_network
+
+  frontend:
+    build: ./frontend
+    container_name: alfa_credit_frontend
+    restart: unless-stopped
     networks:
       - alfa_network
 
@@ -115,11 +147,12 @@ services:
       - "443:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
       - minio
+      - frontend
     networks:
       - alfa_network
 

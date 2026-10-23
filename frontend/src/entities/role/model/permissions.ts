@@ -65,6 +65,11 @@ export const POLICY_META: Record<Policy, { label: string; description: string; a
     description: 'Удалённые записи скрыты',
     appliesTo: ['requests', 'credits', 'accounts'],
   },
+  org_member: {
+    label: 'Только свои компании',
+    description: 'Компании, где он участник, и их заявки',
+    appliesTo: ['requests'],
+  },
 }
 
 /** Человеческие названия системных ролей; новые роли показываем как есть */

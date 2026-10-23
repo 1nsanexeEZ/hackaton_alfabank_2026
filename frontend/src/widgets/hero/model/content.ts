@@ -1,21 +1,29 @@
 import { BadgePercent, Banknote, CalendarDays, Timer, type LucideIcon } from 'lucide-vue-next'
 
 import type { ApplicationPreview } from '@/entities/application'
-import { DEMO_CREDIT_PRODUCTS } from '@/entities/credit-product'
+import type { CreditProduct } from '@/entities/credit-product'
 import { formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
 
-const minRate = Math.min(...DEMO_CREDIT_PRODUCTS.map((product) => product.rateFrom))
-const maxTerm = Math.max(...DEMO_CREDIT_PRODUCTS.map((product) => product.termMonths.max))
-const maxAmount = Math.max(...DEMO_CREDIT_PRODUCTS.map((product) => product.amount.max))
+export interface HeroStat {
+  /** null — каталог ещё грузится */
+  value: string | null
+  caption: string
+  icon: LucideIcon
+}
 
-/** Ключевые цифры считаются из каталога, чтобы витрина не расходилась с условиями продуктов */
-export const HERO_STATS: readonly { value: string; caption: string; icon: LucideIcon }[] = [
-  { value: `от ${formatPercent(minRate)}`, caption: 'Ставка', icon: BadgePercent },
-  { value: `до ${formatTerm(maxTerm)}`, caption: 'Срок', icon: CalendarDays },
-  { value: `до ${formatMoneyShort(maxAmount)}`, caption: 'Сумма', icon: Banknote },
-  { value: '5 минут', caption: 'Предварительное решение', icon: Timer },
-]
+/** Ключевые цифры считаются из каталога API, чтобы витрина не расходилась с условиями продуктов */
+export function heroStats(products: readonly CreditProduct[] | null): HeroStat[] {
+  const list = products ?? []
+  const pick = (format: () => string) => (list.length ? format() : null)
+  return [
+    { value: pick(() => `от ${formatPercent(Math.min(...list.map((item) => item.rateFrom)))}`), caption: 'Ставка', icon: BadgePercent },
+    { value: pick(() => `до ${formatTerm(Math.max(...list.map((item) => item.termMonths.max)))}`), caption: 'Срок', icon: CalendarDays },
+    { value: pick(() => `до ${formatMoneyShort(Math.max(...list.map((item) => item.amount.max)))}`), caption: 'Сумма', icon: Banknote },
+    { value: '5 минут', caption: 'Предварительное решение', icon: Timer },
+  ]
+}
 
+/** Иллюстрация на первом экране для тех, кто не вошёл: так выглядит заявка в кабинете */
 export const HERO_DEMO_APPLICATION: ApplicationPreview = {
   number: 'ЗК-104582',
   productTitle: 'Кредит без залога',

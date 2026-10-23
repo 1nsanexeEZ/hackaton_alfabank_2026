@@ -5,7 +5,7 @@ from collections.abc import Iterator
 import httpx
 import pytest
 
-from src.applications.infrastructure.storage import MinioDocumentStorage
+from src.modules.applications.infrastructure.storage import MinioDocumentStorage
 
 pytestmark = pytest.mark.integration
 

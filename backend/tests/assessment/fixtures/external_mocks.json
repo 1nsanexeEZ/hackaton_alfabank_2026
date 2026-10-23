@@ -1,0 +1,1116 @@
+{
+  "7701158817": {
+    "code": "romashka",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7701158817",
+        "ОГРН": "1027700399869",
+        "НаимПолн": "Общество с ограниченной ответственностью «Ромашка»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2020-10-23",
+        "ОКВЭДОсн": {
+          "Код": "56.10"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Смирнова Анна Сергеевна",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2020-10-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Смирнова Анна Сергеевна",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Тверская, д. 1",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770101001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7701158817",
+        "arrears_kop": 0,
+        "avg_headcount": 12,
+        "revenue_kop": 4750000000,
+        "expenses_kop": 4100000000,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [
+          {
+            "type": "loan",
+            "creditor": "АО «Банк»",
+            "amount_kop": 500000000,
+            "outstanding_kop": 300000000,
+            "monthly_payment_kop": 18000000,
+            "opened": "2023-06-01",
+            "closes": "2028-06-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7701158817",
+        "unit": "тыс. руб.",
+        "available": true,
+        "reason": null,
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 7700,
+              "1210_inventories": 4400,
+              "1230_receivables": 6600,
+              "1250_cash": 3300,
+              "1600_total_assets": 22000,
+              "1300_equity": 11200,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 10800,
+              "1700_total_liabilities": 22000
+            },
+            "income": {
+              "2110_revenue": 44000,
+              "2120_cost_of_sales": 37400,
+              "2200_sales_profit": 6600,
+              "2330_interest_payable": 420,
+              "2300_profit_before_tax": 6180,
+              "2400_net_profit": 4944
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 8400,
+              "1210_inventories": 4800,
+              "1230_receivables": 7200,
+              "1250_cash": 3600,
+              "1600_total_assets": 24000,
+              "1300_equity": 12600,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 11400,
+              "1700_total_liabilities": 24000
+            },
+            "income": {
+              "2110_revenue": 48000,
+              "2120_cost_of_sales": 40000,
+              "2200_sales_profit": 8000,
+              "2330_interest_payable": 380,
+              "2300_profit_before_tax": 7620,
+              "2400_net_profit": 6096
+            }
+          }
+        ]
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7701158817",
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 1,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 1,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Смирнова",
+          "first_name": "Анна",
+          "middle_name": "Сергеевна"
+        },
+        "obligations": [
+          {
+            "type": "mortgage",
+            "creditor": "АО «Банк»",
+            "amount_kop": 600000000,
+            "outstanding_kop": 420000000,
+            "monthly_payment_kop": 5200000,
+            "opened": "2021-04-15",
+            "closes": "2041-04-15",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          },
+          {
+            "type": "card",
+            "creditor": "АО «Банк»",
+            "amount_kop": 30000000,
+            "outstanding_kop": 4000000,
+            "monthly_payment_kop": 600000,
+            "opened": "2022-09-01",
+            "closes": "2027-09-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 0
+      }
+    }
+  },
+  "770669871605": {
+    "code": "ivanov",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "770669871605",
+        "ОГРН": "325770689768464",
+        "НаимПолн": "Индивидуальный предприниматель Иванов Иван Иванович",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2026-02-21",
+        "ОКВЭДОсн": {
+          "Код": "62.01"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Иванов Иван Иванович",
+          "Должность": "Индивидуальный предприниматель",
+          "ДатаЗаписи": "2026-02-21"
+        },
+        "Учредители": [],
+        "Адрес": {
+          "Полный": "г. Москва",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ИП"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "770669871605",
+        "arrears_kop": 0,
+        "avg_headcount": 2,
+        "revenue_kop": 590000000,
+        "expenses_kop": 480000000,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [],
+        "inquiries_30d": 0
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "770669871605",
+        "unit": "тыс. руб.",
+        "available": false,
+        "reason": "ИП не сдают бухгалтерскую отчётность в ГИР БО",
+        "periods": []
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "770669871605",
+        "reliability": "yellow",
+        "reliability_notes": [
+          "ИП зарегистрирован менее 12 месяцев назад"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Иванов",
+          "first_name": "Иван",
+          "middle_name": "Иванович"
+        },
+        "obligations": [],
+        "inquiries_30d": 0
+      }
+    }
+  },
+  "7702987976": {
+    "code": "vector",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7702987976",
+        "ОГРН": "1037702309116",
+        "НаимПолн": "Общество с ограниченной ответственностью «Вектор»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2022-10-23",
+        "ОКВЭДОсн": {
+          "Код": "41.20"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Сидоров Сергей Сергеевич",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2022-10-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Сидоров Сергей Сергеевич",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ш. Энтузиастов, д. 10",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770201001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7702987976",
+        "arrears_kop": 0,
+        "avg_headcount": 30,
+        "revenue_kop": 2900000000,
+        "expenses_kop": 2600000000,
+        "tax_regime": "ОСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [
+          {
+            "type": "loan",
+            "creditor": "АО «Банк»",
+            "amount_kop": 800000000,
+            "outstanding_kop": 500000000,
+            "monthly_payment_kop": 25000000,
+            "opened": "2022-03-01",
+            "closes": "2027-03-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          },
+          {
+            "type": "credit_line",
+            "creditor": "ПАО «Кредит»",
+            "amount_kop": 400000000,
+            "outstanding_kop": 100000000,
+            "monthly_payment_kop": 9000000,
+            "opened": "2024-01-01",
+            "closes": "2026-01-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 2
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7702987976",
+        "unit": "тыс. руб.",
+        "available": true,
+        "reason": null,
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 4725,
+              "1210_inventories": 2700,
+              "1230_receivables": 4050,
+              "1250_cash": 2025,
+              "1600_total_assets": 13500,
+              "1300_equity": 5400,
+              "1400_long_term_liabilities": 4000,
+              "1500_short_term_liabilities": 4100,
+              "1700_total_liabilities": 13500
+            },
+            "income": {
+              "2110_revenue": 27000,
+              "2120_cost_of_sales": 24300,
+              "2200_sales_profit": 2700,
+              "2330_interest_payable": 760,
+              "2300_profit_before_tax": 1940,
+              "2400_net_profit": 1552
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 5075,
+              "1210_inventories": 2900,
+              "1230_receivables": 4350,
+              "1250_cash": 2175,
+              "1600_total_assets": 14500,
+              "1300_equity": 5900,
+              "1400_long_term_liabilities": 3000,
+              "1500_short_term_liabilities": 5600,
+              "1700_total_liabilities": 14500
+            },
+            "income": {
+              "2110_revenue": 29000,
+              "2120_cost_of_sales": 26000,
+              "2200_sales_profit": 3000,
+              "2330_interest_payable": 690,
+              "2300_profit_before_tax": 2310,
+              "2400_net_profit": 1848
+            }
+          }
+        ]
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7702987976",
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Арбитражное дело в качестве ответчика за последний год"
+        ],
+        "arbitration": {
+          "as_defendant": 1,
+          "as_plaintiff": 2,
+          "defendant_sum_rub": 450000
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 2,
+          "sum_rub": 6800000
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 2,
+        "affiliated_companies": 3,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Сидоров",
+          "first_name": "Сергей",
+          "middle_name": "Сергеевич"
+        },
+        "obligations": [
+          {
+            "type": "consumer",
+            "creditor": "ПАО «Кредит»",
+            "amount_kop": 150000000,
+            "outstanding_kop": 60000000,
+            "monthly_payment_kop": 3800000,
+            "opened": "2023-02-10",
+            "closes": "2027-02-10",
+            "overdue_days": 0,
+            "max_overdue_days": 12
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    }
+  },
+  "7703417070": {
+    "code": "zakat",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7703417070",
+        "ОГРН": "1047703536451",
+        "НаимПолн": "Общество с ограниченной ответственностью «Закат»",
+        "Статус": {
+          "Код": "LIQUIDATING"
+        },
+        "ДатаРег": "2017-10-24",
+        "ОКВЭДОсн": {
+          "Код": "47.19"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Закатов Олег Олегович",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2017-10-24"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Закатов Олег Олегович",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Закатная, д. 5",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770301001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7703417070",
+        "arrears_kop": 35000000,
+        "avg_headcount": 15,
+        "revenue_kop": 1800000000,
+        "expenses_kop": 2100000000,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": [
+          {
+            "decision_number": "4512",
+            "date": "2026-09-30",
+            "authority_code": "7703",
+            "reason": "Неуплата налогов"
+          }
+        ]
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [
+          {
+            "type": "loan",
+            "creditor": "АО «Банк»",
+            "amount_kop": 1000000000,
+            "outstanding_kop": 800000000,
+            "monthly_payment_kop": 30000000,
+            "opened": "2021-01-01",
+            "closes": "2026-01-01",
+            "overdue_days": 120,
+            "max_overdue_days": 120
+          }
+        ],
+        "inquiries_30d": 3
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7703417070",
+        "unit": "тыс. руб.",
+        "available": true,
+        "reason": null,
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 3675,
+              "1210_inventories": 2100,
+              "1230_receivables": 3150,
+              "1250_cash": 1575,
+              "1600_total_assets": 10500,
+              "1300_equity": 600,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 9900,
+              "1700_total_liabilities": 10500
+            },
+            "income": {
+              "2110_revenue": 21000,
+              "2120_cost_of_sales": 20500,
+              "2200_sales_profit": 500,
+              "2330_interest_payable": 950,
+              "2300_profit_before_tax": -450,
+              "2400_net_profit": -450
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 3150,
+              "1210_inventories": 1800,
+              "1230_receivables": 2700,
+              "1250_cash": 1350,
+              "1600_total_assets": 9000,
+              "1300_equity": -2400,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 11400,
+              "1700_total_liabilities": 9000
+            },
+            "income": {
+              "2110_revenue": 18000,
+              "2120_cost_of_sales": 21000,
+              "2200_sales_profit": -3000,
+              "2330_interest_payable": 1100,
+              "2300_profit_before_tax": -4100,
+              "2400_net_profit": -4100
+            }
+          }
+        ]
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7703417070",
+        "reliability": "red",
+        "reliability_notes": [
+          "Юрлицо в процессе ликвидации",
+          "Приостановлены операции по счетам",
+          "Налоговая задолженность",
+          "Исполнительные производства",
+          "Отрицательные чистые активы"
+        ],
+        "arbitration": {
+          "as_defendant": 6,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 5200000
+        },
+        "enforcement_proceedings": {
+          "active": 4,
+          "sum_rub": 2600000
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 1,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Закатов",
+          "first_name": "Олег",
+          "middle_name": "Олегович"
+        },
+        "obligations": [
+          {
+            "type": "consumer",
+            "creditor": "ПАО «Кредит»",
+            "amount_kop": 80000000,
+            "outstanding_kop": 65000000,
+            "monthly_payment_kop": 2700000,
+            "opened": "2024-03-01",
+            "closes": "2028-03-01",
+            "overdue_days": 45,
+            "max_overdue_days": 45
+          },
+          {
+            "type": "card",
+            "creditor": "АО «Банк»",
+            "amount_kop": 20000000,
+            "outstanding_kop": 19500000,
+            "monthly_payment_kop": 1000000,
+            "opened": "2023-06-01",
+            "closes": "2028-06-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 4
+      }
+    }
+  },
+  "7704568152": {
+    "code": "progress",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7704568152",
+        "ОГРН": "1057704188442",
+        "НаимПолн": "Общество с ограниченной ответственностью «Прогресс»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2023-10-23",
+        "ОКВЭДОсн": {
+          "Код": "49.41"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Прогрессов Павел Павлович",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2023-10-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Прогрессов Павел Павлович",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Грузовая, д. 3",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770401001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7704568152",
+        "arrears_kop": 0,
+        "avg_headcount": 10,
+        "revenue_kop": 1200000000,
+        "expenses_kop": 900000000,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [
+          {
+            "type": "loan",
+            "creditor": "АО «Банк»",
+            "amount_kop": 600000000,
+            "outstanding_kop": 200000000,
+            "monthly_payment_kop": 15000000,
+            "opened": "2023-09-01",
+            "closes": "2027-09-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7704568152",
+        "unit": "тыс. руб.",
+        "available": true,
+        "reason": null,
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 1925,
+              "1210_inventories": 1100,
+              "1230_receivables": 1650,
+              "1250_cash": 825,
+              "1600_total_assets": 5500,
+              "1300_equity": 3100,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 2400,
+              "1700_total_liabilities": 5500
+            },
+            "income": {
+              "2110_revenue": 11000,
+              "2120_cost_of_sales": 8400,
+              "2200_sales_profit": 2600,
+              "2330_interest_payable": 310,
+              "2300_profit_before_tax": 2290,
+              "2400_net_profit": 1832
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 2100,
+              "1210_inventories": 1200,
+              "1230_receivables": 1800,
+              "1250_cash": 900,
+              "1600_total_assets": 6000,
+              "1300_equity": 3500,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 2500,
+              "1700_total_liabilities": 6000
+            },
+            "income": {
+              "2110_revenue": 12000,
+              "2120_cost_of_sales": 9000,
+              "2200_sales_profit": 3000,
+              "2330_interest_payable": 290,
+              "2300_profit_before_tax": 2710,
+              "2400_net_profit": 2168
+            }
+          }
+        ]
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7704568152",
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 1,
+        "affiliated_companies": 1,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Прогрессов",
+          "first_name": "Павел",
+          "middle_name": "Павлович"
+        },
+        "obligations": [
+          {
+            "type": "card",
+            "creditor": "АО «Банк»",
+            "amount_kop": 15000000,
+            "outstanding_kop": 2000000,
+            "monthly_payment_kop": 300000,
+            "opened": "2024-01-20",
+            "closes": "2029-01-20",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    }
+  },
+  "7705729405": {
+    "code": "sboy",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7705729405",
+        "ОГРН": "1067705557611",
+        "НаимПолн": "Общество с ограниченной ответственностью «Сбой»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2021-10-23",
+        "ОКВЭДОсн": {
+          "Код": "46.90"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Сбоев Семён Семёнович",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2021-10-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Сбоев Семён Семёнович",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Оптовая, д. 7",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770501001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7705729405",
+        "arrears_kop": 0,
+        "avg_headcount": 20,
+        "revenue_kop": 2400000000,
+        "expenses_kop": 2100000000,
+        "tax_regime": "ОСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 503,
+      "body": {
+        "detail": "Бюро кредитных историй недоступно"
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7705729405",
+        "unit": "тыс. руб.",
+        "available": true,
+        "reason": null,
+        "periods": [
+          {
+            "year": 2024,
+            "balance": {
+              "1150_fixed_assets": 3850,
+              "1210_inventories": 2200,
+              "1230_receivables": 3300,
+              "1250_cash": 1650,
+              "1600_total_assets": 11000,
+              "1300_equity": 4800,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 6200,
+              "1700_total_liabilities": 11000
+            },
+            "income": {
+              "2110_revenue": 22000,
+              "2120_cost_of_sales": 19000,
+              "2200_sales_profit": 3000,
+              "2330_interest_payable": 400,
+              "2300_profit_before_tax": 2600,
+              "2400_net_profit": 2080
+            }
+          },
+          {
+            "year": 2025,
+            "balance": {
+              "1150_fixed_assets": 4200,
+              "1210_inventories": 2400,
+              "1230_receivables": 3600,
+              "1250_cash": 1800,
+              "1600_total_assets": 12000,
+              "1300_equity": 5200,
+              "1400_long_term_liabilities": 0,
+              "1500_short_term_liabilities": 6800,
+              "1700_total_liabilities": 12000
+            },
+            "income": {
+              "2110_revenue": 24000,
+              "2120_cost_of_sales": 21000,
+              "2200_sales_profit": 3000,
+              "2330_interest_payable": 380,
+              "2300_profit_before_tax": 2620,
+              "2400_net_profit": 2096
+            }
+          }
+        ]
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7705729405",
+        "reliability": "green",
+        "reliability_notes": [],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 3,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 1,
+        "affiliated_companies": 2,
+        "checked_at": "2026-10-21"
+      }
+    },
+    "bki_head": {
+      "status": 503,
+      "body": {
+        "detail": "Бюро кредитных историй недоступно"
+      }
+    }
+  },
+  "7706123455": {
+    "code": "start",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7706123455",
+        "ОГРН": "1267700123459",
+        "НаимПолн": "Общество с ограниченной ответственностью «Старт»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2026-07-23",
+        "ОКВЭДОсн": {
+          "Код": "62.01"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Стартов Степан Сергеевич",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2026-07-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Стартов Степан Сергеевич",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Большая Новодмитровская, д. 36",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770601001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "arrears_kop": 0,
+        "avg_headcount": 3,
+        "revenue_kop": 0,
+        "expenses_kop": 0,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [],
+        "inquiries_30d": 0
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "unit": "тыс. руб.",
+        "available": false,
+        "reason": "Компания зарегистрирована менее года назад: годовой отчётности ещё нет",
+        "periods": []
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Компания зарегистрирована менее 12 месяцев назад"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 0,
+        "checked_at": "2026-10-22"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Стартов",
+          "first_name": "Степан",
+          "middle_name": "Сергеевич"
+        },
+        "obligations": [
+          {
+            "type": "card",
+            "creditor": "АО «Банк»",
+            "amount_kop": 25000000,
+            "outstanding_kop": 3000000,
+            "monthly_payment_kop": 500000,
+            "opened": "2023-11-01",
+            "closes": "2028-11-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    }
+  }
+}

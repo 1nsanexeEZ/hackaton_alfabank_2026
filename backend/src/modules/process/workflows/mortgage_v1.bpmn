@@ -1,0 +1,434 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_mortgage_v1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.28.0">
+  <bpmn:process id="mortgage_v1" name="Бизнес-ипотека: решение всегда за андеррайтером" isExecutable="true" camunda:versionTag="1">
+    <bpmn:startEvent id="start" name="Заявка подана">
+      <bpmn:outgoing>Flow_start_start_review</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="start_review" name="Принять в работу">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="start_review"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_start_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_start_review_check_completeness</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="check_completeness" name="Проверить полноту">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="check_completeness"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_review_check_completeness</bpmn:incoming>
+      <bpmn:incoming>Flow_wait_client_info_check_completeness</bpmn:incoming>
+      <bpmn:outgoing>Flow_check_completeness_gw_complete</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gw_complete" name="Заявка полная?" default="Flow_gw_complete_fetch_enrichment">
+      <bpmn:incoming>Flow_check_completeness_gw_complete</bpmn:incoming>
+      <bpmn:outgoing>Flow_gw_complete_request_info</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_complete_fetch_enrichment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="request_info" name="Запросить данные">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="request_info"/>
+          <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="P10D"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_complete_request_info</bpmn:incoming>
+      <bpmn:incoming>Flow_gw_outcome_request_info</bpmn:incoming>
+      <bpmn:incoming>Flow_gw_manual_request_info</bpmn:incoming>
+      <bpmn:outgoing>Flow_request_info_wait_client_info</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="wait_client_info" name="Ждём данные от клиента" camunda:candidateGroups="client">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="wait_client_info"/>
+          <camunda:property name="max_iterations" value="3"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_request_info_wait_client_info</bpmn:incoming>
+      <bpmn:outgoing>Flow_wait_client_info_check_completeness</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="fetch_enrichment" name="Данные о компании: ЕГРЮЛ, ФНС, БКИ, выписки">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="fetch_enrichment"/>
+          <camunda:property name="max_iterations" value="4"/>
+          <camunda:property name="timeout" value="PT5M"/>
+          <camunda:property name="on_failure" value="manual_review"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_complete_fetch_enrichment</bpmn:incoming>
+      <bpmn:outgoing>Flow_fetch_enrichment_assess_collateral</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="assess_collateral" name="Оценить залог">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="assess_collateral"/>
+          <camunda:property name="max_iterations" value="4"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_fetch_enrichment_assess_collateral</bpmn:incoming>
+      <bpmn:outgoing>Flow_assess_collateral_calculate_score</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="calculate_score" name="Скоринг">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="calculate_score"/>
+          <camunda:property name="max_iterations" value="4"/>
+          <camunda:property name="timeout" value="PT2M"/>
+          <camunda:property name="on_failure" value="manual_review"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_assess_collateral_calculate_score</bpmn:incoming>
+      <bpmn:outgoing>Flow_calculate_score_make_decision</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="make_decision" name="Кредитное решение">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="make_decision"/>
+          <camunda:property name="max_iterations" value="4"/>
+          <camunda:property name="timeout" value="PT2M"/>
+          <camunda:property name="on_failure" value="manual_review"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_calculate_score_make_decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_make_decision_gw_outcome</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gw_outcome" name="Решение" default="Flow_gw_outcome_underwriter_review">
+      <bpmn:incoming>Flow_make_decision_gw_outcome</bpmn:incoming>
+      <bpmn:outgoing>Flow_gw_outcome_reject</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_outcome_request_info</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_outcome_underwriter_review</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="underwriter_review" name="Проверка андеррайтером" camunda:candidateGroups="underwriter">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="underwriter_review"/>
+          <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="P2D"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_outcome_underwriter_review</bpmn:incoming>
+      <bpmn:incoming>Flow_gw_manual_underwriter_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_underwriter_review_record_manual_decision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="record_manual_decision" name="Зафиксировать ручное решение">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="record_manual_decision"/>
+          <camunda:property name="max_iterations" value="3"/>
+          <camunda:property name="timeout" value="PT2M"/>
+          <camunda:property name="on_failure" value="manual_review"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_underwriter_review_record_manual_decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_record_manual_decision_gw_manual</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gw_manual" name="Решение андеррайтера" default="Flow_gw_manual_reject">
+      <bpmn:incoming>Flow_record_manual_decision_gw_manual</bpmn:incoming>
+      <bpmn:outgoing>Flow_gw_manual_present_offer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_manual_request_info</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_manual_underwriter_review</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_manual_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="present_offer" name="Показать предложение">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="present_offer"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_manual_present_offer</bpmn:incoming>
+      <bpmn:outgoing>Flow_present_offer_wait_offer_answer</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="wait_offer_answer" name="Ответ клиента на предложение" camunda:candidateGroups="client">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="wait_offer_answer"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_present_offer_wait_offer_answer</bpmn:incoming>
+      <bpmn:outgoing>Flow_wait_offer_answer_gw_answer</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="gw_answer" name="Клиент принял?" default="Flow_gw_answer_end_closed">
+      <bpmn:incoming>Flow_wait_offer_answer_gw_answer</bpmn:incoming>
+      <bpmn:outgoing>Flow_gw_answer_wait_signature</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gw_answer_end_closed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="wait_signature" name="Подписание (смоделировано)" camunda:candidateGroups="client">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="wait_signature"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_answer_wait_signature</bpmn:incoming>
+      <bpmn:outgoing>Flow_wait_signature_disburse</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="disburse" name="Выдача (АБС — мок)">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="disburse"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_wait_signature_disburse</bpmn:incoming>
+      <bpmn:outgoing>Flow_disburse_end_disbursed</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="reject" name="Отказ">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="step" value="reject"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_gw_outcome_reject</bpmn:incoming>
+      <bpmn:incoming>Flow_gw_manual_reject</bpmn:incoming>
+      <bpmn:outgoing>Flow_reject_end_rejected</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end_disbursed" name="disbursed">
+      <bpmn:incoming>Flow_disburse_end_disbursed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_closed" name="closed">
+      <bpmn:incoming>Flow_gw_answer_end_closed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_rejected" name="rejected">
+      <bpmn:incoming>Flow_reject_end_rejected</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start_start_review" sourceRef="start" targetRef="start_review"/>
+    <bpmn:sequenceFlow id="Flow_start_review_check_completeness" sourceRef="start_review" targetRef="check_completeness"/>
+    <bpmn:sequenceFlow id="Flow_check_completeness_gw_complete" sourceRef="check_completeness" targetRef="gw_complete"/>
+    <bpmn:sequenceFlow id="Flow_gw_complete_request_info" sourceRef="gw_complete" targetRef="request_info">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">complete == false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_complete_fetch_enrichment" sourceRef="gw_complete" targetRef="fetch_enrichment"/>
+    <bpmn:sequenceFlow id="Flow_request_info_wait_client_info" sourceRef="request_info" targetRef="wait_client_info"/>
+    <bpmn:sequenceFlow id="Flow_wait_client_info_check_completeness" sourceRef="wait_client_info" targetRef="check_completeness"/>
+    <bpmn:sequenceFlow id="Flow_fetch_enrichment_assess_collateral" sourceRef="fetch_enrichment" targetRef="assess_collateral"/>
+    <bpmn:sequenceFlow id="Flow_assess_collateral_calculate_score" sourceRef="assess_collateral" targetRef="calculate_score"/>
+    <bpmn:sequenceFlow id="Flow_calculate_score_make_decision" sourceRef="calculate_score" targetRef="make_decision"/>
+    <bpmn:sequenceFlow id="Flow_make_decision_gw_outcome" sourceRef="make_decision" targetRef="gw_outcome"/>
+    <bpmn:sequenceFlow id="Flow_gw_outcome_reject" sourceRef="gw_outcome" targetRef="reject">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">outcome == "REJECT"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_outcome_request_info" sourceRef="gw_outcome" targetRef="request_info">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">outcome == "REQUEST_INFO"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_outcome_underwriter_review" sourceRef="gw_outcome" targetRef="underwriter_review"/>
+    <bpmn:sequenceFlow id="Flow_underwriter_review_record_manual_decision" sourceRef="underwriter_review" targetRef="record_manual_decision"/>
+    <bpmn:sequenceFlow id="Flow_record_manual_decision_gw_manual" sourceRef="record_manual_decision" targetRef="gw_manual"/>
+    <bpmn:sequenceFlow id="Flow_gw_manual_present_offer" sourceRef="gw_manual" targetRef="present_offer">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">outcome in ["APPROVE", "COUNTER_OFFER"]</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_manual_request_info" sourceRef="gw_manual" targetRef="request_info">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">outcome == "REQUEST_INFO"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_manual_underwriter_review" sourceRef="gw_manual" targetRef="underwriter_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">outcome == "MANUAL_REVIEW"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_manual_reject" sourceRef="gw_manual" targetRef="reject"/>
+    <bpmn:sequenceFlow id="Flow_present_offer_wait_offer_answer" sourceRef="present_offer" targetRef="wait_offer_answer"/>
+    <bpmn:sequenceFlow id="Flow_wait_offer_answer_gw_answer" sourceRef="wait_offer_answer" targetRef="gw_answer"/>
+    <bpmn:sequenceFlow id="Flow_gw_answer_wait_signature" sourceRef="gw_answer" targetRef="wait_signature">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">offer_answer == "accepted"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gw_answer_end_closed" sourceRef="gw_answer" targetRef="end_closed"/>
+    <bpmn:sequenceFlow id="Flow_wait_signature_disburse" sourceRef="wait_signature" targetRef="disburse"/>
+    <bpmn:sequenceFlow id="Flow_disburse_end_disbursed" sourceRef="disburse" targetRef="end_disbursed"/>
+    <bpmn:sequenceFlow id="Flow_reject_end_rejected" sourceRef="reject" targetRef="end_rejected"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_mortgage_v1">
+    <bpmndi:BPMNPlane id="Plane_mortgage_v1" bpmnElement="mortgage_v1">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start">
+        <dc:Bounds x="122" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="start_review_di" bpmnElement="start_review">
+        <dc:Bounds x="265" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="check_completeness_di" bpmnElement="check_completeness">
+        <dc:Bounds x="445" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gw_complete_di" bpmnElement="gw_complete" isMarkerVisible="true">
+        <dc:Bounds x="655" y="135" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="request_info_di" bpmnElement="request_info">
+        <dc:Bounds x="2245" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="wait_client_info_di" bpmnElement="wait_client_info">
+        <dc:Bounds x="2425" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fetch_enrichment_di" bpmnElement="fetch_enrichment">
+        <dc:Bounds x="805" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="assess_collateral_di" bpmnElement="assess_collateral">
+        <dc:Bounds x="985" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="calculate_score_di" bpmnElement="calculate_score">
+        <dc:Bounds x="1165" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="make_decision_di" bpmnElement="make_decision">
+        <dc:Bounds x="1345" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gw_outcome_di" bpmnElement="gw_outcome" isMarkerVisible="true">
+        <dc:Bounds x="1555" y="135" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="underwriter_review_di" bpmnElement="underwriter_review">
+        <dc:Bounds x="1705" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="record_manual_decision_di" bpmnElement="record_manual_decision">
+        <dc:Bounds x="1885" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gw_manual_di" bpmnElement="gw_manual" isMarkerVisible="true">
+        <dc:Bounds x="2095" y="135" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="present_offer_di" bpmnElement="present_offer">
+        <dc:Bounds x="2245" y="270" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="wait_offer_answer_di" bpmnElement="wait_offer_answer">
+        <dc:Bounds x="2425" y="270" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gw_answer_di" bpmnElement="gw_answer" isMarkerVisible="true">
+        <dc:Bounds x="2635" y="135" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="wait_signature_di" bpmnElement="wait_signature">
+        <dc:Bounds x="2785" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="disburse_di" bpmnElement="disburse">
+        <dc:Bounds x="2965" y="120" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reject_di" bpmnElement="reject">
+        <dc:Bounds x="2245" y="420" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_disbursed_di" bpmnElement="end_disbursed">
+        <dc:Bounds x="3182" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_closed_di" bpmnElement="end_closed">
+        <dc:Bounds x="2822" y="292" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_rejected_di" bpmnElement="end_rejected">
+        <dc:Bounds x="2462" y="442" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_start_start_review_di" bpmnElement="Flow_start_start_review">
+        <di:waypoint x="158" y="160"/>
+        <di:waypoint x="265" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_start_review_check_completeness_di" bpmnElement="Flow_start_review_check_completeness">
+        <di:waypoint x="375" y="160"/>
+        <di:waypoint x="445" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_check_completeness_gw_complete_di" bpmnElement="Flow_check_completeness_gw_complete">
+        <di:waypoint x="555" y="160"/>
+        <di:waypoint x="655" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_complete_request_info_di" bpmnElement="Flow_gw_complete_request_info">
+        <di:waypoint x="705" y="160"/>
+        <di:waypoint x="2245" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_complete_fetch_enrichment_di" bpmnElement="Flow_gw_complete_fetch_enrichment">
+        <di:waypoint x="705" y="160"/>
+        <di:waypoint x="805" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_request_info_wait_client_info_di" bpmnElement="Flow_request_info_wait_client_info">
+        <di:waypoint x="2355" y="160"/>
+        <di:waypoint x="2425" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_wait_client_info_check_completeness_di" bpmnElement="Flow_wait_client_info_check_completeness">
+        <di:waypoint x="2480" y="200"/>
+        <di:waypoint x="2480" y="240"/>
+        <di:waypoint x="500" y="240"/>
+        <di:waypoint x="500" y="200"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_fetch_enrichment_assess_collateral_di" bpmnElement="Flow_fetch_enrichment_assess_collateral">
+        <di:waypoint x="915" y="160"/>
+        <di:waypoint x="985" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_assess_collateral_calculate_score_di" bpmnElement="Flow_assess_collateral_calculate_score">
+        <di:waypoint x="1095" y="160"/>
+        <di:waypoint x="1165" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_calculate_score_make_decision_di" bpmnElement="Flow_calculate_score_make_decision">
+        <di:waypoint x="1275" y="160"/>
+        <di:waypoint x="1345" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_make_decision_gw_outcome_di" bpmnElement="Flow_make_decision_gw_outcome">
+        <di:waypoint x="1455" y="160"/>
+        <di:waypoint x="1555" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_outcome_reject_di" bpmnElement="Flow_gw_outcome_reject">
+        <di:waypoint x="1605" y="160"/>
+        <di:waypoint x="1625" y="160"/>
+        <di:waypoint x="1625" y="460"/>
+        <di:waypoint x="2245" y="460"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_outcome_request_info_di" bpmnElement="Flow_gw_outcome_request_info">
+        <di:waypoint x="1605" y="160"/>
+        <di:waypoint x="2245" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_outcome_underwriter_review_di" bpmnElement="Flow_gw_outcome_underwriter_review">
+        <di:waypoint x="1605" y="160"/>
+        <di:waypoint x="1705" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_underwriter_review_record_manual_decision_di" bpmnElement="Flow_underwriter_review_record_manual_decision">
+        <di:waypoint x="1815" y="160"/>
+        <di:waypoint x="1885" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_record_manual_decision_gw_manual_di" bpmnElement="Flow_record_manual_decision_gw_manual">
+        <di:waypoint x="1995" y="160"/>
+        <di:waypoint x="2095" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_manual_present_offer_di" bpmnElement="Flow_gw_manual_present_offer">
+        <di:waypoint x="2145" y="160"/>
+        <di:waypoint x="2165" y="160"/>
+        <di:waypoint x="2165" y="310"/>
+        <di:waypoint x="2245" y="310"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_manual_request_info_di" bpmnElement="Flow_gw_manual_request_info">
+        <di:waypoint x="2145" y="160"/>
+        <di:waypoint x="2245" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_manual_underwriter_review_di" bpmnElement="Flow_gw_manual_underwriter_review">
+        <di:waypoint x="2120" y="185"/>
+        <di:waypoint x="2120" y="260"/>
+        <di:waypoint x="1760" y="260"/>
+        <di:waypoint x="1760" y="200"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_manual_reject_di" bpmnElement="Flow_gw_manual_reject">
+        <di:waypoint x="2145" y="160"/>
+        <di:waypoint x="2165" y="160"/>
+        <di:waypoint x="2165" y="460"/>
+        <di:waypoint x="2245" y="460"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_present_offer_wait_offer_answer_di" bpmnElement="Flow_present_offer_wait_offer_answer">
+        <di:waypoint x="2355" y="310"/>
+        <di:waypoint x="2425" y="310"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_wait_offer_answer_gw_answer_di" bpmnElement="Flow_wait_offer_answer_gw_answer">
+        <di:waypoint x="2535" y="310"/>
+        <di:waypoint x="2555" y="310"/>
+        <di:waypoint x="2555" y="160"/>
+        <di:waypoint x="2635" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_answer_wait_signature_di" bpmnElement="Flow_gw_answer_wait_signature">
+        <di:waypoint x="2685" y="160"/>
+        <di:waypoint x="2785" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_gw_answer_end_closed_di" bpmnElement="Flow_gw_answer_end_closed">
+        <di:waypoint x="2685" y="160"/>
+        <di:waypoint x="2705" y="160"/>
+        <di:waypoint x="2705" y="310"/>
+        <di:waypoint x="2822" y="310"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_wait_signature_disburse_di" bpmnElement="Flow_wait_signature_disburse">
+        <di:waypoint x="2895" y="160"/>
+        <di:waypoint x="2965" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_disburse_end_disbursed_di" bpmnElement="Flow_disburse_end_disbursed">
+        <di:waypoint x="3075" y="160"/>
+        <di:waypoint x="3182" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_reject_end_rejected_di" bpmnElement="Flow_reject_end_rejected">
+        <di:waypoint x="2355" y="460"/>
+        <di:waypoint x="2462" y="460"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,151 @@
+{
+  "policy_version": "policy_v1",
+  "key_rate": "16.50",
+  "outcome": "MANUAL_REVIEW",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "ROUTE_AMOUNT_OVER_AUTO_LIMIT"
+  ],
+  "client_explanation": "Заявку рассмотрит специалист банка, обычно это занимает до двух рабочих дней. Заявки на такую сумму специалист рассматривает лично.",
+  "improvement_hints": [
+    "Сумма велика относительно годовой выручки — попробуйте меньшую."
+  ],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "максимальная просрочка 0 дн., порог > 90"
+    },
+    {
+      "rule": "stop.grade",
+      "matched": false,
+      "detail": "грейд B (скор 700)"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": false,
+      "detail": "выручка не расходится с ФНС и выпиской"
+    },
+    {
+      "rule": "pricing.base",
+      "matched": true,
+      "detail": "базовая ставка MORTGAGE: 23.00%"
+    },
+    {
+      "rule": "pricing.grade_premium",
+      "matched": true,
+      "detail": "грейд B: +1.50%"
+    },
+    {
+      "rule": "pricing.collateral_discount",
+      "matched": true,
+      "detail": "покрытие залогом 1.67: −1.50%"
+    },
+    {
+      "rule": "pricing.key_rate",
+      "matched": false,
+      "detail": "ключевая 16.50% − опорная 16.50% = +0.00%"
+    },
+    {
+      "rule": "pricing.corridor",
+      "matched": false,
+      "detail": "23.00% в коридоре продукта [23.00%; 28.00%] → 23.00%"
+    },
+    {
+      "rule": "limits.product",
+      "matched": false,
+      "detail": "максимум продукта 150 000 000"
+    },
+    {
+      "rule": "limits.revenue",
+      "matched": true,
+      "detail": "k(B) 0.4 × выручка 47 500 000 (меньшая из заявленной и ФНС) = 19 000 000"
+    },
+    {
+      "rule": "limits.ltv",
+      "matched": false,
+      "detail": "LTV real_estate 0.7 × залог 50 000 000 = 35 000 000"
+    },
+    {
+      "rule": "limits.free_cash_flow",
+      "matched": true,
+      "detail": "по отчёту: (48 000 000 − 41 000 000) / 12 − платежи по кредитам 180 000 = 403 333,33 в месяц"
+    },
+    {
+      "rule": "limits.payment_capacity",
+      "matched": true,
+      "detail": "платёж ≤ 161 333,33 в месяц: при 120 мес. и 23.00% сумма до 7 554 904,86"
+    },
+    {
+      "rule": "route.auto_decision_limit",
+      "matched": true,
+      "detail": "сумма 30 000 000, лимит автоматического решения 0"
+    },
+    {
+      "rule": "route.grade",
+      "matched": false,
+      "detail": "грейд B"
+    },
+    {
+      "rule": "route.verification_mismatch",
+      "matched": false,
+      "detail": "флага verification_mismatch нет"
+    },
+    {
+      "rule": "route.revenue_mismatch",
+      "matched": false,
+      "detail": "флага revenue_mismatch нет"
+    },
+    {
+      "rule": "route.bureau_unavailable",
+      "matched": false,
+      "detail": "флага bureau_unavailable нет"
+    },
+    {
+      "rule": "route.mass_address",
+      "matched": false,
+      "detail": "флага mass_address нет"
+    },
+    {
+      "rule": "route.thin_file",
+      "matched": false,
+      "detail": "нет"
+    },
+    {
+      "rule": "cash_gap.forecast",
+      "matched": false,
+      "detail": "кассовый разрыв не прогнозируется"
+    }
+  ],
+  "limits": {
+    "by_product": "150000000.00",
+    "by_revenue": "19000000.00",
+    "by_ltv": "35000000.00",
+    "by_capacity": "7554904.86",
+    "final": "7554904.86",
+    "by_turnover": null,
+    "by_grade": null,
+    "by_group": null,
+    "binding": null
+  },
+  "rate": "23.00",
+  "triggers": [],
+  "rate_breakdown": null,
+  "scoring": {
+    "score": 700,
+    "grade": "B",
+    "flags": []
+  }
+}

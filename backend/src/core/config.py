@@ -42,9 +42,15 @@ class Settings(BaseSettings):
     # Create the bucket on startup; off in tests (no MinIO there).
     minio_ensure_bucket: bool = True
 
+    # Periodic jobs of modules (offer expiry...); off in tests, they call jobs directly.
+    run_background_jobs: bool = True
+
     # Demo organizations, accounts and products from docs (idempotent).
     seed_demo_data: bool = False
     demo_password: str = "Demo-2026!"
+    # POST /auth/demo-login: a token for a demo account without a password.
+    # For local checks only, keep it off on a public stand.
+    demo_login_enabled: bool = False
 
 
 @lru_cache

@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { Sparkles } from 'lucide-vue-next'
+import { computed } from 'vue'
 
-import { ApplicationStatusCard } from '@/entities/application'
+import type { ApplicationDraft } from '@/entities/application'
+import type { CreditProduct } from '@/entities/credit-product'
 import { SECTION_ID, sectionHref } from '@/shared/config'
 import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
-import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
+import { heroStats } from '../model/content'
+import HeroApplication from './HeroApplication.vue'
+
+const props = defineProps<{ products: readonly CreditProduct[] | null }>()
+
+/** Куда вести «Оформить» и «Продолжить заявку», решает страница: виджет про поток заявки не знает */
+const emit = defineEmits<{ apply: []; continue: [draft: ApplicationDraft]; open: [applicationId: string] }>()
+
+const stats = computed(() => heroStats(props.products))
 </script>
 
 <template>
@@ -35,24 +45,31 @@ import { HERO_DEMO_APPLICATION, HERO_STATS } from '../model/content'
             офис и повторного ввода данных.
           </p>
           <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-            <BaseButton size="l" :href="sectionHref(SECTION_ID.products)">Подобрать кредит</BaseButton>
+            <BaseButton size="l" :href="sectionHref(SECTION_ID.picker)">Подобрать кредит</BaseButton>
             <BaseButton size="l" variant="glass" :href="sectionHref(SECTION_ID.calculator)">
               Рассчитать платёж
             </BaseButton>
           </div>
         </div>
 
-        <ApplicationStatusCard :application="HERO_DEMO_APPLICATION" class="w-full lg:justify-self-end" />
+        <HeroApplication
+          :products="products"
+          class="w-full lg:justify-self-end"
+          @apply="emit('apply')"
+          @continue="(draft) => emit('continue', draft)"
+          @open="(id) => emit('open', id)"
+        />
       </div>
 
       <ul class="mt-12 grid grid-cols-2 gap-3 lg:mt-20 lg:grid-cols-4 lg:gap-4">
         <li
-          v-for="stat in HERO_STATS"
+          v-for="stat in stats"
           :key="stat.caption"
           class="flex min-h-32 flex-col justify-between gap-4 rounded-3xl bg-night-glass p-4 lg:min-h-40 lg:rounded-card lg:p-6"
         >
           <div>
-            <p class="text-lg font-bold lg:text-2xl">{{ stat.value }}</p>
+            <p v-if="stat.value" class="text-lg font-bold lg:text-2xl">{{ stat.value }}</p>
+            <p v-else class="h-7 w-28 animate-pulse rounded-lg bg-white/10 lg:h-8" aria-label="Загружаем" />
             <p class="mt-1 text-sm text-on-night-secondary">{{ stat.caption }}</p>
           </div>
           <span class="flex size-10 items-center justify-center self-end rounded-full bg-white/10">

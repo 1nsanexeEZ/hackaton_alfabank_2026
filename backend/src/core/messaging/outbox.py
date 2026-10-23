@@ -51,8 +51,11 @@ class OutboxWriter(Protocol):
         key: UUID | str,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        event_id: UUID | None = None,
     ) -> UUID:
-        """Stage a message in the current transaction, returns its event_id."""
+        """Stage a message in the current transaction, returns its event_id.
+        `event_id` — when the sender must know it in advance (a command whose
+        reply is matched by causation_id)."""
         ...
 
 
@@ -90,6 +93,7 @@ class SqlAlchemyOutboxWriter:
         key: UUID | str,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        event_id: UUID | None = None,
     ) -> UUID:
         now = self._clock.now()
         envelope = build_envelope(
@@ -98,6 +102,7 @@ class SqlAlchemyOutboxWriter:
             occurred_at=now,
             correlation_id=correlation_id,
             causation_id=causation_id,
+            event_id=event_id,
         )
         self._session.add(
             OutboxRecord(

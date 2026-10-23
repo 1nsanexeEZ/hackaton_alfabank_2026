@@ -1,12 +1,24 @@
 from uuid import UUID
 
-from src.decision.facade import ClientDecisionDTO, DecisionDTO, PreApprovedOfferDTO
+from src.modules.decision.facade import (
+    ClientDecisionDTO,
+    DecisionDTO,
+    FounderPrescreenDTO,
+    PreApprovedOfferDTO,
+)
 
 
 class FakeDecisionFacade:
     def __init__(self) -> None:
         self.decisions: dict[UUID, DecisionDTO] = {}
         self.pre_approved: dict[UUID, list[PreApprovedOfferDTO]] = {}
+        self.prescreens: dict[UUID, FounderPrescreenDTO] = {}
+
+    def set_prescreen(self, organization_id: UUID, prescreen: FounderPrescreenDTO) -> None:
+        self.prescreens[organization_id] = prescreen
+
+    async def get_founder_prescreen(self, organization_id: UUID) -> FounderPrescreenDTO | None:
+        return self.prescreens.get(organization_id)
 
     def add_decision(self, decision: DecisionDTO) -> DecisionDTO:
         self.decisions[decision.application_id] = decision

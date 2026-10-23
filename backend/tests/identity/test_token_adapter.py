@@ -5,14 +5,14 @@ from uuid import uuid4
 import jwt
 import pytest
 
-from src.core.exceptions.exceptions import UnauthorizedError
-from src.identity.keys import load_signing_keys
-from src.identity.token_adapter import TokenAdapter
+from src.modules.identity.domain.exceptions import InvalidTokenError, TokenExpiredError
+from src.modules.identity.infrastructure.adapters.jwt_keys import load_signing_keys
+from src.modules.identity.infrastructure.adapters.jwt_token_service import JwtTokenService
 
 
 def make_adapter(tmp_path: Path, name: str = "a", ttl: timedelta = timedelta(minutes=5), **kw):
     keys = load_signing_keys(tmp_path / f"{name}.pem", tmp_path / f"{name}.pub.pem", generate=True)
-    return TokenAdapter(
+    return JwtTokenService(
         keys,
         issuer=kw.get("issuer", "identity"),
         audience=kw.get("audience", "credit-cabinet"),
@@ -49,19 +49,19 @@ def test_keys_are_reused_between_starts(tmp_path: Path) -> None:
 
 def test_expired_token_is_rejected(tmp_path: Path) -> None:
     adapter = make_adapter(tmp_path, ttl=timedelta(seconds=-1))
-    with pytest.raises(UnauthorizedError, match="expired"):
+    with pytest.raises(TokenExpiredError, match="expired"):
         adapter.decode(adapter.issue(uuid4(), [], {}).access_token)
 
 
 def test_token_signed_by_another_key_is_rejected(tmp_path: Path) -> None:
     stranger = make_adapter(tmp_path, name="stranger")
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(InvalidTokenError):
         make_adapter(tmp_path).decode(stranger.issue(uuid4(), [], {}).access_token)
 
 
 def test_wrong_audience_is_rejected(tmp_path: Path) -> None:
     other = make_adapter(tmp_path, audience="someone-else")
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(InvalidTokenError):
         make_adapter(tmp_path).decode(other.issue(uuid4(), [], {}).access_token)
 
 
@@ -71,7 +71,7 @@ def test_unsigned_token_is_rejected(tmp_path: Path) -> None:
     claims = jwt.decode(issued.access_token, options={"verify_signature": False})
     claims["permissions"] = ["admin"]
     forged = jwt.encode(claims, None, algorithm="none")
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(InvalidTokenError):
         adapter.decode(forged)
 
 

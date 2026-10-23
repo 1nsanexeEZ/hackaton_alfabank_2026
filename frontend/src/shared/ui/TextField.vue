@@ -7,7 +7,7 @@ const props = withDefaults(
     placeholder?: string
     hint?: string
     error?: string
-    type?: 'text' | 'email' | 'password' | 'tel' | 'search'
+    type?: 'text' | 'email' | 'password' | 'tel' | 'search' | 'date'
     inputmode?: 'text' | 'numeric' | 'decimal' | 'email' | 'tel'
     autocomplete?: string
     maxlength?: number

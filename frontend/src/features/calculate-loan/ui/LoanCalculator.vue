@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 
-import { findProduct, type ProductCatalog } from '@/entities/credit-product'
-import { calcLoanSummary, formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
+import {
+  amountStep,
+  findProduct,
+  REPAYMENT_LABEL,
+  termStep,
+  useLoanSchedule,
+  type ProductCatalog,
+} from '@/entities/credit-product'
+import type { PreApprovedOfferDto } from '@/shared/api'
+import { clamp, formatMoney, formatMoneyShort, formatPercent, formatTerm, formatTermLimit } from '@/shared/lib'
 import { BaseButton, RangeField, SelectField } from '@/shared/ui'
 
-import { fitLoanParams, getAmountStep, getTermStep } from '../model/loanParams'
+import { fitLoanParams } from '../model/loanParams'
 
-const props = defineProps<{ products: ProductCatalog }>()
+const props = defineProps<{
+  products: ProductCatalog
+  /** Предодобрение компании вошедшего клиента — подсказка и предупреждение сверх лимита */
+  preApproved?: { companyName: string; offers: readonly PreApprovedOfferDto[] } | null
+}>()
 
 const emit = defineEmits<{ apply: [] }>()
 
@@ -32,7 +44,20 @@ watch(
   { immediate: true },
 )
 
-const summary = computed(() => calcLoanSummary(amount.value, product.value.rateFrom, termMonths.value))
+const preApprovedOffer = computed(() => props.preApproved?.offers.find((offer) => offer.product_code === product.value.code) ?? null)
+const preApprovedMax = computed(() => (preApprovedOffer.value ? Number(preApprovedOffer.value.max_amount) : null))
+const overPreApproved = computed(() => preApprovedMax.value !== null && amount.value > preApprovedMax.value)
+
+function takePreApproved() {
+  if (preApprovedMax.value !== null) amount.value = clamp(preApprovedMax.value, product.value.amount.min, product.value.amount.max)
+}
+
+// График считает бэкенд (POST /products/{code}/calculate) по базовой ставке и схеме продукта
+const { schedule, pending, estimated } = useLoanSchedule(() => ({
+  product: product.value,
+  amount: amount.value,
+  termMonths: termMonths.value,
+}))
 </script>
 
 <template>
@@ -44,7 +69,7 @@ const summary = computed(() => calcLoanSummary(amount.value, product.value.rateF
         label="Сумма кредита"
         :min="product.amount.min"
         :max="product.amount.max"
-        :step="getAmountStep(product)"
+        :step="amountStep(product)"
         :format-value="formatMoney"
       />
       <RangeField
@@ -52,30 +77,57 @@ const summary = computed(() => calcLoanSummary(amount.value, product.value.rateF
         label="Срок"
         :min="product.termMonths.min"
         :max="product.termMonths.max"
-        :step="getTermStep(product)"
+        :step="termStep(product)"
         :format-value="formatTerm"
         :editable="false"
       />
+
+      <div
+        v-if="preApprovedOffer && preApproved"
+        class="rounded-2xl p-4 text-sm"
+        :class="overPreApproved ? 'bg-warning-soft' : 'bg-success-soft'"
+      >
+        <p class="text-ink">
+          Для {{ preApproved.companyName }} предварительно одобрено до
+          <b>{{ formatMoney(preApprovedMax ?? 0) }}</b> от {{ formatPercent(Number(preApprovedOffer.rate_from)) }},
+          {{ formatTermLimit(preApprovedOffer.term_max_months) }}
+        </p>
+        <p v-if="overPreApproved" class="mt-2 text-ink-secondary">
+          Сумма больше одобренной — подать заявку можно, но банк может предложить меньше.
+          <button type="button" class="font-medium text-ink underline underline-offset-2" @click="takePreApproved">
+            Взять одобренную сумму
+          </button>
+        </p>
+      </div>
     </div>
 
     <div class="flex flex-col rounded-card bg-night p-6 text-on-night lg:p-8" aria-live="polite">
-      <p class="text-sm text-on-night-secondary">Ежемесячный платёж</p>
-      <p class="mt-2 text-4xl font-bold tracking-tight lg:text-5xl">
-        {{ formatMoney(summary.monthlyPayment) }}
+      <p class="text-sm text-on-night-secondary">
+        {{ schedule?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Ежемесячный платёж' }}
+      </p>
+      <p
+        class="mt-2 text-4xl font-bold tracking-tight transition-opacity lg:text-5xl"
+        :class="pending && 'opacity-60'"
+      >
+        {{ schedule ? formatMoney(schedule.monthlyPayment) : '—' }}
       </p>
 
-      <dl class="mt-8 space-y-4 border-t border-night-line pt-6 text-sm">
+      <dl class="mt-8 space-y-4 border-t border-night-line pt-6 text-sm" :class="pending && 'opacity-60'">
         <div class="flex justify-between gap-4">
           <dt class="text-on-night-secondary">Ставка</dt>
-          <dd class="font-semibold">от {{ formatPercent(product.rateFrom) }}</dd>
+          <dd class="font-semibold">от {{ formatPercent(schedule?.rate ?? product.rateFrom) }}</dd>
         </div>
         <div class="flex justify-between gap-4">
           <dt class="text-on-night-secondary">Переплата</dt>
-          <dd class="font-semibold">{{ formatMoneyShort(summary.overpayment) }}</dd>
+          <dd class="font-semibold">{{ schedule ? formatMoneyShort(schedule.totalInterest) : '—' }}</dd>
         </div>
         <div class="flex justify-between gap-4">
           <dt class="text-on-night-secondary">Всего выплат</dt>
-          <dd class="font-semibold">{{ formatMoneyShort(summary.totalPayment) }}</dd>
+          <dd class="font-semibold">{{ schedule ? formatMoneyShort(schedule.totalPaid) : '—' }}</dd>
+        </div>
+        <div v-if="schedule" class="flex justify-between gap-4">
+          <dt class="text-on-night-secondary">Погашение</dt>
+          <dd class="text-right font-semibold">{{ REPAYMENT_LABEL[schedule.repayment] }}</dd>
         </div>
       </dl>
 
@@ -83,7 +135,8 @@ const summary = computed(() => calcLoanSummary(amount.value, product.value.rateF
         Оформить заявку
       </BaseButton>
       <p class="mt-4 text-xs text-on-night-secondary">
-        Расчёт предварительный, платёж аннуитетный. Точные условия банк покажет после рассмотрения заявки.
+        <template v-if="estimated && !pending">Банк сейчас не отвечает — показан приблизительный расчёт. </template>
+        Расчёт по базовой ставке продукта. Точные условия банк покажет после рассмотрения заявки.
       </p>
     </div>
   </div>

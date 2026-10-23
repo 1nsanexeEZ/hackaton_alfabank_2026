@@ -16,7 +16,7 @@ from app.inn import validate_inn
 
 @dataclass(frozen=True)
 class Obligation:
-    kind: str  # loan | credit_line | overdraft | leasing | guarantee
+    kind: str  # loan | credit_line | overdraft | leasing | guarantee | mortgage | consumer | card
     creditor: str
     amount_kop: int
     outstanding_kop: int
@@ -25,6 +25,16 @@ class Obligation:
     closes: str
     overdue_days: int
     max_overdue_days: int
+
+
+@dataclass(frozen=True)
+class AccountBlock:
+    """Решение ФНС о приостановлении операций по счетам."""
+
+    decision_number: str
+    date: str
+    authority_code: str
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -54,6 +64,9 @@ class Company:
     bki_inquiries_30d: int
     okved_extra: tuple[str, ...] = ()
     bki_no_history: bool = False
+    account_blocks: tuple[AccountBlock, ...] = ()
+    # Сколько дней назад внесена запись о нынешнем руководителе; None — с регистрации.
+    head_days_ago: int | None = None
 
 
 _RUB = 100  # копеек в рубле
@@ -208,6 +221,14 @@ DEMO: dict[str, Company] = {
             ),
         ),
         bki_inquiries_30d=3,
+        account_blocks=(
+            AccountBlock(
+                decision_number="4512",
+                date="2026-09-30",
+                authority_code="7703",
+                reason="Неуплата налогов",
+            ),
+        ),
     ),
     "7704568152": Company(
         inn="7704568152",
@@ -283,6 +304,33 @@ DEMO: dict[str, Company] = {
         ),
         bki_inquiries_30d=1,
     ),
+    # Стартап (S-9): три месяца, выручки и кредитной истории ещё нет.
+    "7706123455": Company(
+        inn="7706123455",
+        form="ООО",
+        name="Общество с ограниченной ответственностью «Старт»",
+        ogrn="1267700123459",
+        kpp="770601001",
+        okved="62.01",
+        status="ACTIVE",
+        reg_days_ago=91,
+        head_fio="Стартов Степан Сергеевич",
+        head_position="Генеральный директор",
+        founders=(("Стартов Степан Сергеевич", 100),),
+        address="г. Москва, ул. Большая Новодмитровская, д. 36",
+        region_code="77",
+        mass_address=False,
+        arrears_kop=0,
+        headcount=3,
+        revenue_kop=0,
+        expenses_kop=0,
+        tax_regime="УСН",
+        disqualified_head=False,
+        msp_registry=True,
+        bki_obligations=(),
+        bki_inquiries_30d=0,
+        bki_no_history=True,
+    ),
 }
 
 
@@ -320,7 +368,19 @@ def generate_company(inn: str) -> Company:
                 max_overdue_days=overdue,
             ),
         )
+    blocks: tuple[AccountBlock, ...] = ()
+    if arrears_kop and (s >> 40) % 3 == 0:
+        blocks = (
+            AccountBlock(
+                decision_number=str(1000 + (s >> 41) % 9000),
+                date="2026-09-15",
+                authority_code=inn[:4],
+                reason="Неуплата налогов",
+            ),
+        )
     suffix = inn[-4:]
+    # Каждая восьмая компания недавно сменила руководителя (1–6 месяцев назад).
+    head_days_ago = 30 + (s >> 43) % 150 if (s >> 42) % 8 == 0 else None
     return Company(
         inn=inn,
         form="ИП" if is_ie else "ООО",
@@ -349,6 +409,8 @@ def generate_company(inn: str) -> Company:
         msp_registry=revenue_kop <= 2000 * _M,
         bki_obligations=obligations,
         bki_inquiries_30d=(s >> 28) % 6,
+        account_blocks=blocks,
+        head_days_ago=min(head_days_ago, reg_days) if head_days_ago is not None else None,
     )
 
 
@@ -365,6 +427,12 @@ def _reg_date(company: Company) -> str:
     return (date.today() - timedelta(days=company.reg_days_ago)).isoformat()
 
 
+def _head_date(company: Company) -> str:
+    if company.head_days_ago is None:
+        return _reg_date(company)
+    return (date.today() - timedelta(days=company.head_days_ago)).isoformat()
+
+
 def egrul_response(company: Company) -> dict:
     data: dict = {
         "ИНН": company.inn,
@@ -374,7 +442,11 @@ def egrul_response(company: Company) -> dict:
         "ДатаРег": _reg_date(company),
         "ОКВЭДОсн": {"Код": company.okved},
         "ОКВЭДДоп": [{"Код": code} for code in company.okved_extra],
-        "Руководитель": {"ФИО": company.head_fio, "Должность": company.head_position},
+        "Руководитель": {
+            "ФИО": company.head_fio,
+            "Должность": company.head_position,
+            "ДатаЗаписи": _head_date(company),
+        },
         "Учредители": [{"ФИО": fio, "Доля": share} for fio, share in company.founders],
         "Адрес": {"Полный": company.address, "КодРегиона": company.region_code},
         "МассовыйАдрес": company.mass_address,
@@ -396,24 +468,37 @@ def fns_response(company: Company) -> dict:
         "disqualified_head": company.disqualified_head,
         "msp_registry": company.msp_registry,
         "report_year": date.today().year - 1,
+        "account_blocks": [
+            {
+                "decision_number": block.decision_number,
+                "date": block.date,
+                "authority_code": block.authority_code,
+                "reason": block.reason,
+            }
+            for block in company.account_blocks
+        ],
     }
+
+
+def obligations_response(obligations: tuple[Obligation, ...]) -> list[dict]:
+    return [
+        {
+            "type": o.kind,
+            "creditor": o.creditor,
+            "amount_kop": o.amount_kop,
+            "outstanding_kop": o.outstanding_kop,
+            "monthly_payment_kop": o.monthly_payment_kop,
+            "opened": o.opened,
+            "closes": o.closes,
+            "overdue_days": o.overdue_days,
+            "max_overdue_days": o.max_overdue_days,
+        }
+        for o in obligations
+    ]
 
 
 def bki_response(company: Company) -> dict:
     return {
-        "obligations": [
-            {
-                "type": o.kind,
-                "creditor": o.creditor,
-                "amount_kop": o.amount_kop,
-                "outstanding_kop": o.outstanding_kop,
-                "monthly_payment_kop": o.monthly_payment_kop,
-                "opened": o.opened,
-                "closes": o.closes,
-                "overdue_days": o.overdue_days,
-                "max_overdue_days": o.max_overdue_days,
-            }
-            for o in company.bki_obligations
-        ],
+        "obligations": obligations_response(company.bki_obligations),
         "inquiries_30d": company.bki_inquiries_30d,
     }

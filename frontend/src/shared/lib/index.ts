@@ -9,6 +9,7 @@ export {
   formatPercent,
   formatRelativeTime,
   formatTerm,
+  formatTermLimit,
   onlyDigits,
   pluralize,
 } from './format'

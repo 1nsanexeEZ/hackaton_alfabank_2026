@@ -1,0 +1,208 @@
+{
+  "policy_version": "policy_v2",
+  "key_rate": "16.50",
+  "outcome": "APPROVE",
+  "terms": {
+    "amount": "3000000",
+    "term_months": 24,
+    "rate": "23.50",
+    "schedule_type": "annuity",
+    "conditions": []
+  },
+  "alternative_product_code": null,
+  "reason_codes": [],
+  "client_explanation": "Заявка одобрена на запрошенных условиях.",
+  "improvement_hints": [],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "максимальная просрочка 0 дн., порог > 90"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": false,
+      "detail": "текущая просрочка компании 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": false,
+      "detail": "текущая просрочка руководителя 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": false,
+      "detail": "решений о приостановлении операций по счетам: 0"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": false,
+      "detail": "недоимка 0, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": false,
+      "detail": "исполнительные производства 0, порог > 0.1 × выручка 48 000 000 (ГИР БО за 2025) = 4 800 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": false,
+      "detail": "иски к компании 0, порог > 0.2 × выручка 48 000 000 (ГИР БО за 2025) = 9 600 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": false,
+      "detail": "собственный капитал за 2025: 12 600 000"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 56.10 — не в стоп-листе"
+    },
+    {
+      "rule": "stop.grade",
+      "matched": false,
+      "detail": "грейд A (скор 790)"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": false,
+      "detail": "выручка не расходится с ФНС и выпиской"
+    },
+    {
+      "rule": "pricing.base",
+      "matched": true,
+      "detail": "базовая ставка UNSECURED: 23.50%"
+    },
+    {
+      "rule": "pricing.grade_premium",
+      "matched": false,
+      "detail": "грейд A: +0.00%"
+    },
+    {
+      "rule": "pricing.collateral_discount",
+      "matched": false,
+      "detail": "залога нет"
+    },
+    {
+      "rule": "pricing.key_rate",
+      "matched": false,
+      "detail": "ключевая 16.50% − опорная 16.50% = +0.00%"
+    },
+    {
+      "rule": "pricing.corridor",
+      "matched": false,
+      "detail": "23.50% в коридоре продукта [23.50%; 30.00%] → 23.50%"
+    },
+    {
+      "rule": "limits.product",
+      "matched": false,
+      "detail": "максимум продукта 30 000 000"
+    },
+    {
+      "rule": "limits.revenue",
+      "matched": false,
+      "detail": "k(A) 0.5 × выручка 47 500 000 (меньшая из заявленной и ФНС) = 23 750 000"
+    },
+    {
+      "rule": "limits.free_cash_flow",
+      "matched": true,
+      "detail": "по отчёту: (48 000 000 − 41 000 000) / 12 − платежи по кредитам 180 000 = 403 333,33 в месяц"
+    },
+    {
+      "rule": "limits.payment_capacity",
+      "matched": false,
+      "detail": "платёж ≤ 161 333,33 в месяц: при 24 мес. и 23.50% сумма до 3 065 898,71"
+    },
+    {
+      "rule": "route.auto_decision_limit",
+      "matched": false,
+      "detail": "сумма 3 000 000, лимит автоматического решения 5 000 000"
+    },
+    {
+      "rule": "route.grade",
+      "matched": false,
+      "detail": "грейд A"
+    },
+    {
+      "rule": "route.tax_arrears",
+      "matched": false,
+      "detail": "недоимка по налогам 0"
+    },
+    {
+      "rule": "route.verification_mismatch",
+      "matched": false,
+      "detail": "флага verification_mismatch нет"
+    },
+    {
+      "rule": "route.revenue_mismatch",
+      "matched": false,
+      "detail": "флага revenue_mismatch нет"
+    },
+    {
+      "rule": "route.bureau_unavailable",
+      "matched": false,
+      "detail": "флага bureau_unavailable нет"
+    },
+    {
+      "rule": "route.mass_address",
+      "matched": false,
+      "detail": "флага mass_address нет"
+    },
+    {
+      "rule": "route.thin_file",
+      "matched": false,
+      "detail": "нет"
+    },
+    {
+      "rule": "cash_gap.forecast",
+      "matched": false,
+      "detail": "кассовый разрыв не прогнозируется"
+    },
+    {
+      "rule": "outcome.approve",
+      "matched": true,
+      "detail": "3 000 000 на 24 мес. под 23.50%, платёж 157 865,62 ≤ 161 333,33"
+    }
+  ],
+  "limits": {
+    "by_product": "30000000.00",
+    "by_revenue": "23750000.00",
+    "by_ltv": null,
+    "by_capacity": "3065898.71",
+    "final": "3065898.71",
+    "by_turnover": null,
+    "by_grade": null,
+    "by_group": null,
+    "binding": null
+  },
+  "rate": "23.50",
+  "triggers": [],
+  "rate_breakdown": null,
+  "scoring": {
+    "score": 790,
+    "grade": "A",
+    "flags": []
+  }
+}

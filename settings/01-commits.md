@@ -27,7 +27,7 @@
 ## Проверка перед пушем
 
 ```bash
-git log --format='%an <%ae> | %cn <%ce>%n%b' origin/main..HEAD | grep -iE 'claude|anthropic|co-authored|generated with'
+git log --format='%an <%ae> | %cn <%ce>%n%b' origin/develop..HEAD | grep -iE 'claude|anthropic|co-authored|generated with'
 ```
 
 Пустой вывод — можно пушить.

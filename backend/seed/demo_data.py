@@ -147,6 +147,20 @@ COMPANIES: tuple[DemoCompany, ...] = (
         registry_status="active",
         registry_head=DemoPerson("Сбоев", "Семён", "Семёнович"),
     ),
+    # A startup (S-9): three months old, no turnover and no annual report yet.
+    DemoCompany(
+        code="start",
+        name="ООО «Старт»",
+        legal_form="LLC",
+        inn="7706123455",
+        ogrn="1267700123459",
+        kpp="770601001",
+        okved_main="62.01",
+        okved_title="Разработка компьютерного программного обеспечения",
+        registered_months_ago=3,
+        registry_status="active",
+        registry_head=DemoPerson("Стартов", "Степан", "Сергеевич"),
+    ),
 )
 
 FINANCIALS: tuple[DemoFinancials, ...] = (
@@ -273,6 +287,14 @@ ACCOUNTS: tuple[DemoAccount, ...] = (
         (DemoMembership("sboy", "director", "registry"),),
     ),
     DemoAccount(
+        "owner@start.test",
+        "+79990000008",
+        DemoPerson("Стартов", "Степан", "Сергеевич"),
+        "client",
+        "Учредитель и директор ООО «Старт» (стартап)",
+        (DemoMembership("start", "director", "registry"),),
+    ),
+    DemoAccount(
         "underwriter@bank.test",
         "+79990000101",
         DemoPerson("Андеррайтеров", "Андрей"),
@@ -290,6 +312,7 @@ PRODUCT_CODES: tuple[str, ...] = (
     "MORTGAGE",
     "REFINANCE",
     "GOV_SUPPORT",
+    "STARTUP",
 )
 
 COMPANIES_BY_CODE = {company.code: company for company in COMPANIES}

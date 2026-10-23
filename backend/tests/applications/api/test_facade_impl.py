@@ -5,8 +5,8 @@ from uuid import UUID
 
 import pytest
 
-from src.applications.facade import ApplicationsFacade
 from src.core.exceptions.exceptions import ConflictError
+from src.modules.applications.facade import ApplicationsFacade
 from tests.applications.api.conftest import World
 
 

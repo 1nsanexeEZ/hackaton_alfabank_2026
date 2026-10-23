@@ -4,7 +4,7 @@ import { ProductSettingsForm } from '@/features/edit-product'
 import { creditApi, type ProductSettings } from '@/shared/api'
 import { useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseBadge, PanelCard } from '@/shared/ui'
-import { AdminPageHeader } from '@/widgets/admin-layout'
+import { AdminPageHeader, DemoSectionNote } from '@/widgets/admin-layout'
 
 const { can } = useSession()
 
@@ -20,6 +20,7 @@ function onSaved(saved: ProductSettings) {
     title="Продукты"
     description="Условия кредитных продуктов: по ним проверяем параметры заявки и считаем ставку решения"
   />
+  <DemoSectionNote text="Каталог на бэкенде только читается (GET /products) — правки здесь сохраняются в браузере и не меняют условия, по которым бэкенд принимает решения." />
 
   <AsyncState :loading="products.loading.value" :error="products.error.value" @retry="products.reload">
     <p v-if="!can('credits.update')" class="mb-4 rounded-xl bg-white px-4 py-3 text-sm text-ink-secondary ring-1 ring-line">

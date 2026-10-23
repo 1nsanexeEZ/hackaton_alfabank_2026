@@ -14,9 +14,10 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY alembic.ini ./
-COPY alembic ./alembic
+COPY migrations ./migrations
 COPY src ./src
 COPY seed ./seed
+COPY scripts ./scripts
 
 RUN useradd --create-home --uid 10001 app && mkdir -p /app/keys && chown app /app/keys
 USER app

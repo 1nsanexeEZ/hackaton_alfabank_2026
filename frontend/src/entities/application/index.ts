@@ -6,7 +6,19 @@ export {
   RISK_CLASS_META,
   RISK_RATE_PREMIUM,
 } from './model/review'
-export { APPLICATION_STATUS_META } from './model/status'
+export { toClientStatus } from './model/clientStatus'
+export { contentTypeOf, documentFormat, fileProblem, MAX_FILE_BYTES, type DocumentFormat } from './model/documentFormats'
+export { uploadApplicationDocument } from './model/documents'
+export { loanDraft } from './model/draft'
+export { isActiveApplication, myApplications, type MyApplication } from './model/myApplications'
+export { clientStages } from './model/stages'
+export {
+  ACTION_REQUIRED_LABEL,
+  APPLICATION_STATUS_META,
+  CLIENT_STATUS_META,
+  CLOSED_CLIENT_STATUSES,
+  DOCUMENT_TITLE,
+} from './model/status'
 export type {
   ApplicationDraft,
   ApplicationPreview,

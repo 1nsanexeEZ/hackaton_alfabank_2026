@@ -5,11 +5,12 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from src.applications.domain.application import CreditApplication
-from src.applications.domain.entities import Document, DocumentStatus, InfoRequest
-from src.applications.domain.fields_schema import ProductFieldsSchema
-from src.applications.domain.statuses import ApplicationStatus
-from src.applications.domain.value_objects import (
+from src.core.domain import Money
+from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.entities import Document, DocumentStatus, InfoRequest
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.value_objects import (
     ApplicationNumber,
     CollateralDeclaration,
     Consents,
@@ -20,7 +21,6 @@ from src.applications.domain.value_objects import (
     OrganizationSnapshot,
     ProductTerms,
 )
-from src.core.domain import Money
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 ORG_ID = UUID("00000000-0000-0000-0000-00000000a001")

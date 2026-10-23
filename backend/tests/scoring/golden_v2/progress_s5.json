@@ -1,0 +1,118 @@
+{
+  "segment": "legal_entity",
+  "scorecard": "legal_entity_v1",
+  "score": 705,
+  "pd_12m": "0.0153",
+  "grade": "C",
+  "reason_codes": [
+    "revenue_consistency",
+    "amount_to_revenue",
+    "business_age"
+  ],
+  "data_completeness": "0.909",
+  "flags": [
+    "revenue_mismatch"
+  ],
+  "bank_notes": [],
+  "factors": [
+    {
+      "code": "business_age",
+      "value": "36",
+      "bin": "24–60",
+      "points": 25,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_trend",
+      "value": "0.20",
+      "bin": "≥20%",
+      "points": 30,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "debt_load",
+      "value": "0.19",
+      "bin": "<0,2",
+      "points": 50,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_overdue",
+      "value": "0",
+      "bin": "0",
+      "points": 40,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "bureau_inquiries",
+      "value": "1",
+      "bin": "≤2",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "tax_arrears",
+      "value": "none",
+      "bin": "0",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "industry_risk",
+      "value": "mid",
+      "bin": "средний",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "amount_to_revenue",
+      "value": "0.22",
+      "bin": "0,1–0,3",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "revenue_consistency",
+      "value": "0.67",
+      "bin": "≥30%",
+      "points": -60,
+      "direction": "negative",
+      "client_hint": "Расхождение выручки с данными ФНС — приложите выписку по счёту.",
+      "has_data": true
+    },
+    {
+      "code": "verification",
+      "value": "verified",
+      "bin": "подтверждена",
+      "points": 10,
+      "direction": "positive",
+      "client_hint": null,
+      "has_data": true
+    },
+    {
+      "code": "cash_gap",
+      "value": null,
+      "bin": "нет данных",
+      "points": 0,
+      "direction": "neutral",
+      "client_hint": null,
+      "has_data": false
+    }
+  ]
+}

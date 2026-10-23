@@ -21,8 +21,16 @@ export type Permission =
   | 'credits.create'
   | 'credits.update'
   | 'credits.delete'
+  | 'organizations.read'
+  | 'organizations.update'
+  | 'tasks.read'
+  | 'tasks.update'
+  | 'decisions.read'
+  | 'backoffice.read'
+  | 'feed.read'
 
-export type Policy = 'not_deleted' | 'own_only'
+/** org_member — только компании, где пользователь участник, и их заявки */
+export type Policy = 'not_deleted' | 'own_only' | 'org_member'
 
 export type PolicyMap = Partial<Record<Permission, Policy[]>>
 
@@ -87,6 +95,7 @@ export interface AccountUpdateInput {
   profile?: Partial<ProfileDto>
 }
 
+/** Identity для рабочего места сотрудников; запросы подписываются токеном сотрудника */
 export interface IdentityApi {
   login(login: string, password: string): Promise<TokenResponse>
   me(): Promise<MeDto>

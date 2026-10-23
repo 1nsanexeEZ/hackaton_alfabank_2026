@@ -1,15 +1,11 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import timedelta
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from seed.run import SeedContext, run_seeds
-from src.applications import module as applications_module
-from src.bff import module as bff_module
-from src.clients import module as clients_module
 from src.core.config import Settings, get_settings
 from src.core.domain.clock import Clock, SystemClock
 from src.core.exceptions.handlers import register_exception_handlers
@@ -17,18 +13,17 @@ from src.core.facades import FacadeRegistry
 from src.core.http.request_id import RequestIdMiddleware, configure_logging
 from src.core.infrastructure.database.session import build_engine, build_session_factory
 from src.core.messaging.runtime import MessagingRuntime
-from src.decision import module as decision_module
-from src.enrichment import module as enrichment_module
-from src.identity import module as identity_module
-from src.identity.bootstrap import bootstrap_admin
-from src.identity.keys import load_signing_keys
-from src.identity.passwords import PasswordHasher
-from src.identity.token_adapter import TokenAdapter
-from src.notifications import module as notifications_module
-from src.process import module as process_module
-from src.products import module as products_module
-from src.projector import module as projector_module
-from src.scoring import module as scoring_module
+from src.modules.applications import module as applications_module
+from src.modules.bff import module as bff_module
+from src.modules.clients import module as clients_module
+from src.modules.decision import module as decision_module
+from src.modules.enrichment import module as enrichment_module
+from src.modules.identity import module as identity_module
+from src.modules.notifications import module as notifications_module
+from src.modules.process import module as process_module
+from src.modules.products import module as products_module
+from src.modules.projector import module as projector_module
+from src.modules.scoring import module as scoring_module
 
 # Explicit list: no discovery by string. Each module owns only its module.py.
 MODULES = (
@@ -55,26 +50,8 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
         configure_logging()
         engine = build_engine(settings.database_url)
         app.state.session_factory = build_session_factory(engine)
-        app.state.password_hasher = PasswordHasher()
-        app.state.token_adapter = TokenAdapter(
-            keys=load_signing_keys(
-                settings.jwt_private_key_path,
-                settings.jwt_public_key_path,
-                generate=settings.jwt_generate_keys,
-            ),
-            issuer=settings.jwt_issuer,
-            audience=settings.jwt_audience,
-            ttl=timedelta(minutes=settings.jwt_access_ttl_minutes),
-        )
-        if settings.bootstrap_admin_email and settings.bootstrap_admin_password:
-            await bootstrap_admin(
-                app.state.session_factory,
-                app.state.password_hasher,
-                settings.bootstrap_admin_email,
-                settings.bootstrap_admin_password,
-            )
         for module in MODULES:
-            # Optional hook for modules that need I/O before serving (buckets, caches).
+            # Optional hook for modules that need I/O before serving (keys, buckets, caches).
             startup = getattr(module, "startup", None)
             if startup is not None:
                 await startup(app)
@@ -95,6 +72,10 @@ def create_app(settings: Settings | None = None, clock: Clock | None = None) -> 
         try:
             yield
         finally:
+            for module in reversed(MODULES):
+                shutdown = getattr(module, "shutdown", None)
+                if shutdown is not None:
+                    await shutdown(app)
             await messaging.stop()
             await engine.dispose()
 

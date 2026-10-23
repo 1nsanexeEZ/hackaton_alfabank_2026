@@ -2,12 +2,20 @@
 
 from dataclasses import replace
 from datetime import timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
-from src.applications.domain.entities import InfoRequestStatus
-from src.applications.domain.events import (
+from src.core.domain import Money
+from src.core.exceptions.exceptions import (
+    ConflictError,
+    InvalidStatusTransitionError,
+    NotFoundError,
+    ValidationError,
+)
+from src.modules.applications.domain.entities import InfoRequestStatus
+from src.modules.applications.domain.events import (
     ApplicationCancelled,
     ApplicationInfoProvided,
     ApplicationSigned,
@@ -16,21 +24,14 @@ from src.applications.domain.events import (
     OfferDeclined,
     OfferExpired,
 )
-from src.applications.domain.fields_schema import ProductFieldsSchema
-from src.applications.domain.statuses import ApplicationStatus
-from src.applications.domain.value_objects import (
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.value_objects import (
     PROCESS,
     SYSTEM,
     Actor,
     CollateralDeclaration,
     LoanRequest,
-)
-from src.core.domain import Money
-from src.core.exceptions.exceptions import (
-    ConflictError,
-    InvalidStatusTransitionError,
-    NotFoundError,
-    ValidationError,
 )
 from tests.applications.unit.factories import (
     APPLICANT_ID,
@@ -59,7 +60,11 @@ def test_happy_path_to_disbursement() -> None:
     assert application.client_stage == "Заявка принята"
     application.present_offer(offer(), summary(), NOW)
     application.accept_offer(CLIENT, NOW + timedelta(hours=1))
-    signature = application.sign(CLIENT, NOW + timedelta(hours=2))
+    signature = application.sign(
+        CLIENT,
+        NOW + timedelta(hours=2),
+        application.offer.fingerprint(),  # type: ignore[union-attr]
+    )
     application.mark_disbursed(NOW + timedelta(days=1))
 
     assert application.status is S.DISBURSED
@@ -241,11 +246,24 @@ def test_offer_expiry_is_idempotent() -> None:
 
 def test_signature_fixes_the_offer() -> None:
     application = in_status(S.SIGNING)
-    signature = application.sign(CLIENT, NOW)
-    assert signature.offer_hash == application.offer.fingerprint()  # type: ignore[union-attr]
+    offer_hash = application.offer.fingerprint()  # type: ignore[union-attr]
+    signature = application.sign(CLIENT, NOW, offer_hash)
+    assert signature.offer_hash == offer_hash
     assert event_types(application)[-1] == ApplicationSigned.__name__
     with pytest.raises(InvalidStatusTransitionError):  # signing twice
-        application.sign(CLIENT, NOW)
+        application.sign(CLIENT, NOW, offer_hash)
+
+
+def test_a_changed_offer_is_not_signed() -> None:
+    """The client signs the offer it saw in the contract, not whatever is
+    current by the time the request arrives."""
+    application = in_status(S.SIGNING)
+    seen = replace(application.offer, rate=Decimal("30")).fingerprint()  # type: ignore[type-var]
+    with pytest.raises(ConflictError) as error:
+        application.sign(CLIENT, NOW, seen)
+    assert error.value.details == {"code": "offer_changed"}
+    assert application.status is S.SIGNING
+    assert application.signature is None
 
 
 def test_offer_fingerprint_depends_on_terms() -> None:
