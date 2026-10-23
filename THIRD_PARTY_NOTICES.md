@@ -16,6 +16,9 @@
 | БКИ руководителя (физлицо) | кредитная история руководителя по реестру | `POST /bki/person-report`; без `consent_at` — 400 (218-ФЗ) | `BkiPersonHttpSource` (`.../adapters/bki_person_http.py`), запрос только при личном согласии руководителя | **смоделировано** |
 | ГИР БО (бухотчётность) | бухгалтерская отчётность за два последних года | `GET /gir-bo/{inn}` — суммы в тыс. ₽ | `GirBoHttpSource` (`.../adapters/gir_bo_http.py`) | **смоделировано** |
 | Контур.Фокус | арбитраж, исполнительные производства, банкротство, госконтракты, залоги | `GET /kontur/{inn}` | `KonturHttpSource` (`.../adapters/kontur_http.py`) | **смоделировано** |
+| Перечни Росфинмониторинга | экстремизм и терроризм, решения МВК о замораживании, ФРОМУ — для проверки по 115-ФЗ | `POST /rfm/screen` — коды перечней строками | `RfmHttpSource` (`.../adapters/aml_http.py`) | **смоделировано**, записи синтетические |
+| База публичных должностных лиц | иностранные, российские ПДЛ и должностные лица международных организаций | `POST /pep/screen` | `PepHttpSource` (`.../adapters/aml_http.py`) | **смоделировано**, записи синтетические |
+| Платформа «Знай своего клиента» Банка России | уровень риска юрлица или ИП | `GET /zsk/{inn}` | `ZskHttpSource` (`.../adapters/aml_http.py`) | **смоделировано** |
 | ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/modules/applications/infrastructure/adapters/edo_client.py`) | **смоделировано**, ответ API `simulated: true` |
 | АБС банка (выдача средств) | перевод суммы кредита на счёт клиента | `POST /abs/disbursements` → номер договора, `simulated: true` | `HttpAbsClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedAbsClient` (`backend/src/modules/applications/infrastructure/adapters/abs_client.py`) | **смоделировано** |
 
