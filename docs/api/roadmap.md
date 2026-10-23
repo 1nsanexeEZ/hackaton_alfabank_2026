@@ -119,9 +119,9 @@ flowchart LR
 
 | Где | Что |
 |---|---|
-| `bff/application/client_screens.py` | `ClientScreens.personal_schedule(account_id, member_of, organization_id, code, amount, term_months, repayment)`: `_ensure_visible` → `ProductsFacade.get_product` и `check_eligibility` → `DecisionFacade.get_pre_approved` (берём предложение по `code`) → `ProductsFacade.calculate_payment` по `rate_from` или `rate_base`; второй расчёт — для `suggestion` |
-| `bff/application/views.py` | `PersonalSchedule`, `PreApprovedTerms`, `Suggestion` |
-| `bff/api/client.py` | маршрут с зависимостью `CanReadProducts`, как у `/bff/products/recommend` |
+| `bff/application/use_cases/products.py` | `PersonalScheduleUseCase.execute(access, organization_id, code, request)`: `ensure_visible` → `ProductsFacade.get_product` и `check_eligibility` → `DecisionFacade.get_pre_approved` (берём предложение по `code`) → `ProductsFacade.calculate_payment` по `rate_from` или `rate_base`; второй расчёт — для `suggestion` |
+| `bff/application/dto/products.py`, `bff/presentation/schemas/client.py` | `PersonalSchedule`, `PreApprovedTerms`, `Suggestion` |
+| `bff/presentation/api/client.py` | маршрут с зависимостью `CanReadProducts`, как у `/bff/products/recommend` |
 | `tests/bff` | все строки таблицы выше + чужая компания → 404 |
 
 ```mermaid
@@ -457,7 +457,7 @@ pre_approved: []                                               // у старт�
 | `decision` | `FounderPrescreenUseCase`, таблица `decision_founder_prescreens`, маршруты рядом с `pre-approved-offers`. Сегмент сохраняется вместе с пересчётом предодобрения. В новой версии политики — правило: продукт `STARTUP` без пройденного предскрина → `STOP_FOUNDER_PRESCREEN` |
 | `products` (сид) | продукт `STARTUP`: `min_business_age_months = 0`, `required_documents` — `business_plan` и `financial_model`, `processing = ProcessingProfile("startup_v1", 0)`, то есть всегда ручное решение, господдержка — `support_program` |
 | `process/workflows/startup_v1.bpmn` | обогащение → скоринг → решение → задача андеррайтеру «Проектная оценка» (`form_schema`: оценка бизнес-плана, обеспечение, господдержка) → оффер |
-| `bff/application/client_screens.py` | `segment`, `startup.prescreen`; для стартапа в подборе продуктов — только `STARTUP` |
+| `bff/application/use_cases/` | `segment`, `startup.prescreen` (`dashboard.py`); для стартапа в подборе продуктов — только `STARTUP` (`products.py`) |
 | миграция | `decision_founder_prescreens` и сегмент: следующий свободный номер `decision_NNNN` |
 
 Проверку предскрина при подаче держим в `decision`, а не в eligibility `products`: иначе `products` начнёт читать `decision`, и появится цикл.

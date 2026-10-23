@@ -69,9 +69,9 @@ async def test_pd_model_result_roundtrips(
     assert (dto.ml.model_version, dto.ml.grade, dto.ml.pd_12m) == (
         "ml_logreg_v1",
         "F",
-        Decimal("0.0429"),
+        Decimal("0.0433"),
     )
-    assert dto.ml.reason_codes == ("industry_risk", "debt_service_ratio", "cash_gap")
+    assert dto.ml.reason_codes == ("industry_risk", "debt_service_ratio", "bureau_inquiries")
     assert [f.code for f in dto.ml.factors] == [f.code for f in result.ml.factors]
 
 

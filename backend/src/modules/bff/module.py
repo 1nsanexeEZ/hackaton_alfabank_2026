@@ -3,14 +3,13 @@
 from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
-from src.modules.bff.api import backoffice, client
+from src.modules.bff.presentation.api import router
 
 NAME = "bff"
 
 
 def register(app: FastAPI) -> None:
-    app.include_router(client.router)
-    app.include_router(backoffice.router)
+    app.include_router(router)
 
 
 def wire(app: FastAPI) -> None:

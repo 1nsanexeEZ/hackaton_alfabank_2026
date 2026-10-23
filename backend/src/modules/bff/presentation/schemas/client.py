@@ -1,26 +1,20 @@
-"""Screens as the frontend gets them.
+"""Client screens as the frontend gets them.
 
-Client screens list every field explicitly: a model is read from a facade DTO
-by attribute, so only what is declared here leaves the bank — never the score,
-scoring factors, rule trace, reason codes or credit bureau data. Back office
-screens carry the facade DTOs as they are: the bank sees everything."""
+Client screens list every field explicitly: a model is read from a screen DTO
+and the facade DTOs inside it by attribute, so only what is declared here
+leaves the bank — never the score, scoring factors, rule trace, reason codes or
+credit bureau data."""
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from src.modules.applications.facade import ApplicationCardDTO
-from src.modules.bff.application.actions import TodoKind
-from src.modules.bff.application.client_status import ClientStatus
-from src.modules.decision.facade import DecisionDTO
-from src.modules.enrichment.facade import EnrichmentSnapshotDTO
-from src.modules.process.facade import ProcessViewDTO, UserTaskDTO
-from src.modules.products.facade import EligibilityCheckDTO, Repayment
-from src.modules.projector.facade import TimelineEntryDTO
-from src.modules.scoring.facade import ScoringResultDTO
+from src.modules.bff.application.dto.products import CalculationDTO
+from src.modules.bff.domain.enums import ClientStatus, TodoKind
+from src.modules.products.facade import Repayment
 
 
 class ClientModel(BaseModel):
@@ -339,6 +333,22 @@ class Recommendations(ClientModel):
 # --- calculator with the pre-approval -----------------------------------------
 
 
+class PersonalCalculateBody(BaseModel):
+    """As for `POST /products/{code}/calculate`, but without the rate: the bank sets it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    amount: Annotated[Decimal, Field(gt=0, max_digits=18, decimal_places=2)]
+    term_months: Annotated[int, Field(ge=1, le=360)]
+    # The default schedule of the product when omitted.
+    repayment: Repayment | None = None
+
+    def to_dto(self) -> CalculationDTO:
+        return CalculationDTO(
+            amount=self.amount, term_months=self.term_months, repayment=self.repayment
+        )
+
+
 class Payment(ClientModel):
     number: int
     due_date: date | None
@@ -386,25 +396,4 @@ class PersonalSchedule(ClientModel):
     reasons: list[EligibilityReason]
     # The request cut to the pre-approved terms; None when it fits or nothing is pre-approved.
     suggestion: Suggestion | None
-    degraded: list[str]
-
-
-# --- back office --------------------------------------------------------------
-
-
-class UnderwriterCard(BaseModel):
-    application: ApplicationCardDTO
-    client_status: ClientStatus
-    # Registry, tax, credit bureau, cash flow forecast for the gap chart.
-    enrichment: EnrichmentSnapshotDTO | None
-    scoring: ScoringResultDTO | None
-    # With rule_trace, reason codes and limits: why the decision is what it is.
-    decision: DecisionDTO | None
-    # Why the product fits the company (or does not).
-    product_fit: EligibilityCheckDTO | None
-    timeline: list[TimelineEntryDTO]
-    # Current node and the path passed, to highlight the diagram.
-    process: ProcessViewDTO | None
-    # The open underwriter task with its form.
-    task: UserTaskDTO | None
     degraded: list[str]
