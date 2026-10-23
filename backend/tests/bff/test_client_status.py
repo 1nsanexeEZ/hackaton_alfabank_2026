@@ -6,8 +6,9 @@ from typing import get_args
 import pytest
 
 from src.modules.applications.facade import ApplicationStatus
-from src.modules.bff.application.actions import available_actions, todo_for
-from src.modules.bff.application.client_status import ClientStatus, client_status, offer_kind_of_row
+from src.modules.bff.domain.actions import SIGN, SUBMIT, available_actions, todo_for
+from src.modules.bff.domain.client_status import client_status, offer_kind_of_row
+from src.modules.bff.domain.enums import ClientStatus
 from src.modules.clients.facade import OrgPermission
 
 FRONTEND_STATUSES = Path(__file__).parents[3] / "frontend/src/entities/application/model/status.ts"
@@ -89,6 +90,11 @@ def test_actions_follow_status_and_rights() -> None:
     assert available_actions("signing", accountant) == []
     assert available_actions("signing", everything) == ["sign"]
     assert available_actions("in_review", everything) == []
+
+
+def test_actions_need_rights_named_as_in_clients() -> None:
+    assert SUBMIT == OrgPermission.SUBMIT_APPLICATION.value
+    assert SIGN == OrgPermission.SIGN.value
 
 
 def test_todo_kinds() -> None:
