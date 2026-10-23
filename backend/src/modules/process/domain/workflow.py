@@ -28,6 +28,8 @@ class NodeConfig:
     # Seconds to wait (info request due date, task SLA).
     timeout_seconds: int | None = None
     on_failure: OnFailure = OnFailure.FAIL
+    # The underwriter's form when the step has several (project_assessment for a startup).
+    form: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
