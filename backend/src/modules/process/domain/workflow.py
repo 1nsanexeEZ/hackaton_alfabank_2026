@@ -1,22 +1,9 @@
 """A route of application processing as a graph (loaded from BPMN)."""
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 
 from src.modules.process.domain.conditions import Condition
-
-
-class NodeType(StrEnum):
-    START = "start"
-    END = "end"
-    TASK = "task"  # service task: immediate or async step
-    USER_TASK = "user_task"  # stoppable step: waits for a person
-    GATEWAY = "gateway"
-
-
-class OnFailure(StrEnum):
-    FAIL = "fail"
-    MANUAL_REVIEW = "manual_review"
+from src.modules.process.domain.enums import NodeType, OnFailure
 
 
 @dataclass(frozen=True, slots=True)

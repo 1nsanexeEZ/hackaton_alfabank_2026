@@ -6,11 +6,13 @@ fails in the middle of a client's application is much worse."""
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.modules.process.domain.validation import WorkflowValidationError
+from src.modules.process.application.interfaces.workflows import WorkflowSource
+from src.modules.process.domain.exceptions import WorkflowValidationError
 from src.modules.process.domain.workflow import WorkflowDefinition
 from src.modules.process.infrastructure.bpmn import BpmnError, parse_bpmn
 
-WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / "workflows"
+# The BPMN files are data of the module, not code: they stay in its root.
+WORKFLOWS_DIR = Path(__file__).resolve().parents[2] / "workflows"
 
 
 class WorkflowLoadError(RuntimeError):
@@ -25,7 +27,7 @@ class LoadedWorkflow:
     file_name: str
 
 
-class WorkflowCatalog:
+class WorkflowCatalog(WorkflowSource):
     def __init__(self, workflows: dict[str, LoadedWorkflow]) -> None:
         self._workflows = workflows
 

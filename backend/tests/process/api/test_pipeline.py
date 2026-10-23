@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from src.modules.process.infrastructure.consumers import time_out_stuck_steps
+from src.modules.process.presentation.timeouts import time_out_stuck_steps
 from tests.applications.api.conftest import PASSWORD
 from tests.process.api.conftest import Pipeline
 
@@ -157,7 +157,7 @@ def test_silent_module_hands_over_to_the_underwriter(pipeline: Pipeline) -> None
     assert p.process(application_id)["current_node_id"] == "fetch_enrichment"
 
     app = world.client.app
-    args = (app.state.session_factory, app.state.facades, app.state.workflows, world.clock)  # type: ignore[attr-defined]
+    args = (app.state.session_factory, app.state.facades, world.clock)  # type: ignore[attr-defined]
     assert world.run(time_out_stuck_steps, *args) == 0  # not yet
     world.clock.advance(timedelta(minutes=6))
     assert world.run(time_out_stuck_steps, *args) == 1

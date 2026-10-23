@@ -9,9 +9,10 @@ from src.core.exceptions.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from src.modules.process.domain.enums import TaskStatus
 from src.modules.process.domain.events import UserTaskCompleted
 from src.modules.process.domain.steps import UNDERWRITER_FORM
-from src.modules.process.domain.tasks import TaskStatus, UserTask
+from src.modules.process.domain.tasks import UserTask
 from tests.process.unit.routes import NOW
 
 ALICE, BOB = uuid4(), uuid4()

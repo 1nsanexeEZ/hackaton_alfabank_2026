@@ -9,7 +9,7 @@ import src.modules.decision.infrastructure.models  # noqa: F401
 import src.modules.enrichment.infrastructure.database.models  # noqa: F401
 import src.modules.identity.infrastructure.database.models  # noqa: F401
 import src.modules.notifications.infrastructure.database.models  # noqa: F401
-import src.modules.process.infrastructure.models  # noqa: F401
+import src.modules.process.infrastructure.database.models  # noqa: F401
 import src.modules.products.infrastructure.models  # noqa: F401
 import src.modules.projector.infrastructure.database.models  # noqa: F401
 import src.modules.scoring.infrastructure.models  # noqa: F401

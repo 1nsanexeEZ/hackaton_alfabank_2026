@@ -1,16 +1,12 @@
-from uuid import UUID
+"""Process and tasks -> DTO of the facade and of the back office API."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
-from src.modules.process.application.service import ACTIVE_TASK_STATUSES
+from src.modules.process.application.dto.processes import ProcessViewDTO, StepViewDTO
+from src.modules.process.application.dto.tasks import TaskDTO, UserTaskDTO
 from src.modules.process.domain.process import ProcessInstance
 from src.modules.process.domain.steps import STEPS
 from src.modules.process.domain.tasks import UserTask
-from src.modules.process.facade import ProcessViewDTO, StepViewDTO, UserTaskDTO
-from src.modules.process.infrastructure.repository import (
-    SqlAlchemyProcessRepository,
-    SqlAlchemyTaskRepository,
-)
 
 
 def process_view(process: ProcessInstance) -> ProcessViewDTO:
@@ -65,21 +61,19 @@ def task_dto(task: UserTask) -> UserTaskDTO:
     )
 
 
-class ProcessFacadeImpl:
-    def __init__(self, session: AsyncSession) -> None:
-        self._processes = SqlAlchemyProcessRepository(session)
-        self._tasks = SqlAlchemyTaskRepository(session)
-
-    async def get_process_view(self, application_id: UUID) -> ProcessViewDTO | None:
-        process = await self._processes.get_by_application(application_id)
-        return process_view(process) if process else None
-
-    async def list_open_tasks(
-        self, role: str, limit: int = 50, offset: int = 0
-    ) -> list[UserTaskDTO]:
-        tasks = await self._tasks.search(role, ACTIVE_TASK_STATUSES, limit, offset)
-        return [task_dto(task) for task in tasks]
-
-    async def get_task(self, task_id: UUID) -> UserTaskDTO | None:
-        task = await self._tasks.get(task_id)
-        return task_dto(task) if task else None
+def task_card(task: UserTask, now: datetime) -> TaskDTO:
+    return TaskDTO(
+        id=task.id,
+        process_id=task.process_id,
+        application_id=task.application_id,
+        type=task.type,
+        candidate_role=task.candidate_role,
+        status=task.status.value,  # type: ignore[arg-type]
+        assignee_id=task.assignee_id,
+        form_schema=task.form_schema,
+        created_at=task.created_at,
+        due_at=task.due_at,
+        overdue=task.is_overdue(now),
+        result=task.result,
+        completed_by=task.completed_by,
+    )

@@ -13,18 +13,12 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from enum import StrEnum
 from typing import Any, Literal, Protocol
 from uuid import UUID
 
 from src.modules.process.domain.context import ProcessContext
+from src.modules.process.domain.enums import StepKind
 from src.modules.process.domain.workflow import Node
-
-
-class StepKind(StrEnum):
-    IMMEDIATE = "immediate"
-    ASYNC = "async"
-    STOPPABLE = "stoppable"
 
 
 @dataclass(frozen=True, slots=True)
