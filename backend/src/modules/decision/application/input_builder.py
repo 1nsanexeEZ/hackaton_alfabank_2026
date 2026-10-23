@@ -28,6 +28,7 @@ from src.modules.decision.domain.model import (
     AmlHit,
     AmlInput,
     BankStopListInput,
+    BankTurnoverInput,
     BureauInput,
     CashflowInput,
     CollateralInput,
@@ -107,6 +108,7 @@ class DecisionInputBuilder:
             aml=_aml_input(snapshot),
             automated_decision_consent=source.automated_decision_consent_at is not None,
             bank_stop_list=_bank_stop_list_input(snapshot),
+            bank_turnover=_bank_turnover_input(snapshot),
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -319,6 +321,16 @@ def _bank_stop_list_input(snapshot: EnrichmentSnapshotDTO | None) -> BankStopLis
         failed = any(e.source == "bank_stop_list" for e in snapshot.sources_failed)
         return BankStopListInput("failed" if failed else "not_requested")
     return BankStopListInput("ok", listed=stop.listed, reason=stop.reason)
+
+
+def _bank_turnover_input(snapshot: EnrichmentSnapshotDTO | None) -> BankTurnoverInput | None:
+    turnover = snapshot.bank_turnover if snapshot is not None else None
+    if turnover is None:
+        return None
+    return BankTurnoverInput(
+        monthly_inflows=tuple(month.inflow for month in turnover.months),
+        annual_inflow=turnover.annual_inflow,
+    )
 
 
 def _sources_failed(snapshot: EnrichmentSnapshotDTO | None) -> tuple[str, ...]:

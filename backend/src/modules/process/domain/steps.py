@@ -159,6 +159,7 @@ ENRICHMENT_SOURCES = (
     "bki_head",
     "aml",
     "bank_stop_list",
+    "bank_turnover",
 )
 
 

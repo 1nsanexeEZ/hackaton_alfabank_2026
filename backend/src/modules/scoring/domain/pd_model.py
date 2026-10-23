@@ -2,9 +2,8 @@
 
 По шагам «Модели оценки PD» общей схемы:
 1. сегмент: ЮЛ и ИП с оборотами в банке от `min_turnover_months` — свои скоркарты, остальные —
-   упрощённая (`new_client`). Отдельной даты «клиент банка с» в данных нет: счёт открывается
-   при регистрации (кейс, §5 — предприниматель уже клиент банка), поэтому история оборотов
-   в банке — возраст бизнеса;
+   упрощённая (`new_client`). Месяцы оборотов в банке — из АБС (`bank_months`); АБС не
+   ответила или снимок до неё — возраст бизнеса (счёт открывается при регистрации, кейс §5);
 2. признаки на дату заявки — `features.py`, вход и так зафиксирован на момент подачи;
 3. пропуск — бин «нет данных», выброс — винзоризация: значение прижимается к границам признака;
 4. биннинг: значение → бин → WoE и баллы; балл = база + сумма баллов;
@@ -127,7 +126,9 @@ class PdModel:
         return self._c
 
     def segment(self, inp: ScoringInput) -> Segment:
-        if inp.company.business_age_months < self._c.min_turnover_months:
+        """Обороты в банке (АБС) — если АБС ответила; иначе, как раньше, возраст бизнеса."""
+        months = inp.bank_months if inp.bank_months is not None else inp.company.business_age_months
+        if months < self._c.min_turnover_months:
             return "new_client"
         return "entrepreneur" if inp.company.legal_form == "IE" else "legal_entity"
 

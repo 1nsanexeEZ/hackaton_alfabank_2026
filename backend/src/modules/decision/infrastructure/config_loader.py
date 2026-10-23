@@ -88,6 +88,8 @@ class _Limits(_Strict):
     turnover_multiplier: Decimal | None = Field(default=None, gt=0)
     grade_max_amount: dict[str, Decimal] = Field(default_factory=dict)
     group_exposure_max: Decimal | None = Field(default=None, ge=0)
+    # policy_v7: выписки нет — обороты по счёту в банке (АБС) для лимита и «разгона».
+    bank_turnover: bool = False
 
 
 class _Components(_Strict):
@@ -474,6 +476,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         stop_mass_head=stops.mass_head,
         stop_business_age=stops.business_age,
         stop_bank_stop_list=stops.bank_stop_list,
+        turnover_from_bank=schema.limits.bank_turnover,
     )
 
 

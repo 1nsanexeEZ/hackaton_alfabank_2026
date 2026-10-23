@@ -18,6 +18,7 @@ from app.chaos import chaos_middleware
 from app.config import get_settings
 from app.data import (
     Company,
+    bank_accounts_response,
     bank_stop_list_response,
     bki_response,
     egrul_response,
@@ -127,6 +128,12 @@ async def zsk(inn: str) -> dict:
         "Уровень": compliance.zsk_level(company),
         "ДатаАктуальности": compliance.lists_date(),
     }
+
+
+@app.get("/abs/accounts/{inn}")
+async def abs_accounts(inn: str) -> dict:
+    """АБС: клиент банка с какой даты и помесячные обороты по расчётному счёту за 24 месяца."""
+    return bank_accounts_response(_company(inn))
 
 
 @app.get("/abs/stop-list/{inn}")

@@ -18,6 +18,9 @@ from src.modules.enrichment.facade import (
 from src.modules.enrichment.infrastructure.adapters.bank_stop_list_http import (
     BankStopListHttpSource,
 )
+from src.modules.enrichment.infrastructure.adapters.bank_turnover_http import (
+    BankTurnoverHttpSource,
+)
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -153,6 +156,44 @@ async def test_bank_stop_list_bad_answer() -> None:
     client = _client(lambda request: httpx.Response(200, json={"listed": "yes"}))
     with pytest.raises(SourceUnavailable):
         await BankStopListHttpSource(client, backoff=()).fetch("7701158817")
+
+
+async def test_bank_turnover_maps_kopecks_and_months() -> None:
+    body = {
+        "inn": "7701158817",
+        "client_since": "2019-01-15",
+        "turnover": [
+            {"month": f"2025-{m:02d}", "credit_kop": 400_000_000, "debit_kop": 340_000_000}
+            for m in range(1, 13)
+        ],
+        "simulated": True,
+    }
+    client = _client(lambda request: httpx.Response(200, json=body))
+    dto = await BankTurnoverHttpSource(client, backoff=()).fetch("7701158817")
+    assert dto.client_since == date(2019, 1, 15) and len(dto.months) == 12
+    assert dto.months[0].inflow == Decimal(4_000_000) and dto.months[0].outflow == Decimal(
+        3_400_000
+    )
+    assert dto.annual_inflow == Decimal(48_000_000)
+
+
+async def test_bank_turnover_shorter_than_a_year_has_no_annual() -> None:
+    body = {
+        "client_since": "2026-07-24",
+        "turnover": [{"month": "2026-08", "credit_kop": 1, "debit_kop": 1}],
+    }
+    client = _client(lambda request: httpx.Response(200, json=body))
+    dto = await BankTurnoverHttpSource(client, backoff=()).fetch("7706123455")
+    assert dto.annual_inflow is None
+
+
+async def test_bank_turnover_months_out_of_order_is_a_bad_answer() -> None:
+    months = [{"month": m, "credit_kop": 1, "debit_kop": 1} for m in ("2025-02", "2025-01")]
+    client = _client(
+        lambda request: httpx.Response(200, json={"client_since": None, "turnover": months})
+    )
+    with pytest.raises(SourceUnavailable):
+        await BankTurnoverHttpSource(client, backoff=()).fetch("7701158817")
 
 
 async def test_fns_kopecks_to_rubles() -> None:

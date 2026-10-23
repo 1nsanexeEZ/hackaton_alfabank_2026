@@ -73,6 +73,7 @@ def test_v7_is_v6_with_stop_factors_data_quality_and_the_risk_matrix() -> None:
             stop_mass_head=False,
             stop_business_age=False,
             stop_bank_stop_list=False,
+            turnover_from_bank=False,
         )
         == v6
     )

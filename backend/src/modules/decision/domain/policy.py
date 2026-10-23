@@ -225,6 +225,8 @@ class PolicyConfig:
     stop_mass_head: bool = False  # массовый руководитель (ФНС)
     stop_business_age: bool = False  # срок работы меньше минимума продукта
     stop_bank_stop_list: bool = False  # внутренний стоп-лист банка
+    # policy_v7: выписки нет — лимит по оборотам и «разгон» считаются по оборотам в банке (АБС).
+    turnover_from_bank: bool = False
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -1069,8 +1071,7 @@ class _Evaluation:
         k = self._c.turnover_multiplier
         if k is None:
             return None
-        cashflow = self._in.cashflow
-        inflow = cashflow.annual_inflow if cashflow is not None else None
+        _, inflow, source = self._inflows()
         if inflow is None:
             self._hit("limits.turnover", False, "выписки нет — по оборотам не ограничиваем")
             return None
@@ -1078,9 +1079,20 @@ class _Evaluation:
         self._hit(
             "limits.turnover",
             limit < self._in.request.amount,
-            f"k {k} × обороты по счёту за год {_num(inflow)} = {_num(limit)}",
+            f"k {k} × обороты по счёту за год{source} {_num(inflow)} = {_num(limit)}",
         )
         return limit
+
+    def _inflows(self) -> tuple[tuple[Decimal, ...], Decimal | None, str]:
+        """Поступления по месяцам и за год: из выписки клиента, а если её нет (policy_v7) — из
+        оборотов по счёту в банке (АБС). Третье — пометка источника для трассы."""
+        cashflow = self._in.cashflow
+        if cashflow is not None:
+            return cashflow.monthly_inflows, cashflow.annual_inflow, ""
+        bank = self._in.bank_turnover
+        if self._c.turnover_from_bank and bank is not None:
+            return bank.monthly_inflows, bank.annual_inflow, " (АБС)"
+        return (), None, ""
 
     def _grade_limit(self, grade: Grade) -> Decimal | None:
         if not self._c.grade_max_amount:
@@ -1334,8 +1346,7 @@ class _Evaluation:
             self._turnover_spike(recent, ratio)
 
     def _turnover_spike(self, recent: int, ratio: Decimal) -> None:
-        cashflow = self._in.cashflow
-        inflows = cashflow.monthly_inflows if cashflow is not None else ()
+        inflows, _, source = self._inflows()
         if len(inflows) < recent * 2:
             self._trigger(
                 "turnover_spike",
@@ -1352,8 +1363,8 @@ class _Evaluation:
         self._trigger(
             "turnover_spike",
             matched,
-            f"поступления за последние {recent} мес. в среднем {_num(last)} против {_num(before)} "
-            f"раньше: ×{shown}, порог > ×{ratio}",
+            f"поступления{source} за последние {recent} мес. в среднем {_num(last)} против "
+            f"{_num(before)} раньше: ×{shown}, порог > ×{ratio}",
         )
 
     def _trigger(self, code: str, matched: bool, detail: str) -> None:

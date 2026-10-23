@@ -75,6 +75,8 @@ class Company:
     mass_head: bool = False
     # Внутренний стоп-лист банка: причина, если компания в нём.
     bank_stop_list: str | None = None
+    # Клиент банка столько дней (счёт открыт тогда); None — с регистрации.
+    bank_client_days_ago: int | None = None
 
 
 _RUB = 100  # копеек в рубле
@@ -540,6 +542,8 @@ def generate_company(inn: str) -> Company:
     suffix = inn[-4:]
     # Каждая восьмая компания недавно сменила руководителя (1–6 месяцев назад).
     head_days_ago = 30 + (s >> 43) % 150 if (s >> 42) % 8 == 0 else None
+    # Каждая десятая перешла в банк недавно (2–5 месяцев назад): оборотов в банке меньше полугода.
+    bank_days_ago = 60 + (s >> 50) % 90 if (s >> 49) % 10 == 0 else None
     return Company(
         inn=inn,
         form="ИП" if is_ie else "ООО",
@@ -570,6 +574,7 @@ def generate_company(inn: str) -> Company:
         bki_inquiries_30d=(s >> 28) % 6,
         account_blocks=blocks,
         head_days_ago=min(head_days_ago, reg_days) if head_days_ago is not None else None,
+        bank_client_days_ago=min(bank_days_ago, reg_days) if bank_days_ago is not None else None,
     )
 
 
@@ -655,6 +660,50 @@ def fns_response(company: Company) -> dict:
             }
             for block in company.account_blocks
         ],
+    }
+
+
+_TURNOVER_MONTHS = 24
+
+
+def _month_back(today: date, months: int) -> date:
+    """Первое число месяца, отстоящего от текущего на `months` назад."""
+    index = today.year * 12 + today.month - 1 - months
+    return date(index // 12, index % 12 + 1, 1)
+
+
+def _wobble(inn: str, month: str, salt: str) -> float:
+    """Детерминированное колебание ±8% по ИНН и месяцу."""
+    digest = hashlib.sha256(f"{inn}:{month}:{salt}".encode()).digest()
+    return (digest[0] / 255 - 0.5) * 0.16
+
+
+def bank_accounts_response(company: Company) -> dict:
+    """АБС: клиент банка с какой даты и обороты по его расчётному счёту — по месяцам за 24
+    полных месяца (без текущего), не раньше открытия счёта. Поступления — около выручки / 12,
+    списания — около расходов / 12."""
+    today = date.today()
+    client_days = (
+        company.bank_client_days_ago
+        if company.bank_client_days_ago is not None
+        else company.reg_days_ago
+    )
+    client_since = today - timedelta(days=client_days)
+    opened = date(client_since.year, client_since.month, 1)
+    months = []
+    for back in range(_TURNOVER_MONTHS, 0, -1):
+        start = _month_back(today, back)
+        if start < opened:
+            continue
+        month = start.strftime("%Y-%m")
+        credit = int(company.revenue_kop / 12 * (1 + _wobble(company.inn, month, "in")))
+        debit = int(company.expenses_kop / 12 * (1 + _wobble(company.inn, month, "out")))
+        months.append({"month": month, "credit_kop": credit, "debit_kop": debit})
+    return {
+        "inn": company.inn,
+        "client_since": client_since.isoformat(),
+        "turnover": months,
+        "simulated": True,
     }
 
 

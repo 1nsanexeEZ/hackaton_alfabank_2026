@@ -23,7 +23,11 @@ from src.modules.enrichment.application.dto.aml import (
     PepHitDTO,
     ZskRiskDTO,
 )
-from src.modules.enrichment.application.dto.bank import BankStopListDTO
+from src.modules.enrichment.application.dto.bank import (
+    BankStopListDTO,
+    BankTurnoverDTO,
+    TurnoverMonthDTO,
+)
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -67,6 +71,14 @@ def data_to_json(source: Source, data: object) -> dict[str, Any]:
             "reason": data.reason,
             "listed_at": data.listed_at.isoformat() if data.listed_at else None,
         }
+    if isinstance(data, BankTurnoverDTO):
+        return {
+            "client_since": data.client_since.isoformat() if data.client_since else None,
+            "months": [
+                {"month": m.month, "inflow": str(m.inflow), "outflow": str(m.outflow)}
+                for m in data.months
+            ],
+        }
     raise TypeError(f"Нельзя сериализовать данные источника {source!r}")
 
 
@@ -90,6 +102,16 @@ def data_from_json(source: Source, raw: dict[str, Any]) -> SourceData:
             listed=raw["listed"],
             reason=raw["reason"],
             listed_at=date.fromisoformat(raw["listed_at"]) if raw["listed_at"] else None,
+        )
+    if source == "bank_turnover":
+        return BankTurnoverDTO(
+            client_since=date.fromisoformat(raw["client_since"]) if raw["client_since"] else None,
+            months=tuple(
+                TurnoverMonthDTO(
+                    month=m["month"], inflow=Decimal(m["inflow"]), outflow=Decimal(m["outflow"])
+                )
+                for m in raw["months"]
+            ),
         )
     raise ValueError(f"Нельзя разобрать данные источника {source!r}")
 

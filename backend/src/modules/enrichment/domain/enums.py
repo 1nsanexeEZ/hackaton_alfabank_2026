@@ -6,7 +6,16 @@ from typing import Literal
 
 # aml — проверка по 115-ФЗ: бенефициары, перечни Росфинмониторинга, ПДЛ, уровень ЗСК.
 Source = Literal[
-    "egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head", "aml", "bank_stop_list"
+    "egrul",
+    "fns",
+    "bki",
+    "statement",
+    "gir_bo",
+    "kontur",
+    "bki_head",
+    "aml",
+    "bank_stop_list",
+    "bank_turnover",
 ]
 SourceStatus = Literal["ok", "failed", "skipped"]
 

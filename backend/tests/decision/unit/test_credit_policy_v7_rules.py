@@ -17,6 +17,8 @@ import pytest
 
 from src.modules.decision.domain.model import (
     BankStopListInput,
+    BankTurnoverInput,
+    CashflowInput,
     DecisionInput,
     PolicyDecision,
     PreApprovalInput,
@@ -282,6 +284,52 @@ def test_listed_reason_stays_with_the_bank() -> None:
     assert decision is not None
     assert "подлог" in hit(decision, "stop.bank_stop_list").detail
     assert "подлог" not in decision.client_explanation
+
+
+# --- обороты по счёту в банке (АБС), когда выписки нет -----------------------------------------
+
+FLAT = BankTurnoverInput(
+    monthly_inflows=(Decimal(1_000_000),) * 12, annual_inflow=Decimal(12_000_000)
+)
+SPIKE = BankTurnoverInput(
+    monthly_inflows=(Decimal(1_000_000),) * 9 + (Decimal(2_000_000),) * 3,
+    annual_inflow=Decimal(15_000_000),
+)
+
+
+def test_turnover_limit_from_the_bank_without_a_statement() -> None:
+    decision = decide(v7(cashflow=None, bank_turnover=FLAT, request=at("10000000")))
+    assert decision.limits.by_turnover == Decimal("6000000.00")
+    assert hit(decision, "limits.turnover").detail == (
+        "k 0.5 × обороты по счёту за год (АБС) 12 000 000 = 6 000 000"
+    )
+    # policy_v6 оборотов в банке не знает.
+    v6 = V6.decide(v7(cashflow=None, bank_turnover=FLAT, request=at("10000000")), key_rate=KEY_RATE)
+    assert v6.limits.by_turnover is None
+
+
+def test_statement_wins_over_the_bank() -> None:
+    statement = CashflowInput(
+        average_monthly_net=Decimal(500_000),
+        gap_detected=False,
+        gap_month=None,
+        revenue_confirmed=True,
+        monthly_inflows=(Decimal(2_000_000),) * 12,
+        annual_inflow=Decimal(24_000_000),
+    )
+    decision = decide(v7(cashflow=statement, bank_turnover=FLAT))
+    assert hit(decision, "limits.turnover").detail == (
+        "k 0.5 × обороты по счёту за год 24 000 000 = 12 000 000"
+    )
+
+
+def test_turnover_spike_from_the_bank() -> None:
+    decision = decide(v7(cashflow=None, bank_turnover=SPIKE))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert ReasonCode.ROUTE_SOFT_TRIGGER in decision.reason_codes
+    assert hit(decision, "trigger.turnover_spike").detail.startswith(
+        "поступления (АБС) за последние 3 мес."
+    )
 
 
 def test_result_before_quality_is_not_degraded() -> None:
