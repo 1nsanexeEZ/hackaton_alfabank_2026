@@ -5,8 +5,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.domain.clock import FrozenClock
-from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
-from src.modules.projector.infrastructure.repositories import SqlAlchemyReadModelStore
+from src.modules.projector.infrastructure.adapters.projector_facade import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.repositories.read_model_store import (
+    SqlAlchemyReadModelStore,
+)
+from src.modules.projector.presentation.dependencies import projector_facade
 from tests.projector.world import Consumer, OpenFacade, OpenStore, World
 
 
@@ -32,7 +35,7 @@ def facade(session_factory: async_sessionmaker[AsyncSession], clock: FrozenClock
     @asynccontextmanager
     async def open_facade() -> AsyncGenerator[ProjectorFacadeImpl]:
         async with session_factory() as session:
-            yield ProjectorFacadeImpl(session, clock)
+            yield projector_facade(session, clock)
 
     return open_facade
 

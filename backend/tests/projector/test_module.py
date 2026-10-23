@@ -14,7 +14,7 @@ from src.modules.applications.facade import ApplicationsFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.projector import module
 from src.modules.projector.facade import ProjectorFacade
-from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.adapters.projector_facade import ProjectorFacadeImpl
 from tests.fakes import install
 from tests.projector.world import World
 

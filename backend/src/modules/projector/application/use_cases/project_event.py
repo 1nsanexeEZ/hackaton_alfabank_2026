@@ -1,5 +1,5 @@
 """Applying an event to the read models — the only projection code: the live
-consumer and the rebuild both call ReadModelProjector.apply().
+consumer and the rebuild both call ProjectEventUseCase.execute().
 
 An event is a signal. The current state is read from the owning modules
 through their facades and stored with its version, history (timeline, the
@@ -23,8 +23,9 @@ from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.facade import DecisionFacade
 from src.modules.process.facade import ProcessFacade, UserTaskDTO
 from src.modules.products.facade import ProductsFacade
-from src.modules.projector.application.ports import FacadeLookup, ReadModelStore
-from src.modules.projector.application.timeline import timeline_entry
+from src.modules.projector.application.interfaces.neighbours import FacadeLookup
+from src.modules.projector.application.interfaces.repositories import ReadModelStore
+from src.modules.projector.application.mappers.timeline import timeline_entry
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     MANUAL_REVIEW,
@@ -49,13 +50,13 @@ def as_utc(moment: datetime) -> datetime:
     return moment.astimezone(UTC)
 
 
-class ReadModelProjector:
+class ProjectEventUseCase:
     def __init__(self, store: ReadModelStore, facades: FacadeLookup) -> None:
         self._store = store
         self._facades = facades
         self._product_names: dict[str, str] = {}
 
-    async def apply(self, envelope: Envelope, message: IntegrationMessage) -> None:
+    async def execute(self, envelope: Envelope, message: IntegrationMessage) -> None:
         at = as_utc(envelope.occurred_at)
         application_id = getattr(message, "application_id", None)
         if isinstance(application_id, UUID):
@@ -101,7 +102,7 @@ class ReadModelProjector:
     async def _refresh_overview(
         self, application_id: UUID, current: ApplicationOverview | None
     ) -> ApplicationOverview | None:
-        applications = self._optional(ApplicationsFacade)
+        applications = self._optional(ApplicationsFacade)  # type: ignore[type-abstract]
         if applications is None:
             return current
         try:
@@ -141,7 +142,7 @@ class ReadModelProjector:
         """Name and INN frozen at submission; a draft has no snapshot yet."""
         if card.org_snapshot is not None:
             return card.org_snapshot.name, card.org_snapshot.inn
-        clients = self._optional(ClientsFacade)
+        clients = self._optional(ClientsFacade)  # type: ignore[type-abstract]
         if clients is None:
             return "", ""
         try:
@@ -152,7 +153,7 @@ class ReadModelProjector:
 
     async def _product_name(self, code: str) -> str:
         if code not in self._product_names:
-            products = self._optional(ProductsFacade)
+            products = self._optional(ProductsFacade)  # type: ignore[type-abstract]
             name = code
             if products is not None:
                 try:
@@ -209,18 +210,18 @@ class ReadModelProjector:
             await self._store.save_queue_item(item)
 
     async def _task(self, task_id: UUID) -> UserTaskDTO | None:
-        process = self._optional(ProcessFacade)
+        process = self._optional(ProcessFacade)  # type: ignore[type-abstract]
         return await process.get_task(task_id) if process is not None else None
 
     async def _scoring_result(self, application_id: UUID) -> ScoringResultDTO | None:
-        scoring = self._optional(ScoringFacade)
+        scoring = self._optional(ScoringFacade)  # type: ignore[type-abstract]
         return await scoring.get_result(application_id) if scoring is not None else None
 
     async def _routing_reasons(self, application_id: UUID) -> tuple[str, ...]:
         """Why the application waits for an underwriter: reason codes of the
         current decision while it is MANUAL_REVIEW (a function of the current
         state, so the rebuild restores it as well)."""
-        decisions = self._optional(DecisionFacade)
+        decisions = self._optional(DecisionFacade)  # type: ignore[type-abstract]
         if decisions is None:
             return ()
         decision = await decisions.get_decision(application_id)
@@ -245,7 +246,7 @@ class ReadModelProjector:
         await self._store.save_dashboard(dashboard)
 
     async def _pre_approved(self, organization_id: UUID) -> list[tuple[Decimal, Decimal]] | None:
-        decisions = self._optional(DecisionFacade)
+        decisions = self._optional(DecisionFacade)  # type: ignore[type-abstract]
         if decisions is None:
             return None
         offers = await decisions.get_pre_approved(organization_id)

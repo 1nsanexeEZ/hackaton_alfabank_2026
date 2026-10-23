@@ -1,112 +1,37 @@
 """Projector contract: denormalized read models for lists, queues and
-dashboards. No access checks inside — bff checks rights before calling."""
+dashboards. No access checks inside — bff checks rights before calling.
 
-from dataclasses import dataclass
-from datetime import date, datetime
-from decimal import Decimal
-from typing import Any, Literal, Protocol
+The only entry point for other modules: the protocol below and the DTO it returns
+(defined in `application/dto`, re-exported here)."""
+
+from datetime import date
+from typing import Protocol
 from uuid import UUID
 
-ActionRequired = Literal["none", "info", "offer", "sign"]
-Audience = Literal["client", "bank"]
-QueueSort = Literal["due_at", "amount", "score", "created_at"]
+from src.modules.projector.application.dto.applications import (
+    ApplicationOverviewDTO,
+    ApplicationPageDTO,
+    OrganizationDashboardDTO,
+)
+from src.modules.projector.application.dto.metrics import BackofficeMetricsDTO, DailyMetricsDTO
+from src.modules.projector.application.dto.queue import QueueItemDTO, QueuePageDTO
+from src.modules.projector.application.dto.timeline import TimelineEntryDTO
+from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSort
 
-
-@dataclass(frozen=True, slots=True)
-class ApplicationOverviewDTO:
-    application_id: UUID
-    organization_id: UUID
-    number: str
-    product_code: str
-    product_name: str
-    amount: Decimal | None
-    term_months: int | None
-    status: str
-    client_stage: str | None
-    action_required: ActionRequired
-    offer_amount: Decimal | None
-    offer_rate: Decimal | None
-    submitted_at: datetime | None
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class ApplicationPageDTO:
-    items: tuple[ApplicationOverviewDTO, ...]
-    total: int
-
-
-@dataclass(frozen=True, slots=True)
-class OrganizationDashboardDTO:
-    organization_id: UUID
-    active_applications: int
-    action_required_count: int
-    pre_approved_max_amount: Decimal | None
-    pre_approved_rate_from: Decimal | None
-    last_activity_at: datetime | None
-
-
-@dataclass(frozen=True, slots=True)
-class QueueItemDTO:
-    task_id: UUID
-    application_id: UUID
-    number: str
-    company_name: str
-    inn: str
-    product_code: str
-    amount: Decimal | None
-    score: int | None
-    risk_grade: str | None
-    cash_gap: bool
-    routing_reasons: tuple[str, ...]
-    due_at: datetime | None
-    overdue: bool
-    assignee_id: UUID | None
-    status: str
-    created_at: datetime
-    # check or dispute, by the routing reasons (decision `review_kind`).
-    review: Literal["check", "dispute"] | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class QueuePageDTO:
-    items: tuple[QueueItemDTO, ...]
-    total: int
-
-
-@dataclass(frozen=True, slots=True)
-class TimelineEntryDTO:
-    id: UUID
-    application_id: UUID
-    at: datetime
-    kind: Literal["status", "stage", "task", "decision"]
-    title: str
-    audience: Audience
-    details: dict[str, Any]
-
-
-@dataclass(frozen=True, slots=True)
-class DailyMetricsDTO:
-    day: date
-    product_code: str
-    submitted: int
-    approved: int
-    counter_offers: int
-    rejected: int
-    manual_reviews: int
-    auto_decisions: int
-    avg_time_to_decision_sec: float | None
-
-
-@dataclass(frozen=True, slots=True)
-class BackofficeMetricsDTO:
-    date_from: date
-    date_to: date
-    rows: tuple[DailyMetricsDTO, ...]
-    submitted: int
-    decided: int
-    auto_decision_share: float | None
-    avg_time_to_decision_sec: float | None
+__all__ = [
+    "ActionRequired",
+    "ApplicationOverviewDTO",
+    "ApplicationPageDTO",
+    "Audience",
+    "BackofficeMetricsDTO",
+    "DailyMetricsDTO",
+    "OrganizationDashboardDTO",
+    "ProjectorFacade",
+    "QueueItemDTO",
+    "QueuePageDTO",
+    "QueueSort",
+    "TimelineEntryDTO",
+]
 
 
 class ProjectorFacade(Protocol):

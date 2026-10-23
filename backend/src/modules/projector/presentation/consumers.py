@@ -1,14 +1,10 @@
 """Kafka subscriptions of the projector: every event of the four topics goes
-through the same ReadModelProjector.apply() as the rebuild."""
+through the same ProjectEventUseCase as the rebuild."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.core.facades import FacadeRegistry
 from src.core.messaging import topics
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.subscriber import HandlerContext, Subscription
-from src.modules.projector.application.projection import ReadModelProjector
-from src.modules.projector.infrastructure.repositories import SqlAlchemyReadModelStore
+from src.modules.projector.presentation.dependencies import project_event_use_case
 
 MODULE = "projector"
 GROUP_PREFIX = "projector.read-models"
@@ -26,24 +22,8 @@ def group_id(topic: str, prefix: str = GROUP_PREFIX) -> str:
     return f"{prefix}.{PROJECTED_TOPICS[topic]}"
 
 
-class SessionFacades:
-    """Facades bound to one session, for code that runs outside a HandlerContext."""
-
-    def __init__(self, registry: FacadeRegistry, session: AsyncSession) -> None:
-        self._registry = registry
-        self._session = session
-
-    def __call__[T](self, key: type[T]) -> T:
-        return self._registry.get(key, self._session)
-
-
-def projector_for(session: AsyncSession, facades: FacadeRegistry) -> ReadModelProjector:
-    return ReadModelProjector(SqlAlchemyReadModelStore(session), SessionFacades(facades, session))
-
-
 async def project(ctx: HandlerContext, message: IntegrationMessage) -> None:
-    projector = ReadModelProjector(SqlAlchemyReadModelStore(ctx.session), ctx.facade)
-    await projector.apply(ctx.envelope, message)
+    await project_event_use_case(ctx).execute(ctx.envelope, message)
 
 
 def subscriptions(prefix: str = GROUP_PREFIX) -> list[Subscription]:
