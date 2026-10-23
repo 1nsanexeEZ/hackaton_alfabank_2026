@@ -3014,6 +3014,102 @@
         }
       }
     },
+    "/organizations/{organization_id}/founder-prescreen": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Run Founder Prescreen",
+        "description": "The founder's own credit history before a STARTUP application. 422 `founder_not_found`\n— no member matches the head by the registry; 422 `consent_required` — the founder has not\ngiven `credit_bureau_personal`.",
+        "operationId": "run_founder_prescreen_organizations__organization_id__founder_prescreen_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FounderPrescreenRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Founder Prescreen",
+        "description": "The latest prescreen; 404 — not run yet.",
+        "operationId": "get_founder_prescreen_organizations__organization_id__founder_prescreen_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FounderPrescreenRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feed": {
       "get": {
         "tags": [
@@ -6680,6 +6776,15 @@
           "registry_status": {
             "type": "string",
             "title": "Registry Status"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "established",
+              "startup"
+            ],
+            "title": "Segment",
+            "default": "established"
           }
         },
         "type": "object",
@@ -6826,6 +6931,16 @@
             },
             "type": "array",
             "title": "Degraded"
+          },
+          "startup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StartupBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8579,6 +8694,119 @@
           "share_percent"
         ],
         "title": "FounderDTO"
+      },
+      "FounderPrescreen": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "founder_name": {
+            "type": "string",
+            "title": "Founder Name"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/PrescreenReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "founder_name",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "FounderPrescreen"
+      },
+      "FounderPrescreenRead": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "founder": {
+            "$ref": "#/components/schemas/FounderRead"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/PrescreenReasonRead"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "founder",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "FounderPrescreenRead",
+        "description": "`failed` — «отказ (стартап)»: клиенту — `reasons[].message`. Действует 30 дней; после\n`valid_until` для заявки на STARTUP нужен новый."
+      },
+      "FounderRead": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "name"
+        ],
+        "title": "FounderRead"
       },
       "GovContractsDTO": {
         "properties": {
@@ -10852,6 +11080,52 @@
         ],
         "title": "PreApprovedTerms"
       },
+      "PrescreenReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "PrescreenReason"
+      },
+      "PrescreenReasonRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "PrescreenReasonRead"
+      },
       "PresignedUploadOut": {
         "properties": {
           "url": {
@@ -11323,6 +11597,10 @@
               "archived"
             ],
             "title": "Status"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only"
           }
         },
         "type": "object",
@@ -11355,7 +11633,8 @@
           "application_fields_schema",
           "workflow_code",
           "auto_decision_limit",
-          "status"
+          "status",
+          "startup_only"
         ],
         "title": "ProductRead"
       },
@@ -12934,6 +13213,25 @@
           "message"
         ],
         "title": "SourceErrorDTO"
+      },
+      "StartupBlock": {
+        "properties": {
+          "prescreen": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FounderPrescreen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "prescreen"
+        ],
+        "title": "StartupBlock"
       },
       "StatusChangeDTO": {
         "properties": {

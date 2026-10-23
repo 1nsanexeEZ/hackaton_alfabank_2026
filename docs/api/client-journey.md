@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | 1 | Клиент на сайте → кредитный калькулятор | клиент, без входа | `GET /products`, `POST /products/recommend`, `POST /products/{code}/calculate` | ✅ |
 | 2 | Авторизован? → вход в ЛК | клиент | `GET /me` (401 — на вход), `GET /auth/demo-accounts`, `POST /auth/demo-login`, `POST /auth/login` | ✅ |
-| 3 | Есть ли бизнес? | банк | `GET /bff/dashboard`: `organizations`, `onboarding` | 🟡 ветки «нет (стартап)» нет — [4.6](#46-ветка-стартапа) |
+| 3 | Есть ли бизнес? | банк | `GET /bff/dashboard`: `organizations`, `onboarding`, `organization.segment` (`established` / `startup`) | ✅ ветка «нет (стартап)» — [4.6](#46-ветка-стартапа) |
 | 4 | Подтянули данные из базы банка | банк | `GET /organizations/{id}`, `GET /organizations/{id}/financial-reports` | ✅ |
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | `POST /organizations/{id}/verification`, результат — в `OrganizationRead.verification` | ✅ бэк сверяет и сам — по выписке из каждой заявки, [4.2](#42-сверка-с-егрюл) |
 | 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
@@ -53,7 +53,7 @@
 | 16 | counteroffer — клиент подтверждает | клиент | `POST …/offer/accept`, `POST …/offer/decline` | ✅ |
 | 17 | «Подпиши договор: одобрили, но нужна подпись» | клиент | `GET /applications/{id}/contract`, `POST /applications/{id}/sign` | ✅ договор перед подписью — [3.7](#37-решение-оффер-подпись-выдача-шаги-1518) |
 | 18 | Кредит оформлен | клиент | `client_status = issued`, `ApplicationOut.disbursement` | ✅ выдачу делает процесс после подписи (мок АБС) |
-| — | Стартап: личный скоринг учредителя → бизнес-план → проектная оценка | клиент, банк | — | ❌ — [4.6](#46-ветка-стартапа) |
+| — | Стартап: личный скоринг учредителя → бизнес-план → проектная оценка | клиент, банк | `POST/GET /organizations/{id}/founder-prescreen`, продукт `STARTUP`, задача `project_assessment` | ✅ [4.6](#46-ветка-стартапа) |
 
 Вопросы на схеме:
 
@@ -134,7 +134,8 @@
 ```text
 Dashboard {
   onboarding: boolean            // true — у пользователя нет ни одной компании, остальное пусто
-  organization: { id, name, inn, legal_form, my_role, my_permissions[], verification_status, registry_status } | null
+  organization: { id, name, inn, legal_form, my_role, my_permissions[], verification_status, registry_status,
+                  segment: established | startup } | null   // startup — младше 6 мес. или без годового отчёта, 4.6
   organizations: [{ id, name, inn, legal_form, my_role, my_permissions[] }]
   counters: { active_applications, action_required_count, pre_approved_max_amount, pre_approved_rate_from, last_activity_at } | null
   pre_approved: [{ product_code, product_name, max_amount, rate_from, term_max_months, valid_until }]
@@ -143,6 +144,7 @@ Dashboard {
   feed: { unread, items: FeedItem[] }
   news: [{ id, title, body, published_at, relevance[] }]
   degraded: string[]             // какие блоки не загрузились — показать заглушку, а не ошибку
+  startup: { prescreen: FounderPrescreen | null } | null   // только у стартапа, тогда pre_approved = [] — 4.6
 }
 ```
 
@@ -371,7 +373,7 @@ Dashboard {
 | 4.3 | ✅ Личные согласия: ПДн и БКИ физлица | 8 | новые `GET/POST /me/consents`, `DELETE /me/consents/{type}` | Should, вместе с 4.4 | identity, clients, process |
 | 4.4 | ✅ Источники ГИР БО, Контур, БКИ ФЛ | 10 | без новых ручек: расширяется `EnrichmentSnapshotDTO` | Should | enrichment, decision, process, external-mocks |
 | 4.5 | ✅ Договор перед подписью | 17 | новая `GET /applications/{id}/contract`, `offer_hash` в `sign` | Should | applications |
-| 4.6 | Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
+| 4.6 | ✅ Ветка стартапа | 3, ветка «нет» | новые `…/founder-prescreen`, поле `segment` на дашборде | Could | clients, scoring, process, products |
 | 4.7 | ✅ Скоринг и стратегия как на схеме | 12–13 | без новых ручек: поля в DTO андеррайтера | Could | scoring, decision |
 
 Must нет: основной путь (компания с оборотами в банке) проходит и сейчас. Всё ниже закрывает расхождения со схемой.
@@ -532,28 +534,36 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 ### 4.6. Ветка стартапа
 
-**Зачем.** Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или загрузка бизнес-плана и финмодели → проектная оценка (бизнес-план, обеспечение, господдержка) → предложение. Её нет совсем. При этом [case.md](../case.md) §5 (ответ организаторов) говорит, что предприниматель уже клиент банка и онбординга нет. Поэтому приоритет Could: делаем, только если ветку показываем на демо.
+Сделано. Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или загрузка бизнес-плана и финмодели → проектная оценка (бизнес-план, обеспечение, господдержка) → предложение. По [case.md](../case.md) §5 предприниматель уже клиент банка, онбординга нет: стартап — это компания-клиент без оборотов и отчётности. Демо — ООО «Старт» (`owner@start.test`, 3 месяца), сценарий S-9.
 
-**Изменения API:**
-- `Dashboard.organization.segment: "established" | "startup"`. `startup` — нет оборотов в банке и годовой отчётности. Для стартапа `pre_approved` пуст, вместо него приходит `startup: {prescreen: FounderPrescreenRead | null}`.
-- `POST /organizations/{organization_id}/founder-prescreen`, без тела. Нужно действующее `credit_bureau_personal` учредителя (4.3), иначе 422 `consent_required`.
-- `GET /organizations/{organization_id}/founder-prescreen` — последний результат или 404.
+**Дашборд** `GET /bff/dashboard`:
+- `organization.segment: "established" | "startup"`. `startup` — возраст бизнеса меньше 6 месяцев (`STARTUP_AGE_MONTHS`) или нет ни одного годового отчёта;
+- у стартапа `pre_approved: []`, вместо него `startup: { prescreen: FounderPrescreen | null }` (`null` — предскрина ещё не было); у остальных `startup: null`;
+- `FounderPrescreen = { status, founder_name, checked_at, valid_until, valid, reasons: [{code, passed, message}] }`.
+
+**Предскрин учредителя:**
+- учредитель — участник компании, чьё ФИО совпало с руководителем по реестру;
+- `POST /organizations/{organization_id}/founder-prescreen`, без тела, нужно право `submit_application` в компании → 201. Ошибки 422: `consent_required` — у учредителя нет действующего `credit_bureau_personal` (4.3, `POST /me/consents`), `founder_not_found` — учредителя по реестру нет среди участников. 503 — БКИ не ответило;
+- `GET /organizations/{organization_id}/founder-prescreen` — последний результат, 404 — ещё не было.
 
 ```json
 {
   "status": "passed",
-  "founder": { "account_id": "…", "name": "…" },
+  "founder": { "account_id": "…", "name": "Стартов Степан Сергеевич" },
   "checked_at": "…",
   "valid_until": "…",
-  "reasons": [{ "code": "…", "passed": true, "message": "…" }]
+  "valid": true,
+  "reasons": [{ "code": "no_current_overdue", "passed": true, "message": "Текущей просрочки по личным кредитам нет" }]
 }
 ```
 
-`status = failed` — это «Отказ (стартап)» на схеме: клиенту показываем `reasons[].message`.
+- `status = failed` — «Отказ (стартап)» на схеме: клиенту показываем `reasons[].message`. Коды: `no_history`, `no_current_overdue`, `no_serious_overdue`, `few_inquiries`, `debt_load`;
+- действует 30 дней (`valid`); заявка на `STARTUP` без пройденного и действующего на дату подачи предскрина отклоняется (`STOP_FOUNDER_PRESCREEN`, текст клиенту — в `decision.client_explanation`).
 
-**Без новых ручек:**
-- Бизнес-план и финмодель — продукт `STARTUP` с `required_documents` `business_plan` и `financial_model`, `min_business_age_months = 0`. Грузятся обычными `/applications/{id}/documents`.
-- Проектная оценка — шаг процесса `STARTUP`, задача андеррайтеру через `/tasks`. Её результат — обычный оффер. Господдержка — `product.support_program`.
+**Продукт и маршрут:**
+- `STARTUP` («Кредит на запуск бизнеса»): 0,5–5 млн, 12–60 мес., ставка 15–26%, потолок господдержки 17% (`support_program`), поручительство учредителя; `required_documents` — `business_plan` и `financial_model`; в `GET /products` — `startup_only: true`;
+- подбор (`GET /bff/products/recommend`): стартапу — только продукты со `startup_only`, действующей компании — без них; без компании — все, `STARTUP` в конце;
+- маршрут `startup_v1`: решение всегда за андеррайтером, задача `project_assessment` («Проектная оценка», `client_stage` такой же) — форма решения плюс `business_plan: strong | acceptable | weak`, `collateral`, `support_program`. Итог — обычный оффер, подпись и выдача как у остальных.
 
 ### 4.7. Скоринг и стратегия как на схеме
 
