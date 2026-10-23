@@ -1320,7 +1320,7 @@
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-241" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Присвоение грейда&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;шкала A–J по диапазонам PD&lt;/font&gt;" vertex="1">
           <mxGeometry height="70" width="150" x="1975" y="265" as="geometry" />
         </mxCell>
-        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-242" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Коды причин&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;топ-3 признака с наибольшей потерей баллов&lt;/font&gt;" vertex="1">
+        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-242" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Коды причин&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;топ-3 признака, снизивших балл, по потере баллов&lt;/font&gt;" vertex="1">
           <mxGeometry height="70" width="150" x="2165" y="265" as="geometry" />
         </mxCell>
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-243" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Запись в журнал&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;вход, выход, версия модели&lt;/font&gt;" vertex="1">

@@ -7,7 +7,8 @@
    времени» с более жёсткими условиями кредитования;
 2. считает признаки той же функцией, что и прод (`ml_features`);
 3. режет признаки на корзины (границы заданы аналитиком — объяснимо), считает WoE по
-   обучающей выборке и обучает логистическую регрессию;
+   обучающей выборке (корзина сбоя ФНС или БКИ — нейтральная, WoE 0) и обучает логистическую
+   регрессию;
 4. пишет коэффициенты в `src/modules/scoring/infrastructure/config/ml_logreg_v1.yaml`; границы
    грейдов A–I берёт из PD-модели (`pd_model_v2`), чтобы грейды двух моделей были сравнимы;
 5. собирает доменную модель из этого YAML и на ней (ровно как в проде) считает метрики:
@@ -84,6 +85,15 @@ _PD_CONFIG = load_pd_model().config
 INDUSTRY = IndustrySections(low=_PD_CONFIG.industry_low, high=_PD_CONFIG.industry_high)
 SCALING = {"base_score": 600, "base_odds": 50, "pdo": 40}
 MISSING = "__missing__"
+# Сбой источника (ФНС, БКИ) — не сигнал о заёмщике: WoE такой корзины нейтральный, как у
+# PD-модели, — не штрафуем и не поощряем за наш же сбой. Иначе модель выучит шум случайных
+# сбоев, а сбой ФНС посчитает дважды (расхождение с ФНС и недоимка).
+SOURCE_OUTAGE: dict[str, str] = {
+    "revenue_gap": MISSING,
+    "tax_arrears": MISSING,
+    "bureau_inquiries": MISSING,
+    "bureau_overdue": "unavailable",
+}
 
 
 def main() -> None:
@@ -153,6 +163,9 @@ def fit(train: list[Applicant]) -> Fitted:
     y_train = np.array([a.defaulted for a in train])
     woe = {name: _woe_table(keys_train[name], y_train) for name in keys_train.columns}
     iv = {name: _information_value(keys_train[name], y_train, woe[name]) for name in woe}
+    for name, key in SOURCE_OUTAGE.items():
+        if key in woe[name]:
+            woe[name][key] = 0.0
     # Отбор признаков: Information Value < 0,02 — признак почти не различает заёмщиков.
     selected = [name for name in keys_train.columns if iv[name] >= IV_THRESHOLD]
     keys_train = keys_train[selected]
@@ -597,6 +610,9 @@ Information Value по обучающей выборке; признаки с IV
 - Данные синтетические: метрики показывают, что конвейер обучения, валидации и инференса
   работает, а не реальное качество на клиентах банка. В проде модель переобучается на истории.
 - Границы корзин заданы вручную ради читаемости; на реальных данных — подбор с монотонностью WoE.
+- Метрики — на одном разбиении (seed {SEED_SPLIT}); разброс по разбиениям — `ml_validation.md`.
+- Корзина сбоя источника (ФНС не ответила, БКИ недоступно) — с нейтральным WoE: за наш сбой
+  модель не штрафует и не поощряет.
 """
     (REPORTS / f"{VERSION}.md").write_text(text, encoding="utf-8")
 

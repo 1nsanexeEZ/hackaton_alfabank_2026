@@ -440,12 +440,12 @@ ML-модель. В эталоне ещё грейд и PD ML-модели и в
 | Сценарий | PD-модель | ML-модель | v5 |
 |---|---|---|---|
 | S-1 romashka | A, 0,41% | C, 1,39% | **APPROVE**: обе зелёные |
-| S-2 ivanov | E, 3,45% | E, 2,75% | **MANUAL_REVIEW** `check` (`ROUTE_MODELS_CHECK`): обе жёлтые. В v3/v4 — встречное предложение |
-| S-3 vector | F, 4,21% | F, 4,29% | **MANUAL_REVIEW** `dispute`: `ROUTE_VERIFICATION_MISMATCH`, `ROUTE_MODELS_CHECK` |
-| S-4 zakat | J, 51,6% | J, 23,7% | **REJECT** на стоп-факторах, до моделей не доходит |
-| S-5a / S-5b progress | C / D | F, 4,25% / F, 4,44% | **REQUEST_INFO**, после выписки — **MANUAL_REVIEW** `dispute` (`ROUTE_REVENUE_MISMATCH`, `ROUTE_MODELS_CHECK`) |
-| S-6 sboy | B, 0,59% | C, 1,16% | **MANUAL_REVIEW** `dispute` (`ROUTE_SOURCES_FAILED`), модели обе зелёные |
-| S-7 romashka MORTGAGE | C, 1,34% | D, 2,45% | **MANUAL_REVIEW** `check` (`ROUTE_AMOUNT_OVER_AUTO_LIMIT`), модели обе зелёные |
+| S-2 ivanov | E, 3,45% | E, 2,76% | **MANUAL_REVIEW** `check` (`ROUTE_MODELS_CHECK`): обе жёлтые. В v3/v4 — встречное предложение |
+| S-3 vector | F, 4,21% | F, 4,33% | **MANUAL_REVIEW** `dispute`: `ROUTE_VERIFICATION_MISMATCH`, `ROUTE_MODELS_CHECK` |
+| S-4 zakat | J, 51,6% | J, 24,3% | **REJECT** на стоп-факторах, до моделей не доходит |
+| S-5a / S-5b progress | C / D | F, 4,30% / F, 4,50% | **REQUEST_INFO**, после выписки — **MANUAL_REVIEW** `dispute` (`ROUTE_REVENUE_MISMATCH`, `ROUTE_MODELS_CHECK`) |
+| S-6 sboy | B, 0,59% | C, 1,30% | **MANUAL_REVIEW** `dispute` (`ROUTE_SOURCES_FAILED`), модели обе зелёные |
+| S-7 romashka MORTGAGE | C, 1,34% | D, 2,46% | **MANUAL_REVIEW** `check` (`ROUTE_AMOUNT_OVER_AUTO_LIMIT`), модели обе зелёные |
 
 Плюс `test_credit_policy_rules.py` (v1), `test_credit_policy_v2_rules.py` (v2) и
 `test_credit_policy_v3_rules.py` (v3) — каждое правило на

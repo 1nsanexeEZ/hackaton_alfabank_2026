@@ -113,7 +113,7 @@ class MlScore:
     score: int
     grade: Grade
     factors: tuple[Factor, ...]
-    reason_codes: tuple[str, ...]  # топ-3 признака по недобранным баллам
+    reason_codes: tuple[str, ...]  # топ-3 признака, снизивших балл, по недобранным баллам
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +136,6 @@ class ScoringResult:
     segment: Segment | None = None
     scorecard: str | None = None
     pd_12m: Decimal | None = None  # доля, 0.0340 — 3,4%
-    reason_codes: tuple[str, ...] = ()  # топ-3 признака по потере баллов
+    reason_codes: tuple[str, ...] = ()  # топ-3 признака, снизивших балл, по потере баллов
     # ML-модель (scoring_0003); у результатов до неё — None.
     ml: MlScore | None = None

@@ -31,12 +31,12 @@ _MODEL = load_ml_model()
 # PD и грейд ML-модели на демо-сценариях §9 (входы — из golden scoring).
 _GOLDEN = {
     "romashka_s1": ("0.0139", "C"),
-    "ivanov_s2": ("0.0275", "E"),
-    "vector_s3": ("0.0429", "F"),
-    "zakat_s4": ("0.2369", "J"),
-    "progress_s5": ("0.0425", "F"),
-    "sboy_s6": ("0.0116", "C"),
-    "romashka_mortgage_s7": ("0.0245", "D"),
+    "ivanov_s2": ("0.0276", "E"),
+    "vector_s3": ("0.0433", "F"),
+    "zakat_s4": ("0.2432", "J"),
+    "progress_s5": ("0.0430", "F"),
+    "sboy_s6": ("0.0130", "C"),
+    "romashka_mortgage_s7": ("0.0246", "D"),
 }
 
 
@@ -88,6 +88,27 @@ def test_missing_bureau_uses_missing_bin() -> None:
     inquiries = factors["bureau_inquiries"]
     assert inquiries.value is None and inquiries.has_data is False
     assert inquiries.bin == "нет данных"
+
+
+def test_source_outage_is_neutral() -> None:
+    """Сбой ФНС или БКИ — не сигнал о заёмщике: корзина сбоя с нулём баллов, как у PD-модели."""
+    base = SCENARIOS["romashka_s1"]
+    no_fns = replace(base, tax=replace(base.tax, tax_arrears=None, reported_revenue=None))
+    factors = {f.code: f for f in _MODEL.predict(no_fns).factors}
+    assert factors["revenue_gap"].points == 0 and factors["tax_arrears"].points == 0
+    bureau = {f.code: f for f in _MODEL.predict(SCENARIOS["sboy_s6"]).factors}  # БКИ нет
+    assert bureau["bureau_overdue"].points == 0 and bureau["bureau_inquiries"].points == 0
+
+
+def test_reason_codes_only_name_what_lowered_the_score() -> None:
+    """Сбой: БКИ не ответило, выписки нет — эти признаки без баллов, в кодах причин их нет,
+    хотя до лучшей корзины они не добрали."""
+    for inp in SCENARIOS.values():
+        result = _MODEL.predict(inp)
+        points = {f.code: f.points for f in result.factors}
+        assert all(points[code] < 0 for code in result.reason_codes)
+    assert _MODEL.predict(SCENARIOS["sboy_s6"]).reason_codes == ()
+    assert _MODEL.predict(SCENARIOS["romashka_s1"]).reason_codes == ("industry_risk",)
 
 
 def test_worst_factor_explains_zakat() -> None:

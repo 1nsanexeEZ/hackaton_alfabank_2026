@@ -5,8 +5,7 @@
   "pd_12m": "0.0041",
   "grade": "A",
   "reason_codes": [
-    "industry_risk",
-    "cash_gap"
+    "industry_risk"
   ],
   "data_completeness": "0.909",
   "flags": [],
