@@ -47,6 +47,15 @@ jobs:
             git fetch origin
  
             git reset --hard origin/main
+
+            if [ ! -f docker/nginx/.htpasswd ]; then
+                echo "ERROR: docker/nginx/.htpasswd not found!"
+                echo "Create it manually on the server before deploying:"
+                echo "   printf 'admin:\$(openssl passwd -apr1 YOUR_PASSWORD)\n' > docker/nginx/.htpasswd"
+                exit 1
+            fi
+            
+            echo ".htpasswd found, proceeding with deploy"
             
             docker-compose down
             
