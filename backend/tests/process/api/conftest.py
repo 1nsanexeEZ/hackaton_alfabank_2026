@@ -29,7 +29,7 @@ from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.infrastructure.consumers import (
     subscriptions as application_subscriptions,
 )
-from src.modules.process.infrastructure.consumers import subscriptions as process_subscriptions
+from src.modules.process.presentation.consumers import subscriptions as process_subscriptions
 from tests.applications.api.conftest import World, world  # noqa: F401  shared fixture
 from tests.helpers import bearer, token_for
 

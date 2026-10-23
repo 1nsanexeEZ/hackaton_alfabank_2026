@@ -3,15 +3,10 @@ start of the application, not a client's application in the middle."""
 
 from collections.abc import Mapping
 
-from src.modules.process.domain.steps import StepKind, StepSpec
-from src.modules.process.domain.workflow import NodeType, WorkflowDefinition
-
-
-class WorkflowValidationError(ValueError):
-    def __init__(self, code: str, problems: list[str]) -> None:
-        self.code = code
-        self.problems = problems
-        super().__init__(f"Workflow {code} is invalid: " + "; ".join(problems))
+from src.modules.process.domain.enums import NodeType, StepKind
+from src.modules.process.domain.exceptions import WorkflowValidationError
+from src.modules.process.domain.steps import StepSpec
+from src.modules.process.domain.workflow import WorkflowDefinition
 
 
 def validate(definition: WorkflowDefinition, steps: Mapping[str, StepSpec]) -> None:

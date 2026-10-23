@@ -7,10 +7,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.core.messaging.contracts.enrichment import FetchEnrichment, PersonRef
-from src.modules.process.application.service import command_contract
+from src.modules.process.application.mappers.messages import command_contract
+from src.modules.process.domain.enums import NodeType
 from src.modules.process.domain.steps import STEPS, PersonFact, StepInput
-from src.modules.process.domain.workflow import Node, NodeConfig, NodeType
-from src.modules.process.infrastructure.facts import ApplicationFacts
+from src.modules.process.domain.workflow import Node, NodeConfig
+from src.modules.process.infrastructure.adapters.application_facts import ApplicationFacts
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade

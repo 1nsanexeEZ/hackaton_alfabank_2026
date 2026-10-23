@@ -12,11 +12,11 @@ duplicate or a late reply from an earlier iteration of a loop is ignored.
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import StrEnum
 from typing import Self
 from uuid import UUID, uuid4
 
 from src.modules.process.domain.context import ProcessContext
+from src.modules.process.domain.enums import NodeType, OnFailure, ProcessStatus, StepKind, WaitKind
 from src.modules.process.domain.events import (
     ProcessCompleted,
     ProcessEvent,
@@ -30,33 +30,18 @@ from src.modules.process.domain.steps import (
     CommandRequest,
     ProcessFacts,
     StepInput,
-    StepKind,
     StepResult,
     StepSpec,
     Trigger,
 )
 from src.modules.process.domain.tasks import UserTask
-from src.modules.process.domain.workflow import Node, NodeType, OnFailure, WorkflowDefinition
+from src.modules.process.domain.workflow import Node, WorkflowDefinition
 
 # A route without waits that loops forever is a bug; stop instead of hanging.
 MAX_TRANSITIONS_PER_RUN = 200
 MANUAL_REVIEW_STEP = "underwriter_review"
 
 IdFactory = Callable[[], UUID]
-
-
-class ProcessStatus(StrEnum):
-    RUNNING = "running"
-    WAITING = "waiting"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class WaitKind(StrEnum):
-    COMMAND_REPLY = "command_reply"
-    CLIENT_EVENT = "client_event"
-    USER_TASK = "user_task"
 
 
 @dataclass(frozen=True, slots=True)

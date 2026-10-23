@@ -3,9 +3,10 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.types import SafeString
+from src.modules.process.presentation.schemas.processes import ProcessOut
 
 
 class TaskResultIn(BaseModel):
@@ -29,6 +30,8 @@ class TaskResultIn(BaseModel):
 
 
 class TaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     process_id: UUID
     application_id: UUID
@@ -44,41 +47,8 @@ class TaskOut(BaseModel):
     completed_by: UUID | None
 
 
-class StepOut(BaseModel):
-    node_id: str
-    step_code: str | None
-    kind: str
-    iteration: int
-    started_at: datetime
-    finished_at: datetime | None
-    outcome: str | None
-    client_stage: str | None
-    error: str | None
-
-
-class ProcessOut(BaseModel):
-    process_id: UUID
-    application_id: UUID
-    workflow_code: str
-    workflow_version: int
-    status: str
-    current_node_id: str | None
-    client_stage: str | None
-    # Node ids already passed — to highlight the path on the diagram.
-    visited_node_ids: list[str]
-    steps: list[StepOut]
-    started_at: datetime
-    finished_at: datetime | None
-
-
 class TaskDetailOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     task: TaskOut
     process: ProcessOut | None
-
-
-class WorkflowOut(BaseModel):
-    code: str
-    version: int
-    source_hash: str
-    nodes: int
-    flows: int

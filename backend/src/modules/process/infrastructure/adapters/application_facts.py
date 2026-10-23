@@ -9,10 +9,11 @@ from src.modules.process.domain.steps import (
     CompletenessFact,
     EnrichmentRequestFact,
     PersonFact,
+    ProcessFacts,
 )
 
 
-class ApplicationFacts:
+class ApplicationFacts(ProcessFacts):
     """What the steps need to know about the application, read through the
     applications facade (the data frozen at submission). The head of the company and
     their personal consent are read live: the consent may come after submission."""

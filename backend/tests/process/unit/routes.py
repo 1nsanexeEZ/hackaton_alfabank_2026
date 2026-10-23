@@ -9,19 +9,13 @@ from uuid import UUID
 
 from src.modules.process.domain.conditions import Condition
 from src.modules.process.domain.context import CONDITION_FIELDS, ProcessContext
+from src.modules.process.domain.enums import NodeType, OnFailure
 from src.modules.process.domain.steps import (
     CollateralFact,
     CompletenessFact,
     EnrichmentRequestFact,
 )
-from src.modules.process.domain.workflow import (
-    Edge,
-    Node,
-    NodeConfig,
-    NodeType,
-    OnFailure,
-    WorkflowDefinition,
-)
+from src.modules.process.domain.workflow import Edge, Node, NodeConfig, WorkflowDefinition
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 APPLICATION_ID = UUID("00000000-0000-0000-0000-0000000000a1")

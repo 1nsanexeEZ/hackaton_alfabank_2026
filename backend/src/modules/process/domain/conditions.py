@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from src.modules.process.domain.exceptions import ConditionError
+
 _TOKEN = re.compile(
     r"""\s*(?:
         (?P<string>"(?:[^"\\]|\\.)*")
@@ -29,10 +31,6 @@ _TOKEN = re.compile(
 _UNESCAPE = re.compile(r"\\(.)")
 _KEYWORDS = {"and", "or", "not", "in", "true", "false", "null"}
 _COMPARISONS = {"==", "!=", "<", "<=", ">", ">="}
-
-
-class ConditionError(ValueError):
-    pass
 
 
 @dataclass(frozen=True, slots=True)
