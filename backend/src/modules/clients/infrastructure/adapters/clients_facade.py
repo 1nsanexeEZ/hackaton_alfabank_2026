@@ -5,8 +5,10 @@ Built per session: reads join the caller's transaction."""
 from uuid import UUID
 
 from src.core.access.organizations import MemberOrganizationsResolver
+from src.modules.clients.application.dto.business_plan import BusinessPlanDTO
 from src.modules.clients.application.dto.membership import OrganizationSummaryDTO
 from src.modules.clients.application.dto.snapshot import OrganizationSnapshotDTO
+from src.modules.clients.application.use_cases.business_plan import FindBusinessPlanUseCase
 from src.modules.clients.application.use_cases.membership import (
     EnsureCanUseCase,
     GetMemberOrganizationIdsUseCase,
@@ -29,6 +31,7 @@ class ClientsFacadeImpl(ClientsFacade, MemberOrganizationsResolver):
         list_my_organizations: ListMyOrganizationsUseCase,
         list_members: ListMemberIdsUseCase,
         get_registry_head: GetRegistryHeadUseCase,
+        find_business_plan: FindBusinessPlanUseCase,
     ) -> None:
         self._ensure_can = ensure_can
         self._get_member_permissions = get_member_permissions
@@ -37,6 +40,7 @@ class ClientsFacadeImpl(ClientsFacade, MemberOrganizationsResolver):
         self._list_my_organizations = list_my_organizations
         self._list_members = list_members
         self._get_registry_head = get_registry_head
+        self._find_business_plan = find_business_plan
 
     async def ensure_can(self, account_id: UUID, organization_id: UUID, permission: str) -> None:
         await self._ensure_can.execute(account_id, organization_id, permission)
@@ -66,3 +70,6 @@ class ClientsFacadeImpl(ClientsFacade, MemberOrganizationsResolver):
 
     async def get_registry_head(self, organization_id: UUID) -> UUID | None:
         return await self._get_registry_head.execute(organization_id)
+
+    async def get_business_plan(self, organization_id: UUID) -> BusinessPlanDTO | None:
+        return await self._find_business_plan.execute(organization_id)

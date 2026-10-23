@@ -2,6 +2,7 @@ from uuid import UUID
 
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
 from src.modules.clients.facade import (
+    BusinessPlanDTO,
     MemberRole,
     OrganizationSnapshotDTO,
     OrganizationSummaryDTO,
@@ -26,6 +27,7 @@ class FakeClientsFacade:
         self.members: dict[tuple[UUID, UUID], tuple[MemberRole, frozenset[str]]] = {}
         # organization -> the member whose name matched the head in the registry.
         self.registry_heads: dict[UUID, UUID] = {}
+        self.business_plans: dict[UUID, BusinessPlanDTO] = {}
 
     def add_organization(self, snapshot: OrganizationSnapshotDTO) -> OrganizationSnapshotDTO:
         self.organizations[snapshot.id] = snapshot
@@ -95,3 +97,6 @@ class FakeClientsFacade:
 
     async def get_registry_head(self, organization_id: UUID) -> UUID | None:
         return self.registry_heads.get(organization_id)
+
+    async def get_business_plan(self, organization_id: UUID) -> BusinessPlanDTO | None:
+        return self.business_plans.get(organization_id)

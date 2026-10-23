@@ -1,6 +1,6 @@
 """SQLAlchemy models of clients. Tables are prefixed with `clients_`.
 
-All three tables take part in the `org_member` policy (OrganizationOwnedMixin):
+All tables take part in the `org_member` policy (OrganizationOwnedMixin):
 for the company itself `organization_id` is a synonym of its id.
 """
 
@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, synonym
@@ -99,3 +100,19 @@ class FinancialReportModel(UUIDPrimaryKeyMixin, OrganizationOwnedMixin, Base):
     monthly_debt_payments: Mapped[Decimal | None] = mapped_column(Amount)
     submitted_by: Mapped[UUID | None]
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class BusinessPlanModel(OrganizationOwnedMixin, Base):
+    """The business plan of a startup: one per company, revised in place. The financial model
+    is a document by the bank's template (`FinancialModel`), amounts as strings."""
+
+    __tablename__ = "clients_business_plans"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        ForeignKey("clients_organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    summary: Mapped[str] = mapped_column(Text)
+    financial_model: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    submitted_by: Mapped[UUID | None]
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int]
