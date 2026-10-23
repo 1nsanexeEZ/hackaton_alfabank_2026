@@ -56,6 +56,10 @@ policy_v6 — v5 и обязательные требования закона:
   Отказ по 115-ФЗ — исключение: обслуживать лицо из перечня закон запрещает.
 Клиенту — нейтральные тексты: о мерах по 115-ФЗ клиента не информируют.
 
+policy_v7 — стоп-факторы до модели, как на общей схеме: `screen` проверяет их отдельным шагом
+процесса до скоринга, сработал — решение без модели. В `decide` они тоже идут раньше проверки,
+есть ли результат скоринга: стоп-фактор даёт отказ, даже если скоринг не посчитался.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
 ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
@@ -207,6 +211,9 @@ class PolicyConfig:
     # решение только на основании автоматизированной обработки.
     automated_decision_forms: frozenset[str] = frozenset()
     automated_decision_outcomes: frozenset[str] = frozenset()
+    # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
+    # в policy_v1–v6: без скоринга сразу ручная проверка.
+    screen_before_scoring: bool = False
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -241,6 +248,12 @@ class CreditPolicy:
 
     def decide(self, inp: DecisionInput, *, key_rate: Decimal) -> PolicyDecision:
         return _Evaluation(self._c, self._x, inp, key_rate).run()
+
+    def screen(self, inp: DecisionInput, *, key_rate: Decimal) -> PolicyDecision | None:
+        """Стоп-факторы до скоринга: None — ни один не сработал, дальше модель; иначе решение
+        без модели — отказ (или ручная проверка, если по ст. 16 152-ФЗ отказ ИП без его согласия
+        готовит человек). Грейд здесь не нужен, результат скоринга не смотрим."""
+        return _Evaluation(self._c, self._x, replace(inp, score=None), key_rate).screen()
 
     def pre_approve(self, inp: PreApprovalInput, *, key_rate: Decimal) -> PreApproval | None:
         """Предодобренное предложение по продукту; None — предложить нечего (стоп-фактор,
@@ -514,7 +527,20 @@ class _Evaluation:
         aml_stops = self._aml_stops()
         if aml_stops:
             return self._result("REJECT", aml_stops)
+        if self._c.screen_before_scoring:
+            stops = self._screen_stops()
+            if stops:
+                return self._automated_decision_consent(self._result("REJECT", stops))
         return self._automated_decision_consent(self._decide())
+
+    def screen(self) -> PolicyDecision | None:
+        aml_stops = self._aml_stops()
+        if aml_stops:
+            return self._result("REJECT", aml_stops)
+        stops = self._screen_stops()
+        if not stops:
+            return None
+        return self._automated_decision_consent(self._result("REJECT", stops))
 
     def _decide(self) -> PolicyDecision:
         score = self._in.score
@@ -522,7 +548,11 @@ class _Evaluation:
             self._hit("input.scoring", True, "результата скоринга нет — решение за андеррайтером")
             return self._result("MANUAL_REVIEW", (ReasonCode.ROUTE_SOURCES_FAILED,))
 
-        stops = self._stop_factors(score)
+        stops = (
+            self._grade_stop(score)
+            if self._c.screen_before_scoring
+            else (*self._screen_stops(), *self._grade_stop(score))
+        )
         if stops:
             return self._result("REJECT", stops)
 
@@ -567,7 +597,8 @@ class _Evaluation:
 
     # --- 1. стоп-факторы ---------------------------------------------------------------------
 
-    def _stop_factors(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
+    def _screen_stops(self) -> tuple[ReasonCode, ...]:
+        """Стоп-факторы, которым модель не нужна: реестр, ФНС, БКИ, Контур, ГИР БО, предскрин."""
         company, bureau = self._in.company, self._in.bureau
         reasons: list[ReasonCode] = []
 
@@ -611,14 +642,15 @@ class _Evaluation:
         prescreen = self._founder_prescreen()
         if prescreen is not None:
             reasons.append(prescreen)
-
-        # В policy_v3 грейд отсекает матрица, а не стоп-фактор.
-        if self._c.stop_grades:
-            grade_stop = score.grade in self._c.stop_grades
-            self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
-            if grade_stop:
-                reasons.append(ReasonCode.STOP_GRADE_E)
         return tuple(reasons)
+
+    def _grade_stop(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
+        """policy_v1/v2: грейд E — стоп-фактор; в policy_v3 грейд отсекает матрица."""
+        if not self._c.stop_grades:
+            return ()
+        grade_stop = score.grade in self._c.stop_grades
+        self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
+        return (ReasonCode.STOP_GRADE_E,) if grade_stop else ()
 
     def _external_stops(self, reasons: list[ReasonCode]) -> None:
         """Стоп-факторы policy_v2: каждое правило — только если оно включено в YAML."""

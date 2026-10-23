@@ -71,7 +71,7 @@ async def test_catalog(facade: ProductsFacadeImpl) -> None:
 
 async def test_terms_snapshot(facade: ProductsFacadeImpl) -> None:
     terms = await facade.get_terms_snapshot("GOV_SUPPORT")
-    assert (terms.code, terms.version, terms.workflow_code) == ("GOV_SUPPORT", 1, "standard_v1")
+    assert (terms.code, terms.version, terms.workflow_code) == ("GOV_SUPPORT", 1, "standard_v2")
     assert (terms.rate_base, terms.rate_max) == (Decimal("12"), Decimal("15"))
     secured = await facade.get_terms_snapshot("SECURED")
     assert secured.collateral_required and secured.collateral_required_from is None

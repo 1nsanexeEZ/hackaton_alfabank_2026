@@ -142,7 +142,7 @@ def test_snapshot_copies_the_terms() -> None:
     assert terms.amount == secured.amount and terms.term == secured.term
     assert terms.collateral_required and terms.collateral_required_from is None
     assert terms.required_documents == secured.required_documents
-    assert terms.workflow_code == "secured_v1"
+    assert terms.workflow_code == "secured_v2"
     assert terms.auto_decision_limit == Money.of(10_000_000)
 
 

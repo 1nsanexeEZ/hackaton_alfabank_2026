@@ -181,7 +181,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             security=SecurityRequirement("none"),
             eligibility=Eligibility(6, ALL_FORMS, _rub(3 * MLN)),
             required_documents=_financials(from_amount=5 * MLN),
-            processing=ProcessingProfile("express_v1", _rub(5 * MLN)),
+            processing=ProcessingProfile("express_v2", _rub(5 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("SECURED"),
@@ -209,7 +209,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             ),
             eligibility=Eligibility(12, ALL_FORMS, _rub(10 * MLN)),
             required_documents=(*_financials(), COLLATERAL_DOCUMENTS),
-            processing=ProcessingProfile("secured_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("secured_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("CREDIT_LINE"),
@@ -240,7 +240,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             ),
             eligibility=Eligibility(12, ALL_FORMS, _rub(12 * MLN)),
             required_documents=_financials(),
-            processing=ProcessingProfile("standard_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("standard_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("OVERDRAFT"),
@@ -267,7 +267,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             security=SecurityRequirement("none"),
             eligibility=Eligibility(6, ALL_FORMS, _rub(5 * MLN)),
             required_documents=(BANK_STATEMENT,),
-            processing=ProcessingProfile("express_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("express_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("AUTO"),
@@ -295,7 +295,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             eligibility=Eligibility(6, ALL_FORMS, _rub(5 * MLN)),
             required_documents=(PURCHASE_CONTRACT,),
             application_fields_schema=AUTO_FIELDS,
-            processing=ProcessingProfile("secured_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("secured_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("MORTGAGE"),
@@ -328,7 +328,7 @@ def catalog() -> tuple[CreditProduct, ...]:
                 COLLATERAL_DOCUMENTS,
             ),
             application_fields_schema=MORTGAGE_FIELDS,
-            processing=ProcessingProfile("mortgage_v1", _rub(0)),
+            processing=ProcessingProfile("mortgage_v2", _rub(0)),
         ),
         CreditProduct(
             code=ProductCode("REFINANCE"),
@@ -358,7 +358,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             eligibility=Eligibility(12, ALL_FORMS, _rub(10 * MLN)),
             required_documents=(EXISTING_LOANS,),
             application_fields_schema=REFINANCE_FIELDS,
-            processing=ProcessingProfile("standard_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("standard_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("GOV_SUPPORT"),
@@ -392,7 +392,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             target_use_confirmation=True,
             eligibility=Eligibility(12, ALL_FORMS, _rub(10 * MLN)),
             required_documents=_financials(),
-            processing=ProcessingProfile("standard_v1", _rub(10 * MLN)),
+            processing=ProcessingProfile("standard_v2", _rub(10 * MLN)),
         ),
         CreditProduct(
             code=ProductCode("STARTUP"),
@@ -429,7 +429,7 @@ def catalog() -> tuple[CreditProduct, ...]:
             eligibility=Eligibility(0, ALL_FORMS, None, startup_only=True),
             required_documents=(BUSINESS_PLAN, FINANCIAL_MODEL),
             # Проектная оценка: каждую заявку решает андеррайтер.
-            processing=ProcessingProfile("startup_v1", _rub(0)),
+            processing=ProcessingProfile("startup_v2", _rub(0)),
         ),
     )
 

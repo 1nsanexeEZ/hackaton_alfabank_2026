@@ -1,0 +1,127 @@
+{
+  "policy_version": "policy_v7",
+  "key_rate": "16.50",
+  "outcome": "REJECT",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "STOP_LIQUIDATION",
+    "STOP_OVERDUE_90",
+    "STOP_CURRENT_OVERDUE",
+    "STOP_HEAD_OVERDUE",
+    "STOP_ACCOUNT_BLOCKS",
+    "STOP_TAX_ARREARS",
+    "STOP_LARGE_ENFORCEMENT",
+    "STOP_LARGE_LAWSUITS",
+    "STOP_NEGATIVE_EQUITY"
+  ],
+  "client_explanation": "К сожалению, сейчас мы не можем одобрить заявку. По данным государственного реестра компания находится в процессе ликвидации. Решение принято по результатам проверки кредитной истории. Решение принято по результатам проверки кредитной истории руководителя компании. По данным ФНС операции по счетам компании приостановлены. По данным ФНС у компании значительная задолженность по налогам. У компании крупные исполнительные производства по сравнению с её выручкой. Сумма исков к компании велика по сравнению с её выручкой. По бухгалтерской отчётности собственный капитал компании отрицательный.",
+  "improvement_hints": [
+    "Погашение текущей задолженности перед другими кредиторами улучшит оценку.",
+    "Погашение текущей просрочки по личным кредитам руководителя улучшит оценку.",
+    "Когда налоговая отменит приостановление, подайте заявку снова.",
+    "Погасите задолженность перед бюджетом и подайте заявку снова."
+  ],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "aml.lists",
+      "matched": false,
+      "detail": "совпадений с перечнями нет (перечни на 2026-10-21); бенефициары: Закатов Олег Олегович — 100.00%"
+    },
+    {
+      "rule": "aml.zsk_stop",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "stop.registry_status",
+      "matched": true,
+      "detail": "статус по ЕГРЮЛ: liquidating"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": true,
+      "detail": "максимальная просрочка 120 дн., порог > 90"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": true,
+      "detail": "текущая просрочка компании 120 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": true,
+      "detail": "текущая просрочка руководителя 45 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": true,
+      "detail": "решений о приостановлении операций по счетам: 1"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": true,
+      "detail": "недоимка 350 000, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": true,
+      "detail": "исполнительные производства 2 600 000, порог > 0.1 × выручка 18 000 000 (ГИР БО за 2025) = 1 800 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": true,
+      "detail": "иски к компании 5 200 000, порог > 0.2 × выручка 18 000 000 (ГИР БО за 2025) = 3 600 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": true,
+      "detail": "собственный капитал за 2025: -2 400 000"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 47.19 — не в стоп-листе"
+    }
+  ],
+  "limits": {
+    "by_product": null,
+    "by_revenue": null,
+    "by_ltv": null,
+    "by_capacity": null,
+    "final": null,
+    "by_turnover": null,
+    "by_grade": null,
+    "by_group": null,
+    "binding": null
+  },
+  "rate": null,
+  "triggers": [],
+  "rate_breakdown": null,
+  "scoring": {
+    "score": 400,
+    "grade": "J",
+    "flags": [],
+    "ml": {
+      "grade": "J",
+      "pd_12m": "0.2432"
+    }
+  },
+  "review": null
+}

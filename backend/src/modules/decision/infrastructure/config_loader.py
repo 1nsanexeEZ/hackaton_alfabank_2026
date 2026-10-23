@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v6`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v7`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v6"
+_DEFAULT_POLICY = "policy_v7"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -65,6 +65,8 @@ class _StopFactors(_Strict):
     negative_equity: bool = False
     mass_address: bool = False
     okved_classes: list[str] = Field(default_factory=list)
+    # policy_v7: стоп-факторы до модели и до проверки, есть ли результат скоринга.
+    before_scoring: bool = False
 
 
 class _InfoRequest(_Strict):
@@ -459,6 +461,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         automated_decision_outcomes=frozenset(consent.outcomes)
         if consent is not None
         else frozenset(),
+        screen_before_scoring=stops.before_scoring,
     )
 
 

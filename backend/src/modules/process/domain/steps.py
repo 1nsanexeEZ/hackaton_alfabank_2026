@@ -253,6 +253,22 @@ async def _assess_collateral(step: StepInput) -> StepResult:
     return StepResult.done({"collateral_value": value})
 
 
+async def _check_stop_factors(step: StepInput) -> StepResult:
+    return StepResult.send_and_wait(
+        CommandRequest("CheckStopFactors", _ids(step.context)),
+        {"StopFactorsPassed", "DecisionMade"},
+    )
+
+
+def _stop_reply(step: StepInput, trigger: Trigger) -> StepResult:
+    """No stop factor — on to scoring; a stop factor — the decision is already made and the
+    route goes to the outcome gateway without the scoring model."""
+    if trigger.type == "StopFactorsPassed":
+        return StepResult.done({"stopped": False})
+    decided = _decision_reply(step, trigger)
+    return StepResult.done({**decided.updates, "stopped": True})
+
+
 async def _calculate_score(step: StepInput) -> StepResult:
     return StepResult.send_and_wait(
         CommandRequest("CalculateScore", _ids(step.context)),
@@ -508,6 +524,13 @@ _SPECS = [
         "Проверяем данные о компании",
         _fetch_enrichment,
         _enrichment_reply,
+    ),
+    StepSpec(
+        "check_stop_factors",
+        StepKind.ASYNC,
+        "Проверяем данные о компании",
+        _check_stop_factors,
+        _stop_reply,
     ),
     StepSpec("assess_collateral", StepKind.IMMEDIATE, "Оцениваем залог", _assess_collateral),
     StepSpec("calculate_score", StepKind.ASYNC, "Оцениваем заявку", _calculate_score, _score_reply),

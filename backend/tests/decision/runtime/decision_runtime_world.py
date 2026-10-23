@@ -14,11 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.decision import (
+    CheckStopFactors,
     MakeDecision,
     ManualTerms,
     RecordManualDecision,
     RequestedInfo,
 )
+from src.modules.decision.application.check_stop_factors import CheckStopFactorsUseCase
 from src.modules.decision.application.make_decision import MakeDecisionUseCase
 from src.modules.decision.application.record_manual_decision import RecordManualDecisionUseCase
 from src.modules.decision.domain.policy import CreditPolicy
@@ -57,6 +59,28 @@ async def make_decision(
         )
         await use_case.execute(
             MakeDecision(application_id=world.application_id),
+            command_event_id=event_id or uuid4(),
+            outbox=outbox,
+        )
+        await session.commit()
+    return outbox
+
+
+async def check_stop_factors(
+    sessions: Sessions, world: DecisionWorld, event_id: UUID | None = None
+) -> FakeOutboxWriter:
+    policy = default_policy()
+    outbox = FakeOutboxWriter()
+    async with sessions() as session:
+        use_case = CheckStopFactorsUseCase(
+            SqlAlchemyDecisionRepository(session),
+            policy,
+            world.builder(policy),
+            FrozenClock(NOW),
+            KEY_RATE,
+        )
+        await use_case.execute(
+            CheckStopFactors(application_id=world.application_id),
             command_event_id=event_id or uuid4(),
             outbox=outbox,
         )

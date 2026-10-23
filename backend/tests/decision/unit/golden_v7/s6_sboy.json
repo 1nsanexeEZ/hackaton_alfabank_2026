@@ -1,0 +1,262 @@
+{
+  "policy_version": "policy_v7",
+  "key_rate": "16.50",
+  "outcome": "MANUAL_REVIEW",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "ROUTE_SOURCES_FAILED"
+  ],
+  "client_explanation": "Заявку рассмотрит специалист банка, обычно это занимает до двух рабочих дней. Один из источников данных временно не ответил, поэтому заявку проверит специалист.",
+  "improvement_hints": [],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "aml.lists",
+      "matched": false,
+      "detail": "совпадений с перечнями нет (перечни на 2026-10-21); бенефициары: Сбоев Семён Семёнович — 100.00%"
+    },
+    {
+      "rule": "aml.zsk_stop",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "БКИ недоступно — проверка не выполнена"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": false,
+      "detail": "БКИ недоступно — проверка не выполнена"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": false,
+      "detail": "БКИ руководителя не ответило — проверка не выполнена"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": false,
+      "detail": "решений о приостановлении операций по счетам: 0"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": false,
+      "detail": "недоимка 0, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": false,
+      "detail": "исполнительные производства 0, порог > 0.1 × выручка 24 000 000 (ГИР БО за 2025) = 2 400 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": false,
+      "detail": "иски к компании 0, порог > 0.2 × выручка 24 000 000 (ГИР БО за 2025) = 4 800 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": false,
+      "detail": "собственный капитал за 2025: 5 200 000"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 46.90 — не в стоп-листе"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": false,
+      "detail": "выручка не расходится с ФНС и выпиской"
+    },
+    {
+      "rule": "pricing.funding",
+      "matched": true,
+      "detail": "фондирование: ключевая 16.50% + спред 1.00% = 17.50%"
+    },
+    {
+      "rule": "pricing.expected_loss",
+      "matched": true,
+      "detail": "ожидаемые потери: PD 0.0059 × LGD 0.45 = 0.27% (залога нет)"
+    },
+    {
+      "rule": "pricing.capital",
+      "matched": true,
+      "detail": "стоимость капитала 2.00%"
+    },
+    {
+      "rule": "pricing.margin",
+      "matched": true,
+      "detail": "маржа 3.50%"
+    },
+    {
+      "rule": "pricing.corridor",
+      "matched": true,
+      "detail": "23.27% в коридоре продукта [23.50%; 30.00%] → 23.50%"
+    },
+    {
+      "rule": "limits.product",
+      "matched": false,
+      "detail": "максимум продукта 30 000 000"
+    },
+    {
+      "rule": "limits.revenue",
+      "matched": false,
+      "detail": "k(B) 0.45 × выручка 24 000 000 (меньшая из заявленной и ФНС) = 10 800 000"
+    },
+    {
+      "rule": "limits.free_cash_flow",
+      "matched": true,
+      "detail": "по отчёту: (25 000 000 − 21 000 000) / 12 − платежи по кредитам 0 = 333 333,33 в месяц"
+    },
+    {
+      "rule": "limits.payment_capacity",
+      "matched": false,
+      "detail": "платёж ≤ 133 333,33 в месяц: при 12 мес. и 23.50% сумма до 1 413 660,41"
+    },
+    {
+      "rule": "limits.turnover",
+      "matched": false,
+      "detail": "выписки нет — по оборотам не ограничиваем"
+    },
+    {
+      "rule": "limits.grade",
+      "matched": false,
+      "detail": "максимум для грейда B: 50 000 000"
+    },
+    {
+      "rule": "limits.group",
+      "matched": false,
+      "detail": "БКИ недоступно — долг группы неизвестен"
+    },
+    {
+      "rule": "limits.final",
+      "matched": true,
+      "detail": "лимит 1 413 660,41: минимум — by_capacity"
+    },
+    {
+      "rule": "route.aml_incomplete",
+      "matched": false,
+      "detail": "проверка по 115-ФЗ выполнена"
+    },
+    {
+      "rule": "route.pep",
+      "matched": false,
+      "detail": "ПДЛ нет"
+    },
+    {
+      "rule": "route.zsk",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "route.auto_decision_limit",
+      "matched": false,
+      "detail": "сумма 1 000 000, лимит автоматического решения 5 000 000"
+    },
+    {
+      "rule": "route.verification_mismatch",
+      "matched": false,
+      "detail": "флага verification_mismatch нет"
+    },
+    {
+      "rule": "route.revenue_mismatch",
+      "matched": false,
+      "detail": "флага revenue_mismatch нет"
+    },
+    {
+      "rule": "route.bureau_unavailable",
+      "matched": true,
+      "detail": "не ответили источники: bki, bki_head"
+    },
+    {
+      "rule": "route.mass_address",
+      "matched": false,
+      "detail": "флага mass_address нет"
+    },
+    {
+      "rule": "route.thin_file",
+      "matched": false,
+      "detail": "нет"
+    },
+    {
+      "rule": "trigger.tax_arrears",
+      "matched": false,
+      "detail": "недоимка по налогам 0"
+    },
+    {
+      "rule": "trigger.head_change",
+      "matched": false,
+      "detail": "руководитель по ЕГРЮЛ не менялся с регистрации"
+    },
+    {
+      "rule": "trigger.turnover_spike",
+      "matched": false,
+      "detail": "выписки нет или она короче двух периодов — проверка не выполнена"
+    },
+    {
+      "rule": "strategy.two_models",
+      "matched": false,
+      "detail": "PD-модель: грейд B (PD 0.59%) — зелёная; ML-модель: грейд C (PD 1.30%) — зелёная → одобрение, дальше лимиты"
+    },
+    {
+      "rule": "cash_gap.forecast",
+      "matched": false,
+      "detail": "кассовый разрыв не прогнозируется"
+    }
+  ],
+  "limits": {
+    "by_product": "30000000.00",
+    "by_revenue": "10800000.00",
+    "by_ltv": null,
+    "by_capacity": "1413660.41",
+    "final": "1413660.41",
+    "by_turnover": null,
+    "by_grade": "50000000.00",
+    "by_group": null,
+    "binding": "by_capacity"
+  },
+  "rate": "23.50",
+  "triggers": [],
+  "rate_breakdown": {
+    "funding": "17.50",
+    "expected_loss": "0.27",
+    "capital": "2.0",
+    "margin": "3.5",
+    "total": "23.50"
+  },
+  "scoring": {
+    "score": 775,
+    "grade": "B",
+    "flags": [
+      "bureau_unavailable"
+    ],
+    "ml": {
+      "grade": "C",
+      "pd_12m": "0.0130"
+    }
+  },
+  "review": "dispute"
+}
