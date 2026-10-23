@@ -252,6 +252,10 @@ sequenceDiagram
     M-->>E: ответы (таймауты, ретраи)
     E->>K: EnrichmentCompleted · enrichment.events
     K->>P: EnrichmentCompleted
+    P->>K: CheckStopFactors · decision.commands
+    K->>D: CheckStopFactors: стоп-факторы до модели (CreditPolicy.screen)
+    D->>K: StopFactorsPassed · decision.events (стоп-фактор — сразу DecisionMade, без скоринга)
+    K->>P: StopFactorsPassed → шлюз «Стоп-фактор?»
     P->>K: CalculateScore · scoring.commands
     K->>S: CalculateScore (фасады applications.get_scoring_input, enrichment.get_snapshot)
     S->>K: ScoreCalculated · scoring.events
