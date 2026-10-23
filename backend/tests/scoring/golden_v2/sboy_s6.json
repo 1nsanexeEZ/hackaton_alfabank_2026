@@ -4,11 +4,7 @@
   "score": 775,
   "pd_12m": "0.0059",
   "grade": "B",
-  "reason_codes": [
-    "bureau_overdue",
-    "industry_risk",
-    "revenue_trend"
-  ],
+  "reason_codes": [],
   "data_completeness": "0.727",
   "flags": [
     "bureau_unavailable"

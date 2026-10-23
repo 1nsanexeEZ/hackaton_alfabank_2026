@@ -35,7 +35,7 @@ class MlScoreDTO:
     score: int
     grade: Grade
     factors: tuple[FactorDTO, ...]
-    # Top three features by the points lost against their best bin.
+    # Top three features that lowered the score, by the points lost against their best bin.
     reason_codes: tuple[str, ...]
 
 
@@ -54,7 +54,7 @@ class ScoringResultDTO:
     scorecard: str | None = None
     # Probability of default within 12 months, a share: "0.0340" is 3.4%.
     pd_12m: Decimal | None = None
-    # Top three features by the points lost.
+    # Top three features that lowered the score, by the points lost.
     reason_codes: tuple[str, ...] = ()
     # The ML model next to the PD model; None for results computed before it.
     ml: MlScoreDTO | None = None

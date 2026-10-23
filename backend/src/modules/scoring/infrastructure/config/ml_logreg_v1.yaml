@@ -1,7 +1,7 @@
 # ML-модель скоринга — генерируется `uv run --group ml python -m ml.train`,
 # руками не править: метрики и паритет с обучением — в metadata и ml/reports.
 version: ml_logreg_v1
-intercept: '-3.371946'
+intercept: '-3.363140'
 scaling:
   base_score: '600'
   base_odds: '50'
@@ -47,7 +47,7 @@ features:
 - name: business_age_months
   title: Возраст бизнеса, мес.
   kind: numeric
-  coef: '-0.665019'
+  coef: '-0.666659'
   missing_woe: '0.000000'
   bins:
   - upper: '12'
@@ -68,7 +68,7 @@ features:
 - name: revenue_growth
   title: Рост выручки год к году
   kind: numeric
-  coef: '-0.478291'
+  coef: '-0.473557'
   missing_woe: '-0.335497'
   bins:
   - upper: '-0.2'
@@ -80,7 +80,7 @@ features:
 - name: debt_service_ratio
   title: Платежи по кредитам / месячная выручка
   kind: numeric
-  coef: '-0.836959'
+  coef: '-0.854040'
   missing_woe: '0.000000'
   bins:
   - upper: '0.15'
@@ -98,7 +98,7 @@ features:
 - name: amount_to_revenue
   title: Сумма кредита / годовая выручка
   kind: numeric
-  coef: '-0.324978'
+  coef: '-0.320728'
   missing_woe: '0.000000'
   bins:
   - upper: '0.1'
@@ -116,8 +116,8 @@ features:
 - name: revenue_gap
   title: Расхождение выручки с ФНС
   kind: numeric
-  coef: '-1.137385'
-  missing_woe: '-0.202045'
+  coef: '-1.144570'
+  missing_woe: '0.000000'
   bins:
   - upper: '0.15'
     woe: '0.132538'
@@ -131,8 +131,8 @@ features:
 - name: bureau_inquiries
   title: Запросы в БКИ за 30 дней
   kind: numeric
-  coef: '-0.857071'
-  missing_woe: '0.065616'
+  coef: '-0.860810'
+  missing_woe: '0.000000'
   bins:
   - upper: '2'
     woe: '0.370663'
@@ -149,7 +149,7 @@ features:
 - name: bureau_overdue
   title: Макс. просрочка за 12 мес.
   kind: category
-  coef: '-0.905759'
+  coef: '-0.906856'
   missing_woe: '0.000000'
   categories:
     '0': '0.122199'
@@ -157,19 +157,19 @@ features:
     31-90: '-1.074933'
     90+: '-1.888445'
     no_history: '0.374828'
-    unavailable: '0.066136'
+    unavailable: '0.000000'
 - name: tax_arrears
   title: Налоговая недоимка
   kind: category
-  coef: '-0.669852'
-  missing_woe: '-0.202566'
+  coef: '-0.704025'
+  missing_woe: '0.000000'
   categories:
     'no': '0.070173'
     'yes': '-0.589018'
 - name: industry_risk
   title: Отраслевой риск
   kind: category
-  coef: '-0.754454'
+  coef: '-0.753646'
   missing_woe: '0.000000'
   categories:
     high: '-0.507395'
@@ -178,7 +178,7 @@ features:
 - name: cash_gap
   title: Кассовый разрыв по выписке
   kind: category
-  coef: '-0.381977'
+  coef: '-0.378167'
   missing_woe: '0.000000'
   categories:
     gap: '-0.126535'
@@ -199,10 +199,10 @@ metadata:
     test:
       default_rate: 0.033
       ml:
-        roc_auc: 0.7509
-        gini: 0.5018
-        ks: 0.3886
-        brier: 0.0305
+        roc_auc: 0.7522
+        gini: 0.5044
+        ks: 0.3865
+        brier: 0.0304
         mean_pd: 0.0331
       pd_model_v2:
         roc_auc: 0.6793
@@ -217,9 +217,9 @@ metadata:
     out_of_time:
       default_rate: 0.0464
       ml:
-        roc_auc: 0.7571
-        gini: 0.5141
-        ks: 0.3876
+        roc_auc: 0.7582
+        gini: 0.5164
+        ks: 0.3854
         brier: 0.0415
         mean_pd: 0.0398
       pd_model_v2:
@@ -233,6 +233,6 @@ metadata:
         gini: 0.4327
         ks: 0.3154
     stability_psi_train_vs_out_of_time:
-      ml: 0.045
+      ml: 0.0454
       pd_model_v2: 0.0212
   parity_max_abs_pd_diff_vs_sklearn: 5.0e-05

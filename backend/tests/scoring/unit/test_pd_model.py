@@ -124,9 +124,18 @@ def test_reason_codes_are_top_three_lost_points() -> None:
     assert out.reason_codes == ("bureau_overdue", "tax_arrears", "revenue_trend")
 
 
-def test_reason_codes_of_a_clean_company_name_only_what_it_lost() -> None:
+def test_reason_codes_of_a_clean_company_name_only_what_lowered_the_score() -> None:
+    # Выписки нет: кассовый разрыв — 0 баллов, балл не снижал, хотя до «не прогнозируется» (+10)
+    # не добрал.
     out = MODEL.calculate(ROMASHKA)
-    assert out.reason_codes == ("industry_risk", "cash_gap")
+    assert out.reason_codes == ("industry_risk",)
+
+
+def test_bureau_outage_is_not_a_reason() -> None:
+    # БКИ не ответило: бюро-признаки с нулём баллов — не причина, а наш сбой.
+    out = MODEL.calculate(SCENARIOS["sboy_s6"])
+    assert "bureau_unavailable" in out.flags
+    assert out.reason_codes == ()
 
 
 def test_flags_match_the_previous_card() -> None:

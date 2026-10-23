@@ -5,9 +5,7 @@
   "pd_12m": "0.0153",
   "grade": "C",
   "reason_codes": [
-    "revenue_consistency",
-    "amount_to_revenue",
-    "business_age"
+    "revenue_consistency"
   ],
   "data_completeness": "0.909",
   "flags": [

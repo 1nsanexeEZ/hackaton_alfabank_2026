@@ -45,7 +45,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0390",
+   "pd_12m": "0.0389",
    "score": 559,
    "grade": "E",
    "reason_codes": [
@@ -98,13 +98,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0142",
+   "pd_12m": "0.0143",
    "score": 619,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -151,13 +150,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0242",
-   "score": 588,
+   "pd_12m": "0.0245",
+   "score": 587,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
     "cash_gap",
-    "business_age_months"
+    "amount_to_revenue"
    ]
   },
   {
@@ -204,8 +203,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0325",
-   "score": 570,
+   "pd_12m": "0.0334",
+   "score": 568,
    "grade": "E",
    "reason_codes": [
     "debt_service_ratio",
@@ -257,7 +256,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0940",
+   "pd_12m": "0.0947",
    "score": 505,
    "grade": "H",
    "reason_codes": [
@@ -310,7 +309,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1590",
+   "pd_12m": "0.1606",
    "score": 470,
    "grade": "I",
    "reason_codes": [
@@ -363,13 +362,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0191",
+   "pd_12m": "0.0193",
    "score": 601,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -416,13 +414,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0223",
+   "pd_12m": "0.0225",
    "score": 592,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
     "cash_gap",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -473,9 +471,7 @@
    "score": 598,
    "grade": "D",
    "reason_codes": [
-    "bureau_overdue",
-    "cash_gap",
-    "industry_risk"
+    "bureau_overdue"
    ]
   },
   {
@@ -522,7 +518,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0610",
+   "pd_12m": "0.0614",
    "score": 532,
    "grade": "G",
    "reason_codes": [
@@ -575,13 +571,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0367",
-   "score": 563,
-   "grade": "E",
+   "pd_12m": "0.0258",
+   "score": 584,
+   "grade": "D",
    "reason_codes": [
-    "bureau_overdue",
-    "revenue_gap",
-    "cash_gap"
+    "bureau_overdue"
    ]
   },
   {
@@ -628,13 +622,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0313",
-   "score": 572,
+   "pd_12m": "0.0322",
+   "score": 571,
    "grade": "E",
    "reason_codes": [
     "tax_arrears",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -683,13 +677,12 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0234",
-   "score": 590,
+   "pd_12m": "0.0262",
+   "score": 583,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
-    "bureau_overdue"
+    "revenue_growth"
    ]
   },
   {
@@ -736,14 +729,10 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0098",
+   "pd_12m": "0.0097",
    "score": 641,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "bureau_overdue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -795,7 +784,7 @@
    "reason_codes": [
     "cash_gap",
     "bureau_inquiries",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -845,10 +834,7 @@
    "pd_12m": "0.0064",
    "score": 665,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -894,8 +880,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0289",
-   "score": 577,
+   "pd_12m": "0.0292",
+   "score": 576,
    "grade": "E",
    "reason_codes": [
     "bureau_inquiries",
@@ -947,9 +933,9 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0399",
+   "pd_12m": "0.0401",
    "score": 558,
-   "grade": "E",
+   "grade": "F",
    "reason_codes": [
     "business_age_months",
     "cash_gap",
@@ -1002,13 +988,12 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0152",
-   "score": 615,
+   "pd_12m": "0.0172",
+   "score": 608,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "bureau_overdue"
+    "debt_service_ratio"
    ]
   },
   {
@@ -1055,13 +1040,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0172",
-   "score": 608,
+   "pd_12m": "0.0174",
+   "score": 607,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -1108,13 +1091,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0243",
+   "pd_12m": "0.0242",
    "score": 587,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
-    "bureau_inquiries"
+    "bureau_inquiries",
+    "revenue_growth"
    ]
   },
   {
@@ -1161,13 +1144,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0138",
-   "score": 621,
+   "pd_12m": "0.0139",
+   "score": 620,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "bureau_overdue"
+    "debt_service_ratio"
    ]
   },
   {
@@ -1214,13 +1196,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0132",
+   "pd_12m": "0.0133",
    "score": 623,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "revenue_growth"
    ]
   },
   {
@@ -1267,13 +1248,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0268",
+   "pd_12m": "0.0269",
    "score": 581,
    "grade": "D",
    "reason_codes": [
     "revenue_gap",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -1320,13 +1300,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0251",
+   "pd_12m": "0.0253",
    "score": 585,
    "grade": "D",
    "reason_codes": [
     "industry_risk",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -1373,7 +1353,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0527",
+   "pd_12m": "0.0529",
    "score": 541,
    "grade": "F",
    "reason_codes": [
@@ -1430,9 +1410,7 @@
    "score": 656,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
+    "cash_gap"
    ]
   },
   {
@@ -1483,9 +1461,7 @@
    "score": 620,
    "grade": "C",
    "reason_codes": [
-    "industry_risk",
-    "cash_gap",
-    "bureau_overdue"
+    "industry_risk"
    ]
   },
   {
@@ -1537,8 +1513,8 @@
    "grade": "D",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
-    "bureau_inquiries"
+    "bureau_inquiries",
+    "revenue_growth"
    ]
   },
   {
@@ -1587,13 +1563,12 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0170",
-   "score": 608,
-   "grade": "C",
+   "pd_12m": "0.0190",
+   "score": 602,
+   "grade": "D",
    "reason_codes": [
     "industry_risk",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -1640,7 +1615,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0231",
+   "pd_12m": "0.0232",
    "score": 590,
    "grade": "D",
    "reason_codes": [
@@ -1746,8 +1721,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0644",
-   "score": 529,
+   "pd_12m": "0.0650",
+   "score": 528,
    "grade": "G",
    "reason_codes": [
     "bureau_overdue",
@@ -1801,12 +1776,11 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0158",
-   "score": 613,
-   "grade": "C",
+   "pd_12m": "0.0178",
+   "score": 606,
+   "grade": "D",
    "reason_codes": [
     "business_age_months",
-    "bureau_overdue",
     "revenue_growth"
    ]
   },
@@ -1854,8 +1828,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0235",
-   "score": 589,
+   "pd_12m": "0.0234",
+   "score": 590,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
@@ -1907,8 +1881,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0711",
-   "score": 523,
+   "pd_12m": "0.0718",
+   "score": 522,
    "grade": "G",
    "reason_codes": [
     "revenue_gap",
@@ -1960,8 +1934,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0429",
-   "score": 553,
+   "pd_12m": "0.0442",
+   "score": 552,
    "grade": "F",
    "reason_codes": [
     "industry_risk",
@@ -2015,14 +1989,10 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0087",
-   "score": 648,
+   "pd_12m": "0.0098",
+   "score": 641,
    "grade": "B",
-   "reason_codes": [
-    "business_age_months",
-    "bureau_overdue",
-    "bureau_inquiries"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -2068,7 +2038,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1272",
+   "pd_12m": "0.1277",
    "score": 485,
    "grade": "H",
    "reason_codes": [
@@ -2121,8 +2091,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1430",
-   "score": 478,
+   "pd_12m": "0.1452",
+   "score": 477,
    "grade": "I",
    "reason_codes": [
     "revenue_gap",
@@ -2174,13 +2144,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0179",
-   "score": 605,
-   "grade": "D",
+   "pd_12m": "0.0126",
+   "score": 626,
+   "grade": "C",
    "reason_codes": [
-    "revenue_gap",
-    "bureau_inquiries",
-    "business_age_months"
+    "bureau_inquiries"
    ]
   },
   {
@@ -2227,13 +2195,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0144",
+   "pd_12m": "0.0143",
    "score": 618,
    "grade": "C",
    "reason_codes": [
     "industry_risk",
-    "cash_gap",
-    "business_age_months"
+    "amount_to_revenue"
    ]
   },
   {
@@ -2280,8 +2247,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0688",
-   "score": 525,
+   "pd_12m": "0.0692",
+   "score": 524,
    "grade": "G",
    "reason_codes": [
     "business_age_months",
@@ -2333,8 +2300,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0151",
-   "score": 615,
+   "pd_12m": "0.0150",
+   "score": 616,
    "grade": "C",
    "reason_codes": [
     "business_age_months",
@@ -2386,13 +2353,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0584",
-   "score": 535,
+   "pd_12m": "0.0592",
+   "score": 534,
    "grade": "F",
    "reason_codes": [
     "bureau_inquiries",
     "debt_service_ratio",
-    "cash_gap"
+    "amount_to_revenue"
    ]
   },
   {
@@ -2439,13 +2406,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0299",
+   "pd_12m": "0.0300",
    "score": 575,
    "grade": "E",
    "reason_codes": [
-    "bureau_inquiries",
-    "cash_gap",
-    "bureau_overdue"
+    "bureau_inquiries"
    ]
   },
   {
@@ -2492,13 +2457,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0150",
+   "pd_12m": "0.0151",
    "score": 616,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -2545,13 +2509,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0163",
-   "score": 611,
+   "pd_12m": "0.0165",
+   "score": 610,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -2598,13 +2560,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0229",
-   "score": 591,
-   "grade": "D",
+   "pd_12m": "0.0162",
+   "score": 611,
+   "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "revenue_gap",
-    "cash_gap"
+    "debt_service_ratio"
    ]
   },
   {
@@ -2651,7 +2611,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0294",
+   "pd_12m": "0.0296",
    "score": 576,
    "grade": "E",
    "reason_codes": [
@@ -2704,13 +2664,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0251",
+   "pd_12m": "0.0253",
    "score": 585,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -2757,13 +2717,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0274",
-   "score": 580,
+   "pd_12m": "0.0273",
+   "score": 581,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
     "industry_risk",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -2810,13 +2770,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0334",
+   "pd_12m": "0.0337",
    "score": 568,
    "grade": "E",
    "reason_codes": [
     "industry_risk",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -2863,12 +2823,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0104",
-   "score": 637,
+   "pd_12m": "0.0105",
+   "score": 636,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
     "amount_to_revenue"
    ]
   },
@@ -2916,7 +2875,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0377",
+   "pd_12m": "0.0379",
    "score": 561,
    "grade": "E",
    "reason_codes": [
@@ -2969,8 +2928,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0900",
-   "score": 508,
+   "pd_12m": "0.0913",
+   "score": 507,
    "grade": "H",
    "reason_codes": [
     "revenue_gap",
@@ -3022,13 +2981,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0181",
-   "score": 605,
+   "pd_12m": "0.0182",
+   "score": 604,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "cash_gap"
    ]
   },
   {
@@ -3075,13 +3033,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0141",
-   "score": 619,
+   "pd_12m": "0.0144",
+   "score": 618,
    "grade": "C",
    "reason_codes": [
     "tax_arrears",
-    "cash_gap",
-    "bureau_overdue"
+    "amount_to_revenue"
    ]
   },
   {
@@ -3128,13 +3085,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0106",
+   "pd_12m": "0.0107",
    "score": 636,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "bureau_overdue"
+    "debt_service_ratio"
    ]
   },
   {
@@ -3185,9 +3141,7 @@
    "score": 627,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "bureau_inquiries",
-    "bureau_overdue"
+    "bureau_inquiries"
    ]
   },
   {
@@ -3239,7 +3193,6 @@
    "grade": "B",
    "reason_codes": [
     "cash_gap",
-    "business_age_months",
     "revenue_growth"
    ]
   },
@@ -3287,13 +3240,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0238",
-   "score": 589,
+   "pd_12m": "0.0240",
+   "score": 588,
    "grade": "D",
    "reason_codes": [
     "revenue_gap",
-    "business_age_months",
-    "bureau_overdue"
+    "revenue_growth"
    ]
   },
   {
@@ -3340,8 +3292,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0374",
-   "score": 562,
+   "pd_12m": "0.0384",
+   "score": 560,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
@@ -3396,11 +3348,7 @@
    "pd_12m": "0.0058",
    "score": 671,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "amount_to_revenue",
-    "industry_risk"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -3449,11 +3397,7 @@
    "pd_12m": "0.0068",
    "score": 662,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -3499,7 +3443,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1025",
+   "pd_12m": "0.1039",
    "score": 499,
    "grade": "H",
    "reason_codes": [
@@ -3552,8 +3496,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0390",
-   "score": 559,
+   "pd_12m": "0.0394",
+   "score": 558,
    "grade": "E",
    "reason_codes": [
     "revenue_gap",
@@ -3605,13 +3549,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0143",
-   "score": 619,
+   "pd_12m": "0.0144",
+   "score": 618,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -3658,13 +3600,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0388",
-   "score": 560,
+   "pd_12m": "0.0389",
+   "score": 559,
    "grade": "E",
    "reason_codes": [
     "bureau_inquiries",
-    "cash_gap",
-    "bureau_overdue"
+    "revenue_growth"
    ]
   },
   {
@@ -3711,12 +3652,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0218",
-   "score": 594,
+   "pd_12m": "0.0219",
+   "score": 593,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
     "bureau_inquiries"
    ]
   },
@@ -3769,7 +3709,6 @@
    "grade": "C",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
     "revenue_growth"
    ]
   },
@@ -3817,13 +3756,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0135",
-   "score": 622,
+   "pd_12m": "0.0136",
+   "score": 621,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -3870,7 +3807,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1172",
+   "pd_12m": "0.1175",
    "score": 491,
    "grade": "H",
    "reason_codes": [
@@ -3923,7 +3860,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0395",
+   "pd_12m": "0.0397",
    "score": 558,
    "grade": "E",
    "reason_codes": [
@@ -3979,11 +3916,7 @@
    "pd_12m": "0.0062",
    "score": 667,
    "grade": "B",
-   "reason_codes": [
-    "bureau_overdue",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -4029,8 +3962,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0443",
-   "score": 551,
+   "pd_12m": "0.0442",
+   "score": 552,
    "grade": "F",
    "reason_codes": [
     "business_age_months",
@@ -4082,13 +4015,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1361",
-   "score": 481,
+   "pd_12m": "0.1376",
+   "score": 480,
    "grade": "H",
    "reason_codes": [
     "bureau_overdue",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -4135,13 +4068,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0163",
-   "score": 611,
+   "pd_12m": "0.0165",
+   "score": 610,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -4188,13 +4119,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0140",
-   "score": 620,
+   "pd_12m": "0.0141",
+   "score": 619,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "amount_to_revenue"
    ]
   },
   {
@@ -4241,13 +4171,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0143",
-   "score": 619,
+   "pd_12m": "0.0144",
+   "score": 618,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -4294,13 +4222,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0172",
-   "score": 608,
+   "pd_12m": "0.0174",
+   "score": 607,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -4347,13 +4273,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0247",
+   "pd_12m": "0.0249",
    "score": 586,
    "grade": "D",
    "reason_codes": [
     "industry_risk",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -4403,11 +4329,7 @@
    "pd_12m": "0.0068",
    "score": 662,
    "grade": "B",
-   "reason_codes": [
-    "business_age_months",
-    "bureau_overdue",
-    "revenue_gap"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -4456,10 +4378,7 @@
    "pd_12m": "0.0074",
    "score": 657,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -4505,8 +4424,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0980",
-   "score": 502,
+   "pd_12m": "0.1010",
+   "score": 500,
    "grade": "H",
    "reason_codes": [
     "bureau_inquiries",
@@ -4562,9 +4481,7 @@
    "score": 645,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "bureau_overdue",
-    "business_age_months"
+    "amount_to_revenue"
    ]
   },
   {
@@ -4611,7 +4528,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0257",
+   "pd_12m": "0.0258",
    "score": 584,
    "grade": "D",
    "reason_codes": [
@@ -4664,13 +4581,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0213",
+   "pd_12m": "0.0214",
    "score": 595,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -4720,11 +4636,7 @@
    "pd_12m": "0.0082",
    "score": 651,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -4770,7 +4682,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0647",
+   "pd_12m": "0.0655",
    "score": 528,
    "grade": "G",
    "reason_codes": [
@@ -4828,7 +4740,6 @@
    "grade": "C",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
     "revenue_growth"
    ]
   },
@@ -4880,9 +4791,7 @@
    "score": 638,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -4929,13 +4838,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0472",
-   "score": 548,
+   "pd_12m": "0.0474",
+   "score": 547,
    "grade": "F",
    "reason_codes": [
     "revenue_gap",
-    "industry_risk",
-    "cash_gap"
+    "industry_risk"
    ]
   },
   {
@@ -4982,13 +4890,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0315",
+   "pd_12m": "0.0316",
    "score": 572,
    "grade": "E",
    "reason_codes": [
-    "bureau_inquiries",
-    "cash_gap",
-    "bureau_overdue"
+    "bureau_inquiries"
    ]
   },
   {
@@ -5035,14 +4941,10 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0098",
+   "pd_12m": "0.0097",
    "score": 641,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "bureau_overdue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -5092,9 +4994,7 @@
    "score": 656,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
+    "cash_gap"
    ]
   },
   {
@@ -5141,13 +5041,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0281",
-   "score": 579,
+   "pd_12m": "0.0283",
+   "score": 578,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -5194,8 +5094,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1088",
-   "score": 496,
+   "pd_12m": "0.1095",
+   "score": 495,
    "grade": "H",
    "reason_codes": [
     "revenue_gap",
@@ -5249,8 +5149,8 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0759",
-   "score": 518,
+   "pd_12m": "0.0874",
+   "score": 510,
    "grade": "G",
    "reason_codes": [
     "revenue_gap",
@@ -5355,8 +5255,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0244",
-   "score": 587,
+   "pd_12m": "0.0250",
+   "score": 586,
    "grade": "D",
    "reason_codes": [
     "tax_arrears",
@@ -5408,8 +5308,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1150",
-   "score": 492,
+   "pd_12m": "0.1186",
+   "score": 490,
    "grade": "H",
    "reason_codes": [
     "bureau_inquiries",
@@ -5461,13 +5361,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0172",
-   "score": 608,
+   "pd_12m": "0.0174",
+   "score": 607,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -5515,12 +5413,12 @@
     "as_of": "2026-10-01"
    },
    "pd_12m": "0.0170",
-   "score": 609,
+   "score": 608,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
     "cash_gap",
-    "bureau_overdue"
+    "revenue_growth"
    ]
   },
   {
@@ -5567,8 +5465,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0937",
-   "score": 505,
+   "pd_12m": "0.0949",
+   "score": 504,
    "grade": "H",
    "reason_codes": [
     "bureau_inquiries",
@@ -5620,13 +5518,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0233",
+   "pd_12m": "0.0234",
    "score": 590,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -5673,13 +5571,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0167",
-   "score": 609,
+   "pd_12m": "0.0172",
+   "score": 608,
    "grade": "C",
    "reason_codes": [
     "tax_arrears",
     "debt_service_ratio",
-    "cash_gap"
+    "amount_to_revenue"
    ]
   },
   {
@@ -5726,13 +5624,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0287",
+   "pd_12m": "0.0289",
    "score": 577,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -5779,13 +5677,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0285",
+   "pd_12m": "0.0286",
    "score": 578,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -5832,8 +5730,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0652",
-   "score": 528,
+   "pd_12m": "0.0657",
+   "score": 527,
    "grade": "G",
    "reason_codes": [
     "bureau_inquiries",
@@ -5885,13 +5783,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0484",
-   "score": 546,
+   "pd_12m": "0.0491",
+   "score": 545,
    "grade": "F",
    "reason_codes": [
     "revenue_gap",
-    "debt_service_ratio",
-    "cash_gap"
+    "debt_service_ratio"
    ]
   },
   {
@@ -5938,8 +5835,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1051",
-   "score": 498,
+   "pd_12m": "0.1062",
+   "score": 497,
    "grade": "H",
    "reason_codes": [
     "bureau_inquiries",
@@ -5992,11 +5889,9 @@
     "as_of": "2026-10-01"
    },
    "pd_12m": "0.0090",
-   "score": 645,
+   "score": 646,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "bureau_overdue",
     "revenue_growth"
    ]
   },
@@ -6044,13 +5939,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0160",
-   "score": 612,
+   "pd_12m": "0.0161",
+   "score": 611,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
     "cash_gap",
-    "bureau_overdue"
+    "amount_to_revenue"
    ]
   },
   {
@@ -6097,7 +5992,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0279",
+   "pd_12m": "0.0281",
    "score": 579,
    "grade": "E",
    "reason_codes": [
@@ -6150,12 +6045,10 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0102",
-   "score": 638,
+   "pd_12m": "0.0101",
+   "score": 639,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
     "revenue_growth"
    ]
   },
@@ -6203,8 +6096,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1415",
-   "score": 478,
+   "pd_12m": "0.1436",
+   "score": 477,
    "grade": "I",
    "reason_codes": [
     "bureau_inquiries",
@@ -6260,8 +6153,6 @@
    "score": 655,
    "grade": "B",
    "reason_codes": [
-    "bureau_overdue",
-    "business_age_months",
     "revenue_growth"
    ]
   },
@@ -6312,11 +6203,7 @@
    "pd_12m": "0.0082",
    "score": 651,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -6362,13 +6249,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0382",
+   "pd_12m": "0.0385",
    "score": 560,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -6474,7 +6361,7 @@
    "reason_codes": [
     "cash_gap",
     "debt_service_ratio",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -6521,13 +6408,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0132",
+   "pd_12m": "0.0133",
    "score": 623,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "debt_service_ratio"
    ]
   },
   {
@@ -6577,11 +6462,7 @@
    "pd_12m": "0.0103",
    "score": 638,
    "grade": "C",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "bureau_overdue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -6627,8 +6508,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1493",
-   "score": 475,
+   "pd_12m": "0.1511",
+   "score": 474,
    "grade": "I",
    "reason_codes": [
     "bureau_inquiries",
@@ -6680,8 +6561,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0350",
-   "score": 566,
+   "pd_12m": "0.0353",
+   "score": 565,
    "grade": "E",
    "reason_codes": [
     "industry_risk",
@@ -6733,8 +6614,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0453",
-   "score": 550,
+   "pd_12m": "0.0464",
+   "score": 549,
    "grade": "F",
    "reason_codes": [
     "bureau_inquiries",
@@ -6786,13 +6667,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0128",
+   "pd_12m": "0.0129",
    "score": 625,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -6839,13 +6719,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0158",
-   "score": 613,
+   "pd_12m": "0.0159",
+   "score": 612,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -6895,10 +6774,7 @@
    "pd_12m": "0.0074",
    "score": 657,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -6944,9 +6820,9 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1091",
-   "score": 495,
-   "grade": "H",
+   "pd_12m": "0.0795",
+   "score": 516,
+   "grade": "G",
    "reason_codes": [
     "bureau_inquiries",
     "industry_risk",
@@ -6997,8 +6873,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0400",
-   "score": 558,
+   "pd_12m": "0.0405",
+   "score": 557,
    "grade": "F",
    "reason_codes": [
     "revenue_gap",
@@ -7050,7 +6926,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0278",
+   "pd_12m": "0.0280",
    "score": 579,
    "grade": "E",
    "reason_codes": [
@@ -7103,7 +6979,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1648",
+   "pd_12m": "0.1657",
    "score": 468,
    "grade": "I",
    "reason_codes": [
@@ -7156,8 +7032,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0166",
-   "score": 610,
+   "pd_12m": "0.0168",
+   "score": 609,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
@@ -7209,7 +7085,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0429",
+   "pd_12m": "0.0433",
    "score": 553,
    "grade": "F",
    "reason_codes": [
@@ -7262,8 +7138,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0225",
-   "score": 592,
+   "pd_12m": "0.0229",
+   "score": 591,
    "grade": "D",
    "reason_codes": [
     "bureau_overdue",
@@ -7315,8 +7191,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0421",
-   "score": 555,
+   "pd_12m": "0.0425",
+   "score": 554,
    "grade": "F",
    "reason_codes": [
     "business_age_months",
@@ -7368,7 +7244,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0448",
+   "pd_12m": "0.0450",
    "score": 551,
    "grade": "F",
    "reason_codes": [
@@ -7421,13 +7297,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0474",
+   "pd_12m": "0.0477",
    "score": 547,
    "grade": "F",
    "reason_codes": [
     "bureau_overdue",
     "debt_service_ratio",
-    "cash_gap"
+    "bureau_inquiries"
    ]
   },
   {
@@ -7474,8 +7350,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0698",
-   "score": 524,
+   "pd_12m": "0.0705",
+   "score": 523,
    "grade": "G",
    "reason_codes": [
     "bureau_inquiries",
@@ -7527,9 +7403,9 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0454",
-   "score": 550,
-   "grade": "F",
+   "pd_12m": "0.0322",
+   "score": 571,
+   "grade": "E",
    "reason_codes": [
     "business_age_months",
     "cash_gap",
@@ -7580,13 +7456,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0265",
+   "pd_12m": "0.0266",
    "score": 582,
    "grade": "D",
    "reason_codes": [
     "industry_risk",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -7633,13 +7509,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0274",
-   "score": 580,
+   "pd_12m": "0.0273",
+   "score": 581,
    "grade": "D",
    "reason_codes": [
     "business_age_months",
     "industry_risk",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -7686,8 +7562,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0686",
-   "score": 525,
+   "pd_12m": "0.0692",
+   "score": 524,
    "grade": "G",
    "reason_codes": [
     "bureau_overdue",
@@ -7739,7 +7615,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0568",
+   "pd_12m": "0.0575",
    "score": 536,
    "grade": "F",
    "reason_codes": [
@@ -7792,13 +7668,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0160",
+   "pd_12m": "0.0161",
    "score": 612,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
     "debt_service_ratio",
-    "business_age_months"
+    "amount_to_revenue"
    ]
   },
   {
@@ -7845,7 +7721,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0495",
+   "pd_12m": "0.0496",
    "score": 545,
    "grade": "F",
    "reason_codes": [
@@ -7898,13 +7774,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0131",
-   "score": 624,
+   "pd_12m": "0.0132",
+   "score": 623,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "amount_to_revenue"
    ]
   },
   {
@@ -7951,13 +7826,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0149",
-   "score": 616,
+   "pd_12m": "0.0151",
+   "score": 615,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -8004,7 +7878,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0469",
+   "pd_12m": "0.0471",
    "score": 548,
    "grade": "F",
    "reason_codes": [
@@ -8060,11 +7934,7 @@
    "pd_12m": "0.0072",
    "score": 659,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -8110,8 +7980,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0601",
-   "score": 533,
+   "pd_12m": "0.0606",
+   "score": 532,
    "grade": "G",
    "reason_codes": [
     "bureau_inquiries",
@@ -8163,12 +8033,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0249",
-   "score": 586,
+   "pd_12m": "0.0251",
+   "score": 585,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
     "bureau_inquiries"
    ]
   },
@@ -8216,13 +8085,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0213",
+   "pd_12m": "0.0214",
    "score": 595,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "revenue_growth"
    ]
   },
   {
@@ -8269,8 +8137,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0293",
-   "score": 576,
+   "pd_12m": "0.0299",
+   "score": 575,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
@@ -8322,13 +8190,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0344",
+   "pd_12m": "0.0345",
    "score": 567,
    "grade": "E",
    "reason_codes": [
     "bureau_inquiries",
     "business_age_months",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -8379,9 +8247,7 @@
    "score": 648,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
+    "cash_gap"
    ]
   },
   {
@@ -8429,12 +8295,10 @@
     "as_of": "2026-10-01"
    },
    "pd_12m": "0.0113",
-   "score": 633,
+   "score": 632,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "bureau_inquiries",
-    "business_age_months"
+    "bureau_inquiries"
    ]
   },
   {
@@ -8481,7 +8345,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.1411",
+   "pd_12m": "0.1421",
    "score": 478,
    "grade": "I",
    "reason_codes": [
@@ -8536,8 +8400,8 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0331",
-   "score": 569,
+   "pd_12m": "0.0377",
+   "score": 561,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
@@ -8589,13 +8453,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0175",
-   "score": 607,
+   "pd_12m": "0.0176",
+   "score": 606,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "amount_to_revenue"
    ]
   },
   {
@@ -8642,13 +8505,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0171",
-   "score": 608,
+   "pd_12m": "0.0173",
+   "score": 607,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "cash_gap"
    ]
   },
   {
@@ -8695,13 +8557,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0398",
-   "score": 558,
-   "grade": "E",
+   "pd_12m": "0.0403",
+   "score": 557,
+   "grade": "F",
    "reason_codes": [
     "revenue_gap",
     "debt_service_ratio",
-    "cash_gap"
+    "amount_to_revenue"
    ]
   },
   {
@@ -8748,13 +8610,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0150",
+   "pd_12m": "0.0151",
    "score": 616,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -8801,13 +8662,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0259",
-   "score": 584,
+   "pd_12m": "0.0264",
+   "score": 582,
    "grade": "D",
    "reason_codes": [
     "industry_risk",
-    "tax_arrears",
-    "cash_gap"
+    "tax_arrears"
    ]
   },
   {
@@ -8857,11 +8717,7 @@
    "pd_12m": "0.0068",
    "score": 662,
    "grade": "B",
-   "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -8907,13 +8763,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0645",
-   "score": 529,
-   "grade": "G",
+   "pd_12m": "0.0458",
+   "score": 549,
+   "grade": "F",
    "reason_codes": [
     "bureau_inquiries",
     "business_age_months",
-    "revenue_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -8960,7 +8816,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0559",
+   "pd_12m": "0.0560",
    "score": 537,
    "grade": "F",
    "reason_codes": [
@@ -9016,11 +8872,7 @@
    "pd_12m": "0.0050",
    "score": 679,
    "grade": "B",
-   "reason_codes": [
-    "bureau_overdue",
-    "amount_to_revenue",
-    "industry_risk"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -9066,13 +8918,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0143",
-   "score": 619,
+   "pd_12m": "0.0144",
+   "score": 618,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "debt_service_ratio"
    ]
   },
   {
@@ -9119,8 +8969,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0687",
-   "score": 525,
+   "pd_12m": "0.0694",
+   "score": 524,
    "grade": "G",
    "reason_codes": [
     "bureau_inquiries",
@@ -9172,8 +9022,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0758",
-   "score": 519,
+   "pd_12m": "0.0764",
+   "score": 518,
    "grade": "G",
    "reason_codes": [
     "revenue_gap",
@@ -9225,13 +9075,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0150",
-   "score": 616,
+   "pd_12m": "0.0151",
+   "score": 615,
    "grade": "C",
    "reason_codes": [
     "cash_gap",
-    "debt_service_ratio",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -9278,13 +9127,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0143",
-   "score": 619,
+   "pd_12m": "0.0144",
+   "score": 618,
    "grade": "C",
    "reason_codes": [
-    "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "debt_service_ratio"
    ]
   },
   {
@@ -9336,7 +9183,6 @@
    "grade": "C",
    "reason_codes": [
     "industry_risk",
-    "cash_gap",
     "bureau_inquiries"
    ]
   },
@@ -9384,13 +9230,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0252",
+   "pd_12m": "0.0255",
    "score": 585,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_inquiries"
+    "bureau_inquiries",
+    "amount_to_revenue"
    ]
   },
   {
@@ -9437,8 +9283,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0259",
-   "score": 584,
+   "pd_12m": "0.0260",
+   "score": 583,
    "grade": "D",
    "reason_codes": [
     "industry_risk",
@@ -9490,13 +9336,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0330",
+   "pd_12m": "0.0331",
    "score": 569,
    "grade": "E",
    "reason_codes": [
     "bureau_inquiries",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -9543,13 +9388,12 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0162",
+   "pd_12m": "0.0164",
    "score": 611,
    "grade": "C",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "business_age_months"
+    "cash_gap"
    ]
   },
   {
@@ -9598,13 +9442,12 @@
     ],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0203",
-   "score": 598,
+   "pd_12m": "0.0230",
+   "score": 591,
    "grade": "D",
    "reason_codes": [
     "debt_service_ratio",
-    "cash_gap",
-    "bureau_overdue"
+    "cash_gap"
    ]
   },
   {
@@ -9655,9 +9498,7 @@
    "score": 609,
    "grade": "C",
    "reason_codes": [
-    "bureau_overdue",
-    "cash_gap",
-    "business_age_months"
+    "bureau_overdue"
    ]
   },
   {
@@ -9708,9 +9549,7 @@
    "score": 612,
    "grade": "C",
    "reason_codes": [
-    "bureau_overdue",
-    "cash_gap",
-    "business_age_months"
+    "bureau_overdue"
    ]
   },
   {
@@ -9757,8 +9596,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0538",
-   "score": 540,
+   "pd_12m": "0.0542",
+   "score": 539,
    "grade": "F",
    "reason_codes": [
     "bureau_overdue",
@@ -9810,7 +9649,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0668",
+   "pd_12m": "0.0674",
    "score": 526,
    "grade": "G",
    "reason_codes": [
@@ -9863,8 +9702,8 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0654",
-   "score": 528,
+   "pd_12m": "0.0658",
+   "score": 527,
    "grade": "G",
    "reason_codes": [
     "bureau_overdue",
@@ -9917,12 +9756,9 @@
     "as_of": "2026-10-01"
    },
    "pd_12m": "0.0064",
-   "score": 666,
+   "score": 665,
    "grade": "B",
-   "reason_codes": [
-    "business_age_months",
-    "bureau_overdue"
-   ]
+   "reason_codes": []
   },
   {
    "input": {
@@ -9968,7 +9804,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0257",
+   "pd_12m": "0.0258",
    "score": 584,
    "grade": "D",
    "reason_codes": [
@@ -10026,8 +9862,7 @@
    "grade": "C",
    "reason_codes": [
     "bureau_inquiries",
-    "cash_gap",
-    "amount_to_revenue"
+    "cash_gap"
    ]
   },
   {
@@ -10074,13 +9909,13 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0281",
-   "score": 579,
+   "pd_12m": "0.0283",
+   "score": 578,
    "grade": "E",
    "reason_codes": [
     "business_age_months",
     "debt_service_ratio",
-    "cash_gap"
+    "revenue_growth"
    ]
   },
   {
@@ -10131,9 +9966,7 @@
    "score": 620,
    "grade": "C",
    "reason_codes": [
-    "industry_risk",
-    "cash_gap",
-    "bureau_overdue"
+    "industry_risk"
    ]
   },
   {
@@ -10180,9 +10013,9 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0593",
-   "score": 534,
-   "grade": "F",
+   "pd_12m": "0.0601",
+   "score": 533,
+   "grade": "G",
    "reason_codes": [
     "revenue_gap",
     "bureau_overdue",
@@ -10233,7 +10066,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0360",
+   "pd_12m": "0.0361",
    "score": 564,
    "grade": "E",
    "reason_codes": [
@@ -10290,9 +10123,7 @@
    "score": 660,
    "grade": "B",
    "reason_codes": [
-    "business_age_months",
-    "revenue_growth",
-    "amount_to_revenue"
+    "revenue_growth"
    ]
   },
   {
@@ -10339,7 +10170,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0449",
+   "pd_12m": "0.0450",
    "score": 551,
    "grade": "F",
    "reason_codes": [
@@ -10396,9 +10227,7 @@
    "score": 637,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "bureau_inquiries",
-    "business_age_months"
+    "bureau_inquiries"
    ]
   },
   {
@@ -10449,9 +10278,7 @@
    "score": 656,
    "grade": "B",
    "reason_codes": [
-    "cash_gap",
-    "business_age_months",
-    "amount_to_revenue"
+    "cash_gap"
    ]
   },
   {
@@ -10498,7 +10325,7 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0293",
+   "pd_12m": "0.0296",
    "score": 576,
    "grade": "E",
    "reason_codes": [
@@ -10551,12 +10378,11 @@
     "sources_failed": [],
     "as_of": "2026-10-01"
    },
-   "pd_12m": "0.0160",
+   "pd_12m": "0.0159",
    "score": 612,
    "grade": "C",
    "reason_codes": [
     "business_age_months",
-    "cash_gap",
     "revenue_growth"
    ]
   },
@@ -10608,9 +10434,7 @@
    "score": 619,
    "grade": "C",
    "reason_codes": [
-    "cash_gap",
-    "bureau_inquiries",
-    "business_age_months"
+    "bureau_inquiries"
    ]
   }
  ]

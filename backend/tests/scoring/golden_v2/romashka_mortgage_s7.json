@@ -6,8 +6,7 @@
   "grade": "C",
   "reason_codes": [
     "amount_to_revenue",
-    "industry_risk",
-    "debt_load"
+    "industry_risk"
   ],
   "data_completeness": "0.917",
   "flags": [],

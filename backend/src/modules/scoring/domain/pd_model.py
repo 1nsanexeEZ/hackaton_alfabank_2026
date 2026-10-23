@@ -10,7 +10,9 @@
 4. биннинг: значение → бин → WoE и баллы; балл = база + сумма баллов;
 5. калибровка: шансы «хороший : плохой» = odds × 2^((балл − score) / pdo), PD = 1 / (1 + шансы);
 6. грейд A–J по диапазонам PD;
-7. коды причин — топ-3 признака с наибольшей потерей баллов: сколько не добрал до лучшего бина.
+7. коды причин — топ-3 признака, снизивших балл (баллы < 0), по потере: сколько не добрал до
+   лучшего бина. Признак с нулём или плюсом балл не снижал — даже если лучший бин выше (бюро не
+   ответило, выписки нет).
 
 Бины, WoE, баллы, калибровка и границы грейдов — в YAML (`PdModelConfig`), здесь — только
 логика. `calculate` — чистая функция входа: без IO и без `now()`, все расчёты в `Decimal`.
@@ -149,7 +151,7 @@ class PdModel:
             chosen = feature.missing if value is None else _bin(feature, value)
             factors.append(_factor(feature.code, value, chosen, has_data=value is not None))
             loss = feature.best_points - chosen.points
-            if loss > 0:
+            if chosen.points < 0 and loss > 0:
                 losses.append((-loss, order, feature.code))
 
         score = max(_SCORE_MIN, min(_SCORE_MAX, card.base + sum(f.points for f in factors)))
