@@ -1,6 +1,6 @@
 # Notifications: лента событий и персональные новости
 
-Лента в кабинете клиента и бэк-офиса, персональные новости компании, живое обновление через SSE. Код — `backend/src/notifications`, сид новостей — `backend/seed/notifications.py`.
+Лента в кабинете клиента и бэк-офиса, персональные новости компании, живое обновление через SSE. Код — `backend/src/modules/notifications`, сид новостей — `backend/seed/notifications.py`.
 
 ## Зачем
 

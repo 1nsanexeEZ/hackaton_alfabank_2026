@@ -141,7 +141,7 @@ sources_skipped: [{ source, code, message }]          // не запрошенн
 - **Подтверждение выручки.** Годовой оборот по выписке ≥ 70% заявленной → `revenue_confirmed = True`;
   заявленной выручки нет → `None`. Это сигнал для `decision`, а не самостоятельное решение.
 
-Синтетические выписки демо-компаний (§9.2) генерирует `scripts/generate_statements.py` в
+Синтетические выписки демо-компаний (`backend/seed/demo_data.py`) генерирует `scripts/generate_statements.py` в
 `seed/statements/<код>.csv` (детерминированно, запуск `uv run python -m scripts.generate_statements`).
 
 ## Формат выписки (для фронта)

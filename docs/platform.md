@@ -5,22 +5,24 @@
 ## Модуль
 
 ```
-backend/src/<module>/
+backend/src/modules/<module>/
 ├── facade.py         Protocol + frozen DTO — всё, что модуль отдаёт соседям
 ├── module.py         register(app) — роутеры; wire(app) — реализации фасадов; subscribers() — подписки Kafka
 ├── domain/           чистый Python: сущности, правила, доменные события и исключения
 ├── application/      dto/, interfaces/ (Protocol), use_cases/ (класс на операцию)
 ├── infrastructure/   adapters/, database/ (ORM, таблицы с префиксом модуля), repositories/, exception_handler.py
-└── presentation/     api/ (роутеры), schemas/ (pydantic), dependencies.py
+└── presentation/     api/ (роутеры), schemas/ (pydantic), consumers.py (Kafka), dependencies.py
 ```
 
-Подробно, со слоями и чек-листом перевода старых модулей, — [`settings/04-module-structure.md`](../settings/04-module-structure.md). Эталон — `identity`; модули, ещё не переведённые на эту структуру, держат роутеры в `api/` и порты в `application/ports.py`.
+Подробно, со слоями и чек-листом перевода старых модулей, — [`settings/04-module-structure.md`](../settings/04-module-structure.md). Эталоны — `identity` (HTTP API) и `enrichment` (команды из Kafka, внешние HTTP-источники); модули, ещё не переведённые на эту структуру, держат роутеры в `api/` и порты в `application/ports.py`.
 
 `main.py` содержит явный список модулей и вызывает `register`, затем `wire`; подписки всех модулей отдаёт брокеру. Новые таблицы модуль добавляет импортом своих ORM-моделей (`infrastructure.database.models`, в старых модулях — `infrastructure.models`) в `src/models.py` (его читают Alembic и тесты).
 
 Границы проверяет import-linter (`uv run lint-imports`, контракты в `pyproject.toml`):
-- `domain` не импортирует FastAPI, SQLAlchemy, Pydantic, httpx, FastStream, aioboto3;
-- `domain` и `application` не импортируют `infrastructure`, `presentation` (`api`), `module`;
+- `domain` не импортирует FastAPI, Starlette, SQLAlchemy, Pydantic, httpx, FastStream, aiokafka, aioboto3;
+- `domain` не импортирует `application`; `domain` и `application` не импортируют `infrastructure`, `presentation` (`api`), `module` и сиды (`seed`);
+- `infrastructure` не импортирует `presentation` (`api`) и `module`;
+- в переведённых модулях (`identity`, `enrichment`) порядок слоёв проверяется целиком: `module` → `presentation` → `infrastructure` → `facade` → `application` → `domain`;
 - модуль читает другой модуль только через его `facade.py`;
 - `src.core` не знает о модулях.
 
@@ -87,4 +89,4 @@ clients = ctx.facade(ClientsFacade)
 
 ## CI
 
-`.github/workflows/ci.yml` на pull request в `develop` и `main`: ruff, import-linter, pytest; Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`); интеграционные тесты с Kafka в контейнере.
+`.github/workflows/ci.yml` на pull request в `develop` и `main`: ruff, import-linter, pytest; Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`); интеграционные тесты с Kafka в контейнере; ruff и тесты `external-mocks`.

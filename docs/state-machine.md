@@ -1,6 +1,6 @@
 # Состояния кредитной заявки
 
-Бизнес-статус заявки и все допустимые переходы. Единственный владелец статуса — модуль `applications`: таблица переходов — `backend/src/applications/domain/statuses.py`, методы переходов — агрегат `CreditApplication` (`backend/src/applications/domain/application.py`). Диаграмма ниже совпадает с таблицей `TRANSITIONS` один в один; тест `backend/tests/applications/unit/test_statuses.py` перебирает все пары статусов и сверяет таблицу с независимо выписанной спецификацией.
+Бизнес-статус заявки и все допустимые переходы. Единственный владелец статуса — модуль `applications`: таблица переходов — `backend/src/modules/applications/domain/statuses.py`, методы переходов — агрегат `CreditApplication` (`backend/src/modules/applications/domain/application.py`). Диаграмма ниже совпадает с таблицей `TRANSITIONS` один в один; тест `backend/tests/applications/unit/test_statuses.py` перебирает все пары статусов и сверяет таблицу с независимо выписанной спецификацией.
 
 ## Диаграмма
 
@@ -59,8 +59,8 @@ stateDiagram-v2
 Три вида инициаторов, они же `actor_type` в истории статусов:
 
 - **клиент** (`client`) — действие пользователя через HTTP API модуля `applications`, `actor_id` — его аккаунт;
-- **процесс** (`process`) — команда движка процесса в топике `applications.commands` (контракты — `backend/src/core/messaging/contracts/applications.py`; консьюмер команд — ишью #23);
-- **система** (`system`) — фоновая проверка срока предложения (метод `expire_offer`; периодическая задача — ишью #23).
+- **процесс** (`process`) — команда движка процесса в топике `applications.commands` (контракты — `backend/src/core/messaging/contracts/applications.py`, консьюмер — `applications/infrastructure/consumers.py`);
+- **система** (`system`) — фоновая проверка срока предложения: цикл `run_offer_expiry` в том же файле периодически вызывает `expire_offer` у заявок с истёкшим `expires_at`, по транзакции на заявку.
 
 | Из | В | Кто | Чем вызывается | Метод агрегата | Условия | Событие кроме `ApplicationStatusChanged` |
 |---|---|---|---|---|---|---|

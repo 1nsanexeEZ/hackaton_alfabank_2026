@@ -13,17 +13,21 @@
 | ЕГРЮЛ / ЕГРИП (ФНС России) | статус и дата регистрации, ОКВЭД, руководитель, учредители, адрес | `GET /egrul/{inn}` — ключи кириллицей, даты строками | `EgrulHttpSource` (`backend/src/modules/enrichment/infrastructure/adapters/egrul_http.py`) | **смоделировано** |
 | ФНС «Прозрачный бизнес» | недоимка, численность, выручка и расходы, налоговый режим, реестр МСП | `GET /fns/{inn}` — суммы в копейках | `FnsHttpSource` (`.../adapters/fns_http.py`) | **смоделировано** |
 | Бюро кредитных историй | обязательства, платежи, просрочки, запросы за 30 дней | `POST /bki/report` `{inn, consent_at, request_id}`; без `consent_at` — 400; ИНН из `MOCK_BKI_ALWAYS_FAIL_INNS` — всегда 503 (сценарий S-6) | `BkiHttpSource` (`.../adapters/bki_http.py`), запрос только при согласии клиента | **смоделировано** |
-| ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/applications/infrastructure/edo.py`) | **смоделировано**, ответ API `simulated: true` |
-| АБС банка (выдача средств) | перевод суммы кредита на счёт клиента | `POST /abs/disbursements` → номер договора, `simulated: true` | адаптер выдачи в модуле applications — ишью #23 | **смоделировано** |
+| БКИ руководителя (физлицо) | кредитная история руководителя по реестру | `POST /bki/person-report`; без `consent_at` — 400 (218-ФЗ) | `BkiPersonHttpSource` (`.../adapters/bki_person_http.py`), запрос только при личном согласии руководителя | **смоделировано** |
+| ГИР БО (бухотчётность) | бухгалтерская отчётность за два последних года | `GET /gir-bo/{inn}` — суммы в тыс. ₽ | `GirBoHttpSource` (`.../adapters/gir_bo_http.py`) | **смоделировано** |
+| Контур.Фокус | арбитраж, исполнительные производства, банкротство, госконтракты, залоги | `GET /kontur/{inn}` | `KonturHttpSource` (`.../adapters/kontur_http.py`) | **смоделировано** |
+| ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/modules/applications/infrastructure/edo.py`) | **смоделировано**, ответ API `simulated: true` |
+| АБС банка (выдача средств) | перевод суммы кредита на счёт клиента | `POST /abs/disbursements` → номер договора, `simulated: true` | `HttpAbsClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedAbsClient` (`backend/src/modules/applications/infrastructure/abs.py`) | **смоделировано** |
 
-Поведение моков: детерминированные ответы для шести демо-компаний (`backend/seed/demo_data.py`) и генерация по хешу для любого другого валидного ИНН; невалидный ИНН — 404. Нестабильность сети имитируется: задержка `MOCK_LATENCY_MS_MIN..MAX` и доля ответов 503 `MOCK_FAILURE_RATE`. Подробно — `external-mocks/README.md`.
+Поведение моков: детерминированные ответы для семи демо-компаний (`backend/seed/demo_data.py`) и генерация по хешу для любого другого валидного ИНН; невалидный ИНН — 404. Нестабильность сети имитируется: задержка `MOCK_LATENCY_MS_MIN..MAX` и доля ответов 503 `MOCK_FAILURE_RATE` (в `docker-compose.yml` для демо выключена). Подробно — `external-mocks/README.md`.
 
 Этапы самого кредитного конвейера (подача, проверка данных, подбор продукта, скоринг, решение) не смоделированы — это настоящая логика решения (требование экспертов вебинара 21.10).
 
 ## Модели и датасеты
 
-- **LLM и ML-модели не используются.** Подбор продукта, проверки и решение — детерминированные правила в коде. Платных API и подписок в проверяемой версии нет.
-- **Внешних датасетов нет.** Все данные синтетические и созданы командой: компании, люди, финансовые показатели и кредитные истории (`backend/seed/demo_data.py`, `external-mocks/app/data.py`), каталог продуктов (`backend/seed/products.py`), тексты новостей ленты (`backend/seed/notifications.py`), досье для демо-режима фронтенда без backend (`frontend/mocks/external-sources.json`, генератор `frontend/mocks/generate.py` с фиксированным seed). ИНН и ОГРН собраны с правильными контрольными цифрами; совпадение с реальными субъектами случайно.
+- **LLM не используются, сторонних и предобученных моделей нет.** Подбор продукта, проверки и решение — детерминированные правила в коде. Платных API и подписок в проверяемой версии нет.
+- **ML-модель скоринга `ml_logreg_v1` обучена командой** — логистическая регрессия на синтетической популяции заявок (`backend/ml/population.py`, `backend/ml/train.py`); в образ попадают только её коэффициенты (`backend/src/modules/scoring/infrastructure/config/ml_logreg_v1.yaml`), инференс — чистый Python без ML-библиотек. Библиотеки обучения (scikit-learn, numpy, pandas, matplotlib, jupyter, nbconvert) — группа зависимостей `ml` в `backend/pyproject.toml`, ставятся только локально и в образ не входят.
+- **Внешних датасетов нет.** Все данные синтетические и созданы командой: компании, люди, финансовые показатели и кредитные истории (`backend/seed/demo_data.py`, `external-mocks/app/data.py`), каталог продуктов (`backend/seed/products.py`), тексты новостей ленты (`backend/seed/notifications.py`), досье для рабочего места сотрудника в режиме `mock` (`frontend/mocks/external-sources.json`, генератор `frontend/mocks/generate.py` с фиксированным seed). ИНН и ОГРН собраны с правильными контрольными цифрами; совпадение с реальными субъектами случайно.
 
 ## Образы Docker
 
@@ -32,7 +36,8 @@
 | `postgres` | `16.4-alpine` | `docker-compose.yml`, сервис `db`; CI | PostgreSQL License |
 | `soldevelo/minio` | `latest` | `docker-compose.yml`, сервис `minio` | GNU AGPL v3 (MinIO); используется без изменений как отдельный сервис через S3 API |
 | `apache/kafka` | `3.8.0` | `docker-compose.yml`, сервис `kafka` | Apache-2.0 |
-| `nginx` | `alpine` | `docker-compose.yml`, сервис `nginx` | BSD-2-Clause |
+| `nginx` | `alpine` | `docker-compose.yml`, сервис `nginx`; база образа `frontend/Dockerfile` (раздача статики) | BSD-2-Clause |
+| `node` | `22-alpine` | стадия сборки `frontend/Dockerfile`, в итоговый образ не входит | MIT (Node.js) |
 | `python` | `3.12-slim` | база образов `backend/Dockerfile` и `external-mocks/Dockerfile` | PSF-2.0 (CPython) |
 | `ghcr.io/astral-sh/uv` | `0.12.10` (backend), `0.13.4` (external-mocks) | из образа копируются только бинарники `uv` (и `uvx` у external-mocks) для установки зависимостей и запуска | MIT OR Apache-2.0 |
 
