@@ -78,7 +78,22 @@ export const realClientApi: ClientApi = {
     call(`/organizations/${organizationId}/members`, { method: 'POST', body: { login, role } }),
   grantPowerOfAttorney: (organizationId, accountId, input) =>
     call(`/organizations/${organizationId}/members/${accountId}/poa`, { method: 'POST', body: input }),
+  changeMemberRole: (organizationId, accountId, role) =>
+    call(`/organizations/${organizationId}/members/${accountId}`, { method: 'PATCH', body: { role } }),
+  removeMember: (organizationId, accountId) =>
+    call(`/organizations/${organizationId}/members/${accountId}`, { method: 'DELETE' }),
+  verifyOrganization: (organizationId) => call(`/organizations/${organizationId}/verification`, { method: 'POST' }),
   updateProfile: (input) => call('/me/profile', { method: 'PATCH', body: input }),
+
+  consents: () => call('/me/consents'),
+  giveConsents: (types) => call('/me/consents', { method: 'POST', body: { types } }),
+  revokeConsent: (type) => call(`/me/consents/${type}`, { method: 'DELETE' }),
+
+  calculateFor: (code, organizationId, input) =>
+    call(`/bff/products/${code}/calculate`, { method: 'POST', query: { organization_id: organizationId }, body: input }),
+
+  runFounderPrescreen: (organizationId) => call(`/organizations/${organizationId}/founder-prescreen`, { method: 'POST' }),
+  founderPrescreen: (organizationId) => call(`/organizations/${organizationId}/founder-prescreen`),
 
   async uploadFile(upload, file) {
     let response: Response
