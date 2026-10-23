@@ -15,7 +15,7 @@ import {
   requiredDocumentsFor,
   type ProductCatalog,
 } from '@/entities/credit-product'
-import { customer, personalConsents } from '@/entities/customer'
+import { customer, founderPrescreen, personalConsents, prescreenPassed, type CompanyStartupInfo } from '@/entities/customer'
 import {
   ApiError,
   clientApi,
@@ -123,6 +123,37 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     },
     { immediate: true },
   )
+
+  /** Стартап или действующий бизнес: стартапу — только продукты для стартапа и сначала проверка учредителя */
+  const companyInfo = shallowRef<CompanyStartupInfo | null>(null)
+  watch(
+    () => terms.organizationId,
+    async (organizationId) => {
+      companyInfo.value = null
+      if (!organizationId) return
+      const info = await founderPrescreen.load(organizationId)
+      if (organizationId === terms.organizationId) companyInfo.value = info
+    },
+    { immediate: true },
+  )
+  const isStartup = computed(() => companyInfo.value?.segment === 'startup')
+
+  /** Продукты, доступные выбранной компании: стартапу — только для стартапа, остальным — без них */
+  const allowedProducts = computed(() => {
+    const all = products()
+    if (!companyInfo.value) return all.filter((item) => !item.startupOnly)
+    return all.filter((item) => Boolean(item.startupOnly) === isStartup.value)
+  })
+
+  /**
+   * Заявку на продукт для стартапа без пройденной проверки учредителя бэкенд отклонит (STOP_FOUNDER_PRESCREEN) —
+   * не пускаем дальше «Условий», пока проверка не пройдена
+   */
+  const startupBlock = computed(() => {
+    if (!product.value.startupOnly || !isStartup.value) return null
+    const prescreen = founderPrescreen.state[terms.organizationId]?.prescreen
+    return prescreenPassed(prescreen) ? null : 'Сначала пройдите проверку учредителя — без неё заявку на запуск бизнеса отклонят'
+  })
 
   watch(
     () => terms.organizationId,
@@ -338,6 +369,12 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
   }
 
+  function validateStartup(): boolean {
+    if (!startupBlock.value) return true
+    fieldErrors.value = { ...fieldErrors.value, 'request.product': startupBlock.value }
+    return false
+  }
+
   function validateTerms(): boolean {
     const errors: Record<string, string> = {}
     if (!organization.value) errors.organization = 'Выберите компанию'
@@ -357,7 +394,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   }
 
   async function submitTerms() {
-    if (!validateTerms()) return
+    if (!validateTerms() || !validateStartup()) return
     await run(async () => {
       await ensureDraft()
       await patch({
@@ -489,6 +526,10 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     productFields,
     consents,
     headConsent,
+    companyInfo,
+    isStartup,
+    allowedProducts,
+    startupBlock,
     application,
     product,
     collateralNeeded,

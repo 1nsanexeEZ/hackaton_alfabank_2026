@@ -1,3 +1,5 @@
-export { CONSENT_TEXT, personalConsents } from './model/consents'
+export { CONSENT_TEXT, personalConsents, type ConsentReminder } from './model/consents'
+export { founderPrescreen, prescreenPassed, type CompanyStartupInfo, type FounderPrescreen } from './model/prescreen'
 export { customer, customerName, isClientAccount, useCustomer } from './model/session'
+export { default as FounderPrescreenPanel } from './ui/FounderPrescreenPanel.vue'
 export { default as PersonalConsentPrompt } from './ui/PersonalConsentPrompt.vue'

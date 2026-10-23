@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { CircleCheck } from 'lucide-vue-next'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 
 import type { ProductCatalog } from '@/entities/credit-product'
+import { founderPrescreen, FounderPrescreenPanel } from '@/entities/customer'
 import { AsyncState, SelectField } from '@/shared/ui'
 
 import { useCompany } from '../model/useCompany'
@@ -11,7 +12,7 @@ import CompanyRequisites from './CompanyRequisites.vue'
 import FinancialReports from './FinancialReports.vue'
 import PreApprovedOffers from './PreApprovedOffers.vue'
 
-/** Компания клиента: реквизиты, предодобрение, отчётность, участники */
+/** Компания клиента: реквизиты, предодобрение (у стартапа — проверка учредителя), отчётность, участники */
 const props = defineProps<{ products: ProductCatalog | null }>()
 
 const emit = defineEmits<{ applyProduct: [code: string, organizationId: string, maxAmount: number] }>()
@@ -23,6 +24,10 @@ const { organizations, organizationId, detail, reports, preApproved, members, lo
 onMounted(() => void company.loadOrganizations())
 
 const organizationOptions = computed(() => organizations.value.map((item) => ({ value: item.id, label: `${item.name} · ИНН ${item.inn}` })))
+// Сегмент компании: у стартапа вместо предодобрения — проверка учредителя
+watch(organizationId, (id) => id && void founderPrescreen.load(id), { immediate: true })
+const isStartup = computed(() => founderPrescreen.state[organizationId.value]?.segment === 'startup')
+
 const productTitle = (code: string) => props.products?.find((product) => product.code === code)?.title ?? code
 </script>
 
@@ -38,7 +43,9 @@ const productTitle = (code: string) => props.products?.find((product) => product
       <p v-if="actionError" class="rounded-2xl bg-brand-soft p-3 text-sm text-brand" role="alert">{{ actionError }}</p>
 
       <CompanyRequisites :company="detail" />
+      <FounderPrescreenPanel v-if="isStartup" :organization-id="detail.id" />
       <PreApprovedOffers
+        v-else
         :offers="preApproved"
         :product-title="productTitle"
         @apply="(code, maxAmount) => emit('applyProduct', code, detail!.id, maxAmount)"

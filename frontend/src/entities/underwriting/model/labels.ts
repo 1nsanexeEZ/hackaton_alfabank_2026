@@ -156,6 +156,12 @@ export const ZONE_LABEL: Record<GradeZone, { label: string; tone: 'success' | 'w
 export const gradeTone = (grade: string | null | undefined): Tone =>
   (grade && ZONE_LABEL[GRADE_ZONE[grade as Grade]]?.tone) || 'neutral'
 
+/** Вид задачи андеррайтера: у стартапа (маршрут startup_v1) — проектная оценка вместо обычной проверки */
+export const TASK_TYPE_LABEL: Record<string, string> = {
+  underwriter_review: 'Задача андеррайтера',
+  project_assessment: 'Проектная оценка',
+}
+
 export const TASK_STATUS_LABEL: Record<string, string> = {
   open: 'Ждёт специалиста',
   in_progress: 'В работе',

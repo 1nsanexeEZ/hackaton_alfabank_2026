@@ -11,6 +11,7 @@ import {
   type ProductCatalog,
   type ProductRecommendation,
 } from '@/entities/credit-product'
+import { FounderPrescreenPanel } from '@/entities/customer'
 import { clientApi, type LoanPurpose, type OrganizationDetailDto } from '@/shared/api'
 import { formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
 import { RangeField, SelectField, TextField } from '@/shared/ui'
@@ -23,12 +24,23 @@ import type { ApplicationWizard } from '../model/useApplicationWizard'
  */
 const props = defineProps<{ wizard: ApplicationWizard; products: ProductCatalog }>()
 
-const { terms, organizations, organization, product, fieldErrors, ineligibleReason } = props.wizard
+const { terms, organizations, organization, product, fieldErrors, ineligibleReason, allowedProducts, isStartup, companyInfo } = props.wizard
 
 const organizationOptions = computed(() =>
   (organizations.value ?? []).map((item) => ({ value: item.id, label: `${item.name} · ИНН ${item.inn}` })),
 )
-const productOptions = computed(() => props.products.map((item) => ({ value: item.id, label: item.title })))
+// Стартапу — только продукты для стартапа, действующему бизнесу — без них
+const productOptions = computed(() => allowedProducts.value.map((item) => ({ value: item.id, label: item.title })))
+
+// Компания сменилась или пришли из каталога с недоступным ей продуктом — берём первый доступный
+watch(
+  [companyInfo, allowedProducts],
+  ([info, allowed]) => {
+    if (!info || !allowed.length) return
+    if (!allowed.some((item) => item.id === terms.productId)) terms.productId = allowed[0]!.id
+  },
+  { immediate: true },
+)
 // Цель выбирают первой — поэтому все цели, а не только цели текущего продукта
 const purposeOptions = (Object.keys(PURPOSE_LABEL) as LoanPurpose[]).map((value) => ({ value, label: PURPOSE_LABEL[value] }))
 
@@ -179,7 +191,12 @@ const { schedule, personal, pending } = useLoanSchedule(() => ({
       <p v-if="ineligibleReason || fieldErrors['request.product']" class="mt-1.5 text-sm text-brand" role="alert">
         {{ ineligibleReason ?? fieldErrors['request.product'] }}
       </p>
+      <p v-if="isStartup" class="mt-1.5 text-xs text-ink-secondary">
+        Компания недавно зарегистрирована — для неё кредиты на запуск бизнеса с проверкой учредителя.
+      </p>
     </div>
+
+    <FounderPrescreenPanel v-if="product.startupOnly && isStartup && terms.organizationId" :organization-id="terms.organizationId" />
 
     <RangeField
       v-model="terms.amount"

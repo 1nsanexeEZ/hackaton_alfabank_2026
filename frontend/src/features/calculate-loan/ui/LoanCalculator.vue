@@ -9,6 +9,7 @@ import {
   useLoanSchedule,
   type ProductCatalog,
 } from '@/entities/credit-product'
+import { founderPrescreen } from '@/entities/customer'
 import { clamp, formatDate, formatMoney, formatMoneyShort, formatPercent, formatTerm, formatTermLimit } from '@/shared/lib'
 import { BaseButton, RangeField, SelectField } from '@/shared/ui'
 
@@ -30,8 +31,18 @@ const organizationId = defineModel<string>('organizationId', { default: '' })
 
 const product = computed(() => findProduct(props.products, productId.value))
 
+// Для компании — только доступные ей продукты: стартапу — для стартапа, действующему бизнесу — без них
+watch(organizationId, (id) => id && void founderPrescreen.load(id), { immediate: true })
+const segment = computed(() => (organizationId.value ? founderPrescreen.state[organizationId.value]?.segment : undefined))
+const availableProducts = computed(() =>
+  segment.value ? props.products.filter((item) => Boolean(item.startupOnly) === (segment.value === 'startup')) : props.products,
+)
+watch(availableProducts, (list) => {
+  if (list.length && !list.some((item) => item.id === productId.value)) productId.value = list[0]!.id
+})
+
 const productOptions = computed(() =>
-  props.products.map((item) => ({ value: item.id, label: item.title })),
+  availableProducts.value.map((item) => ({ value: item.id, label: item.title })),
 )
 const companyOptions = computed(() => (props.companies ?? []).map((item) => ({ value: item.id, label: item.name })))
 const company = computed(() => props.companies?.find((item) => item.id === organizationId.value) ?? null)
@@ -118,6 +129,10 @@ function takeSuggestion() {
           </button>
         </template>
       </div>
+      <p v-else-if="company && segment === 'startup'" class="rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
+        У нового бизнеса предварительного одобрения нет: банк сначала проверяет учредителя, а условия назначает
+        после оценки бизнес-плана. Расчёт — по базовой ставке продукта.
+      </p>
       <p v-else-if="company && personal && personal.withinPreApproved === null" class="rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
         Для {{ company.name }} по этому продукту предварительного одобрения нет — расчёт по базовой ставке продукта.
       </p>

@@ -12,6 +12,7 @@ export {
   SEGMENT_LABEL,
   SOURCE_LABEL,
   TASK_STATUS_LABEL,
+  TASK_TYPE_LABEL,
   ZONE_LABEL,
   type GradeZone,
 } from './model/labels'

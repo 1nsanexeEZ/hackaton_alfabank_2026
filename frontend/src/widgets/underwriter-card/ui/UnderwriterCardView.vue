@@ -17,6 +17,7 @@ import {
   REVIEW_LABEL,
   SEGMENT_LABEL,
   SOURCE_LABEL,
+  TASK_TYPE_LABEL,
   ZONE_LABEL,
   type GradeZone,
 } from '@/entities/underwriting'
@@ -485,7 +486,11 @@ const RATE_PARTS = [
       </div>
 
       <div class="space-y-4">
-        <PanelCard v-if="data.task" title="Задача андеррайтера">
+        <PanelCard
+          v-if="data.task"
+          :title="TASK_TYPE_LABEL[data.task.type] ?? 'Задача андеррайтера'"
+          :description="data.task.type === 'project_assessment' ? 'Стартап: бизнес-план, финмодель, обеспечение и господдержка' : undefined"
+        >
           <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
         </PanelCard>
 
