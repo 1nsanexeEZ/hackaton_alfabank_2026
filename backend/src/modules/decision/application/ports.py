@@ -1,17 +1,22 @@
-"""Порты decision: хранилища решений, предодобрений и предскринов учредителей. Соседние модули
-(applications, enrichment, scoring, products, clients, identity) decision читает через их
-фасады прямо в use case."""
+"""Порты decision: хранилища решений, предодобрений и предскринов учредителей, транзакция
+ночного пакета. Соседние модули (applications, enrichment, scoring, products, clients, identity)
+decision читает через их фасады прямо в use case."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Protocol
 from uuid import UUID
 
+from src.core.messaging.outbox import OutboxWriter
+from src.core.uow import UnitOfWork
+from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.domain.result import DecisionResult
+from src.modules.products.facade import ProductsFacade
+from src.modules.scoring.facade import ScoringFacade
 
 PreApprovalBasis = Literal["estimate", "full"]
 
@@ -51,6 +56,36 @@ class PreApprovedOfferRepository(Protocol):
         ...
 
     async def list_for_organization(self, organization_id: UUID) -> list[PreApprovedOffer]: ...
+
+    async def organizations_expiring_by(self, day: date, limit: int) -> list[UUID]:
+        """Компании, у которых хоть одно предложение действует не дольше `day` (и уже
+        истекшие); раньше истекающие — первыми."""
+        ...
+
+
+class PreApprovalTransaction(UnitOfWork, Protocol):
+    """Транзакция на своей сессии — вне запроса и обработчика Kafka (ночной пакет): вход
+    открывает сессию, выход откатывает незакоммиченное и закрывает её. Хранилище, фасады
+    соседей и outbox привязаны к этой сессии."""
+
+    @property
+    def offers(self) -> PreApprovedOfferRepository: ...
+
+    @property
+    def clients(self) -> ClientsFacade: ...
+
+    @property
+    def products(self) -> ProductsFacade: ...
+
+    @property
+    def scoring(self) -> ScoringFacade: ...
+
+    @property
+    def outbox(self) -> OutboxWriter: ...
+
+
+# Новая транзакция на каждый вызов: пакет пересчитывает каждую компанию в своей.
+PreApprovalTransactions = Callable[[], PreApprovalTransaction]
 
 
 PrescreenStatus = Literal["passed", "failed"]

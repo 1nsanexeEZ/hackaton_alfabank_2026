@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -20,7 +20,12 @@ from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.base import IntegrationMessage
-from src.core.messaging.contracts.clients import FinancialReportSubmitted, OrganizationVerified
+from src.core.messaging.contracts.clients import (
+    Discrepancy,
+    FinancialReportSubmitted,
+    OrganizationVerificationMismatch,
+    OrganizationVerified,
+)
 from src.core.messaging.contracts.decision import MakeDecision
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
 from src.core.messaging.subscriber import MessageProcessor
@@ -83,6 +88,17 @@ class App:
 
     def offers_path(self) -> str:
         return f"/organizations/{self.world.organization_id}/pre-approved-offers"
+
+    def offers(self) -> list[dict[str, Any]]:
+        response = self.get(
+            self.offers_path(),
+            permissions=[Permissions.ORGANIZATIONS_READ],
+            policies=CLIENT_POLICIES,
+            subject=OWNER,
+        )
+        assert response.status_code == 200, response.text
+        offers: list[dict[str, Any]] = response.json()
+        return offers
 
 
 @pytest.fixture
@@ -176,6 +192,32 @@ def test_clients_events_recalculate_pre_approved_offers(app: App, event: Any) ->
     assert first["basis"] == "estimate" and first["valid_until"] == "2026-11-20"
     assert "окончательное решение" in first["note"]
     assert "factors_summary" not in first
+
+
+def test_registry_mismatch_event_removes_offers(app: App) -> None:
+    organization_id = app.world.organization_id
+    app.send(
+        FinancialReportSubmitted(organization_id=organization_id, period_year=2025),
+        organization_id,
+        "clients",
+    )
+    assert app.offers()
+    clients: FakeClientsFacade = app.client.app.state.facades.get(ClientsFacade, None)  # type: ignore[attr-defined]
+    snapshot = clients.organizations[organization_id]
+    clients.add_organization(replace(snapshot, verification_status="mismatch"))
+
+    event_id = app.send(
+        OrganizationVerificationMismatch(
+            organization_id=organization_id,
+            discrepancies=[Discrepancy(field="head_name", declared="Петров П. П.")],
+        ),
+        organization_id,
+        "clients",
+    )
+
+    assert app.offers() == []
+    updated = app.envelopes("PreApprovedOffersUpdated")
+    assert len(updated) == 2 and updated[-1]["causation_id"] == str(event_id)
 
 
 def test_pre_approved_offers_access(app: App) -> None:

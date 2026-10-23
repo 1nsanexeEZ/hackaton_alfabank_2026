@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -105,6 +105,17 @@ class SqlAlchemyPreApprovedOfferRepository:
             .order_by(PreApprovedOfferRecord.max_amount.desc(), PreApprovedOfferRecord.product_code)
         )
         return [_offer(record) for record in await self._session.scalars(stmt)]
+
+    async def organizations_expiring_by(self, day: date, limit: int) -> list[UUID]:
+        soonest = func.min(PreApprovedOfferRecord.valid_until)
+        stmt = (
+            select(PreApprovedOfferRecord.organization_id)
+            .group_by(PreApprovedOfferRecord.organization_id)
+            .having(soonest <= day)
+            .order_by(soonest, PreApprovedOfferRecord.organization_id)
+            .limit(limit)
+        )
+        return list(await self._session.scalars(stmt))
 
 
 class SqlAlchemyFounderPrescreenRepository:

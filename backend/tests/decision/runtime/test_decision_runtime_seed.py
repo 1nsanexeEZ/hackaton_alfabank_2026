@@ -64,6 +64,8 @@ def test_demo_companies_get_pre_approved_offers(seeded: TestClient) -> None:
     assert all(offer.basis == "estimate" for offer in romashka.values())
     # «Закат» ликвидируется: предлагать нечего.
     assert _offers(seeded, "zakat") == {}
+    # «Вектор» расходится с ЕГРЮЛ (в кабинете Петров, в реестре Сидоров): без сверки — нет.
+    assert _offers(seeded, "vector") == {}
 
 
 def test_seed_is_idempotent(seeded: TestClient) -> None:
