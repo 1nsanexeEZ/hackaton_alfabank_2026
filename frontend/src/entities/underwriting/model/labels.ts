@@ -74,6 +74,29 @@ export const FACTOR_LABEL: Record<string, string> = {
   cash_gap: 'Кассовый разрыв',
 }
 
+/**
+ * Значения категориальных признаков: ML-модель отдаёт код (low, gap, no_history), PD-модель — код и подпись.
+ * Коды — из ml_logreg_v1.yaml и pd_model_v2.yaml (category).
+ */
+export const CATEGORY_LABEL: Record<string, string> = {
+  none: 'нет',
+  no: 'нет',
+  yes: 'есть',
+  low: 'низкий',
+  mid: 'средний',
+  high: 'высокий',
+  gap: 'прогнозируется',
+  no_gap: 'не прогнозируется',
+  no_statement: 'нет выписки',
+  no_history: 'нет кредитной истории',
+  unavailable: 'БКИ не ответило',
+  verified: 'подтверждена',
+  mismatch: 'расхождение',
+  '1-30': '1–30 дней',
+  '31-90': '31–90 дней',
+  '90+': 'больше 90 дней',
+}
+
 export const FLAG_LABEL: Record<string, string> = {
   revenue_mismatch: 'Выручка не сходится',
   verification_mismatch: 'Расхождение с ЕГРЮЛ',

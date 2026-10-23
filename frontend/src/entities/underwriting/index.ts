@@ -1,4 +1,5 @@
 export {
+  CATEGORY_LABEL,
   FACTOR_LABEL,
   FLAG_LABEL,
   GRADE_ZONE,
