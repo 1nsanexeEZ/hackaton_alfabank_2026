@@ -64,6 +64,8 @@ class QueueItemDTO:
     assignee_id: UUID | None
     status: str
     created_at: datetime
+    # check or dispute, by the routing reasons (decision `review_kind`).
+    review: Literal["check", "dispute"] | None = None
 
 
 @dataclass(frozen=True, slots=True)

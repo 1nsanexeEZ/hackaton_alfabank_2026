@@ -9,8 +9,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain.clock import Clock
+from src.modules.decision.facade import review_kind
 from src.modules.projector.domain.metrics import DailyMetrics, MetricsSummary
-from src.modules.projector.domain.read_models import QueueItem, queue_statuses
+from src.modules.projector.domain.read_models import MANUAL_REVIEW, QueueItem, queue_statuses
 from src.modules.projector.domain.timeline import CLIENT
 from src.modules.projector.facade import (
     ActionRequired,
@@ -203,4 +204,5 @@ def _queue_item(item: QueueItem, now: datetime) -> QueueItemDTO:
         assignee_id=item.assignee_id,
         status=item.status,
         created_at=item.created_at,
+        review=review_kind(MANUAL_REVIEW, item.routing_reasons) if item.routing_reasons else None,
     )

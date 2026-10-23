@@ -20,6 +20,7 @@ from src.modules.decision.facade import (
     RequestedInfoDTO,
     RuleTraceDTO,
     TriggerDTO,
+    review_kind,
 )
 
 
@@ -63,6 +64,7 @@ def decision_dto(result: DecisionResult) -> DecisionDTO:
         )
         if result.rate_breakdown is not None
         else None,
+        review=review_kind(result.outcome, result.reason_codes),
     )
 
 

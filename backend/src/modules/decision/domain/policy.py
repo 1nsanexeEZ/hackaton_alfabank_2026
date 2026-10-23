@@ -30,6 +30,19 @@ policy_v3 — «Стратегия решения» общей схемы на �
   продукта, разбивка — в `rate_breakdown`;
 - поручительство собственника — для слабых грейдов и крупных сумм.
 
+policy_v5 — две модели вместо матрицы грейд × сумма. Скоринг считает на каждой заявке PD-модель
+(экспертную) и ML-модель (обученную на данных), грейды — на одной шкале A–J. Грейд даёт зону
+(green / yellow / red), пара зон по матрице — вердикт:
+- обе в красной → отказ (STOP_MODELS_HIGH_RISK), если только данные не неполные (сбой
+  источников) — тогда решает человек;
+- обе в зелёной → одобрение, дальше лимиты (может стать встречным предложением);
+- умеренный риск → проверка (ROUTE_MODELS_CHECK); модели расходятся или одна в красной →
+  спорная (ROUTE_MODELS_DISAGREE); оценки ML нет → спорная (ROUTE_ML_UNAVAILABLE).
+Стоп-факторы и дозапрос выручки идут раньше моделей, как прежде. Расхождения в данных
+(верификация, массовый адрес, выручка после дозапроса, сбой источников) делают заявку спорной,
+мягкие триггеры и сумма выше лимита автоматики — не меньше проверки. Вид ручной проверки
+(проверка или спорная) — `review_kind` контракта decision по кодам причин.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
 ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
@@ -80,6 +93,15 @@ _HEAD_BUREAU_SKIPPED = {
 
 
 MatrixVerdict = Literal["approve", "manual", "reject"]
+Zone = Literal["green", "yellow", "red"]
+ModelsVerdict = Literal["approve", "check", "dispute", "reject"]
+_ZONE_NAMES: dict[str, str] = {"green": "зелёная", "yellow": "жёлтая", "red": "красная"}
+_VERDICT_NAMES: dict[str, str] = {
+    "approve": "одобрение, дальше лимиты",
+    "check": "проверка андеррайтером",
+    "dispute": "спорная заявка — решает андеррайтер",
+    "reject": "отказ",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +183,9 @@ class PolicyConfig:
     # policy_v4: продукты для стартапа — нужен пройденный предскрин учредителя, вместо матрицы
     # грейд × сумма — проектная оценка андеррайтером.
     startup_products: frozenset[str] = frozenset()
+    # policy_v5: грейд → зона и (зона PD-модели, зона ML-модели) → вердикт. Пусто — выключено.
+    model_zones: Mapping[str, Zone] = field(default_factory=dict)
+    model_matrix: Mapping[tuple[Zone, Zone], ModelsVerdict] = field(default_factory=dict)
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -442,6 +467,10 @@ def _pct(value: Decimal) -> str:
     return f"{value.quantize(_CENT, rounding=ROUND_HALF_UP)}%"
 
 
+def _pd_note(pd: Decimal | None) -> str:
+    return f" (PD {_pct(pd * _HUNDRED)})" if pd is not None else ""
+
+
 class _Evaluation:
     """Один прогон политики: копит трассу правил и собирает итог."""
 
@@ -483,6 +512,7 @@ class _Evaluation:
         routes = list(self._routing(score))
         self._soft_triggers()
         verdict = self._risk_matrix(score.grade)
+        models = self._two_models(score)
         gap, gap_alternative = self._cash_gap(score)
         if self._triggers:
             routes.append(ReasonCode.ROUTE_SOFT_TRIGGER)
@@ -492,6 +522,20 @@ class _Evaluation:
             return self._result("REJECT", (ReasonCode.STOP_RISK_MATRIX,))
         if verdict in ("manual", "reject"):
             routes.append(ReasonCode.ROUTE_RISK_MATRIX)
+        # Обе модели в красной зоне — отказ; на неполных данных модели не доверяем — решает
+        # человек (сбой источников уже в маршрутах и делает заявку спорной).
+        incomplete = ReasonCode.ROUTE_SOURCES_FAILED in routes
+        if models == "reject" and not incomplete:
+            return self._result("REJECT", (ReasonCode.STOP_MODELS_HIGH_RISK,))
+        if models == "check":
+            routes.append(ReasonCode.ROUTE_MODELS_CHECK)
+        elif models == "dispute":
+            reason = (
+                ReasonCode.ROUTE_ML_UNAVAILABLE
+                if score.ml_grade is None
+                else ReasonCode.ROUTE_MODELS_DISAGREE
+            )
+            routes.append(reason)
         if routes:
             return self._result("MANUAL_REVIEW", tuple(routes))
         return self._outcome(self._rate, max_payment, gap, gap_alternative)
@@ -1095,6 +1139,38 @@ class _Evaluation:
             verdict != "approve",
             f"грейд {grade} (корзина {band.label}), сумма {_num(amount)}: автоматика до "
             f"{_num(band.approve_up_to)}, ручная {manual} → {outcome}",
+        )
+        return verdict
+
+    # --- policy_v5: две модели ------------------------------------------------------------------
+
+    def _two_models(self, score: ScoreInput) -> ModelsVerdict | None:
+        """Вердикт по паре зон PD-модели и ML-модели; None — правило выключено."""
+        if not self._c.model_matrix:
+            return None
+        if self._in.product.code in self._c.startup_products:
+            self._hit(
+                "strategy.two_models",
+                False,
+                "продукт для стартапа: вместо моделей — проектная оценка андеррайтером",
+            )
+            return None
+        pd_zone = self._c.model_zones[score.grade]
+        pd_side = f"PD-модель: грейд {score.grade}{_pd_note(score.pd_12m)} — {_ZONE_NAMES[pd_zone]}"
+        if score.ml_grade is None:
+            self._hit(
+                "strategy.two_models",
+                True,
+                f"{pd_side}; оценки ML-модели нет → {_VERDICT_NAMES['dispute']}",
+            )
+            return "dispute"
+        ml_zone = self._c.model_zones[score.ml_grade]
+        verdict = self._c.model_matrix[(pd_zone, ml_zone)]
+        self._hit(
+            "strategy.two_models",
+            verdict != "approve",
+            f"{pd_side}; ML-модель: грейд {score.ml_grade}{_pd_note(score.ml_pd_12m)} — "
+            f"{_ZONE_NAMES[ml_zone]} → {_VERDICT_NAMES[verdict]}",
         )
         return verdict
 

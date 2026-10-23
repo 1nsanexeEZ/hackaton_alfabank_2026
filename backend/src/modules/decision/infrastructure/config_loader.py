@@ -14,7 +14,7 @@ import string
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v4"
+_DEFAULT_POLICY = "policy_v5"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -129,11 +129,24 @@ class _Guarantee(_Strict):
     amount_above: Decimal | None = Field(default=None, gt=0)
 
 
+_ZoneName = Literal["green", "yellow", "red"]
+_ModelsVerdict = Literal["approve", "check", "dispute", "reject"]
+
+
+class _TwoModels(_Strict):
+    """policy_v5: зоны грейдов и матрица «зона PD-модели × зона ML-модели»."""
+
+    zones: dict[_ZoneName, list[str]]
+    matrix: dict[_ZoneName, dict[_ZoneName, _ModelsVerdict]]
+
+
 class _Strategy(_Strict):
-    """policy_v3: мягкие триггеры, матрица грейд × сумма, поручительство."""
+    """policy_v3: мягкие триггеры, матрица грейд × сумма, поручительство; policy_v5 — две
+    модели вместо матрицы."""
 
     soft_triggers: _SoftTriggers = Field(default_factory=_SoftTriggers)
     risk_matrix: list[_Band] = Field(default_factory=list)
+    two_models: _TwoModels | None = None
     guarantee: _Guarantee = Field(default_factory=_Guarantee)
 
 
@@ -259,6 +272,28 @@ def _check_strategy(schema: _PolicySchema, scale: tuple[str, ...], path: Path) -
     unknown = set(strategy.guarantee.grades) - set(scale)
     if unknown:
         raise PolicyConfigError(f"{path}: strategy.guarantee.grades вне шкалы: {sorted(unknown)}")
+    if strategy.two_models is not None:
+        _check_two_models(strategy, path)
+
+
+def _check_two_models(strategy: _Strategy, path: Path) -> None:
+    models = strategy.two_models
+    assert models is not None
+    if strategy.risk_matrix:
+        raise PolicyConfigError(f"{path}: strategy.two_models заменяет risk_matrix — оставьте одно")
+    # ML-модель всегда ставит грейд на шкале A–J — зоны покрывают её, а не шкалу политики.
+    zoned = [g for grades in models.zones.values() for g in grades]
+    if len(zoned) != len(set(zoned)) or set(zoned) != set(PD_SCALE):
+        raise PolicyConfigError(
+            f"{path}: strategy.two_models.zones должны покрыть каждый грейд {list(PD_SCALE)} "
+            "ровно раз"
+        )
+    zones = set(models.zones)
+    if set(models.matrix) != zones or any(set(row) != zones for row in models.matrix.values()):
+        raise PolicyConfigError(
+            f"{path}: strategy.two_models.matrix — по строке и столбцу на каждую зону "
+            f"{sorted(zones)}"
+        )
 
 
 def _check_explanations(schema: _ExplanationsSchema, path: Path) -> None:
@@ -307,6 +342,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     triggers = strategy.soft_triggers
     spike = triggers.turnover_spike
     components = schema.pricing.components
+    two_models = strategy.two_models
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -363,6 +399,16 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         guarantee_grades=frozenset(strategy.guarantee.grades),
         guarantee_amount_above=strategy.guarantee.amount_above,
         startup_products=frozenset(schema.startup.products) if schema.startup else frozenset(),
+        model_zones={grade: zone for zone, grades in two_models.zones.items() for grade in grades}
+        if two_models is not None
+        else {},
+        model_matrix={
+            (pd_zone, ml_zone): verdict
+            for pd_zone, row in two_models.matrix.items()
+            for ml_zone, verdict in row.items()
+        }
+        if two_models is not None
+        else {},
     )
 
 

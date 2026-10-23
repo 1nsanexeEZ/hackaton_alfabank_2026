@@ -221,6 +221,8 @@ def _score_input(result: ScoringResultDTO | None, scale: tuple[Grade, ...]) -> S
         flags=frozenset(result.flags),
         client_hints=tuple(f.client_hint for f in result.factors if f.client_hint),
         pd_12m=result.pd_12m,
+        ml_grade=result.ml.grade if result.ml is not None else None,
+        ml_pd_12m=result.ml.pd_12m if result.ml is not None else None,
     )
 
 

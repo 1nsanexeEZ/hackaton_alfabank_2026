@@ -141,7 +141,9 @@ def test_s1_romashka_is_approved_signed_and_paid(stand: Stand) -> None:
     assert stand.stuck() == []
 
 
-def test_s2_ivanov_gets_a_counter_offer_and_an_alternative(stand: Stand) -> None:
+def test_s2_ivanov_is_checked_by_the_underwriter(stand: Stand) -> None:
+    """policy_v5: PD-модель и ML-модель обе в жёлтой зоне (грейд E) — проверка андеррайтером,
+    он делает встречное предложение."""
     application_id = submit(
         stand,
         email="ivanov@ip.test",
@@ -153,11 +155,23 @@ def test_s2_ivanov_gets_a_counter_offer_and_an_alternative(stand: Stand) -> None
         statement="ivanov",
     )
     card = stand.card(application_id, "ivanov@ip.test")
+    assert card["status"] == "in_review"
+    assert card["client_stage"] == "Заявка у специалиста"
+
+    stand.underwriter_decides(
+        application_id,
+        {
+            "decision": "counter_offer",
+            "amount": "3000000",
+            "term_months": 24,
+            "rate": "25",
+            "comment": "Обе модели в жёлтой зоне, кассовый разрыв в ноябре: снижаем сумму",
+        },
+    )
+    card = stand.card(application_id, "ivanov@ip.test")
     assert card["status"] == "offer_ready"
     assert card["offer"]["kind"] == "counter"
-    assert Decimal(card["offer"]["amount"]) < Decimal("5000000")
-    assert card["decision_summary"]["outcome"] == "COUNTER_OFFER"
-    assert card["decision_summary"]["alternative_product_code"] == "OVERDRAFT"
+    assert Decimal(card["offer"]["amount"]) == Decimal("3000000")
     assert stand.stuck() == []
 
 
