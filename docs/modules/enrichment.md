@@ -26,7 +26,8 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 
 ```
 enrichment/
-├── facade.py                 # EnrichmentFacade + реэкспорт DTO для соседей
+├── facade.py                 # EnrichmentFacade + реэкспорт DTO для соседей;
+│                             # реализация — infrastructure/adapters/enrichment_facade.py
 ├── module.py                 # wire: HTTP-источники и кеш реестра на процесс, фасад, подписка
 ├── domain/
 │   ├── snapshot.py           # агрегат EnrichmentSnapshot, SourceResult, SourceError
@@ -43,12 +44,12 @@ enrichment/
 ├── infrastructure/
 │   ├── config.py             # ENRICHMENT_* из окружения
 │   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
-│   │                         # statement_csv.py, registry_cache.py
-│   ├── database/             # models, mappers, serialization (DTO ↔ JSONB)
-│   └── repositories/         # SqlAlchemyEnrichmentRepository
+│   │                         # statement_csv.py, registry_cache.py, enrichment_facade.py
+│   ├── database/             # models
+│   └── repositories/         # SqlAlchemyEnrichmentRepository, mappers, serialization (DTO ↔ JSONB)
 └── presentation/
+    ├── api/, schemas/        # пусто (.gitkeep): HTTP API у модуля нет
     ├── consumers.py          # FetchEnrichment из Kafka → FetchEnrichmentUseCase
-    ├── facade_impl.py        # EnrichmentFacadeImpl: только зовёт use case'ы
     └── dependencies.py       # сборка use case'ов и фасада
 ```
 
