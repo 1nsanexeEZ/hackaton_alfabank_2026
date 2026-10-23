@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.domain.clock import Clock, SystemClock
 from src.modules.enrichment.facade import CreditHistoryDTO
 from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.domain.model import (
@@ -47,10 +47,12 @@ class ScoringFacadeImpl:
         session: AsyncSession,
         scorecard: ScoringModel,
         prescreen: FounderPrescreen | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._repo = SqlAlchemyScoringRepository(session)
         self._scorecard = scorecard
         self._prescreen = prescreen or default_prescreen()
+        self._clock = clock or SystemClock()
 
     def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
         output = self._prescreen.check(
@@ -128,7 +130,7 @@ class ScoringFacadeImpl:
             ),
             mass_address=False,
             sources_failed=(),
-            as_of=date.today(),
+            as_of=self._clock.now().date(),
         )
         output = self._scorecard.calculate(scoring_input)
         return EstimateDTO(
