@@ -16,7 +16,7 @@ import pytest
 from src.modules.decision.domain.model import PolicyDecision
 from src.modules.decision.facade import review_kind
 from src.modules.decision.infrastructure.config_loader import load_policy
-from tests.decision.unit.decision_world import ALL_SOURCES, SCENARIOS, DecisionWorld, build_world
+from tests.decision.unit.decision_world import SCENARIOS, V7_SOURCES, DecisionWorld, build_world
 from tests.decision.unit.test_decision_golden_v6 import golden_json
 
 _GOLDEN = Path(__file__).resolve().parent / "golden_v7"
@@ -25,7 +25,7 @@ _POLICY = load_policy("policy_v7")
 
 
 async def collect(name: str) -> tuple[DecisionWorld, object]:
-    world = await build_world(name, sources=ALL_SOURCES, head_consent=True)
+    world = await build_world(name, sources=V7_SOURCES, head_consent=True)
     collected = await world.builder(_POLICY).collect(world.application_id)
     return world, collected.decision_input
 

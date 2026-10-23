@@ -56,6 +56,8 @@ _STATEMENTS = _BACKEND / "seed" / "statements"
 _CONSENT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
 V1_SOURCES = ("egrul", "fns", "bki")
 ALL_SOURCES = ("egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head")
+# policy_v7: ещё внутренний стоп-лист банка.
+V7_SOURCES = (*ALL_SOURCES, "bank_stop_list")
 _CATALOG = {product.code.value: product for product in catalog()}
 
 

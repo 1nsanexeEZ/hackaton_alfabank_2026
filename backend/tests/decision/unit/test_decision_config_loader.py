@@ -68,9 +68,16 @@ def test_v7_is_v6_with_stop_factors_data_quality_and_the_risk_matrix() -> None:
             screen_before_scoring=False,
             route_degraded_quality=False,
             risk_matrix=(),
+            stop_registry_statuses=v6.stop_registry_statuses,
+            stop_unreliable_data=False,
+            stop_mass_head=False,
+            stop_business_age=False,
+            stop_bank_stop_list=False,
         )
         == v6
     )
+    assert v7.stop_registry_statuses["reorganizing"] == "STOP_REORGANIZATION"
+    assert v7.stop_registry_statuses["excluded"] == "STOP_EXCLUDED_FROM_REGISTRY"
 
 
 def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:

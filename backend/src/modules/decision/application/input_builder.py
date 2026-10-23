@@ -27,6 +27,7 @@ from src.modules.decision.domain.model import (
     AlternativeInput,
     AmlHit,
     AmlInput,
+    BankStopListInput,
     BureauInput,
     CashflowInput,
     CollateralInput,
@@ -49,7 +50,7 @@ from src.modules.products.facade import ProductDTO, ProductsFacade
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 
 # Внешние источники: сбой любого — данных для стоп-факторов не хватает, решает андеррайтер.
-_EXTERNAL_SOURCES = ("egrul", "fns", "bki", "gir_bo", "kontur", "bki_head")
+_EXTERNAL_SOURCES = ("egrul", "fns", "bki", "gir_bo", "kontur", "bki_head", "bank_stop_list")
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +106,7 @@ class DecisionInputBuilder:
             founder_prescreen=await self._founder_prescreen(source),
             aml=_aml_input(snapshot),
             automated_decision_consent=source.automated_decision_consent_at is not None,
+            bank_stop_list=_bank_stop_list_input(snapshot),
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -181,6 +183,7 @@ def _product_input(source: ScoringInputDTO, product: ProductDTO | None) -> Produ
         else None,
         guarantee=product.guarantee if product is not None else "none",
         target_use_confirmation=product.target_use_confirmation if product is not None else False,
+        min_business_age_months=product.min_business_age_months if product is not None else 0,
     )
 
 
@@ -208,6 +211,9 @@ def _company_input(
         head_since_registration=(
             egrul is not None and head_since is not None and head_since <= egrul.registered_at
         ),
+        unreliable=egrul.unreliable if egrul is not None else (),
+        mass_head=fns.mass_head if fns is not None else None,
+        business_age_months=organization.business_age_months,
     )
 
 
@@ -302,6 +308,17 @@ def _cashflow_input(snapshot: EnrichmentSnapshotDTO | None) -> CashflowInput | N
         monthly_inflows=tuple(month.inflow for month in cashflow.months_history),
         annual_inflow=cashflow.annual_inflow,
     )
+
+
+def _bank_stop_list_input(snapshot: EnrichmentSnapshotDTO | None) -> BankStopListInput:
+    """Стоп-лист банка этой заявки; не ответил — `failed`, не запрашивали — `not_requested`."""
+    if snapshot is None:
+        return BankStopListInput("not_requested")
+    stop = snapshot.bank_stop_list
+    if stop is None:
+        failed = any(e.source == "bank_stop_list" for e in snapshot.sources_failed)
+        return BankStopListInput("failed" if failed else "not_requested")
+    return BankStopListInput("ok", listed=stop.listed, reason=stop.reason)
 
 
 def _sources_failed(snapshot: EnrichmentSnapshotDTO | None) -> tuple[str, ...]:

@@ -98,6 +98,13 @@ class ReasonCode(StrEnum):
     ROUTE_ZSK_MEDIUM_RISK = "ROUTE_ZSK_MEDIUM_RISK"
     ROUTE_PEP = "ROUTE_PEP"
     ROUTE_AUTOMATED_DECISION_CONSENT = "ROUTE_AUTOMATED_DECISION_CONSENT"
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
+    STOP_REORGANIZATION = "STOP_REORGANIZATION"
+    STOP_EXCLUDED_FROM_REGISTRY = "STOP_EXCLUDED_FROM_REGISTRY"
+    STOP_UNRELIABLE_DATA = "STOP_UNRELIABLE_DATA"
+    STOP_MASS_HEAD = "STOP_MASS_HEAD"
+    STOP_BUSINESS_TOO_YOUNG = "STOP_BUSINESS_TOO_YOUNG"
+    STOP_BANK_STOP_LIST = "STOP_BANK_STOP_LIST"
 
 
 # --- вход политики -----------------------------------------------------------
@@ -128,6 +135,7 @@ class ProductInput:
     support_program: SupportProgramInput | None = None
     guarantee: str = "none"  # none | owner | msp_corporation
     target_use_confirmation: bool = False
+    min_business_age_months: int = 0  # требование продукта к сроку работы бизнеса
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +162,10 @@ class CompanyInput:
     head_tenure_months: int | None = None
     # Запись о руководителе — от регистрации: руководитель не менялся.
     head_since_registration: bool = False
+    # Отметки ЕГРЮЛ о недостоверности сведений: address | head | founder.
+    unreliable: tuple[str, ...] = ()
+    mass_head: bool | None = None  # ФНС: массовый руководитель; None — ФНС не ответила
+    business_age_months: int | None = None  # полных месяцев с регистрации до подачи
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,6 +268,19 @@ class AmlInput:
     lists_date: str | None = None  # версия перечней, ISO-дата
 
 
+# ok — стоп-лист банка ответил; failed — не ответил; not_requested — не запрашивали.
+BankStopListStatus = Literal["ok", "failed", "not_requested"]
+
+
+@dataclass(frozen=True, slots=True)
+class BankStopListInput:
+    """Внутренний стоп-лист банка (АБС); причина — для трассы банка, клиенту не показывается."""
+
+    status: BankStopListStatus
+    listed: bool = False
+    reason: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class AlternativeInput:
     """Продукт-кандидат в альтернативу: прошла ли компания его eligibility."""
@@ -287,6 +312,8 @@ class DecisionInput:
     aml: AmlInput | None = None
     # Согласие на решение только на основании автоматизированной обработки (ст. 16 152-ФЗ).
     automated_decision_consent: bool = False
+    # Внутренний стоп-лист банка (policy_v7); None — не собирался.
+    bank_stop_list: BankStopListInput | None = None
 
 
 @dataclass(frozen=True, slots=True)
