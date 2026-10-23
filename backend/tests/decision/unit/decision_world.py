@@ -38,8 +38,9 @@ from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
 from src.modules.scoring.application.input_builder import build_scoring_input
 from src.modules.scoring.application.ports import ScoringModel
-from src.modules.scoring.facade import FactorDTO, ScoringResultDTO
+from src.modules.scoring.facade import FactorDTO, MlScoreDTO, ScoringResultDTO
 from src.modules.scoring.infrastructure.config_loader import default_model
+from src.modules.scoring.infrastructure.ml_loader import default_ml_model
 from tests.assessment.assessment_world import mock_sources
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
@@ -111,7 +112,8 @@ async def build_world(
     scoring_model: ScoringModel | None = None,
 ) -> DecisionWorld:
     """`head_consent` — руководитель по реестру дал личное согласие на запрос своего БКИ;
-    `scoring_model` — чем считать скоринг, по умолчанию действующая PD-модель."""
+    `scoring_model` — чем считать скоринг, по умолчанию действующая PD-модель и рядом с ней
+    ML-модель (у старых моделей golden policy_v1 и policy_v2 ML-оценки нет)."""
     scenario = SCENARIOS[name]
     organization = builders.organization_snapshot(scenario.code)
     products = _products(organization)
@@ -179,7 +181,9 @@ async def build_world(
     scoring = FakeScoringFacade()
     source = await applications.get_scoring_input(card.id)
     model = scoring_model or default_model()
-    output = model.calculate(build_scoring_input(source, snapshot))
+    scoring_input = build_scoring_input(source, snapshot)
+    output = model.calculate(scoring_input)
+    ml = default_ml_model().predict(scoring_input) if scoring_model is None else None
     scoring.add_result(
         ScoringResultDTO(
             id=uuid4(),
@@ -198,6 +202,18 @@ async def build_world(
             scorecard=output.scorecard,
             pd_12m=output.pd_12m,
             reason_codes=output.reason_codes,
+            ml=MlScoreDTO(
+                model_version=ml.model_version,
+                pd_12m=ml.pd_12m,
+                score=ml.score,
+                grade=ml.grade,
+                factors=tuple(
+                    FactorDTO(f.code, f.value, f.bin, f.points, f.direction) for f in ml.factors
+                ),
+                reason_codes=ml.reason_codes,
+            )
+            if ml is not None
+            else None,
         )
     )
     return DecisionWorld(card.id, organization.id, applications, enrichment, scoring, products)

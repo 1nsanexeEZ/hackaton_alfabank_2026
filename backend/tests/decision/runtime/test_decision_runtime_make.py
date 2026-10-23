@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.messaging.contracts.decision import DecisionMade
+from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.runtime.decision_runtime_world import (
     KEY_RATE,
     Sessions,
@@ -51,7 +52,7 @@ async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -
 
     stored = await decision(session_factory, world.application_id)
     assert stored is not None and stored.id == made.decision_id
-    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v4"
+    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v5"
     assert stored.decided_by_type == "auto" and stored.override_of is None
     assert stored.terms is not None and stored.terms.monthly_payment == offer.monthly_payment
     assert stored.limits.by_revenue is not None and stored.limits.by_capacity is not None
@@ -61,7 +62,7 @@ async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -
 @pytest.mark.parametrize(
     ("name", "outcome", "with_offer"),
     [
-        ("s2_ivanov", "COUNTER_OFFER", True),
+        ("s2_ivanov", "MANUAL_REVIEW", False),
         ("s3_vector", "MANUAL_REVIEW", False),
         ("s4_zakat", "REJECT", False),
         ("s5a_progress", "REQUEST_INFO", False),
@@ -84,10 +85,34 @@ async def test_outcome_reaches_the_reply(
     assert stored is not None and stored.outcome == outcome and stored.id == made.decision_id
 
 
+@pytest.mark.parametrize(
+    ("name", "review", "reason"),
+    [
+        ("s2_ivanov", "check", "ROUTE_MODELS_CHECK"),
+        ("s3_vector", "dispute", "ROUTE_VERIFICATION_MISMATCH"),
+        ("s6_sboy", "dispute", "ROUTE_SOURCES_FAILED"),
+        ("s7_romashka_mortgage", "check", "ROUTE_AMOUNT_OVER_AUTO_LIMIT"),
+    ],
+)
+async def test_manual_review_is_a_check_or_a_dispute(
+    session_factory: Sessions, name: str, review: str, reason: str
+) -> None:
+    world = await build_world(name)
+
+    await make_decision(session_factory, world)
+
+    stored = await decision(session_factory, world.application_id)
+    assert stored is not None and stored.outcome == "MANUAL_REVIEW"
+    assert stored.review == review and reason in stored.reason_codes
+
+
 async def test_s2_counter_offer_names_the_overdraft(session_factory: Sessions) -> None:
+    """policy_v4: Иванов (грейд E) — встречное предложение; в policy_v5 обе модели в жёлтой
+    зоне, и его проверяет андеррайтер."""
     world = await build_world("s2_ivanov")
 
-    [made] = (await make_decision(session_factory, world)).of_type(DecisionMade)
+    outbox = await make_decision(session_factory, world, policy=load_policy("policy_v4"))
+    [made] = outbox.of_type(DecisionMade)
 
     assert made.offer is not None and made.offer.kind == "counter"
     assert Decimal(300_000) <= made.offer.amount < Decimal(5_000_000)

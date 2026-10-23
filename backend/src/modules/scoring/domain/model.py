@@ -105,6 +105,18 @@ class Factor:
 
 
 @dataclass(frozen=True, slots=True)
+class MlScore:
+    """Оценка ML-модели (`ml_model.py`) — рядом с PD-моделью, на той же шкале грейдов A–J."""
+
+    model_version: str
+    pd_12m: Decimal  # вероятность дефолта за 12 месяцев, доля
+    score: int
+    grade: Grade
+    factors: tuple[Factor, ...]
+    reason_codes: tuple[str, ...]  # топ-3 признака по недобранным баллам
+
+
+@dataclass(frozen=True, slots=True)
 class ScoringResult:
     id: UUID
     application_id: UUID | None  # None для estimate (не сохраняется)
@@ -125,3 +137,5 @@ class ScoringResult:
     scorecard: str | None = None
     pd_12m: Decimal | None = None  # доля, 0.0340 — 3,4%
     reason_codes: tuple[str, ...] = ()  # топ-3 признака по потере баллов
+    # ML-модель (scoring_0003); у результатов до неё — None.
+    ml: MlScore | None = None

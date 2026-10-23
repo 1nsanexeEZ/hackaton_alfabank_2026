@@ -48,7 +48,7 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v4"
+    assert policy.version == "policy_v5"
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
@@ -57,7 +57,7 @@ def test_default_policy_loads() -> None:
 
 
 def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:
-    v3, v4 = load_policy("policy_v3").config, default_policy().config
+    v3, v4 = load_policy("policy_v3").config, load_policy("policy_v4").config
     assert v3.startup_products == frozenset()
     assert v4.startup_products == frozenset({"STARTUP"})
     assert replace(v4, version=v3.version, startup_products=frozenset()) == v3
@@ -221,3 +221,38 @@ def test_client_contract_has_no_internal_fields() -> None:
     internal = {"reason_codes", "rule_trace", "limits", "key_rate", "policy_version"}
     assert internal <= bank
     assert not internal & client
+
+
+# --- policy_v5: две модели ---
+
+
+def test_v5_zones_must_cover_every_grade_once(tmp_path: Path) -> None:
+    def drop_j(raw: dict[str, Any]) -> None:
+        raw["strategy"]["two_models"]["zones"]["red"] = ["H", "I"]
+
+    with pytest.raises(PolicyConfigError, match="two_models.zones"):
+        _load(tmp_path, drop_j, version="policy_v5")
+
+
+def test_v5_matrix_needs_every_pair_of_zones(tmp_path: Path) -> None:
+    def drop_cell(raw: dict[str, Any]) -> None:
+        del raw["strategy"]["two_models"]["matrix"]["yellow"]["red"]
+
+    with pytest.raises(PolicyConfigError, match="two_models.matrix"):
+        _load(tmp_path, drop_cell, version="policy_v5")
+
+
+def test_v5_matrix_knows_only_four_verdicts(tmp_path: Path) -> None:
+    def typo(raw: dict[str, Any]) -> None:
+        raw["strategy"]["two_models"]["matrix"]["green"]["green"] = "aprove"
+
+    with pytest.raises(PolicyConfigError, match="не прошёл схему"):
+        _load(tmp_path, typo, version="policy_v5")
+
+
+def test_v5_two_models_replace_the_risk_matrix(tmp_path: Path) -> None:
+    def both(raw: dict[str, Any]) -> None:
+        raw["strategy"]["risk_matrix"] = _raw("policy_v4")["strategy"]["risk_matrix"]
+
+    with pytest.raises(PolicyConfigError, match="заменяет risk_matrix"):
+        _load(tmp_path, both, version="policy_v5")

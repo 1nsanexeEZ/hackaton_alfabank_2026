@@ -18,6 +18,7 @@ from src.modules.enrichment.facade import (
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
 from src.modules.scoring.domain.model import ScoringResult
 from src.modules.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.ml_loader import load_ml_model
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.enrichment_facade import FakeEnrichmentFacade
@@ -127,10 +128,17 @@ def _setup(
 
 
 def _use_case(
-    apps: FakeApplicationsFacade, enrichment: FakeEnrichmentFacade
+    apps: FakeApplicationsFacade, enrichment: FakeEnrichmentFacade, *, with_ml: bool = False
 ) -> tuple[CalculateScoreUseCase, InMemoryScoringRepo]:
     repo = InMemoryScoringRepo()
-    use_case = CalculateScoreUseCase(repo, _CARD, apps, enrichment, FrozenClock(_NOW))
+    use_case = CalculateScoreUseCase(
+        repo,
+        _CARD,
+        apps,
+        enrichment,
+        FrozenClock(_NOW),
+        load_ml_model() if with_ml else None,
+    )
     return use_case, repo
 
 
@@ -156,6 +164,46 @@ async def test_romashka_scores_and_publishes() -> None:
     result, stored = repo.added[0]
     assert result.input_hash  # зафиксирован снимок входа
     assert stored["request"]["amount"] == "3000000"
+
+
+async def test_ml_model_scores_next_to_the_main_model() -> None:
+    """ML-оценка — в результате рядом с основной моделью; событие ScoreCalculated прежнее."""
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=_romashka_bki())
+    )
+    use_case, repo = _use_case(apps, enrichment, with_ml=True)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=(outbox := FakeOutboxWriter()),
+    )
+
+    result, _ = repo.added[0]
+    assert result.ml is not None and result.ml.model_version == "ml_logreg_v1"
+    assert result.ml.grade in "ABCDEFGHIJ" and 0 < result.ml.pd_12m < 1
+    assert len(result.ml.reason_codes) <= 3
+    event = outbox.of_type(ScoreCalculated)[0]
+    assert (event.score, event.risk_grade) == (result.score, result.grade)
+
+
+async def test_without_the_ml_model_the_result_has_no_ml() -> None:
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=_romashka_bki())
+    )
+    use_case, repo = _use_case(apps, enrichment)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=FakeOutboxWriter(),
+    )
+
+    assert repo.added[0][0].ml is None
 
 
 async def test_missing_snapshot_fails() -> None:

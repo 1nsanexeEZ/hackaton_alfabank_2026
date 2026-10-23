@@ -11,6 +11,7 @@ from src.modules.scoring.domain.model import (
     Direction,
     Factor,
     Grade,
+    MlScore,
     RiskFlag,
     ScoringResult,
     Segment,
@@ -62,6 +63,7 @@ def _to_record(result: ScoringResult, input_snapshot: dict[str, Any]) -> Scoring
         scorecard=result.scorecard,
         pd_12m=result.pd_12m,
         reason_codes=list(result.reason_codes) if result.pd_12m is not None else None,
+        ml=_ml_to_json(result.ml) if result.ml is not None else None,
     )
 
 
@@ -83,6 +85,29 @@ def _to_domain(record: ScoringResultRecord) -> ScoringResult:
         scorecard=record.scorecard,
         pd_12m=Decimal(str(record.pd_12m)) if record.pd_12m is not None else None,
         reason_codes=tuple(record.reason_codes or ()),
+        ml=_ml_from_json(record.ml) if record.ml is not None else None,
+    )
+
+
+def _ml_to_json(ml: MlScore) -> dict[str, Any]:
+    return {
+        "model_version": ml.model_version,
+        "pd_12m": str(ml.pd_12m),
+        "score": ml.score,
+        "grade": ml.grade,
+        "factors": [_factor_to_json(f) for f in ml.factors],
+        "reason_codes": list(ml.reason_codes),
+    }
+
+
+def _ml_from_json(raw: dict[str, Any]) -> MlScore:
+    return MlScore(
+        model_version=raw["model_version"],
+        pd_12m=Decimal(raw["pd_12m"]),
+        score=raw["score"],
+        grade=cast(Grade, raw["grade"]),
+        factors=tuple(_factor_from_json(f) for f in raw["factors"]),
+        reason_codes=tuple(raw["reason_codes"]),
     )
 
 

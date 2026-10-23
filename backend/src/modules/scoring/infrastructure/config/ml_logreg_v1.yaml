@@ -1,0 +1,220 @@
+# ML-модель скоринга — генерируется `uv run --group ml python -m ml.train`,
+# руками не править: метрики и паритет с обучением — в metadata и ml/reports.
+version: ml_logreg_v1
+intercept: '-3.371946'
+scaling:
+  base_score: '600'
+  base_odds: '50'
+  pdo: '40'
+grade_bands:
+- grade: A
+  max_pd: '0.0050'
+- grade: B
+  max_pd: '0.0100'
+- grade: C
+  max_pd: '0.0175'
+- grade: D
+  max_pd: '0.0275'
+- grade: E
+  max_pd: '0.0400'
+- grade: F
+  max_pd: '0.0600'
+- grade: G
+  max_pd: '0.0900'
+- grade: H
+  max_pd: '0.1400'
+- grade: I
+  max_pd: '0.2200'
+features:
+- name: business_age_months
+  title: Возраст бизнеса, мес.
+  kind: numeric
+  coef: '-0.665019'
+  missing_woe: '0.000000'
+  bins:
+  - upper: '12'
+    woe: '-0.415070'
+    label: <12
+  - upper: '24'
+    woe: '-0.297188'
+    label: 12–24
+  - upper: '60'
+    woe: '0.047148'
+    label: 24–60
+  - upper: '120'
+    woe: '0.253692'
+    label: 60–120
+  - upper: null
+    woe: '0.572256'
+    label: ≥120
+- name: revenue_growth
+  title: Рост выручки год к году
+  kind: numeric
+  coef: '-0.478291'
+  missing_woe: '-0.335497'
+  bins:
+  - upper: '-0.2'
+    woe: '-0.223034'
+    label: <-0.2
+  - upper: null
+    woe: '0.227252'
+    label: ≥-0.2
+- name: debt_service_ratio
+  title: Платежи по кредитам / месячная выручка
+  kind: numeric
+  coef: '-0.836959'
+  missing_woe: '0.000000'
+  bins:
+  - upper: '0.15'
+    woe: '0.371902'
+    label: <0.15
+  - upper: '0.3'
+    woe: '-0.089119'
+    label: 0.15–0.3
+  - upper: '0.6'
+    woe: '-0.251667'
+    label: 0.3–0.6
+  - upper: null
+    woe: '-0.526044'
+    label: ≥0.6
+- name: amount_to_revenue
+  title: Сумма кредита / годовая выручка
+  kind: numeric
+  coef: '-0.324978'
+  missing_woe: '0.000000'
+  bins:
+  - upper: '0.1'
+    woe: '0.179301'
+    label: <0.1
+  - upper: '0.3'
+    woe: '0.010724'
+    label: 0.1–0.3
+  - upper: '0.5'
+    woe: '-0.203080'
+    label: 0.3–0.5
+  - upper: null
+    woe: '-0.407422'
+    label: ≥0.5
+- name: revenue_gap
+  title: Расхождение выручки с ФНС
+  kind: numeric
+  coef: '-1.137385'
+  missing_woe: '-0.202045'
+  bins:
+  - upper: '0.15'
+    woe: '0.132538'
+    label: <0.15
+  - upper: '0.3'
+    woe: '0.078298'
+    label: 0.15–0.3
+  - upper: null
+    woe: '-0.802832'
+    label: ≥0.3
+- name: bureau_inquiries
+  title: Запросы в БКИ за 30 дней
+  kind: numeric
+  coef: '-0.857071'
+  missing_woe: '0.065616'
+  bins:
+  - upper: '2'
+    woe: '0.370663'
+    label: <2
+  - upper: '3'
+    woe: '-0.065482'
+    label: 2–3
+  - upper: '5'
+    woe: '-0.660734'
+    label: 3–5
+  - upper: null
+    woe: '-1.182719'
+    label: ≥5
+- name: bureau_overdue
+  title: Макс. просрочка за 12 мес.
+  kind: category
+  coef: '-0.905759'
+  missing_woe: '0.000000'
+  categories:
+    '0': '0.122199'
+    1-30: '-0.424264'
+    31-90: '-1.074933'
+    90+: '-1.888445'
+    no_history: '0.374828'
+    unavailable: '0.066136'
+- name: tax_arrears
+  title: Налоговая недоимка
+  kind: category
+  coef: '-0.669852'
+  missing_woe: '-0.202566'
+  categories:
+    'no': '0.070173'
+    'yes': '-0.589018'
+- name: industry_risk
+  title: Отраслевой риск
+  kind: category
+  coef: '-0.754454'
+  missing_woe: '0.000000'
+  categories:
+    high: '-0.507395'
+    low: '0.223068'
+    mid: '0.149983'
+- name: cash_gap
+  title: Кассовый разрыв по выписке
+  kind: category
+  coef: '-0.381977'
+  missing_woe: '0.000000'
+  categories:
+    gap: '-0.126535'
+    no_gap: '0.978322'
+    no_statement: '-0.002457'
+metadata:
+  method: WoE-биннинг + логистическая регрессия (L2, C=1.0)
+  data: 'синтетика: ml/population.py, дефолт — отдельный «истинный» процесс'
+  seeds:
+    development: 2026
+    out_of_time: 2027
+    split: 42
+  sizes:
+    development: 40000
+    out_of_time: 15000
+    test_share: 0.3
+  metrics:
+    test:
+      default_rate: 0.033
+      ml:
+        roc_auc: 0.7509
+        gini: 0.5018
+        ks: 0.3886
+        brier: 0.0305
+        mean_pd: 0.0331
+      pd_model_v2:
+        roc_auc: 0.6793
+        gini: 0.3586
+        ks: 0.2732
+        brier: 0.0321
+        mean_pd: 0.032
+      scorecard_v1:
+        roc_auc: 0.7013
+        gini: 0.4025
+        ks: 0.2905
+    out_of_time:
+      default_rate: 0.0464
+      ml:
+        roc_auc: 0.7571
+        gini: 0.5141
+        ks: 0.3876
+        brier: 0.0415
+        mean_pd: 0.0398
+      pd_model_v2:
+        roc_auc: 0.6893
+        gini: 0.3786
+        ks: 0.273
+        brier: 0.044
+        mean_pd: 0.0389
+      scorecard_v1:
+        roc_auc: 0.7164
+        gini: 0.4327
+        ks: 0.3154
+    stability_psi_train_vs_out_of_time:
+      ml: 0.045
+      pd_model_v2: 0.0212
+  parity_max_abs_pd_diff_vs_sklearn: 5.0e-05

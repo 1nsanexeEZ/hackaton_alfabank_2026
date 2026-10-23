@@ -1,6 +1,7 @@
 """Decision contract. The full decision (rule trace, reason codes) is for the
 bank only; the client view never carries them."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -8,6 +9,29 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from src.core.messaging.contracts.decision import Outcome
+
+# A manual review comes in two kinds. check — the data and the models look fine
+# or the risk is moderate, but a person has to look: soft triggers, an amount
+# above the automatic limit, both models in the yellow zone. dispute — the
+# models disagree or the data cannot be trusted: the underwriter decides it all.
+ReviewKind = Literal["check", "dispute"]
+DISPUTE_REASON_CODES: frozenset[str] = frozenset(
+    {
+        "ROUTE_MODELS_DISAGREE",
+        "ROUTE_ML_UNAVAILABLE",
+        "ROUTE_SOURCES_FAILED",
+        "ROUTE_VERIFICATION_MISMATCH",
+        "ROUTE_MASS_ADDRESS",
+        "ROUTE_REVENUE_MISMATCH",
+    }
+)
+
+
+def review_kind(outcome: str, reason_codes: Iterable[str]) -> ReviewKind | None:
+    """The kind of a manual review by its reason codes; None unless MANUAL_REVIEW."""
+    if outcome != "MANUAL_REVIEW":
+        return None
+    return "dispute" if any(c in DISPUTE_REASON_CODES for c in reason_codes) else "check"
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +115,8 @@ class DecisionDTO:
     decided_at: datetime
     triggers: tuple[TriggerDTO, ...] = ()
     rate_breakdown: RateBreakdownDTO | None = None
+    # MANUAL_REVIEW only: check or dispute (`review_kind`); None otherwise.
+    review: ReviewKind | None = None
 
 
 @dataclass(frozen=True, slots=True)
