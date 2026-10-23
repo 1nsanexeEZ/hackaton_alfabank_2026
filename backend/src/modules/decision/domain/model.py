@@ -268,6 +268,14 @@ class AmlInput:
     lists_date: str | None = None  # версия перечней, ISO-дата
 
 
+@dataclass(frozen=True, slots=True)
+class BankTurnoverInput:
+    """Обороты по счёту в банке (АБС): поступления по месяцам от старых к новым и за год."""
+
+    monthly_inflows: tuple[Decimal, ...]
+    annual_inflow: Decimal | None  # меньше года оборотов — None
+
+
 # ok — стоп-лист банка ответил; failed — не ответил; not_requested — не запрашивали.
 BankStopListStatus = Literal["ok", "failed", "not_requested"]
 
@@ -314,6 +322,8 @@ class DecisionInput:
     automated_decision_consent: bool = False
     # Внутренний стоп-лист банка (policy_v7); None — не собирался.
     bank_stop_list: BankStopListInput | None = None
+    # Обороты по счёту в банке (policy_v7) — когда выписки нет; None — АБС не ответила.
+    bank_turnover: BankTurnoverInput | None = None
 
 
 @dataclass(frozen=True, slots=True)

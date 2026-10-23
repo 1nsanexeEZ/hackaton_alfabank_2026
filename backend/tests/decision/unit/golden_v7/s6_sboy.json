@@ -159,7 +159,7 @@
     {
       "rule": "limits.turnover",
       "matched": false,
-      "detail": "выписки нет — по оборотам не ограничиваем"
+      "detail": "k 0.5 × обороты по счёту за год (АБС) 23 519 372,50 = 11 759 686,25"
     },
     {
       "rule": "limits.grade",
@@ -239,7 +239,7 @@
     {
       "rule": "trigger.turnover_spike",
       "matched": false,
-      "detail": "выписки нет или она короче двух периодов — проверка не выполнена"
+      "detail": "поступления (АБС) за последние 3 мес. в среднем 1 947 503,27 против 1 996 026,14 раньше: ×0.98, порог > ×1.5"
     },
     {
       "rule": "strategy.risk_matrix",
@@ -263,7 +263,7 @@
     "by_ltv": null,
     "by_capacity": "1413660.41",
     "final": "1413660.41",
-    "by_turnover": null,
+    "by_turnover": "11759686.25",
     "by_grade": "50000000.00",
     "by_group": null,
     "binding": "by_capacity"
