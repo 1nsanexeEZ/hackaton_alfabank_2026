@@ -35,3 +35,5 @@ class ScoringResultRecord(Base):
     scorecard: Mapped[str | None] = mapped_column(String(32), default=None)
     pd_12m: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), default=None)
     reason_codes: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
+    # ML-модель (scoring_0003): версия, PD, скор, грейд, факторы и коды причин; до неё — пусто.
+    ml: Mapped[dict[str, Any] | None] = mapped_column(JSONType, default=None)

@@ -12,6 +12,7 @@ from src.modules.scoring.domain.model import ScoringResult
 from src.modules.scoring.facade import CompanyProfileDTO
 from src.modules.scoring.infrastructure.config_loader import load_pd_model, load_scorecard
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
+from src.modules.scoring.infrastructure.ml_loader import load_ml_model
 from src.modules.scoring.infrastructure.models import ScoringResultRecord
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 from tests.scoring.scenarios import SCENARIOS
@@ -19,6 +20,7 @@ from tests.scoring.scenarios import SCENARIOS
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 _CARD = load_scorecard()
 _MODEL = load_pd_model()
+_ML = load_ml_model()
 
 
 async def test_pd_model_result_roundtrips(
@@ -43,6 +45,7 @@ async def test_pd_model_result_roundtrips(
         scorecard=output.scorecard,
         pd_12m=output.pd_12m,
         reason_codes=output.reason_codes,
+        ml=_ML.predict(scoring_input),
     )
     async with session_factory() as session:
         await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
@@ -50,11 +53,24 @@ async def test_pd_model_result_roundtrips(
 
     async with session_factory() as session:
         dto = await ScoringFacadeImpl(session, _MODEL).get_result(result.application_id)
+        stored_result = await SqlAlchemyScoringRepository(session).latest_for_application(
+            result.application_id
+        )
 
     assert dto is not None
     assert (dto.segment, dto.scorecard, dto.grade) == ("legal_entity", "legal_entity_v1", "F")
     assert dto.pd_12m == Decimal("0.0421")
     assert dto.reason_codes == ("amount_to_revenue", "industry_risk", "verification")
+    # ML-модель рядом с PD-моделью — на той же шкале, с факторами и кодами причин.
+    assert stored_result is not None and stored_result.ml == result.ml
+    assert dto.ml is not None and result.ml is not None
+    assert (dto.ml.model_version, dto.ml.grade, dto.ml.pd_12m) == (
+        "ml_logreg_v1",
+        "F",
+        Decimal("0.0429"),
+    )
+    assert dto.ml.reason_codes == ("industry_risk", "debt_service_ratio", "cash_gap")
+    assert [f.code for f in dto.ml.factors] == [f.code for f in result.ml.factors]
 
 
 async def test_scorecard_v1_result_has_no_pd(
@@ -69,7 +85,7 @@ async def test_scorecard_v1_result_has_no_pd(
         dto = await ScoringFacadeImpl(session, _CARD).get_result(result.application_id)
 
     assert dto is not None
-    assert (dto.segment, dto.pd_12m, dto.reason_codes) == (None, None, ())
+    assert (dto.segment, dto.pd_12m, dto.reason_codes, dto.ml) == (None, None, (), None)
 
 
 def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:

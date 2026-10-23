@@ -13,6 +13,8 @@ from src.modules.scoring.domain.model import (
     CashflowInput,
     CollateralInput,
     CompanyInput,
+    Factor,
+    MlScore,
     RequestInput,
     ScoringInput,
     TaxInput,
@@ -22,6 +24,7 @@ from src.modules.scoring.facade import (
     CompanyProfileDTO,
     EstimateDTO,
     FactorDTO,
+    MlScoreDTO,
     PersonPrescreenDTO,
     PrescreenReasonDTO,
     ScoringResultDTO,
@@ -77,17 +80,7 @@ class ScoringFacadeImpl:
             model_version=result.model_version,
             score=result.score,
             grade=result.grade,
-            factors=tuple(
-                FactorDTO(
-                    code=f.code,
-                    value=f.value,
-                    bin=f.bin,
-                    points=f.points,
-                    direction=f.direction,
-                    client_hint=f.client_hint,
-                )
-                for f in result.factors
-            ),
+            factors=_factors(result.factors),
             flags=tuple(result.flags),
             data_completeness=result.data_completeness,
             computed_at=result.computed_at,
@@ -95,6 +88,7 @@ class ScoringFacadeImpl:
             scorecard=result.scorecard,
             pd_12m=result.pd_12m,
             reason_codes=result.reason_codes,
+            ml=_ml(result.ml) if result.ml is not None else None,
         )
 
     def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
@@ -141,17 +135,32 @@ class ScoringFacadeImpl:
             score=output.score,
             grade=output.grade,
             flags=tuple(output.flags),
-            factors=tuple(
-                FactorDTO(
-                    code=f.code,
-                    value=f.value,
-                    bin=f.bin,
-                    points=f.points,
-                    direction=f.direction,
-                    client_hint=f.client_hint,
-                )
-                for f in output.factors
-            ),
+            factors=_factors(output.factors),
             segment=output.segment,
             pd_12m=output.pd_12m,
         )
+
+
+def _factors(factors: tuple[Factor, ...]) -> tuple[FactorDTO, ...]:
+    return tuple(
+        FactorDTO(
+            code=f.code,
+            value=f.value,
+            bin=f.bin,
+            points=f.points,
+            direction=f.direction,
+            client_hint=f.client_hint,
+        )
+        for f in factors
+    )
+
+
+def _ml(ml: MlScore) -> MlScoreDTO:
+    return MlScoreDTO(
+        model_version=ml.model_version,
+        pd_12m=ml.pd_12m,
+        score=ml.score,
+        grade=ml.grade,
+        factors=_factors(ml.factors),
+        reason_codes=ml.reason_codes,
+    )
