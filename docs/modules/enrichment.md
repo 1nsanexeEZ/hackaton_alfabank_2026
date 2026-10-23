@@ -65,13 +65,14 @@ enrichment/
 
 | `Source` | Что | Порт → адаптер | Мок | В снимке |
 |---|---|---|---|---|
-| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель и дата записи о нём (`head_since`, «Руководитель.ДатаЗаписи» — для мягкого триггера смены руководителя в policy_v3), учредители (у юрлица — `inn`), адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
-| `fns` | ФНС «Прозрачный бизнес»: недоимка, выручка, блокировки счетов | `TaxSource` → `fns_http.py` | `GET /fns/{inn}` | `fns: TaxProfileDTO` (+ `account_blocks`) |
+| `egrul` | ЕГРЮЛ / ЕГРИП: статус (в том числе `reorganizing`, `excluded`), руководитель и дата записи о нём (`head_since`, «Руководитель.ДатаЗаписи» — для мягкого триггера смены руководителя в policy_v3), учредители (у юрлица — `inn`), адрес, отметки о недостоверности сведений (`unreliable`: `address` / `head` / `founder`) | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
+| `fns` | ФНС «Прозрачный бизнес»: недоимка, выручка, блокировки счетов, массовый руководитель (`mass_head`) | `TaxSource` → `fns_http.py` | `GET /fns/{inn}` | `fns: TaxProfileDTO` (+ `account_blocks`) |
 | `bki` | БКИ компании | `CreditBureauSource` → `bki_http.py` | `POST /bki/report` | `bki: CreditHistoryDTO` |
 | `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
 | `kontur` | Контур.Фокус: арбитраж, исполнительные производства, банкротство, госконтракты | `CounterpartyRiskSource` → `kontur_http.py` | `GET /kontur/{inn}` | `kontur: CounterpartyRiskDTO` |
 | `bki_head` | БКИ руководителя по реестру | `PersonBureauSource` → `bki_person_http.py` | `POST /bki/person-report` | `bki_head: CreditHistoryDTO` |
 | `aml` | проверка по 115-ФЗ: бенефициары (больше 25% прямо или по цепочке учредителей-юрлиц), перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ), ПДЛ, уровень риска ЗСК — [`compliance-115.md`](../compliance-115.md) | `AmlListsSource`, `PepSource`, `ZskSource` → `aml_http.py`; цепочка — `RegistrySource`; расчёт — `check_aml.py`, `domain/beneficial_owners.py` | `POST /rfm/screen`, `POST /pep/screen`, `GET /zsk/{inn}` | `aml: AmlCheckDTO` |
+| `bank_stop_list` | внутренний стоп-лист банка (АБС): в нём ли компания и почему; собственные данные банка, согласия не требуют. Боевая АБС — другой адаптер за тем же портом | `BankStopListSource` → `bank_stop_list_http.py` | `GET /abs/stop-list/{inn}` | `bank_stop_list: BankStopListDTO` |
 | `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `StatementParser` → `statement_csv.py`, расчёт — `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
 
 Процесс просит все (`FetchEnrichment.sources` по умолчанию — тоже все). Новые источники
