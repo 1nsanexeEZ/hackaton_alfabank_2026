@@ -3,7 +3,7 @@ name: Test and Deploy to VPS
 on:
   push:
     tags:
-      - 'v*
+      - 'v*.*.*' 
 
 jobs:
   test-and-deploy:
