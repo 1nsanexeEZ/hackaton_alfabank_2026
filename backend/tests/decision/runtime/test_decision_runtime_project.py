@@ -277,3 +277,15 @@ async def test_unknown_company_has_no_assessment(session_factory: Sessions) -> N
         facade = DecisionFacadeImpl(session, FrozenClock(NOW))
         assert await facade.get_project_assessment(uuid4()) is None
 
+
+async def test_the_nightly_refresh_leaves_project_offers_alone(session_factory: Sessions) -> None:
+    """Пересчёт по оценке проектное предложение не продлевает, поэтому ночной пакет его не
+    берёт: иначе стартап попадал бы в пакет каждую ночь."""
+    world = _World()
+    await world.prescreen(session_factory)
+    await world.run(session_factory)
+
+    async with session_factory() as session:
+        offers = SqlAlchemyPreApprovedOfferRepository(session)
+        later = (NOW + timedelta(days=60)).date()
+        assert await offers.organizations_expiring_by(later, 10) == []

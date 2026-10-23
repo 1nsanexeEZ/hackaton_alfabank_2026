@@ -67,8 +67,9 @@ class PreApprovedOfferRepository(Protocol):
     async def list_for_organization(self, organization_id: UUID) -> list[PreApprovedOffer]: ...
 
     async def organizations_expiring_by(self, day: date, limit: int) -> list[UUID]:
-        """Компании, у которых хоть одно предложение действует не дольше `day` (и уже
-        истекшие); раньше истекающие — первыми."""
+        """Компании, у которых хоть одно предложение по оценке без заявки действует не дольше
+        `day` (и уже истекшие); раньше истекающие — первыми. Проектные не считаются: их не
+        продлить пересчётом, только новой проектной оценкой."""
         ...
 
 

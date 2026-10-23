@@ -134,6 +134,8 @@ class SqlAlchemyPreApprovedOfferRepository:
         soonest = func.min(PreApprovedOfferRecord.valid_until)
         stmt = (
             select(PreApprovedOfferRecord.organization_id)
+            # Проектное предложение пересчёт по оценке не продлевает: его даёт новая оценка.
+            .where(PreApprovedOfferRecord.basis != "project")
             .group_by(PreApprovedOfferRecord.organization_id)
             .having(soonest <= day)
             .order_by(soonest, PreApprovedOfferRecord.organization_id)
