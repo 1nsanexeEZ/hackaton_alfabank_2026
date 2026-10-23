@@ -95,6 +95,7 @@ def product_dto(product: CreditProduct) -> ProductDTO:
         workflow_code=product.processing.workflow_code,
         auto_decision_limit=product.processing.auto_decision_limit.amount,
         status=cast(ProductStatus, product.status.value),
+        startup_only=rules.startup_only,
     )
 
 

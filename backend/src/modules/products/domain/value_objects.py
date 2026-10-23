@@ -196,6 +196,9 @@ class Eligibility:
     min_business_age_months: int = 0
     allowed_legal_forms: frozenset[str] = frozenset(LEGAL_FORMS)
     min_annual_revenue: Money | None = None
+    # Only a company without turnover: younger than STARTUP_AGE_MONTHS or without
+    # an annual report (products/facade.py).
+    startup_only: bool = False
 
     def __post_init__(self) -> None:
         if self.min_business_age_months < 0:
