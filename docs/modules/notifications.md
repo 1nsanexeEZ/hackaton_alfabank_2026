@@ -77,7 +77,8 @@ notifications/
 | `DecisionMade` (auto) | `role:underwriter` | `status_changed` «Автоматическое решение: …» | low | — |
 | `DecisionMade` | участники | `advice` — советы из флагов (см. ниже) и `improvement_hints` | normal / low | — |
 | `ManualDecisionRejected` | `role:underwriter` | `status_changed`, ссылка на задачу | high | ✓ |
-| `PreApprovedOffersUpdated` | участники | `advice` — список предодобренных (одна запись на компанию, обновляется) | normal | — |
+| `PreApprovedOffersUpdated` | участники | `advice` — список предодобренных (одна запись на компанию, обновляется); сюда же входят проектные предложения стартапа | normal | — |
+| `PreApprovedOffersUpdated` без предложений у компании, не прошедшей сверку | участники, у которых есть запись предодобрения | `advice` «Уточните данные компании» — **заменяет** запись «вам предодобрено»; ссылка на карточку компании | normal | — |
 | `OrganizationVerified` | участники | `status_changed` | low | — |
 | `OrganizationVerificationMismatch` | участники | `info_requested` со списком расхождений | high | ✓ |
 | `MemberAdded`, `MemberRemoved`, `MemberRoleChanged` | сам участник | `status_changed` | normal | — |
@@ -101,6 +102,7 @@ notifications/
 - Inbox платформы: повтор сообщения не доходит до обработчика; обработчик не коммитит сам — записи ленты, inbox и outbox коммитятся вместе.
 - UNIQUE `(source_event_id, recipient_type, recipient_id)` в `notifications_feed_items`: даже без inbox повтор события не создаёт дублей. Если одно событие даёт получателю несколько записей (советы), ключ второй и следующих — `uuid5(event_id, "advice:<код>")`.
 - Записи с `group_key` (`stage:<application_id>`, `task:<task_id>`, `pre-approved:<organization_id>`) заменяют друг друга: новый этап обновляет запись этапа, а не добавляет новую, и снова делает её непрочитанной.
+- Снятие предодобрения (decision без `verified` отдаёт пустой список) — «исправляющая» доставка (`only_existing`): заменяет запись группы `pre-approved:<organization_id>` только у того, у кого она есть; нет записи или в ней уже этот текст — ничего не пишется. Причину берём у `ClientsFacade.get_snapshot`: статус сверки не `verified` — совет «уточните данные компании»; `verified` или компании нет — предложений просто нет, прежняя запись остаётся как есть. Если среди предложений есть проектное (`basis = project`, стартап), список не пуст и запись обновляется как обычно.
 
 ## Позиция в потоке (`seq`)
 

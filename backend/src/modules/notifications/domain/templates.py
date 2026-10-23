@@ -199,6 +199,11 @@ BANK_MANUAL_DECISION_REJECTED = Template(
 
 HINTS = Template("Как улучшить условия", "{hints}")
 PRE_APPROVED = Template("Для вас есть предодобренные предложения", "{offers}")
+PRE_APPROVED_WITHDRAWN = Template(
+    "Уточните данные компании",
+    "Предодобренные предложения сняты: данные {organization} не подтверждены реестром. "
+    "Проверьте карточку компании, и банк пересчитает предложения.",
+)
 ORGANIZATION_VERIFIED = Template(
     "Данные компании подтверждены", "Реквизиты {organization} совпадают с данными реестра."
 )
