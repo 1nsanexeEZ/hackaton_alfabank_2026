@@ -5,7 +5,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.modules.decision.application.ports import FounderPrescreen, PreApprovedOffer
+from src.modules.decision.application.ports import (
+    FounderPrescreen,
+    PreApprovedOffer,
+    ProjectAssessment,
+)
 from src.modules.decision.domain.model import InfoNeed
 from src.modules.decision.domain.result import ApprovedTerms, DecisionResult
 from src.modules.decision.facade import (
@@ -16,6 +20,9 @@ from src.modules.decision.facade import (
     LimitsDTO,
     PreApprovedOfferDTO,
     PrescreenReasonDTO,
+    ProjectAssessmentDTO,
+    ProjectCheckDTO,
+    ProjectFiguresDTO,
     RateBreakdownDTO,
     RequestedInfoDTO,
     RuleTraceDTO,
@@ -99,6 +106,32 @@ def prescreen_dto(prescreen: FounderPrescreen, now: datetime) -> FounderPrescree
         valid_until=prescreen.valid_until,
         valid=prescreen.valid_at(now),
         reasons=tuple(PrescreenReasonDTO(r.code, r.passed, r.message) for r in prescreen.reasons),
+    )
+
+
+def project_dto(assessment: ProjectAssessment, now: datetime) -> ProjectAssessmentDTO:
+    figures = assessment.figures
+    return ProjectAssessmentDTO(
+        status=assessment.status,
+        product_code=assessment.product_code,
+        plan_revision=assessment.plan_revision,
+        max_amount=assessment.max_amount,
+        checked_at=assessment.checked_at,
+        valid_until=assessment.valid_until,
+        valid=assessment.valid_at(now),
+        reasons=tuple(ProjectCheckDTO(r.code, r.passed, r.message) for r in assessment.reasons),
+        figures=ProjectFiguresDTO(
+            requested_amount=figures.requested_amount,
+            term_months=figures.term_months,
+            rate=figures.rate,
+            cash_flow=figures.cash_flow,
+            debt_service=figures.debt_service,
+            dscr=figures.dscr,
+            own_share=figures.own_share,
+            coverage=figures.coverage,
+            capacity=figures.capacity,
+        ),
+        version=assessment.version,
     )
 
 

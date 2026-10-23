@@ -17,10 +17,16 @@ from src.core.messaging.subscriber import HandlerContext
 from src.core.uow import SqlAlchemyUnitOfWork, UnitOfWork
 from src.modules.clients.application.interfaces.outbox import EventOutbox
 from src.modules.clients.application.interfaces.repositories import (
+    BusinessPlanRepository,
     FinancialReportRepository,
     OrganizationRepository,
 )
 from src.modules.clients.application.mappers.events import PRODUCER
+from src.modules.clients.application.use_cases.business_plan import (
+    FindBusinessPlanUseCase,
+    GetBusinessPlanUseCase,
+    SubmitBusinessPlanUseCase,
+)
 from src.modules.clients.application.use_cases.members import (
     AddMemberUseCase,
     ChangeMemberRoleUseCase,
@@ -53,6 +59,9 @@ from src.modules.clients.infrastructure.adapters.clients_facade import ClientsFa
 from src.modules.clients.infrastructure.adapters.enrichment_registry import (
     EnrichmentRegistryLookup,
 )
+from src.modules.clients.infrastructure.repositories.business_plan import (
+    SqlAlchemyBusinessPlanRepository,
+)
 from src.modules.clients.infrastructure.repositories.financial_report import (
     SqlAlchemyFinancialReportRepository,
 )
@@ -75,6 +84,7 @@ def clients_facade(session: AsyncSession, clock: Clock) -> ClientsFacadeImpl:
         ListMyOrganizationsUseCase(organizations, clock),
         ListMemberIdsUseCase(organizations, clock),
         GetRegistryHeadUseCase(organizations),
+        FindBusinessPlanUseCase(SqlAlchemyBusinessPlanRepository(session)),
     )
 
 
@@ -111,6 +121,10 @@ def get_report_repository(session: DbSession) -> FinancialReportRepository:
     return SqlAlchemyFinancialReportRepository(session)
 
 
+def get_business_plan_repository(session: DbSession) -> BusinessPlanRepository:
+    return SqlAlchemyBusinessPlanRepository(session)
+
+
 def get_outbox(request: Request, session: DbSession) -> EventOutbox:
     return SqlAlchemyOutboxWriter(session, PRODUCER, request.app.state.clock)
 
@@ -119,6 +133,7 @@ ClockDep = Annotated[Clock, Depends(get_clock)]
 Uow = Annotated[UnitOfWork, Depends(get_uow)]
 Organizations = Annotated[OrganizationRepository, Depends(get_organization_repository)]
 Reports = Annotated[FinancialReportRepository, Depends(get_report_repository)]
+Plans = Annotated[BusinessPlanRepository, Depends(get_business_plan_repository)]
 Outbox = Annotated[EventOutbox, Depends(get_outbox)]
 IdentityDep = Annotated[IdentityFacade, Depends(use_facade(IdentityFacade))]
 EnrichmentDep = Annotated[EnrichmentFacade, Depends(use_facade(EnrichmentFacade))]
@@ -204,6 +219,19 @@ def get_submit_financial_report(
     return SubmitFinancialReportUseCase(uow, organizations, reports, outbox, clock)
 
 
+# --- business plan -------------------------------------------------------------
+
+
+def get_get_business_plan(organizations: Organizations, plans: Plans) -> GetBusinessPlanUseCase:
+    return GetBusinessPlanUseCase(organizations, plans)
+
+
+def get_submit_business_plan(
+    uow: Uow, organizations: Organizations, plans: Plans, clock: ClockDep
+) -> SubmitBusinessPlanUseCase:
+    return SubmitBusinessPlanUseCase(uow, organizations, plans, clock)
+
+
 ListOrganizationsDep = Annotated[ListOrganizationsUseCase, Depends(get_list_organizations)]
 GetOrganizationDep = Annotated[GetOrganizationUseCase, Depends(get_get_organization)]
 VerifyOrganizationDep = Annotated[VerifyOrganizationUseCase, Depends(get_verify_organization)]
@@ -220,3 +248,5 @@ ListFinancialReportsDep = Annotated[
 SubmitFinancialReportDep = Annotated[
     SubmitFinancialReportUseCase, Depends(get_submit_financial_report)
 ]
+GetBusinessPlanDep = Annotated[GetBusinessPlanUseCase, Depends(get_get_business_plan)]
+SubmitBusinessPlanDep = Annotated[SubmitBusinessPlanUseCase, Depends(get_submit_business_plan)]

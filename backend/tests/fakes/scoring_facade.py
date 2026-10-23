@@ -7,6 +7,9 @@ from src.modules.scoring.facade import (
     EstimateDTO,
     PersonPrescreenDTO,
     PrescreenReasonDTO,
+    ProjectAssessmentDTO,
+    ProjectDTO,
+    ProjectReasonDTO,
     ScoringResultDTO,
 )
 
@@ -19,6 +22,40 @@ PRESCREEN_FAILED = PersonPrescreenDTO(
     "prescreen_v1",
     False,
     (PrescreenReasonDTO("no_current_overdue", False, "Есть текущая просрочка по личным кредитам"),),
+)
+
+PROJECT_PASSED = ProjectAssessmentDTO(
+    version="project_v1",
+    passed=True,
+    reasons=(
+        ProjectReasonDTO("founder_prescreen", True, "Проверка учредителя пройдена"),
+        ProjectReasonDTO(
+            "dscr", True, "Денежного потока по финмодели хватает на платежи по кредиту с запасом"
+        ),
+    ),
+    max_amount=Decimal("3818411.03"),
+    cash_flow=Decimal("4800000.00"),
+    debt_service=Decimal("2900924.64"),
+    dscr=Decimal("1.65"),
+    own_share=Decimal("0.2500"),
+    coverage=Decimal("0.5000"),
+)
+PROJECT_FAILED = ProjectAssessmentDTO(
+    version="project_v1",
+    passed=False,
+    reasons=(
+        ProjectReasonDTO(
+            "dscr",
+            False,
+            "Денежного потока по финмодели не хватает на платежи по кредиту с запасом",
+        ),
+    ),
+    max_amount=Decimal("1200000.00"),
+    cash_flow=Decimal("1500000.00"),
+    debt_service=Decimal("2900924.64"),
+    dscr=Decimal("0.51"),
+    own_share=Decimal("0.2500"),
+    coverage=Decimal("0.5000"),
 )
 
 
@@ -37,6 +74,8 @@ class FakeScoringFacade:
         self.estimate_calls: list[CompanyProfileDTO] = []
         self.prescreen = PRESCREEN_PASSED
         self.prescreen_calls: list[CreditHistoryDTO | None] = []
+        self.project = PROJECT_PASSED
+        self.project_calls: list[ProjectDTO] = []
 
     def add_result(self, result: ScoringResultDTO) -> ScoringResultDTO:
         self.results[result.application_id] = result
@@ -52,3 +91,7 @@ class FakeScoringFacade:
     def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
         self.prescreen_calls.append(history)
         return self.prescreen
+
+    def assess_project(self, project: ProjectDTO) -> ProjectAssessmentDTO:
+        self.project_calls.append(project)
+        return self.project

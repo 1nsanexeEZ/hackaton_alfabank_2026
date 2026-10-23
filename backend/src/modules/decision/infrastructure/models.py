@@ -92,3 +92,25 @@ class PreApprovedOfferRecord(Base):
     factors_summary: Mapped[list[str]] = mapped_column(JSONType)
     valid_until: Mapped[date] = mapped_column(Date)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectAssessmentRecord(Base):
+    """Проектная оценка стартапа; повторная оценка — новая строка, действует последняя."""
+
+    __tablename__ = "decision_project_assessments"
+    __table_args__ = (
+        Index("ix_decision_project_assessments_org", "organization_id", "checked_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(Uuid)
+    product_code: Mapped[str] = mapped_column(String(32))
+    plan_revision: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))
+    reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSONType)
+    # Что просили и цифры финмодели на запрошенной сумме (ProjectFigures), суммы строками.
+    figures: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    max_amount: Mapped[Decimal | None] = mapped_column(MONEY, default=None)
+    version: Mapped[str] = mapped_column(String(32))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))

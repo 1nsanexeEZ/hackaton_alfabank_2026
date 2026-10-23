@@ -11,7 +11,7 @@ from src.modules.bff.application.dto.organizations import (
 )
 from src.modules.bff.domain.consents import ConsentInfo
 from src.modules.bff.domain.enums import ConsentKind, ConsentScope, TodoKind
-from src.modules.decision.facade import FounderPrescreenDTO
+from src.modules.decision.facade import FounderPrescreenDTO, ProjectAssessmentDTO
 from src.modules.identity.facade import ConsentDTO
 from src.modules.notifications.facade import FeedItemDTO, NewsItemDTO
 from src.modules.projector.facade import OrganizationDashboardDTO
@@ -73,6 +73,10 @@ class FeedDTO:
 class StartupBlockDTO:
     # None — not run yet.
     prescreen: FounderPrescreenDTO | None
+    # The business plan in the cabinet: None — not filled in yet.
+    business_plan_revision: int | None = None
+    # The bank's project assessment by the business plan; None — not run yet.
+    project: ProjectAssessmentDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +86,7 @@ class DashboardDTO:
     organization: CurrentOrganizationDTO | None
     organizations: tuple[OrganizationBriefDTO, ...]
     counters: OrganizationDashboardDTO | None
-    # Empty for a startup: there is no turnover to pre-approve on.
+    # A startup has no turnover to pre-approve on: only the offer by its project assessment.
     pre_approved: tuple[PreApprovedProductDTO, ...]
     active_applications: tuple[ApplicationRowDTO, ...]
     todo: tuple[TodoItemDTO, ...]

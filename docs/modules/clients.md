@@ -49,6 +49,7 @@ clients/
 | `Organization` (агрегат) | `domain/organization.py` | Реквизиты, наименование, дата регистрации, адрес, ОКВЭД, налоговый режим, численность, статус в реестре, руководитель по реестру, результат сверки, участники |
 | `Member` | `domain/member.py` | `account_id`, роль, полномочие, доверенность, кто и когда добавил. Меняется только через агрегат |
 | `FinancialReport` (агрегат) | `domain/financial_report.py` | Показатели за период (год или квартал) из одного источника: `declared`, `fns`, `bank_statement` |
+| `BusinessPlan` (агрегат) | `domain/business_plan.py` | Бизнес-план стартапа и финмодель по шаблону банка; один на компанию, уточняется на месте (`revision`) — раздел [Бизнес-план стартапа](#бизнес-план-стартапа) |
 | Права | `domain/rights.py`, `domain/enums.py` | `OrgPermission`, роли, полномочия (`enums.py`); `PowerOfAttorney`, таблица прав (`rights.py`) |
 | VO | `domain/value_objects.py` | `Inn`, `Ogrn`, `Kpp`, `Requisites`, `OkvedCode`, `Address`, `FiscalPeriod`, `PersonName`, `VerificationResult`, `RegistryExtract`, `FieldChange`, `RegistryChanges` |
 
@@ -110,11 +111,14 @@ clients/
 | `clients_members` | роль, полномочие, доверенность (JSONB), кто и когда добавил | PK `(organization_id, account_id)` — аккаунт в компании один раз; индекс `account_id` для порта `org_member`; FK на компанию `ON DELETE CASCADE` |
 | `clients_financial_reports` | показатели (`Numeric(18, 2)`, рубли), кто и когда подал | UNIQUE `(organization_id, period_year, period_quarter, source)`, CHECK `period_quarter BETWEEN 0 AND 4` |
 
+| `clients_business_plans` | описание проекта (`Text`), финмодель (JSONB, суммы строками), кто и когда подал, `revision` | PK `organization_id` — план один на компанию; FK на компанию `ON DELETE CASCADE` (с `clients_0002`) |
+
 Годовой отчёт хранится с `period_quarter = 0`, а не `NULL`: в UNIQUE-ограничении `NULL` не равны друг другу, и дубли годовых отчётов прошли бы. Вариант `NULLS NOT DISTINCT` работает только на Postgres 15+ и не проверяется тестами на SQLite; `0` переносим и виден в тестах. Наружу (API, фасад, события) годовой отчёт — по-прежнему `period_quarter: null`.
 
 Оптимистическая блокировка: каждое изменение участников обновляет компанию с `WHERE version = :ожидаемая` и увеличивает версию. Два менеджера, одновременно удаляющие друг друга, не обойдут инвариант «последний менеджер остаётся» — второй получит `409 version_conflict`.
 
-Миграция — `migrations/versions/20261022_1000_clients_organizations.py`, `clients_0001`.
+Миграции — `migrations/versions/20261022_1000_clients_organizations.py` (`clients_0001`) и
+`20261028_1200_clients_business_plans.py` (`clients_0002`, бизнес-планы).
 
 ## API
 
@@ -132,10 +136,35 @@ clients/
 | POST | `/organizations/{id}/members/{account_id}/poa` | доверенность `{number, issued_at, valid_until, scope}`, заменяет прежнюю | 200 / 403 / 404 / 422 |
 | GET | `/organizations/{id}/financial-reports` | отчёты: новые годы первыми, в году — годовой, затем кварталы 4…1 | 200 / 404 |
 | POST | `/organizations/{id}/financial-reports` | заявленный отчёт `{period_year, period_quarter?, revenue, expenses?, net_profit?, total_liabilities?, monthly_debt_payments?}` | 201 новый / 200 уточнён / 403 / 422 |
+| GET | `/organizations/{id}/business-plan` | бизнес-план стартапа и финмодель | 200 / 404 — ещё не заполнен |
+| PUT | `/organizations/{id}/business-plan` | `{summary, financial_model}` — раздел [Бизнес-план стартапа](#бизнес-план-стартапа); нужен `edit_financials` | 201 новый / 200 уточнён / 403 / 422 |
 
 Логин, которого нет в identity, — **422** `{field: "login", code: "account_not_found"}`, а не 404: запрос корректен, но ссылается на несуществующий аккаунт, и 404 путался бы с «компания не найдена». Права проверяются до поиска логина: участник без `manage_members` не узнаёт, какие логины существуют.
 
-Коды ошибок в `details.code`: `registry_not_found` (422), `bad_registry_data` (503), `not_a_member`, `already_member`, `last_manager`, `owner_exists`, `owner_must_be_entrepreneur`, `entrepreneur_owner_fixed`, `manager_required`, `not_allowed` (директор у ИП), `cannot_issue_power_of_attorney`, `self_power_of_attorney`, `expired`, `period_not_closed`, `org_permission_required` (+ `permission`), `version_conflict`, `report_exists`.
+Коды ошибок в `details.code`: `registry_not_found` (422), `bad_registry_data` (503), `not_a_member`, `already_member`, `last_manager`, `owner_exists`, `owner_must_be_entrepreneur`, `entrepreneur_owner_fixed`, `manager_required`, `not_allowed` (директор у ИП), `cannot_issue_power_of_attorney`, `self_power_of_attorney`, `expired`, `period_not_closed`, `org_permission_required` (+ `permission`), `version_conflict`, `report_exists`, `business_plan_conflict`, `no_guarantee`.
+
+## Бизнес-план стартапа
+
+Шаг ветки стартапа общей схемы «бизнес-план и финмодель» — в кабинете компании, до заявки (#156).
+Клиент заполняет план, банк оценивает проект по кнопке (`POST /organizations/{id}/project-assessment`
+в decision, правила — scoring `project_v1`) и предодобряет кредит на запуск. Clients только хранит
+то, что заявил клиент, и отдаёт банку через фасад (`get_business_plan`).
+
+- `summary` — проект словами: продукт, рынок, команда, план продаж; 1–4000 символов.
+- `financial_model` — шаблон банка, рубли:
+
+  | Поле | Что |
+  |---|---|
+  | `months` | ровно 24 месяца `{revenue, expenses}` от первого месяца проекта; расходы операционные, без платежей по этому кредиту |
+  | `own_funds` | свои средства в проекте |
+  | `collateral_value`, `collateral_description` | залог: рыночная стоимость (0 — нет) и что это |
+  | `guarantee`, `guarantee_share` | господдержка: `none` / `msp_corporation` (Корпорация МСП) / `regional_fund` (РГО) и доля кредита под гарантией; без гарантии доля 0 (иначе 422 `no_guarantee`), с гарантией — больше 0 и до 1 |
+  | `loan_amount`, `loan_term_months` | сколько нужно в кредит и на какой срок |
+
+План один на компанию: повторный `PUT` уточняет его и увеличивает `revision` (два одновременных
+уточнения — 409 `business_plan_conflict`). Оценка банка помнит ревизию, по которой считалась:
+поменяли план — оценку запускают заново. Заполняет участник с `edit_financials`, как отчётность;
+читает любой участник и банк. Событий план не публикует: оценку клиент запускает сам.
 
 ## События
 

@@ -17,7 +17,8 @@ bff/
 │   │                         # ConsentKind, ConsentScope (Literal)
 │   ├── client_status.py      # статус заявки в терминах фронтенда
 │   ├── actions.py            # действия клиента по статусу и правам, пункты «нужно сделать»
-│   └── consents.py           # согласия до заявки: название, что даёт, нужно ли для подачи
+│   ├── consents.py           # согласия до заявки: название, что даёт, нужно ли для подачи
+│   └── project_form.py       # с чем открывается форма проектной оценки стартапа у андеррайтера
 ├── application/
 │   ├── dto/                  # organizations, applications, dashboard, products, backoffice
 │   ├── interfaces/           # neighbours: Neighbours — фасад соседа, необязательный блок, degraded
@@ -77,3 +78,18 @@ bff/
 - Дать — `POST /me/consents` для `scope = account` и `POST /organizations/{id}/consents` для
   `scope = organization` ([identity.md](../identity.md#согласия-компании)).
 - identity недоступен — блок пустой, в `degraded` — `consents`.
+
+## Стартап
+
+- **Дашборд.** У компании без оборотов (`organization.segment = startup`) блок `startup`: предскрин
+  учредителя, `business_plan_revision` (null — план ещё не заполнен) и проектная оценка банка
+  (`project`: статус, `max_amount`, ревизия плана, срок, причины — без цифр модели, по ним
+  угадываются пороги). В `pre_approved` — только предложение по проектной оценке
+  (`basis = project`): предодобрения по оборотам у стартапа нет.
+- **Карточка андеррайтера.** У заявки стартапа с проектной оценкой её продукта — блок `startup`:
+  оценка с цифрами (`assessment.figures`: DSCR, доля своих, покрытие, сколько выдерживает
+  проект), бизнес-план, `plan_changed` (план уточнили после оценки), `valid_at_submission` и
+  `form` — с чем открывается форма `project_assessment` (`domain/project_form.py`): оценка
+  пройдена и действовала при подаче, сумма в пределах предложения — «одобрить» на запрошенную,
+  сверх — встречное на предодобренную, иначе — «отказать»; бизнес-план `acceptable` / `weak`,
+  обеспечение и господдержка — из финмодели. Андеррайтер подтверждает или правит.

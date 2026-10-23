@@ -7,6 +7,12 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from src.modules.clients.application.dto.business_plan import (
+    BusinessPlanDTO,
+    FinancialModelDTO,
+    PlanMonthDTO,
+    StateGuarantee,
+)
 from src.modules.clients.application.dto.membership import MemberRole, OrganizationSummaryDTO
 from src.modules.clients.application.dto.snapshot import (
     DiscrepancyDTO,
@@ -19,16 +25,20 @@ from src.modules.clients.application.dto.snapshot import (
 )
 
 __all__ = [
+    "BusinessPlanDTO",
     "ClientsFacade",
     "DiscrepancyDTO",
+    "FinancialModelDTO",
     "FinancialReportDTO",
     "LegalForm",
     "MemberRole",
     "OrgPermission",
     "OrganizationSnapshotDTO",
     "OrganizationSummaryDTO",
+    "PlanMonthDTO",
     "RegistryStatus",
     "ReportSource",
+    "StateGuarantee",
     "VerificationStatus",
 ]
 
@@ -66,4 +76,9 @@ class ClientsFacade(Protocol):
         """The member whose name matched the head in the state registry (authority by the
         registry): the person whose own consent the bank needs for their credit history.
         A director goes before an owner. None — no such member or no company."""
+        ...
+
+    async def get_business_plan(self, organization_id: UUID) -> BusinessPlanDTO | None:
+        """The startup's business plan and financial model from the cabinet; None — not
+        filled in yet."""
         ...

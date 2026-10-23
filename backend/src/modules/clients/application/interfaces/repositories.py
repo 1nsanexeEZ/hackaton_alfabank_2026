@@ -4,6 +4,7 @@ from typing import Protocol
 from uuid import UUID
 
 from src.core.access.access_context import AccessContext
+from src.modules.clients.domain.business_plan import BusinessPlan
 from src.modules.clients.domain.enums import ReportSource
 from src.modules.clients.domain.financial_report import FinancialReport
 from src.modules.clients.domain.organization import Organization
@@ -42,3 +43,15 @@ class FinancialReportRepository(Protocol):
     async def add(self, report: FinancialReport) -> None: ...
 
     async def save(self, report: FinancialReport) -> None: ...
+
+
+class BusinessPlanRepository(Protocol):
+    """One plan per company."""
+
+    async def get(self, organization_id: UUID) -> BusinessPlan | None: ...
+
+    async def add(self, plan: BusinessPlan) -> None: ...
+
+    async def save(self, plan: BusinessPlan) -> None:
+        """ConflictError if the plan was revised concurrently."""
+        ...

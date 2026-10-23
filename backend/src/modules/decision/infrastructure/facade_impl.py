@@ -10,28 +10,32 @@ from src.modules.decision.facade import (
     DecisionDTO,
     FounderPrescreenDTO,
     PreApprovedOfferDTO,
+    ProjectAssessmentDTO,
 )
 from src.modules.decision.infrastructure.mappers import (
     client_decision_dto,
     decision_dto,
     pre_approved_dto,
     prescreen_dto,
+    project_dto,
 )
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyDecisionRepository,
     SqlAlchemyFounderPrescreenRepository,
     SqlAlchemyPreApprovedOfferRepository,
+    SqlAlchemyProjectAssessmentRepository,
 )
 
 
 class DecisionFacadeImpl:
-    """Последнее решение по заявке (ручное перекрывает авто), действующие предодобрения и
-    предскрин учредителя стартапа."""
+    """Последнее решение по заявке (ручное перекрывает авто), действующие предодобрения,
+    предскрин учредителя и проектная оценка стартапа."""
 
     def __init__(self, session: AsyncSession, clock: Clock) -> None:
         self._decisions = SqlAlchemyDecisionRepository(session)
         self._offers = SqlAlchemyPreApprovedOfferRepository(session)
         self._prescreens = SqlAlchemyFounderPrescreenRepository(session)
+        self._projects = SqlAlchemyProjectAssessmentRepository(session)
         self._clock = clock
 
     async def get_founder_prescreen(self, organization_id: UUID) -> FounderPrescreenDTO | None:
@@ -53,3 +57,7 @@ class DecisionFacadeImpl:
             for offer in await self._offers.list_for_organization(organization_id)
             if offer.valid_until >= today
         ]
+
+    async def get_project_assessment(self, organization_id: UUID) -> ProjectAssessmentDTO | None:
+        assessment = await self._projects.latest_for_organization(organization_id)
+        return project_dto(assessment, self._clock.now()) if assessment is not None else None

@@ -1831,6 +1831,112 @@
         }
       }
     },
+    "/organizations/{organization_id}/business-plan": {
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get Business Plan",
+        "description": "404 — not filled in yet.",
+        "operationId": "get_business_plan_organizations__organization_id__business_plan_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessPlanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Submit Business Plan",
+        "description": "The startup's project before an application: needs `edit_financials`. A new plan — 201,\na revised one — 200; the bank's assessment of an older revision stays until it is run\nagain (`POST /organizations/{id}/project-assessment`).",
+        "operationId": "submit_business_plan_organizations__organization_id__business_plan_put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessPlanWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessPlanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/applications": {
       "post": {
         "tags": [
@@ -3259,6 +3365,102 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FounderPrescreenRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/project-assessment": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Run Project Assessment",
+        "description": "The startup's project by its business plan from the cabinet: passed — a pre-approved\nSTARTUP offer (`basis = project`) up to `max_amount`, also in `pre-approved-offers`.\n422 `business_plan_required` — no business plan; 422 `product_not_eligible` — no startup\nproduct fits the company.",
+        "operationId": "run_project_assessment_organizations__organization_id__project_assessment_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAssessmentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Project Assessment",
+        "description": "The latest assessment; 404 — not run yet.",
+        "operationId": "get_project_assessment_organizations__organization_id__project_assessment_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAssessmentRead"
                 }
               }
             }
@@ -5830,6 +6032,119 @@
           "basis"
         ],
         "title": "BeneficialOwnerDTO"
+      },
+      "BusinessPlanDTO": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModelDTO"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "summary",
+          "financial_model",
+          "submitted_by",
+          "submitted_at",
+          "revision"
+        ],
+        "title": "BusinessPlanDTO"
+      },
+      "BusinessPlanRead": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModel-Output"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "summary",
+          "financial_model",
+          "submitted_by",
+          "submitted_at",
+          "revision"
+        ],
+        "title": "BusinessPlanRead"
+      },
+      "BusinessPlanWrite": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModel-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "financial_model"
+        ],
+        "title": "BusinessPlanWrite"
       },
       "CalculateBody": {
         "properties": {
@@ -8951,6 +9266,240 @@
         ],
         "title": "FieldChangeRead"
       },
+      "FinancialModel-Input": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonth-Input"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "minItems": 24,
+            "title": "Months"
+          },
+          "own_funds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Collateral Value",
+            "default": "0"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "guarantee_share": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Guarantee Share",
+            "default": "0"
+          },
+          "loan_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModel",
+        "description": "The bank's template, roubles: revenue and expenses for each of the first 24 months, own\nfunds put into the project, collateral (0 — none), a state support guarantee and the loan\nthe project needs."
+      },
+      "FinancialModel-Output": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonth-Output"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "minItems": 24,
+            "title": "Months"
+          },
+          "own_funds": {
+            "type": "string",
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "type": "string",
+            "title": "Collateral Value",
+            "default": "0"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "guarantee_share": {
+            "type": "string",
+            "title": "Guarantee Share",
+            "default": "0"
+          },
+          "loan_amount": {
+            "type": "string",
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModel",
+        "description": "The bank's template, roubles: revenue and expenses for each of the first 24 months, own\nfunds put into the project, collateral (0 — none), a state support guarantee and the loan\nthe project needs."
+      },
+      "FinancialModelDTO": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonthDTO"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "own_funds": {
+            "type": "string",
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "type": "string",
+            "title": "Collateral Value"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee"
+          },
+          "guarantee_share": {
+            "type": "string",
+            "title": "Guarantee Share"
+          },
+          "loan_amount": {
+            "type": "string",
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "collateral_value",
+          "collateral_description",
+          "guarantee",
+          "guarantee_share",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModelDTO",
+        "description": "24 months of revenue and operating expenses, own funds, collateral, a state support\nguarantee and the loan the project needs; roubles."
+      },
       "FinancialReportCreate": {
         "properties": {
           "period_year": {
@@ -11662,6 +12211,76 @@
         ],
         "title": "PersonalSchedule"
       },
+      "PlanMonth-Input": {
+        "properties": {
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Revenue"
+          },
+          "expenses": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonth"
+      },
+      "PlanMonth-Output": {
+        "properties": {
+          "revenue": {
+            "type": "string",
+            "title": "Revenue"
+          },
+          "expenses": {
+            "type": "string",
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonth"
+      },
+      "PlanMonthDTO": {
+        "properties": {
+          "revenue": {
+            "type": "string",
+            "title": "Revenue"
+          },
+          "expenses": {
+            "type": "string",
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonthDTO"
+      },
       "Policies": {
         "type": "string",
         "enum": [
@@ -11822,7 +12441,8 @@
             "type": "string",
             "enum": [
               "estimate",
-              "full"
+              "full",
+              "project"
             ],
             "title": "Basis"
           },
@@ -12784,6 +13404,409 @@
         },
         "type": "object",
         "title": "ProfileUpdate"
+      },
+      "ProjectAssessment": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "max_amount",
+          "plan_revision",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "ProjectAssessment",
+        "description": "passed — «вам предодобрен кредит» `product_code` до `max_amount`, it is also in\n`pre_approved`; failed — the client reads `reasons[].message`. No figures of the model:\nthey would give the thresholds away."
+      },
+      "ProjectAssessmentDTO": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectCheckDTO"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/ProjectFiguresDTO"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "plan_revision",
+          "max_amount",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons",
+          "figures",
+          "version"
+        ],
+        "title": "ProjectAssessmentDTO",
+        "description": "A startup's project assessment by its business plan: passed — a pre-approved offer of\n`product_code` up to `max_amount`."
+      },
+      "ProjectAssessmentRead": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReasonRead"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "max_amount",
+          "plan_revision",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "ProjectAssessmentRead",
+        "description": "`passed` — «вам предодобрен кредит»: `product_code` до `max_amount`, заявка — в пределах.\n`failed` — клиенту `reasons[].message`, без порогов. Действует 30 дней; бизнес-план\nпоменяли (`plan_revision` отстал) — оценку запускают заново."
+      },
+      "ProjectCheckDTO": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectCheckDTO"
+      },
+      "ProjectFiguresDTO": {
+        "properties": {
+          "requested_amount": {
+            "type": "string",
+            "title": "Requested Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          },
+          "cash_flow": {
+            "type": "string",
+            "title": "Cash Flow"
+          },
+          "debt_service": {
+            "type": "string",
+            "title": "Debt Service"
+          },
+          "dscr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dscr"
+          },
+          "own_share": {
+            "type": "string",
+            "title": "Own Share"
+          },
+          "coverage": {
+            "type": "string",
+            "title": "Coverage"
+          },
+          "capacity": {
+            "type": "string",
+            "title": "Capacity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requested_amount",
+          "term_months",
+          "rate",
+          "cash_flow",
+          "debt_service",
+          "dscr",
+          "own_share",
+          "coverage",
+          "capacity"
+        ],
+        "title": "ProjectFiguresDTO",
+        "description": "Bank only: the request, the payment terms it was counted on and the figures of the\nfinancial model at the requested amount."
+      },
+      "ProjectForm": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "counter_offer",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "term_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Months"
+          },
+          "business_plan": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "acceptable",
+              "weak"
+            ],
+            "title": "Business Plan"
+          },
+          "collateral": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral"
+          },
+          "support_program": {
+            "type": "boolean",
+            "title": "Support Program"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "amount",
+          "term_months",
+          "business_plan",
+          "collateral",
+          "support_program"
+        ],
+        "title": "ProjectForm"
+      },
+      "ProjectReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectReason"
+      },
+      "ProjectReasonRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectReasonRead"
       },
       "QueueItemDTO": {
         "properties": {
@@ -14085,6 +15108,27 @@
                 "type": "null"
               }
             ]
+          },
+          "business_plan_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Plan Revision"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -14092,6 +15136,44 @@
           "prescreen"
         ],
         "title": "StartupBlock"
+      },
+      "StartupProjectDTO": {
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/ProjectAssessmentDTO"
+          },
+          "business_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPlanDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan_changed": {
+            "type": "boolean",
+            "title": "Plan Changed"
+          },
+          "valid_at_submission": {
+            "type": "boolean",
+            "title": "Valid At Submission"
+          },
+          "form": {
+            "$ref": "#/components/schemas/ProjectForm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessment",
+          "business_plan",
+          "plan_changed",
+          "valid_at_submission",
+          "form"
+        ],
+        "title": "StartupProjectDTO",
+        "description": "A startup's application: the bank's project assessment before it, the business plan it\nwas made on and what the project assessment form starts with."
       },
       "StatusChangeDTO": {
         "properties": {
@@ -15023,6 +16105,16 @@
             },
             "type": "array",
             "title": "Degraded"
+          },
+          "startup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StartupProjectDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
