@@ -1,13 +1,17 @@
 export {
   FACTOR_LABEL,
   FLAG_LABEL,
-  GRADE_TONE,
+  GRADE_ZONE,
+  gradeTone,
   label,
   LIMIT_LABEL,
   OUTCOME_LABEL,
   REASON_LABEL,
   RELIABILITY,
+  REVIEW_LABEL,
   SEGMENT_LABEL,
   SOURCE_LABEL,
   TASK_STATUS_LABEL,
+  ZONE_LABEL,
+  type GradeZone,
 } from './model/labels'
