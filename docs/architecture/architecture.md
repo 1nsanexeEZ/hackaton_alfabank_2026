@@ -289,7 +289,7 @@ sequenceDiagram
 | `applications.events` | applications | process, notifications, projector |
 | `applications.commands` | process | applications |
 | `process.events` | process | applications (этап для клиента), notifications, projector |
-| `enrichment.commands` / `enrichment.events` | process / enrichment | enrichment / process, clients |
+| `enrichment.commands` / `enrichment.events` | process / enrichment | enrichment / process, clients, scoring (хранилище признаков) |
 | `scoring.commands` / `scoring.events` | process / scoring | scoring / process |
 | `decision.commands` / `decision.events` | process / decision | decision / process, notifications, projector |
 | `clients.events` | clients | decision (предодобрение), notifications, projector |
