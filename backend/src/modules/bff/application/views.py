@@ -42,6 +42,9 @@ class OrganizationBrief(ClientModel):
 class CurrentOrganization(OrganizationBrief):
     verification_status: str
     registry_status: str
+    # startup — younger than 6 months or no annual report: the founder's prescreen and the
+    # startup product instead of pre-approval.
+    segment: Literal["established", "startup"] = "established"
 
 
 class ApplicationRow(ClientModel):
@@ -115,18 +118,43 @@ class NewsItem(ClientModel):
     relevance: list[str]
 
 
+class PrescreenReason(ClientModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class FounderPrescreen(ClientModel):
+    # failed — «отказ (стартап)»: the client reads `reasons[].message`.
+    status: Literal["passed", "failed"]
+    founder_name: str
+    checked_at: datetime
+    valid_until: datetime
+    # False — expired: run a new one before a STARTUP application.
+    valid: bool
+    reasons: list[PrescreenReason]
+
+
+class StartupBlock(ClientModel):
+    # None — not run yet: POST /organizations/{id}/founder-prescreen.
+    prescreen: FounderPrescreen | None
+
+
 class Dashboard(ClientModel):
     # No companies yet: the frontend offers to add one.
     onboarding: bool
     organization: CurrentOrganization | None
     organizations: list[OrganizationBrief]
     counters: Counters | None
+    # Empty for a startup: there is no turnover to pre-approve on.
     pre_approved: list[PreApprovedOffer]
     active_applications: list[ApplicationRow]
     todo: list[TodoItem]
     feed: Feed
     news: list[NewsItem]
     degraded: list[str]
+    # Only for organization.segment = startup.
+    startup: StartupBlock | None = None
 
 
 # --- applications list --------------------------------------------------------
