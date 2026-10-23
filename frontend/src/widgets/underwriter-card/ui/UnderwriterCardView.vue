@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import {
+  CATEGORY_LABEL,
   FACTOR_LABEL,
   FLAG_LABEL,
   GRADE_ZONE,
@@ -17,6 +18,7 @@ import {
   REVIEW_LABEL,
   SEGMENT_LABEL,
   SOURCE_LABEL,
+  TASK_TYPE_LABEL,
   ZONE_LABEL,
   type GradeZone,
 } from '@/entities/underwriting'
@@ -104,8 +106,9 @@ const shownFactors = computed(() => {
   const factors = factorsOf.value === 'ml' && scoring?.ml ? scoring.ml.factors : (scoring?.factors ?? [])
   return [...factors].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
 })
-/** Значение и корзина признака; у категорий ML-модели они совпадают — тогда одно, без значения — только корзина */
-const factorDetail = (factor: FactorDto) => [...new Set([factor.value, factor.bin].filter(Boolean))].join(' · ')
+/** Значение и корзина признака по-русски; совпали (у категорий) — одно, без значения — только корзина */
+const factorDetail = (factor: FactorDto) =>
+  [...new Set([factor.value, factor.bin].filter((part): part is string => Boolean(part)).map((part) => CATEGORY_LABEL[part] ?? part))].join(' · ')
 
 const shownReasons = computed(() => {
   const scoring = data.value?.scoring
@@ -485,7 +488,11 @@ const RATE_PARTS = [
       </div>
 
       <div class="space-y-4">
-        <PanelCard v-if="data.task" title="Задача андеррайтера">
+        <PanelCard
+          v-if="data.task"
+          :title="TASK_TYPE_LABEL[data.task.type] ?? 'Задача андеррайтера'"
+          :description="data.task.type === 'project_assessment' ? 'Стартап: бизнес-план, финмодель, обеспечение и господдержка' : undefined"
+        >
           <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
         </PanelCard>
 

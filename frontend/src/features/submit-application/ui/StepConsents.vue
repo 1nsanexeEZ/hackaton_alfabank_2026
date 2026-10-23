@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { CONSENT_TEXT } from '@/entities/customer'
 import { PURPOSE_LABEL, useLoanSchedule } from '@/entities/credit-product'
-import { formatMoney, formatPercent, formatTerm } from '@/shared/lib'
+import { formatDate, formatMoney, formatPercent, formatTerm } from '@/shared/lib'
 import { CheckboxField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
 
-const { terms, organization, product, consents, documents, fieldErrors } = props.wizard
+const { terms, organization, product, consents, headConsent, documents, fieldErrors } = props.wizard
 
-const { schedule } = useLoanSchedule(() => ({
+const { schedule, personal } = useLoanSchedule(() => ({
   product: product.value,
   amount: terms.amount,
   termMonths: terms.termMonths,
+  organizationId: terms.organizationId || null,
 }))
 
 const summary = computed(() => [
@@ -26,7 +28,7 @@ const summary = computed(() => [
   {
     label: schedule.value?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Платёж в месяц',
     value: schedule.value
-      ? `${formatMoney(schedule.value.monthlyPayment)} · от ${formatPercent(schedule.value.rate)}`
+      ? `${formatMoney(schedule.value.monthlyPayment)} · ${personal.value?.preApproved ? '' : 'от '}${formatPercent(schedule.value.rate)}`
       : '—',
   },
   ...(documents.value.length
@@ -74,6 +76,32 @@ const summary = computed(() => [
           </p>
         </details>
       </div>
+
+      <!-- Личное согласие руководителя: кредитную историю человека банк запрашивает только с его согласия -->
+      <div v-if="headConsent.isHead && !headConsent.alreadyGiven">
+        <CheckboxField v-model="headConsent.give">
+          Согласен на запрос моей кредитной истории как руководителя
+          <span class="font-normal text-ink-secondary">— необязательно</span>
+        </CheckboxField>
+        <p class="mt-1 ml-8 text-xs text-ink-secondary">
+          Без него банк не запросит вашу личную кредитную историю и оценит заявку по данным компании.
+        </p>
+        <details class="mt-1 ml-8 text-xs text-ink-secondary">
+          <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">
+            Текст согласия · {{ CONSENT_TEXT.credit_bureau_personal.validity }}
+          </summary>
+          <p class="mt-2">{{ CONSENT_TEXT.credit_bureau_personal.body }}</p>
+        </details>
+      </div>
+      <p v-else-if="headConsent.isHead" class="rounded-xl bg-surface-soft p-3 text-xs text-ink-secondary">
+        Согласие на запрос вашей кредитной истории уже дано<template v-if="headConsent.validUntil">
+          — действует до {{ formatDate(headConsent.validUntil) }}</template
+        >. Отозвать его можно в профиле.
+      </p>
+      <p v-else class="rounded-xl bg-surface-soft p-3 text-xs text-ink-secondary">
+        Личную кредитную историю руководителя банк запросит, только если руководитель сам даст согласие — в
+        кабинете ему придёт напоминание.
+      </p>
     </div>
 
     <p class="text-sm text-ink-secondary">

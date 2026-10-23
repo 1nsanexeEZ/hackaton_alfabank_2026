@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BellRing, ChevronRight, FilePlus2 } from 'lucide-vue-next'
+import { BellRing, ChevronRight, FilePlus2, UserCheck } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 
 import {
@@ -9,6 +9,7 @@ import {
   myApplications,
 } from '@/entities/application'
 import { useProductCatalog } from '@/entities/credit-product'
+import { personalConsents } from '@/entities/customer'
 import { formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, SegmentedControl } from '@/shared/ui'
 
@@ -18,7 +19,10 @@ const emit = defineEmits<{ open: [applicationId: string]; apply: [] }>()
 const { state } = myApplications
 
 // Список мог устареть (заявку подали в другой вкладке) — перечитываем при каждом открытии
-onMounted(() => void myApplications.load())
+onMounted(() => {
+  void myApplications.load()
+  void personalConsents.loadReminders()
+})
 
 const filter = ref<'active' | 'all'>('active')
 const FILTERS = [
@@ -32,6 +36,8 @@ const productName = (item: { product_name: string; product_code: string }) =>
   item.product_name || products.value?.find((product) => product.code === item.product_code)?.title || item.product_code
 
 const items = computed(() => (state.items ?? []).filter((item) => filter.value === 'all' || isActiveApplication(item)))
+/** Заявки, по которым банк ждёт согласие руководителя на его БКИ */
+const needsConsent = computed(() => new Set(personalConsents.state.reminders.map((item) => item.applicationId)))
 const companies = computed(() => new Set((state.items ?? []).map((item) => item.organization_id)).size)
 </script>
 
@@ -69,7 +75,11 @@ const companies = computed(() => new Set((state.items ?? []).map((item) => item.
                 <template v-if="item.term_months"> · {{ formatTerm(item.term_months) }}</template>
                 <template v-if="companies > 1"> · {{ item.organization_name }}</template>
               </p>
-              <p v-if="ACTION_REQUIRED_LABEL[item.action_required]" class="mt-2 flex items-center gap-1.5 text-sm font-medium text-brand">
+              <p v-if="needsConsent.has(item.id)" class="mt-2 flex items-center gap-1.5 text-sm font-medium text-brand">
+                <UserCheck class="size-4" aria-hidden="true" />
+                Нужно ваше согласие на запрос кредитной истории
+              </p>
+              <p v-else-if="ACTION_REQUIRED_LABEL[item.action_required]" class="mt-2 flex items-center gap-1.5 text-sm font-medium text-brand">
                 <BellRing class="size-4" aria-hidden="true" />
                 {{ ACTION_REQUIRED_LABEL[item.action_required] }}
               </p>

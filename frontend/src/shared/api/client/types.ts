@@ -94,6 +94,8 @@ export interface ProductDto {
   application_fields_schema: FieldsSchema
   auto_decision_limit: string
   status: 'draft' | 'active' | 'archived'
+  /** Только для стартапа (бизнес младше 6 месяцев или без годового отчёта) */
+  startup_only?: boolean
 }
 
 export interface CalculateInput {
@@ -394,6 +396,8 @@ export interface DashboardDto {
     my_permissions: OrgPermission[]
     verification_status: string
     registry_status: string
+    /** startup — бизнес младше 6 месяцев или без годового отчёта: ему — только продукты для стартапа */
+    segment?: CompanySegment
   } | null
   organizations: { id: string; name: string; inn: string; legal_form: string; my_role: string; my_permissions: OrgPermission[] }[]
   counters: {
@@ -410,6 +414,62 @@ export interface DashboardDto {
   news: NewsDto[]
   /** Какие блоки не загрузились — показываем заглушку, а не ошибку */
   degraded: string[]
+  /** Только у стартапа: последний предскрининг учредителя или null, если его ещё не было */
+  startup?: { prescreen: FounderPrescreenSummaryDto | null } | null
+}
+
+export type CompanySegment = 'established' | 'startup'
+
+/** Предскрининг учредителя стартапа по его личной кредитной истории; действует 30 дней */
+export interface FounderPrescreenDto {
+  status: 'passed' | 'failed'
+  founder: { account_id: string; name: string }
+  checked_at: string
+  valid_until: string
+  /** Пройден и ещё не истёк */
+  valid: boolean
+  reasons: EligibilityReasonDto[]
+}
+
+/** Тот же предскрининг в дашборде: вместо founder — только имя */
+export interface FounderPrescreenSummaryDto extends Omit<FounderPrescreenDto, 'founder'> {
+  founder_name: string
+}
+
+export type ConsentType = 'personal_data' | 'credit_bureau_personal'
+
+/** Личное согласие на аккаунте: ПДн бессрочно, БКИ физлица — 6 месяцев */
+export interface ConsentDto {
+  type: ConsentType
+  given_at: string
+  valid_until: string | null
+  revoked_at: string | null
+  /** Не отозвано и не истекло */
+  active: boolean
+  text_version: string
+}
+
+/** Калькулятор с учётом предодобрения компании (POST /bff/products/{code}/calculate) */
+export interface PersonalScheduleDto {
+  schedule: PaymentScheduleDto
+  pre_approved: { max_amount: string; rate_from: string; term_max_months: number; valid_until: string; basis: 'estimate' | 'full' } | null
+  /** null — по этому продукту ничего не предодобрено */
+  within_pre_approved: boolean | null
+  eligible: boolean
+  /** Причины eligibility и amount_above_pre_approved / term_above_pre_approved */
+  reasons: EligibilityReasonDto[]
+  /** Запрос, урезанный до предодобренного */
+  suggestion: { amount: string; term_months: number; monthly_payment: string } | null
+  degraded: string[]
+}
+
+/** Итог ручной сверки компании с ЕГРЮЛ/ЕГРИП */
+export interface VerificationResultDto {
+  organization: OrganizationDetailDto
+  /** Что обновили молча: наименование, адрес, КПП, ОКВЭД, статус */
+  updated_fields: { field: string; before: string | null; after: string | null }[]
+  /** Что не меняем сами: руководитель */
+  discrepancies: { field: string; declared: string | null; registry: string | null }[]
 }
 
 export interface OfferDto {
@@ -483,6 +543,8 @@ export interface ClientApplicationCardDto {
   submitted_at: string | null
   closed_at: string | null
   degraded: string[]
+  /** Дал ли руководитель по реестру согласие на запрос своей кредитной истории; null — руководителя нет */
+  consents?: { head_credit_bureau: { required: boolean; given: boolean; given_at: string | null; head_name: string } | null }
 }
 
 export interface SignResultDto {
@@ -741,5 +803,23 @@ export interface ClientApi {
   members(organizationId: string): Promise<MemberDto[]>
   addMember(organizationId: string, login: string, role: MemberRole): Promise<MemberDto>
   grantPowerOfAttorney(organizationId: string, accountId: string, input: PowerOfAttorneyInput): Promise<MemberDto>
+  changeMemberRole(organizationId: string, accountId: string, role: MemberRole): Promise<MemberDto>
+  removeMember(organizationId: string, accountId: string): Promise<void>
+  /** Сверить с ЕГРЮЛ/ЕГРИП мимо кэша и подкачать изменения */
+  verifyOrganization(organizationId: string): Promise<VerificationResultDto>
   updateProfile(input: ProfileInput): Promise<MeDto>
+
+  /** Личные согласия: действующие и история, новые сверху */
+  consents(): Promise<ConsentDto[]>
+  giveConsents(types: ConsentType[]): Promise<ConsentDto[]>
+  /** Отзыв; повторный отзыв — тоже 204 */
+  revokeConsent(type: ConsentType): Promise<void>
+
+  /** Калькулятор по ставке предодобрения компании; ставку задаёт бэкенд */
+  calculateFor(code: string, organizationId: string, input: Omit<CalculateInput, 'rate'>): Promise<PersonalScheduleDto>
+
+  /** Предскрининг учредителя: 422 consent_required — нет согласия на БКИ физлица, founder_not_found — учредителя нет среди участников */
+  runFounderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
+  /** Последний предскрининг; 404 — ещё не было */
+  founderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
 }

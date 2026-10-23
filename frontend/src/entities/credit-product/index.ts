@@ -21,7 +21,7 @@ export {
   type ProductKind,
   type RequiredDocument,
 } from './model/types'
-export { useLoanSchedule, type LoanParams, type LoanSchedule } from './model/useLoanSchedule'
+export { useLoanSchedule, type LoanParams, type LoanSchedule, type PersonalTerms } from './model/useLoanSchedule'
 export { useProductCatalog } from './model/useProductCatalog'
 export {
   useRecommendations,

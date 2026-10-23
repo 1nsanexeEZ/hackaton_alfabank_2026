@@ -15,7 +15,7 @@ import {
   requiredDocumentsFor,
   type ProductCatalog,
 } from '@/entities/credit-product'
-import { customer } from '@/entities/customer'
+import { customer, founderPrescreen, personalConsents, prescreenPassed, type CompanyStartupInfo } from '@/entities/customer'
 import {
   ApiError,
   clientApi,
@@ -72,6 +72,11 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   const collateral = reactive<CollateralForm>({ type: '', description: '', declaredValue: '', owner: 'self' })
   const productFields = ref<FieldValues>({})
   const consents = reactive({ personalData: false, creditBureau: false })
+  /**
+   * Личное согласие руководителя по реестру на запрос его кредитной истории (БКИ физлица). Не обязательно:
+   * без него банк оценит заявку по данным компании. Даёт только сам руководитель — бухгалтеру видно пояснение.
+   */
+  const headConsent = reactive({ isHead: false, alreadyGiven: false, validUntil: null as string | null, give: false })
 
   const application = shallowRef<ApplicationDto | null>(null)
   const busy = ref(false)
@@ -119,6 +124,50 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     { immediate: true },
   )
 
+  /** Стартап или действующий бизнес: стартапу — только продукты для стартапа и сначала проверка учредителя */
+  const companyInfo = shallowRef<CompanyStartupInfo | null>(null)
+  watch(
+    () => terms.organizationId,
+    async (organizationId) => {
+      companyInfo.value = null
+      if (!organizationId) return
+      const info = await founderPrescreen.load(organizationId)
+      if (organizationId === terms.organizationId) companyInfo.value = info
+    },
+    { immediate: true },
+  )
+  const isStartup = computed(() => companyInfo.value?.segment === 'startup')
+
+  /** Продукты, доступные выбранной компании: стартапу — только для стартапа, остальным — без них */
+  const allowedProducts = computed(() => {
+    const all = products()
+    if (!companyInfo.value) return all.filter((item) => !item.startupOnly)
+    return all.filter((item) => Boolean(item.startupOnly) === isStartup.value)
+  })
+
+  /**
+   * Заявку на продукт для стартапа без пройденной проверки учредителя бэкенд отклонит (STOP_FOUNDER_PRESCREEN) —
+   * не пускаем дальше «Условий», пока проверка не пройдена
+   */
+  const startupBlock = computed(() => {
+    if (!product.value.startupOnly || !isStartup.value) return null
+    const prescreen = founderPrescreen.state[terms.organizationId]?.prescreen
+    return prescreenPassed(prescreen) ? null : 'Сначала пройдите проверку учредителя — без неё заявку на запуск бизнеса отклонят'
+  })
+
+  watch(
+    () => terms.organizationId,
+    async (organizationId) => {
+      Object.assign(headConsent, { isHead: false, alreadyGiven: false, validUntil: null, give: false })
+      if (!organizationId) return
+      const [isHead] = await Promise.all([personalConsents.isRegistryHead(organizationId), personalConsents.load()])
+      if (organizationId !== terms.organizationId) return
+      const current = personalConsents.active('credit_bureau_personal')
+      Object.assign(headConsent, { isHead, alreadyGiven: Boolean(current), validUntil: current?.valid_until ?? null })
+    },
+    { immediate: true },
+  )
+
   const documents = computed<DocumentSlot[]>(() =>
     requiredDocumentsFor(product.value, terms.amount, legalForm.value).map((required) => ({
       type: required.type,
@@ -157,6 +206,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     error.value = null
     consents.personalData = false
     consents.creditBureau = false
+    headConsent.give = false
     Object.assign(collateral, { description: '', declaredValue: '', owner: 'self' })
     terms.purposeComment = ''
     for (const key of Object.keys(uploads)) delete uploads[key]
@@ -319,6 +369,12 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
   }
 
+  function validateStartup(): boolean {
+    if (!startupBlock.value) return true
+    fieldErrors.value = { ...fieldErrors.value, 'request.product': startupBlock.value }
+    return false
+  }
+
   function validateTerms(): boolean {
     const errors: Record<string, string> = {}
     if (!organization.value) errors.organization = 'Выберите компанию'
@@ -338,7 +394,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   }
 
   async function submitTerms() {
-    if (!validateTerms()) return
+    if (!validateTerms() || !validateStartup()) return
     await run(async () => {
       await ensureDraft()
       await patch({
@@ -399,6 +455,11 @@ export function useApplicationWizard(products: () => ProductCatalog) {
 
     await run(async () => {
       await patch({ consents: { personal_data: true, credit_bureau: true } })
+      // Согласие руководителя — до подачи: проверка данных банком начнётся сразу после неё
+      if (headConsent.isHead && !headConsent.alreadyGiven && headConsent.give) {
+        await personalConsents.give(['credit_bureau_personal'])
+        headConsent.alreadyGiven = true
+      }
       const id = application.value!.id
       const check = await clientApi.completeness(id)
       if (!check.complete) {
@@ -464,6 +525,11 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     collateral,
     productFields,
     consents,
+    headConsent,
+    companyInfo,
+    isStartup,
+    allowedProducts,
+    startupBlock,
     application,
     product,
     collateralNeeded,
