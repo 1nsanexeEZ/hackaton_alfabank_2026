@@ -53,7 +53,7 @@
 | 16 | counteroffer — клиент подтверждает | клиент | `POST …/offer/accept`, `POST …/offer/decline` | ✅ |
 | 17 | «Подпиши договор: одобрили, но нужна подпись» | клиент | `GET /applications/{id}/contract`, `POST /applications/{id}/sign` | ✅ договор перед подписью — [3.7](#37-решение-оффер-подпись-выдача-шаги-1518) |
 | 18 | Кредит оформлен | клиент | `client_status = issued`, `ApplicationOut.disbursement` | ✅ выдачу делает процесс после подписи (мок АБС) |
-| — | Стартап: личный скоринг учредителя → бизнес-план → проектная оценка | клиент, банк | `POST/GET /organizations/{id}/founder-prescreen`, продукт `STARTUP`, задача `project_assessment` | ✅ [4.6](#46-ветка-стартапа) |
+| — | Стартап: личный скоринг учредителя → бизнес-план → проектная оценка → «вам предодобрен кредит» | клиент, банк | `POST/GET /organizations/{id}/founder-prescreen`, `PUT/GET /organizations/{id}/business-plan`, `POST/GET /organizations/{id}/project-assessment`, продукт `STARTUP`, задача `project_assessment` | ✅ [4.6](#46-ветка-стартапа) |
 
 Вопросы на схеме:
 
@@ -144,7 +144,7 @@ Dashboard {
   feed: { unread, items: FeedItem[] }
   news: [{ id, title, body, published_at, relevance[] }]
   degraded: string[]             // какие блоки не загрузились — показать заглушку, а не ошибку
-  startup: { prescreen: FounderPrescreen | null } | null   // только у стартапа, тогда pre_approved = [] — 4.6
+  startup: { prescreen: FounderPrescreen | null, business_plan_revision: number | null, project: ProjectAssessment | null } | null   // только у стартапа, тогда в pre_approved — только предложение по проектной оценке — 4.6
 }
 ```
 
@@ -524,12 +524,13 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 ### 4.6. Ветка стартапа
 
-Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или загрузка бизнес-плана и финмодели → проектная оценка (бизнес-план, обеспечение, господдержка) → предложение. По [case.md](../case.md) §5 предприниматель уже клиент банка, онбординга нет: стартап — это компания-клиент без оборотов и отчётности. Демо — ООО «Старт» (`owner@start.test`, 3 месяца), сценарий S-9.
+Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или бизнес-план и финмодель в кабинете → проектная оценка → «вам предодобрен кредит» → заявка → андеррайтер подтверждает проект → предложение. По [case.md](../case.md) §5 предприниматель уже клиент банка, онбординга нет: стартап — это компания-клиент без оборотов и отчётности. Демо — ООО «Старт» (`owner@start.test`, 3 месяца), сценарии S-9 (без проектной оценки) и S-10 (с ней).
 
 **Дашборд** `GET /bff/dashboard`:
 - `organization.segment: "established" | "startup"`. `startup` — возраст бизнеса меньше 6 месяцев (`STARTUP_AGE_MONTHS`) или нет ни одного годового отчёта;
-- у стартапа `pre_approved: []`, вместо него `startup: { prescreen: FounderPrescreen | null }` (`null` — предскрина ещё не было); у остальных `startup: null`;
-- `FounderPrescreen = { status, founder_name, checked_at, valid_until, valid, reasons: [{code, passed, message}] }`.
+- у стартапа в `pre_approved` — только предложение по проектной оценке (пусто, пока её не было или она не пройдена); рядом `startup: { prescreen: FounderPrescreen | null, business_plan_revision: number | null, project: ProjectAssessment | null }` (`null` — шага ещё не было); у остальных `startup: null`;
+- `FounderPrescreen = { status, founder_name, checked_at, valid_until, valid, reasons: [{code, passed, message}] }`;
+- `ProjectAssessment = { status, product_code, max_amount, plan_revision, checked_at, valid_until, valid, reasons: [{code, passed, message}] }`; `plan_revision < business_plan_revision` — план поменяли после оценки, предложить оценить заново.
 
 **Предскрин учредителя:**
 - учредитель — участник компании, чьё ФИО совпало с руководителем по реестру;
@@ -550,10 +551,53 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 - `status = failed` — «Отказ (стартап)» на схеме: клиенту показываем `reasons[].message`. Коды: `no_history`, `no_current_overdue`, `no_serious_overdue`, `few_inquiries`, `debt_load`;
 - действует 30 дней (`valid`); заявка на `STARTUP` без пройденного и действующего на дату подачи предскрина отклоняется (`STOP_FOUNDER_PRESCREEN`, текст клиенту — в `decision.client_explanation`).
 
+**Бизнес-план и финмодель** — в кабинете компании, до заявки:
+- `PUT /organizations/{organization_id}/business-plan`, право `edit_financials` → 201 новый / 200 уточнён (`revision` +1); `GET` — текущий, 404 — ещё не заполнен;
+- тело — шаблон банка, суммы в рублях:
+
+```json
+{
+  "summary": "Кофейня у метро: зерно от обжарщика, завтраки, доставка по району",
+  "financial_model": {
+    "months": [{ "revenue": "1000000", "expenses": "800000" }],
+    "own_funds": "1000000",
+    "collateral_value": "0",
+    "collateral_description": "Поручительство учредителя",
+    "guarantee": "msp_corporation",
+    "guarantee_share": "0.5",
+    "loan_amount": "3000000",
+    "loan_term_months": 36
+  }
+}
+```
+
+- `months` — ровно 24 месяца от первого месяца проекта, расходы — операционные, без платежей по кредиту; `guarantee`: `none` / `msp_corporation` (Корпорация МСП) / `regional_fund` (РГО), без гарантии `guarantee_share` — 0 (иначе 422 `no_guarantee`). Ответ — то же плюс `organization_id`, `submitted_by`, `submitted_at`, `revision`.
+
+**Проектная оценка — «вам предодобрен кредит»:**
+- `POST /organizations/{organization_id}/project-assessment`, без тела, право `submit_application` → 201. Ошибки 422: `business_plan_required` — плана нет, `product_not_eligible` — кредит на запуск компании не подходит (есть обороты); `GET` — последняя оценка, 404 — ещё не было.
+
+```json
+{
+  "status": "passed",
+  "product_code": "STARTUP",
+  "max_amount": "3810000.00",
+  "plan_revision": 1,
+  "checked_at": "…",
+  "valid_until": "…",
+  "valid": true,
+  "reasons": [{ "code": "dscr", "passed": true, "message": "Денежного потока по финмодели хватает на платежи по кредиту с запасом" }]
+}
+```
+
+- `passed` — «вам предодобрен кредит до `max_amount`»: то же предложение в `pre_approved` дашборда и `GET /organizations/{id}/pre-approved-offers` (`basis: "project"`), в ленте — «Для вас есть предодобренные предложения»; заявку на `STARTUP` подают как обычно, в пределах суммы;
+- `failed` — клиенту `reasons[].message`. Коды: `founder_prescreen`, `industry`, `dscr`, `own_funds`, `coverage`, `product_amount` (проект выдерживает меньше минимума продукта);
+- действует 30 дней (`valid`). Цифр модели (DSCR и др.) клиенту не отдаём.
+
 **Продукт и маршрут:**
 - `STARTUP` («Кредит на запуск бизнеса»): 0,5–5 млн, 12–60 мес., ставка 15–26%, потолок господдержки 17% (`support_program`), поручительство учредителя; `required_documents` — `business_plan` и `financial_model`; в `GET /products` — `startup_only: true`;
 - подбор (`GET /bff/products/recommend`): стартапу — только продукты со `startup_only`, действующей компании — без них; без компании — все, `STARTUP` в конце;
-- маршрут `startup_v1`: решение всегда за андеррайтером, задача `project_assessment` («Проектная оценка», `client_stage` такой же) — форма решения плюс `business_plan: strong | acceptable | weak`, `collateral`, `support_program`. Итог — обычный оффер, подпись и выдача как у остальных.
+- маршрут `startup_v2`: решение всегда за андеррайтером, задача `project_assessment` («Проектная оценка», `client_stage` такой же) — форма решения плюс `business_plan: strong | acceptable | weak`, `collateral`, `support_program`. Итог — обычный оффер, подпись и выдача как у остальных;
+- карточка андеррайтера `GET /bff/backoffice/applications/{id}` у заявки стартапа с проектной оценкой — блок `startup: { assessment, business_plan, plan_changed, valid_at_submission, form }`: оценка с цифрами (`assessment.figures`: `requested_amount`, `term_months`, `rate`, `cash_flow`, `debt_service`, `dscr`, `own_share`, `coverage`, `capacity`), план и **`form` — с чем открыть форму `project_assessment`**: `{decision, amount, term_months, business_plan, collateral, support_program}` (в пределах предложения — `approve` на запрошенную сумму, сверх — `counter_offer` на предодобренную, оценка не пройдена или истекла — `reject`). Андеррайтер подтверждает или правит и отправляет обычным `POST /tasks/{id}/complete`.
 
 ### 4.7. Скоринг и стратегия как на схеме
 
