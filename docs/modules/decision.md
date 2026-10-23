@@ -59,7 +59,8 @@
 | `policy_v1` | правила ниже, источники — ЕГРЮЛ, ФНС, БКИ компании | `test_decision_golden.py`, `golden/*.json` |
 | `policy_v2` | v1 + стоп-факторы ГИР БО, Контура, ФНС и БКИ руководителя (раздел [`policy_v2`](#policy_v2-стоп-факторы-новых-источников)) | `test_decision_golden_v2.py`, `golden_v2/*.json`, `test_credit_policy_v2_rules.py` |
 | `policy_v3` | стоп-факторы v2 + «Стратегия решения» общей схемы на грейдах A–J PD-модели (раздел [`policy_v3`](#policy_v3-стратегия-решения)) | `test_decision_golden_v3.py`, `golden_v3/*.json`, `test_credit_policy_v3_rules.py` |
-| `policy_v4` (действующая) | v3 + ветка стартапа: продукт `STARTUP` — только с пройденным предскрином учредителя, вместо матрицы — проектная оценка (раздел [Ветка стартапа](#ветка-стартапа-policy_v4-и-предскрин-учредителя)). Для остальных продуктов решения как в v3 | `test_credit_policy_v4_rules.py`, `test_decision_config_loader.py` (v4 = v3 + `startup`), S-9 в `tests/scenarios` |
+| `policy_v4` | v3 + ветка стартапа: продукт `STARTUP` — только с пройденным предскрином учредителя, вместо матрицы — проектная оценка (раздел [Ветка стартапа](#ветка-стартапа-policy_v4-и-предскрин-учредителя)). Для остальных продуктов решения как в v3 | `test_credit_policy_v4_rules.py`, `test_decision_config_loader.py` (v4 = v3 + `startup`), S-9 в `tests/scenarios` |
+| `policy_v5` (действующая) | v4, но вместо матрицы грейд × сумма — две модели: зона PD-модели × зона ML-модели (раздел [Две модели](#две-модели-policy_v5)) | `test_decision_golden_v5.py`, `golden_v5/*.json`, `test_credit_policy_v5_rules.py`, `tests/assessment` |
 
 Действующая версия — `_DEFAULT_POLICY` в `config_loader.py`; она же пишется в журнал решения
 (`decision_results.policy_version`) и видна андеррайтеру. Вышедшая версия не правится: следующая
@@ -218,6 +219,48 @@
 
 Остальные стоп-факторы v2 — статус по ЕГРЮЛ, просрочки, ФНС, Контур — для стартапа действуют как
 обычно.
+
+### Две модели: `policy_v5`
+
+**Зачем:** скоринг считает на каждой заявке две оценки риска — экспертную PD-модель и обученную
+ML-модель ([scoring](scoring.md#ml-модель-ml_logreg_v1)), обе на шкале A–J. Где модели согласны,
+решает автоматика; где расходятся или видят умеренный риск, решает андеррайтер — и видит обе
+оценки. v5 = v4, в YAML вместо `strategy.risk_matrix` — `strategy.two_models`.
+
+**Зоны** по грейду, одинаковые для обеих моделей: green A–D (PD < 2,75%), yellow E–G (2,75–9%),
+red H–J (от 9%). **Матрица** (строка — PD-модель, столбец — ML-модель):
+
+| PD ↓ / ML → | green | yellow | red |
+|---|---|---|---|
+| **green** | одобрение | проверка | спорная |
+| **yellow** | проверка | проверка | спорная |
+| **red** | спорная | спорная | отказ |
+
+- **одобрение** — дальше лимиты как прежде: APPROVE или COUNTER_OFFER;
+- **проверка** (`ROUTE_MODELS_CHECK`) — `MANUAL_REVIEW`, вид `check`;
+- **спорная** (`ROUTE_MODELS_DISAGREE`) — `MANUAL_REVIEW`, вид `dispute`;
+- **отказ** (`STOP_MODELS_HIGH_RISK`) — REJECT. Исключение: данные неполные (сбой источников) —
+  модели посчитаны не на всём, решает человек (`dispute` по `ROUTE_SOURCES_FAILED`);
+- оценки ML нет (результат до `scoring_0003`) — `ROUTE_ML_UNAVAILABLE`, `dispute`.
+
+**Поверх матрицы**, в прежнем порядке правил:
+1. стоп-факторы → REJECT при любых моделях;
+2. выручка не подтверждена, дозапроса ещё не было → REQUEST_INFO;
+3. расхождения в данных — верификация, выручка после дозапроса, сбой источников — делают заявку
+   спорной;
+4. мягкие триггеры и сумма выше `auto_decision_limit` продукта — не меньше проверки.
+
+Мягкие триггеры не спасают от отказа, если обе модели в красной зоне. Для продукта стартапа матрица
+не применяется, как в v4 (проектная оценка).
+
+**Вид ручной проверки** — `review_kind` в контракте (`decision/facade.py`): `dispute`, если среди
+причин есть `ROUTE_MODELS_DISAGREE`, `ROUTE_ML_UNAVAILABLE`, `ROUTE_SOURCES_FAILED`,
+`ROUTE_VERIFICATION_MISMATCH`, `ROUTE_MASS_ADDRESS` или `ROUTE_REVENUE_MISMATCH`, иначе `check`.
+Вид выводится из кодов причин, поэтому миграции не нужно, и он есть у решений любой версии.
+
+Трасса: правило `strategy.two_models`, например «PD-модель: грейд A (PD 0.41%) — зелёная;
+ML-модель: грейд C (PD 1.39%) — зелёная → одобрение, дальше лимиты». Клиент про модели не узнаёт:
+тексты причин общие («Специалист банка посмотрит заявку перед решением»).
 
 ### 2. Дозапрос → `REQUEST_INFO`
 **Зачем:** расхождение выручки с ФНС не повод отказывать — повод попросить подтверждение.
@@ -386,6 +429,19 @@ PD-модель. Исходы S-1…S-7 те же:
 | S-6 sboy | B, 0,59% | **MANUAL_REVIEW** (`ROUTE_SOURCES_FAILED`), долг группы неизвестен |
 | S-7 romashka MORTGAGE | C, 1,34% | **MANUAL_REVIEW** (`ROUTE_AMOUNT_OVER_AUTO_LIMIT`), ставка 23,34% с LGD залогового |
 
+Golden v5 — `test_decision_golden_v5.py`, эталон — `golden_v5/*.json`: входы как в v3, рядом
+ML-модель. В эталоне ещё грейд и PD ML-модели и вид ручной проверки.
+
+| Сценарий | PD-модель | ML-модель | v5 |
+|---|---|---|---|
+| S-1 romashka | A, 0,41% | C, 1,39% | **APPROVE**: обе зелёные |
+| S-2 ivanov | E, 3,45% | E, 2,75% | **MANUAL_REVIEW** `check` (`ROUTE_MODELS_CHECK`): обе жёлтые. В v3/v4 — встречное предложение |
+| S-3 vector | F, 4,21% | F, 4,29% | **MANUAL_REVIEW** `dispute`: `ROUTE_VERIFICATION_MISMATCH`, `ROUTE_MODELS_CHECK` |
+| S-4 zakat | J, 51,6% | J, 23,7% | **REJECT** на стоп-факторах, до моделей не доходит |
+| S-5a / S-5b progress | C / D | F, 4,25% / F, 4,44% | **REQUEST_INFO**, после выписки — **MANUAL_REVIEW** `dispute` (`ROUTE_REVENUE_MISMATCH`, `ROUTE_MODELS_CHECK`) |
+| S-6 sboy | B, 0,59% | C, 1,16% | **MANUAL_REVIEW** `dispute` (`ROUTE_SOURCES_FAILED`), модели обе зелёные |
+| S-7 romashka MORTGAGE | C, 1,34% | D, 2,45% | **MANUAL_REVIEW** `check` (`ROUTE_AMOUNT_OVER_AUTO_LIMIT`), модели обе зелёные |
+
 Плюс `test_credit_policy_rules.py` (v1), `test_credit_policy_v2_rules.py` (v2) и
 `test_credit_policy_v3_rules.py` (v3) — каждое правило на
 границах: просрочка 90 / 91 день, LTV ровно
@@ -393,6 +449,10 @@ PD-модель. Исходы S-1…S-7 те же:
 двигает ставку в коридоре продукта, потолок господдержки, `thin_file` не маршрутизирует.
 `test_credit_policy_v4_rules.py` (v4): с пройденным предскрином — на проектную оценку, при каждом
 другом статусе — отказ, у остальных продуктов предскрина нет, v3 ветки стартапа не знает.
+`test_credit_policy_v5_rules.py` (v5): все девять клеток матрицы, нет ML — спорная, обе красные на
+неполных данных — к человеку, мягкий триггер не спасает от отказа, проверка и спорная поверх
+зелёных моделей, стоп-факторы и дозапрос раньше моделей, одобрение проходит лимиты, v4 моделей не
+знает, v5 = v4 с `two_models` вместо матрицы.
 
 ## Runtime: команды, события, API
 
@@ -441,8 +501,9 @@ reasons: [{code, passed, message}]}`; `valid: false` — истёк, для за
 `organization_id, checked_at`, действует последняя).
 
 Андеррайтер видит всё это в `GET /bff/backoffice/applications/{id}`: `scoring.segment`,
-`scoring.pd_12m`, `scoring.reason_codes`, `decision.triggers`, `decision.rate_breakdown`,
-`decision.limits.binding`.
+`scoring.pd_12m`, `scoring.reason_codes`, `scoring.ml` (оценка ML-модели), `decision.triggers`,
+`decision.rate_breakdown`, `decision.limits.binding`, `decision.review` (`check` / `dispute` у
+`MANUAL_REVIEW`). В очереди `GET /bff/backoffice/queue` у задачи — `review` того же смысла.
 
 Тесты — `tests/decision/runtime/`: оба консьюмера через настоящие подписки и inbox, идемпотентность,
 отказы ручного решения (без комментария, вне продукта, сверх полномочий), цепочка `override_of`,
