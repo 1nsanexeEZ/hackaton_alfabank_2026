@@ -40,4 +40,5 @@ def _map(raw: dict[str, Any]) -> TaxProfileDTO:
             )
             for block in raw.get("account_blocks", [])
         ),
+        mass_head=bool(raw["mass_head"]) if "mass_head" in raw else None,
     )

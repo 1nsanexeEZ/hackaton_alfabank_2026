@@ -23,6 +23,7 @@ from src.modules.enrichment.application.dto.aml import (
     PepHitDTO,
     ZskRiskDTO,
 )
+from src.modules.enrichment.application.dto.bank import BankStopListDTO
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -60,6 +61,12 @@ def data_to_json(source: Source, data: object) -> dict[str, Any]:
         return _counterparty_to_json(data)
     if isinstance(data, AmlCheckDTO):
         return _aml_to_json(data)
+    if isinstance(data, BankStopListDTO):
+        return {
+            "listed": data.listed,
+            "reason": data.reason,
+            "listed_at": data.listed_at.isoformat() if data.listed_at else None,
+        }
     raise TypeError(f"Нельзя сериализовать данные источника {source!r}")
 
 
@@ -78,6 +85,12 @@ def data_from_json(source: Source, raw: dict[str, Any]) -> SourceData:
         return _counterparty_from_json(raw)
     if source == "aml":
         return _aml_from_json(raw)
+    if source == "bank_stop_list":
+        return BankStopListDTO(
+            listed=raw["listed"],
+            reason=raw["reason"],
+            listed_at=date.fromisoformat(raw["listed_at"]) if raw["listed_at"] else None,
+        )
     raise ValueError(f"Нельзя разобрать данные источника {source!r}")
 
 
@@ -108,6 +121,7 @@ def _registry_to_json(dto: RegistryExtractDTO) -> dict[str, Any]:
         "mass_address": dto.mass_address,
         "kpp": dto.kpp,
         "head_since": dto.head_since.isoformat() if dto.head_since else None,
+        "unreliable": list(dto.unreliable),
     }
 
 
@@ -134,6 +148,8 @@ def _registry_from_json(raw: dict[str, Any]) -> RegistryExtractDTO:
         mass_address=raw["mass_address"],
         kpp=raw.get("kpp"),
         head_since=date.fromisoformat(raw["head_since"]) if raw.get("head_since") else None,
+        # Снимки до отметок о недостоверности хранились без них.
+        unreliable=tuple(raw.get("unreliable", ())),
     )
 
 
@@ -149,6 +165,7 @@ def _tax_to_json(dto: TaxProfileDTO) -> dict[str, Any]:
         "tax_regime": dto.tax_regime,
         "disqualified_head": dto.disqualified_head,
         "in_msp_registry": dto.in_msp_registry,
+        "mass_head": dto.mass_head,
         "account_blocks": [
             {
                 "decision_number": b.decision_number,
@@ -181,6 +198,7 @@ def _tax_from_json(raw: dict[str, Any]) -> TaxProfileDTO:
             )
             for b in raw.get("account_blocks", [])
         ),
+        mass_head=raw.get("mass_head"),
     )
 
 

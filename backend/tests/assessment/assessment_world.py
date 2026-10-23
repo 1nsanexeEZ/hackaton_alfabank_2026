@@ -41,6 +41,9 @@ from src.modules.enrichment.infrastructure.adapters.aml_http import (
     RfmHttpSource,
     ZskHttpSource,
 )
+from src.modules.enrichment.infrastructure.adapters.bank_stop_list_http import (
+    BankStopListHttpSource,
+)
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -81,6 +84,13 @@ def mock_sources() -> Sources:
         aml = _aml_answer(request)
         if aml is not None:
             return aml
+        if path.startswith("/abs/stop-list/"):
+            # Демо-компании во внутреннем стоп-листе банка не состоят.
+            inn = path.rsplit("/", 1)[1]
+            if inn not in recorded:
+                return httpx.Response(404, json={"detail": "not found"})
+            body = {"inn": inn, "listed": False, "reason": None, "listed_at": None}
+            return httpx.Response(200, json=body)
         if path == "/bki/report":
             source, inn = "bki", json.loads(request.content)["inn"]
         elif path == "/bki/person-report":
@@ -108,6 +118,7 @@ def mock_sources() -> Sources:
         aml_lists=RfmHttpSource(client, backoff=backoff),
         pep=PepHttpSource(client, backoff=backoff),
         zsk=ZskHttpSource(client, backoff=backoff),
+        bank_stop_list=BankStopListHttpSource(client, backoff=backoff),
     )
 
 

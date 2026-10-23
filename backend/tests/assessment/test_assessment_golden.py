@@ -217,7 +217,7 @@ def test_assessment_scenario(assessment: Assessment, scenario: Scenario) -> None
     enriched = assessment.fetch_enrichment(application_id)
     # ГИР БО и Контур отвечают по всем демо-компаниям; БКИ руководителя без его согласия не
     # запрашивается — ни в ok, ни в failed. Проверка по 115-ФЗ — на каждой заявке.
-    external = {"egrul", "fns", "bki", "gir_bo", "kontur", "aml"}
+    external = {"egrul", "fns", "bki", "gir_bo", "kontur", "aml", "bank_stop_list"}
     expected_ok = external - set(scenario.sources_failed)
     assert set(enriched["sources_ok"]) == expected_ok
     assert "bki_head" not in enriched["sources_ok"] + enriched["sources_failed"]

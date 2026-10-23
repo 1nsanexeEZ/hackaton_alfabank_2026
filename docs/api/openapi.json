@@ -5540,6 +5540,43 @@
         ],
         "title": "BackofficeMetricsDTO"
       },
+      "BankStopListDTO": {
+        "properties": {
+          "listed": {
+            "type": "boolean",
+            "title": "Listed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "listed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "listed"
+        ],
+        "title": "BankStopListDTO",
+        "description": "Компания во внутреннем стоп-листе банка или нет; причина — для банка, не для клиента."
+      },
       "BankruptcyMessageDTO": {
         "properties": {
           "date": {
@@ -8090,7 +8127,8 @@
                 "gir_bo",
                 "kontur",
                 "bki_head",
-                "aml"
+                "aml",
+                "bank_stop_list"
               ]
             },
             "type": "array",
@@ -8185,6 +8223,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AmlCheckDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bank_stop_list": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankStopListDTO"
               },
               {
                 "type": "null"
@@ -10649,7 +10697,9 @@
               "active",
               "liquidating",
               "liquidated",
-              "bankrupt"
+              "bankrupt",
+              "reorganizing",
+              "excluded"
             ],
             "title": "Registry Status"
           },
@@ -12911,6 +12961,14 @@
               }
             ],
             "title": "Head Since"
+          },
+          "unreliable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unreliable",
+            "default": []
           }
         },
         "type": "object",
@@ -13541,7 +13599,8 @@
               "gir_bo",
               "kontur",
               "bki_head",
-              "aml"
+              "aml",
+              "bank_stop_list"
             ],
             "title": "Source"
           },
@@ -14231,6 +14290,17 @@
             "type": "array",
             "title": "Account Blocks",
             "default": []
+          },
+          "mass_head": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mass Head"
           }
         },
         "type": "object",

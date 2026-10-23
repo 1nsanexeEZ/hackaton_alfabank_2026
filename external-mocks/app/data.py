@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 
 from app.inn import validate_inn
@@ -45,7 +45,7 @@ class Company:
     ogrn: str
     kpp: str | None
     okved: str
-    status: str  # ACTIVE | LIQUIDATING | LIQUIDATED | BANKRUPT
+    status: str  # ACTIVE | LIQUIDATING | LIQUIDATED | BANKRUPT | REORGANIZING | EXCLUDED
     reg_days_ago: int
     head_fio: str
     head_position: str
@@ -69,6 +69,12 @@ class Company:
     head_days_ago: int | None = None
     # Учредители-юрлица: наименование, ИНН и доля, % — по ним банк идёт по цепочке владения.
     corporate_founders: tuple[tuple[str, str, int], ...] = ()
+    # Отметки ЕГРЮЛ о недостоверности сведений: address | head | founder.
+    unreliable: tuple[str, ...] = ()
+    # ФНС «Прозрачный бизнес»: руководитель — массовый (руководит многими компаниями).
+    mass_head: bool = False
+    # Внутренний стоп-лист банка: причина, если компания в нём.
+    bank_stop_list: str | None = None
 
 
 _RUB = 100  # копеек в рубле
@@ -452,6 +458,41 @@ AML_DEMO: dict[str, Company] = {
 }
 
 
+# Компании для стоп-факторов общей схемы, которых нет у демо-клиентов (`docs/modules/decision.md`,
+# policy_v7): финансы и кредитная история чистые, отказ даёт только своё стоп-правило. Как и
+# AML_DEMO, в сидах бэкенда их нет — жюри заводит их в кабинете по ИНН.
+STOP_DEMO: dict[str, Company] = {
+    company.inn: company
+    for company in (
+        # ЕГРЮЛ: идёт реорганизация.
+        replace(
+            _clean("7707146014", "Перестройка", "1157707146013", "Перестроев Пётр Павлович"),
+            status="REORGANIZING",
+        ),
+        # ЕГРЮЛ: исключена из реестра как недействующая.
+        replace(
+            _clean("7707146021", "Тень", "1157707146024", "Тенев Тимофей Тарасович"),
+            status="EXCLUDED",
+        ),
+        # ЕГРЮЛ: отметки о недостоверности адреса и руководителя.
+        replace(
+            _clean("7707146039", "Мираж", "1157707146035", "Миражов Марк Михайлович"),
+            unreliable=("address", "head"),
+        ),
+        # ФНС: массовый руководитель.
+        replace(
+            _clean("7707146046", "Номинал", "1157707146046", "Номиналов Никита Никитич"),
+            mass_head=True,
+        ),
+        # Внутренний стоп-лист банка.
+        replace(
+            _clean("7707146053", "Стоп-Трейд", "1157707146057", "Стопов Сергей Семёнович"),
+            bank_stop_list="Подложные документы в заявке 2025 года",
+        ),
+    )
+}
+
+
 _GEN_OKVED = ("62.01", "56.10", "47.19", "41.20", "49.41", "46.90", "69.10", "86.10")
 _GEN_STATUS = ("ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "LIQUIDATING")
 
@@ -538,6 +579,8 @@ def get_company(inn: str) -> Company | None:
         return DEMO[inn]
     if inn in AML_DEMO:
         return AML_DEMO[inn]
+    if inn in STOP_DEMO:
+        return STOP_DEMO[inn]
     if not validate_inn(inn):
         return None
     return generate_company(inn)
@@ -551,6 +594,9 @@ def _head_date(company: Company) -> str:
     if company.head_days_ago is None:
         return _reg_date(company)
     return (date.today() - timedelta(days=company.head_days_ago)).isoformat()
+
+
+_UNRELIABLE = {"address": "Адрес", "head": "Руководитель", "founder": "Учредитель"}
 
 
 def egrul_response(company: Company) -> dict:
@@ -577,6 +623,11 @@ def egrul_response(company: Company) -> dict:
         "Адрес": {"Полный": company.address, "КодРегиона": company.region_code},
         "МассовыйАдрес": company.mass_address,
         "ОрганизационнаяФорма": company.form,
+        # Записи о недостоверности сведений (по результатам проверки налоговым органом).
+        "СведНедостоверн": [
+            {"Сведения": _UNRELIABLE[kind], "ДатаЗаписи": _reg_date(company)}
+            for kind in company.unreliable
+        ],
     }
     if company.kpp:
         data["КПП"] = company.kpp
@@ -592,6 +643,7 @@ def fns_response(company: Company) -> dict:
         "expenses_kop": company.expenses_kop,
         "tax_regime": company.tax_regime,
         "disqualified_head": company.disqualified_head,
+        "mass_head": company.mass_head,
         "msp_registry": company.msp_registry,
         "report_year": date.today().year - 1,
         "account_blocks": [
@@ -603,6 +655,17 @@ def fns_response(company: Company) -> dict:
             }
             for block in company.account_blocks
         ],
+    }
+
+
+def bank_stop_list_response(company: Company) -> dict:
+    """Внутренний стоп-лист банка (АБС): компания в нём или нет и почему."""
+    listed = company.bank_stop_list is not None
+    return {
+        "inn": company.inn,
+        "listed": listed,
+        "reason": company.bank_stop_list,
+        "listed_at": _reg_date(company) if listed else None,
     }
 
 

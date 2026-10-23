@@ -60,7 +60,9 @@ policy_v7 — стоп-факторы до модели, как на общей 
 процесса до скоринга, сработал — решение без модели. В `decide` они тоже идут раньше проверки,
 есть ли результат скоринга: стоп-фактор даёт отказ, даже если скоринг не посчитался. «Данные
 полные?»: скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная;
-модели не дают отказа на неполных данных.
+модели не дают отказа на неполных данных. Стоп-факторы таблицы общей схемы, которых не было:
+реорганизация и исключение из реестра (статусы ЕГРЮЛ), недостоверность сведений ЕГРЮЛ, массовый
+руководитель (ФНС), срок работы меньше минимума продукта, внутренний стоп-лист банка.
 
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
@@ -218,6 +220,11 @@ class PolicyConfig:
     screen_before_scoring: bool = False
     # policy_v7: скоринг пометил данные неполными (quality = degraded) → решает человек.
     route_degraded_quality: bool = False
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было. False — выключено.
+    stop_unreliable_data: bool = False  # отметки ЕГРЮЛ о недостоверности сведений
+    stop_mass_head: bool = False  # массовый руководитель (ФНС)
+    stop_business_age: bool = False  # срок работы меньше минимума продукта
+    stop_bank_stop_list: bool = False  # внутренний стоп-лист банка
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -698,6 +705,10 @@ class _Evaluation:
             self._negative_equity(),
             self._mass_address(company),
             self._okved(company),
+            self._unreliable_data(company),
+            self._mass_head(company),
+            self._business_age(company),
+            self._bank_stop_list(),
         )
         reasons.extend(code for code in checks if code is not None)
 
@@ -862,6 +873,74 @@ class _Evaluation:
         verdict = "в стоп-листе банка" if matched else "не в стоп-листе"
         self._hit("stop.okved", matched, f"основной ОКВЭД {company.okved_main} — {verdict}")
         return ReasonCode.STOP_FORBIDDEN_OKVED if matched else None
+
+    # --- policy_v7: остальные стоп-факторы таблицы общей схемы -------------------------------
+
+    def _unreliable_data(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_unreliable_data:
+            return None
+        names = {"address": "адрес", "head": "руководитель", "founder": "учредитель"}
+        matched = bool(company.unreliable)
+        self._hit(
+            "stop.unreliable_data",
+            matched,
+            "ЕГРЮЛ: недостоверные сведения — "
+            + ", ".join(names.get(mark, mark) for mark in company.unreliable)
+            if matched
+            else "отметок о недостоверности сведений в ЕГРЮЛ нет",
+        )
+        return ReasonCode.STOP_UNRELIABLE_DATA if matched else None
+
+    def _mass_head(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_mass_head:
+            return None
+        matched = company.mass_head is True
+        self._hit(
+            "stop.mass_head",
+            matched,
+            "ФНС не ответила — проверка не выполнена"
+            if company.mass_head is None
+            else "руководитель массовый (ФНС)"
+            if matched
+            else "руководитель не массовый",
+        )
+        return ReasonCode.STOP_MASS_HEAD if matched else None
+
+    def _business_age(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_business_age:
+            return None
+        need, age = self._in.product.min_business_age_months, company.business_age_months
+        if age is None:
+            self._hit("stop.business_age", False, "дата регистрации неизвестна — не проверить")
+            return None
+        matched = age < need
+        self._hit(
+            "stop.business_age",
+            matched,
+            f"срок работы {age} мес., минимум продукта {need} мес.",
+        )
+        return ReasonCode.STOP_BUSINESS_TOO_YOUNG if matched else None
+
+    def _bank_stop_list(self) -> ReasonCode | None:
+        if not self._c.stop_bank_stop_list:
+            return None
+        stop = self._in.bank_stop_list
+        if stop is None or stop.status != "ok":
+            detail = (
+                "стоп-лист банка не ответил — проверка не выполнена"
+                if stop is not None and stop.status == "failed"
+                else "стоп-лист банка не запрашивался — проверка не выполнена"
+            )
+            self._hit("stop.bank_stop_list", False, detail)
+            return None
+        self._hit(
+            "stop.bank_stop_list",
+            stop.listed,
+            f"компания во внутреннем стоп-листе банка: {stop.reason or 'причина не указана'}"
+            if stop.listed
+            else "во внутреннем стоп-листе банка компании нет",
+        )
+        return ReasonCode.STOP_BANK_STOP_LIST if stop.listed else None
 
     # --- 2. дозапрос ---------------------------------------------------------------------------
 

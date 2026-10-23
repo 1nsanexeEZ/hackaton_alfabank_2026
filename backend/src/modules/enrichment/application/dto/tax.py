@@ -28,3 +28,5 @@ class TaxProfileDTO:
     disqualified_head: bool
     in_msp_registry: bool
     account_blocks: tuple[AccountBlockDTO, ...] = ()
+    # Массовый руководитель («Прозрачный бизнес»); None — в снимках до этого поля.
+    mass_head: bool | None = None

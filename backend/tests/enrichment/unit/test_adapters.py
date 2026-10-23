@@ -9,7 +9,15 @@ import httpx
 import pytest
 
 from src.modules.enrichment.domain.exceptions import SourceNotFound, SourceUnavailable
-from src.modules.enrichment.facade import AccountBlockDTO, BankruptcyMessageDTO, PersonDTO
+from src.modules.enrichment.facade import (
+    AccountBlockDTO,
+    BankruptcyMessageDTO,
+    BankStopListDTO,
+    PersonDTO,
+)
+from src.modules.enrichment.infrastructure.adapters.bank_stop_list_http import (
+    BankStopListHttpSource,
+)
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -81,6 +89,70 @@ async def test_egrul_without_head_record_date() -> None:
 async def test_egrul_status_lowercased() -> None:
     dto = await EgrulHttpSource(_client(_demo_handler), backoff=()).fetch("7703417070")
     assert dto.status == "liquidating"
+
+
+@pytest.mark.parametrize(
+    ("code", "status"), [("REORGANIZING", "reorganizing"), ("EXCLUDED", "excluded")]
+)
+async def test_egrul_new_statuses(code: str, status: str) -> None:
+    body = {**ROMASHKA_EGRUL, "Статус": {"Код": code}}
+    dto = await EgrulHttpSource(
+        _client(lambda request: httpx.Response(200, json=body)), backoff=()
+    ).fetch("7701158817")
+    assert dto.status == status
+
+
+async def test_egrul_unreliable_records() -> None:
+    marks = [{"Сведения": "Адрес"}, {"Сведения": "Руководитель"}, {"Сведения": "Адрес"}]
+    body = {**ROMASHKA_EGRUL, "СведНедостоверн": marks}
+    dto = await EgrulHttpSource(
+        _client(lambda request: httpx.Response(200, json=body)), backoff=()
+    ).fetch("7701158817")
+    assert dto.unreliable == ("address", "head")
+
+
+async def test_egrul_without_unreliable_records() -> None:
+    dto = await EgrulHttpSource(_client(_demo_handler), backoff=()).fetch("7701158817")
+    assert dto.unreliable == ()
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(True, True), (False, False), (None, None)])
+async def test_fns_mass_head(raw: bool | None, expected: bool | None) -> None:
+    body = dict(ROMASHKA_FNS)
+    if raw is not None:
+        body["mass_head"] = raw
+    dto = await FnsHttpSource(
+        _client(lambda request: httpx.Response(200, json=body)), backoff=()
+    ).fetch("7701158817")
+    assert dto.mass_head is expected
+
+
+async def test_bank_stop_list_maps_the_answer() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/abs/stop-list/7707146053"
+        body = {
+            "inn": "7707146053",
+            "listed": True,
+            "reason": "Подложные документы",
+            "listed_at": "2025-06-01",
+        }
+        return httpx.Response(200, json=body)
+
+    dto = await BankStopListHttpSource(_client(handler), backoff=()).fetch("7707146053")
+    assert dto == BankStopListDTO(True, "Подложные документы", date(2025, 6, 1))
+
+
+async def test_bank_stop_list_not_listed() -> None:
+    body = {"inn": "7701158817", "listed": False, "reason": None, "listed_at": None}
+    client = _client(lambda request: httpx.Response(200, json=body))
+    dto = await BankStopListHttpSource(client, backoff=()).fetch("7701158817")
+    assert dto == BankStopListDTO(listed=False)
+
+
+async def test_bank_stop_list_bad_answer() -> None:
+    client = _client(lambda request: httpx.Response(200, json={"listed": "yes"}))
+    with pytest.raises(SourceUnavailable):
+        await BankStopListHttpSource(client, backoff=()).fetch("7701158817")
 
 
 async def test_fns_kopecks_to_rubles() -> None:
