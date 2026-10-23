@@ -86,7 +86,7 @@ const RATE_PARTS = [
 
 <template>
   <AsyncState :loading="card.loading.value && !data" :error="data ? null : card.error.value" @retry="card.reload">
-    <div v-if="data" class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <div v-if="data" class="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
       <div class="space-y-4">
         <PanelCard :title="`Заявка № ${data.application.number}`">
           <div class="flex flex-wrap items-center gap-2">
@@ -234,7 +234,7 @@ const RATE_PARTS = [
             </li>
           </ul>
 
-          <div class="mt-5 grid gap-5 lg:grid-cols-2">
+          <div class="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
             <section v-if="data.enrichment.egrul" class="text-sm">
               <p class="font-semibold text-ink">ЕГРЮЛ / ЕГРИП</p>
               <ul class="mt-2 space-y-1 text-ink">

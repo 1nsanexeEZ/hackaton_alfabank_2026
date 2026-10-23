@@ -71,7 +71,7 @@ const byDay = computed(() => {
         </li>
       </ul>
 
-      <div class="grid gap-4 xl:grid-cols-2">
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-2">
         <PanelCard
           title="Заявки по продуктам"
           :description="metrics.data.value ? `${formatDate(metrics.data.value.date_from)} — ${formatDate(metrics.data.value.date_to)}` : undefined"
