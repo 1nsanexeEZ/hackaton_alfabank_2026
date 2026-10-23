@@ -49,7 +49,7 @@ class Company:
     reg_days_ago: int
     head_fio: str
     head_position: str
-    founders: tuple[tuple[str, int], ...]
+    founders: tuple[tuple[str, int], ...]  # учредители-физлица: ФИО и доля, %
     address: str
     region_code: str
     mass_address: bool
@@ -67,6 +67,8 @@ class Company:
     account_blocks: tuple[AccountBlock, ...] = ()
     # Сколько дней назад внесена запись о нынешнем руководителе; None — с регистрации.
     head_days_ago: int | None = None
+    # Учредители-юрлица: наименование, ИНН и доля, % — по ним банк идёт по цепочке владения.
+    corporate_founders: tuple[tuple[str, str, int], ...] = ()
 
 
 _RUB = 100  # копеек в рубле
@@ -334,6 +336,122 @@ DEMO: dict[str, Company] = {
 }
 
 
+def _clean(
+    inn: str,
+    name: str,
+    ogrn: str,
+    head_fio: str,
+    *,
+    founders: tuple[tuple[str, int], ...] = (),
+    corporate_founders: tuple[tuple[str, str, int], ...] = (),
+    okved: str = "46.90",
+) -> Company:
+    """Компания для сценариев ПОД/ФТ: финансы и кредитная история чистые, чтобы решение
+    определяли только проверки по 115-ФЗ (`app/compliance.py`)."""
+    return Company(
+        inn=inn,
+        form="ООО",
+        name=f"Общество с ограниченной ответственностью «{name}»",
+        ogrn=ogrn,
+        kpp=inn[:4] + "01001",
+        okved=okved,
+        status="ACTIVE",
+        reg_days_ago=1460,
+        head_fio=head_fio,
+        head_position="Генеральный директор",
+        founders=founders,
+        corporate_founders=corporate_founders,
+        address="г. Москва, ул. Складочная, д. 1",
+        region_code="77",
+        mass_address=False,
+        arrears_kop=0,
+        headcount=15,
+        revenue_kop=30 * _M,
+        expenses_kop=25 * _M,
+        tax_regime="УСН",
+        disqualified_head=False,
+        msp_registry=True,
+        bki_obligations=(),
+        bki_inquiries_30d=0,
+    )
+
+
+# Компании для проверок по 115-ФЗ (`docs/compliance-115.md`): в сидах бэкенда их нет, жюри
+# заводит их в кабинете по ИНН. Что с каждой не так — в `app/compliance.py`.
+AML_DEMO: dict[str, Company] = {
+    company.inn: company
+    for company in (
+        # Сама компания — в перечне причастных к экстремизму и терроризму.
+        _clean(
+            "7707115016",
+            "Северный ветер",
+            "1157707115015",
+            "Ветров Виктор Викторович",
+            founders=(("Ветров Виктор Викторович", 100),),
+        ),
+        # Руководитель — в решении МВК о замораживании.
+        _clean(
+            "7707115023",
+            "Ледник",
+            "1157707115026",
+            "Морозов Максим Маркович",
+            founders=(("Морозов Максим Маркович", 100),),
+        ),
+        # Бенефициар (75%) — иностранное публичное должностное лицо.
+        _clean(
+            "7707115030",
+            "Посольский двор",
+            "1157707115037",
+            "Дворов Денис Дмитриевич",
+            founders=(("Послов Пётр Павлович", 75), ("Дворов Денис Дмитриевич", 25)),
+        ),
+        # Платформа ЗСК: высокий уровень риска.
+        _clean(
+            "7707115048",
+            "Транзит-Сервис",
+            "1157707115048",
+            "Транзитов Тимур Тимурович",
+            founders=(("Транзитов Тимур Тимурович", 100),),
+        ),
+        # Платформа ЗСК: средний уровень риска.
+        _clean(
+            "7707115055",
+            "Логистика Плюс",
+            "1157707115059",
+            "Логинов Лев Львович",
+            founders=(("Логинов Лев Львович", 100),),
+        ),
+        # 80% у «Холдинга Восток», которым владеет лицо из перечня ФРОМУ: прямые учредители
+        # чистые, бенефициар виден только по цепочке.
+        _clean(
+            "7707115062",
+            "Северная дочка",
+            "1157707115060",
+            "Дочкин Дмитрий Данилович",
+            founders=(("Дочкин Дмитрий Данилович", 20),),
+            corporate_founders=(("ООО «Холдинг Восток»", "7707115070", 80),),
+        ),
+        _clean(
+            "7707115070",
+            "Холдинг Восток",
+            "1157707115070",
+            "Холдингов Харитон Харитонович",
+            founders=(("Цепочкин Цезарь Цезаревич", 100),),
+            okved="64.20",
+        ),
+        # Пять участников по 20%: никто не владеет больше 25% — бенефициаром признаётся
+        # руководитель.
+        _clean(
+            "7707115087",
+            "Пять партнёров",
+            "1157707115081",
+            "Партнёров Павел Петрович",
+            founders=tuple((f"Партнёр № {i}", 20) for i in range(1, 6)),
+        ),
+    )
+}
+
+
 _GEN_OKVED = ("62.01", "56.10", "47.19", "41.20", "49.41", "46.90", "69.10", "86.10")
 _GEN_STATUS = ("ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "LIQUIDATING")
 
@@ -418,6 +536,8 @@ def get_company(inn: str) -> Company | None:
     """Демо-компания, иначе детерминированная генерация; невалидный ИНН → None (404)."""
     if inn in DEMO:
         return DEMO[inn]
+    if inn in AML_DEMO:
+        return AML_DEMO[inn]
     if not validate_inn(inn):
         return None
     return generate_company(inn)
@@ -447,7 +567,13 @@ def egrul_response(company: Company) -> dict:
             "Должность": company.head_position,
             "ДатаЗаписи": _head_date(company),
         },
-        "Учредители": [{"ФИО": fio, "Доля": share} for fio, share in company.founders],
+        "Учредители": [
+            *({"ФИО": fio, "Доля": share} for fio, share in company.founders),
+            *(
+                {"Наим": name, "ИНН": inn, "Доля": share}
+                for name, inn, share in company.corporate_founders
+            ),
+        ],
         "Адрес": {"Полный": company.address, "КодРегиона": company.region_code},
         "МассовыйАдрес": company.mass_address,
         "ОрганизационнаяФорма": company.form,
