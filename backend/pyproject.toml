@@ -96,12 +96,12 @@ source_modules = ["src.modules.*.infrastructure"]
 forbidden_modules = ["src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 
 # Modules on the layout from settings/04-module-structure.md: a refactored module goes here.
-# The public facade.py sits above infrastructure: inside the module DTO come from application.dto.
+# facade.py is below infrastructure (the facade adapter implements it) and above application.
 [[tool.importlinter.contracts]]
 name = "Layered modules: presentation -> infrastructure -> application -> domain"
 type = "layers"
-containers = ["src.modules.enrichment"]
-layers = ["module", "presentation", "(facade)", "infrastructure", "application", "domain"]
+containers = ["src.modules.identity", "src.modules.enrichment"]
+layers = ["module", "presentation", "infrastructure", "(facade)", "application", "domain"]
 
 [[tool.importlinter.contracts]]
 name = "Core does not know the modules"
