@@ -1,69 +1,77 @@
-name: Test and Deploy to VPS
+name: Deploy
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  test-and-deploy:
+  guard:
+    name: Tag points to main
     runs-on: ubuntu-latest
-    
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.12'
+          fetch-depth: 0
 
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      - name: Install dependencies
-        run: uv sync --dev
-        working-directory: ./backend
-
-      - name: Run tests (Unit, Integration, E2E)
+      - id: check
         run: |
-          uv run pytest -v
-        working-directory: ./backend
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::Деплой только с тега vX.Y.Z"; exit 1
+          fi
+          git fetch origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Тег стоит на коммите не из main"; exit 1
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.0.3
+  ci:
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: [guard, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://alfa-hack.ru
+    steps:
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 10m
-          script: |
-            set -e
-            
-            cd ~/hackaton_alfabank_2026
+          ref: ${{ needs.guard.outputs.sha }}
 
-            git remote set-url origin git@github.com:1nsanexeEZ/hackaton_alfabank_2026.git
-            export GIT_SSH_COMMAND="ssh -i ~/.ssh/github_deploy_key -o StrictHostKeyChecking=no"
+      - name: SSH key and known_hosts
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-            git fetch origin
- 
-            git reset --hard origin/main
+      - name: Deploy on VPS
+        env:
+          TARGET: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          SHA: ${{ needs.guard.outputs.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ServerAliveInterval=30 \
+            "$TARGET" "bash -s -- $SHA" < docker/deploy.sh
 
-            if [ ! -f docker/nginx/.htpasswd ]; then
-                echo "ERROR: docker/nginx/.htpasswd not found!"
-                echo "Create it manually on the server before deploying:"
-                echo "   printf 'admin:\$(openssl passwd -apr1 YOUR_PASSWORD)\n' > docker/nginx/.htpasswd"
-                exit 1
-            fi
-            
-            echo ".htpasswd found, proceeding with deploy"
-            
-            docker-compose down --remove-orphans
-            
-            docker-compose up -d --build --remove-orphans
-            
-            docker-compose restart nginx || true
-            
-            docker image prune -f
-            
-            docker-compose ps
+      - name: Smoke test from outside
+        run: |
+          for i in $(seq 1 20); do
+            curl -fsS https://alfa-hack.ru/health && exit 0
+            sleep 5
+          done
+          echo "::error::https://alfa-hack.ru/health не отвечает"; exit 1
