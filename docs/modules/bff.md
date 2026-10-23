@@ -14,9 +14,10 @@ bff/
 ├── module.py                 # register: роутеры client и backoffice; фасада и подписок нет
 ├── domain/
 │   ├── enums.py              # ClientStatus, TodoKind, Segment, PreApprovalBasis,
-│   │                         # ConsentKind, ConsentScope (Literal)
+│   │                         # AffordableBy, ConsentKind, ConsentScope (Literal)
 │   ├── client_status.py      # статус заявки в терминах фронтенда
 │   ├── actions.py            # действия клиента по статусу и правам, пункты «нужно сделать»
+│   ├── affordability.py      # платёж, который компания потянет: доля свободного потока
 │   ├── consents.py           # согласия до заявки: название, что даёт, нужно ли для подачи
 │   └── project_form.py       # с чем открывается форма проектной оценки стартапа у андеррайтера
 ├── application/
@@ -59,6 +60,26 @@ bff/
   клиенту не уходят. Бэк-офис получает DTO фасадов целиком.
 - Список заявок и счётчики берутся из проектора, карточка и статус одной заявки — из applications:
   клиент сразу видит результат своего действия.
+
+## Калькулятор: посильная сумма
+
+`POST /bff/products/{code}/calculate` отдаёт `max_affordable` — до какой суммы банк готов
+предложить на выбранный срок, `affordable_by` — что её ограничило, и `above_affordable` — запрос
+больше посильного (заявку это не блокирует: решает специалист).
+
+- **Предодобрение** (`decision`): `max_amount` предложения по продукту. Нет предложения —
+  `max_affordable = null`, `above_affordable = false`.
+- **Платёжеспособность** (`affordable_by = payment`): платёж не больше 40% свободного потока;
+  поток — прибыль по последнему годовому отчёту из `clients` за месяц минус
+  `monthly_debt_payments`, без расходов в отчёте — 80% выручки (правило `domain/affordability.py`
+  повторяет `decision`, импортировать его bff не может). Сумма ищется под график и срок запроса:
+  платёж пропорционален сумме, берём пробу и проверяем через `ProductsFacade.calculate_payment`.
+  `max_affordable` — меньшее из двух; причина `amount_above_affordable`, когда запрос выше.
+- **Стартап** (`basis = project`): `max_affordable = max_amount` проектного предложения
+  (`affordable_by = project`), отчётность не читается.
+- Нет годового отчёта — остаётся предодобренный максимум. Платежи по БКИ в расчёт не входят:
+  bff их не читает, итог — подсказка, а не обещание.
+- `suggestion` урезан до `max_affordable` для урезанного срока.
 
 ## Согласия на дашборде
 

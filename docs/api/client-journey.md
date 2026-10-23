@@ -195,7 +195,10 @@ Dashboard {
   within_pre_approved: boolean | null,  // null — по этому продукту ничего не предодобрено
   eligible: boolean,
   reasons: [{ code, passed, message }], // причины eligibility + amount_above_pre_approved / term_above_pre_approved
-  suggestion: { amount, term_months, monthly_payment } | null,  // запрос, урезанный до предодобренного
+  suggestion: { amount, term_months, monthly_payment } | null,  // запрос, урезанный до посильного
+  max_affordable: string | null,        // посильный максимум на запрошенный срок; null — предодобрения нет
+  affordable_by: pre_approved | payment | project | null,  // что его ограничило
+  above_affordable: boolean,            // запрос больше max_affordable: заявку примут, решит специалист
   degraded: string[]                    // ["pre_approved"] — decision не ответил, считаем без предодобрения
 }
 ```
@@ -206,13 +209,17 @@ Dashboard {
 | Запрос в рамках предодобрения | `within_pre_approved: true`, ставка — `rate_from`, `suggestion: null` |
 | Сумма больше `max_amount` | `within_pre_approved: false`, причина `amount_above_pre_approved` («Предварительно доступно до 4 000 000 ₽»); график — по запрошенной сумме, `suggestion` — по `max_amount` |
 | Срок больше `term_max_months` | `within_pre_approved: false`, причина `term_above_pre_approved`; в `suggestion` срок урезан до `term_max_months` |
+| Платёж по запрошенной сумме больше 40% свободного денежного потока по годовой отчётности | `max_affordable` — наибольшая сумма (кратная 1000 ₽), платёж по которой укладывается, `affordable_by: payment`, `above_affordable: true`, причина `amount_above_affordable`; `within_pre_approved` при этом может остаться `true`; `suggestion` — по `max_affordable` |
+| Предодобрение — проектное (стартап) | `max_affordable` — `max_amount` проектной оценки, `affordable_by: project`, платёжеспособность по отчётности не считается |
 | Компания не проходит eligibility | `eligible: false`, причины — из eligibility; график всё равно считается |
 | `decision` не ответил | как без предодобрения, `degraded: ["pre_approved"]` |
 | Сумма, срок или схема вне рамок продукта | 422, как у `POST /products/{code}/calculate`: `details.field` — `amount`, `term_months` или `repayment`; `details.code` — `out_of_range` (с `min` и `max`) или `not_offered` (с `options`) |
 | Продукта нет / продукт в архиве | 404 / 409 `product_not_available` |
 | Чужая компания | 404 |
 
-Подачу сверх предодобренного бэк не блокирует: окончательное решение — после проверки, банк может ответить counteroffer. Фронт показывает причины из `reasons` и предлагает `suggestion`, кнопку подачи не прячет. Если урезанная сумма или срок меньше минимума продукта, `suggestion: null`.
+`max_affordable` — меньшее из предодобренного максимума и суммы по платёжеспособности: платёж на выбранный срок и график не больше 40% свободного потока (прибыль по последнему годовому отчёту за месяц минус платежи по текущим кредитам; расходов в отчёте нет — берём 80% выручки, как decision). Отчёта нет — остаётся предодобренный максимум (`affordable_by: pre_approved`). Считаем только по данным, которые указала компания: БКИ и выписка могут изменить итог.
+
+Подачу сверх предодобренного или сверх посильного бэк не блокирует: окончательное решение — после проверки, банк может ответить counteroffer. Фронт показывает причины из `reasons` и предлагает `suggestion`, кнопку подачи не прячет. Если урезанная сумма или срок меньше минимума продукта, `suggestion: null`.
 
 | Ручка | Что |
 |---|---|
