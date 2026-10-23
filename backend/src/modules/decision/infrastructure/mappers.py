@@ -3,15 +3,19 @@
 
 from __future__ import annotations
 
-from src.modules.decision.application.ports import PreApprovedOffer
+from datetime import datetime
+
+from src.modules.decision.application.ports import FounderPrescreen, PreApprovedOffer
 from src.modules.decision.domain.model import InfoNeed
 from src.modules.decision.domain.result import ApprovedTerms, DecisionResult
 from src.modules.decision.facade import (
     ClientDecisionDTO,
     DecisionDTO,
     DecisionTermsDTO,
+    FounderPrescreenDTO,
     LimitsDTO,
     PreApprovedOfferDTO,
+    PrescreenReasonDTO,
     RateBreakdownDTO,
     RequestedInfoDTO,
     RuleTraceDTO,
@@ -81,6 +85,18 @@ def pre_approved_dto(offer: PreApprovedOffer) -> PreApprovedOfferDTO:
         term_max_months=offer.term_max_months,
         valid_until=offer.valid_until,
         basis=offer.basis,
+    )
+
+
+def prescreen_dto(prescreen: FounderPrescreen, now: datetime) -> FounderPrescreenDTO:
+    return FounderPrescreenDTO(
+        status=prescreen.status,
+        founder_account_id=prescreen.founder_account_id,
+        founder_name=prescreen.founder_name,
+        checked_at=prescreen.checked_at,
+        valid_until=prescreen.valid_until,
+        valid=prescreen.valid_at(now),
+        reasons=tuple(PrescreenReasonDTO(r.code, r.passed, r.message) for r in prescreen.reasons),
     )
 
 

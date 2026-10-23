@@ -29,6 +29,7 @@ from src.modules.decision.infrastructure.config_loader import default_policy
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyDecisionRepository,
+    SqlAlchemyFounderPrescreenRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
 from src.modules.enrichment.facade import EnrichmentFacade
@@ -91,6 +92,7 @@ async def _on_command(ctx: HandlerContext, payload: MakeDecision | RecordManualD
             ctx.facade(EnrichmentFacade),
             ctx.facade(ScoringFacade),
             products,
+            SqlAlchemyFounderPrescreenRepository(ctx.session),
         )
         await MakeDecisionUseCase(
             repository, current.policy, builder, products, ctx.clock, current.key_rate

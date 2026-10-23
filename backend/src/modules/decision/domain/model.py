@@ -84,6 +84,8 @@ class ReasonCode(StrEnum):
     LIMIT_BY_TURNOVER = "LIMIT_BY_TURNOVER"
     LIMIT_BY_GRADE = "LIMIT_BY_GRADE"
     LIMIT_BY_GROUP = "LIMIT_BY_GROUP"
+    # policy_v4: ветка стартапа.
+    STOP_FOUNDER_PRESCREEN = "STOP_FOUNDER_PRESCREEN"
 
 
 # --- вход политики -----------------------------------------------------------
@@ -152,6 +154,8 @@ class BureauInput:
 
 
 HeadBureauStatus = Literal["ok", "no_consent", "no_head", "failed", "not_requested"]
+# passed / failed — результат последнего предскрина; expired — истёк к подаче; missing — не было.
+FounderPrescreenStatus = Literal["passed", "failed", "expired", "missing"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,6 +236,8 @@ class DecisionInput:
     counterparty: CounterpartyInput | None = None  # None — Контур не ответил или не запрошен
     accounting: AccountingInput | None = None  # None — отчётности в ГИР БО нет
     head_bureau: HeadBureauInput | None = None
+    # Предскрин учредителя на дату подачи — только у продукта для стартапа (policy_v4).
+    founder_prescreen: FounderPrescreenStatus | None = None
 
 
 @dataclass(frozen=True, slots=True)

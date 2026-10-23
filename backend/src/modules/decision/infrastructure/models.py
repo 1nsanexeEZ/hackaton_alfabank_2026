@@ -7,7 +7,17 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Integer, Numeric, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.infrastructure.database.base import Base, JSONType
@@ -49,6 +59,23 @@ class DecisionResultRecord(Base):
     # policy_v3 (decision_0002): мягкие триггеры и ставка по компонентам.
     triggers: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONType, default=None)
     rate_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSONType, default=None)
+
+
+class FounderPrescreenRecord(Base):
+    """Предскрин учредителя стартапа; повторная проверка — новая строка, действует последняя."""
+
+    __tablename__ = "decision_founder_prescreens"
+    __table_args__ = (Index("ix_decision_founder_prescreens_org", "organization_id", "checked_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(Uuid)
+    founder_account_id: Mapped[UUID] = mapped_column(Uuid)
+    founder_name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(16))
+    reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSONType)
+    version: Mapped[str] = mapped_column(String(32))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class PreApprovedOfferRecord(Base):

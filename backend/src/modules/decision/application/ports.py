@@ -1,5 +1,6 @@
-"""Порты decision: хранилища решений и предодобрений. Соседние модули (applications,
-enrichment, scoring, products, clients) decision читает через их фасады прямо в use case."""
+"""Порты decision: хранилища решений, предодобрений и предскринов учредителей. Соседние модули
+(applications, enrichment, scoring, products, clients, identity) decision читает через их
+фасады прямо в use case."""
 
 from __future__ import annotations
 
@@ -50,3 +51,38 @@ class PreApprovedOfferRepository(Protocol):
         ...
 
     async def list_for_organization(self, organization_id: UUID) -> list[PreApprovedOffer]: ...
+
+
+PrescreenStatus = Literal["passed", "failed"]
+
+
+@dataclass(frozen=True, slots=True)
+class PrescreenCheck:
+    code: str
+    passed: bool
+    message: str  # для клиента
+
+
+@dataclass(frozen=True, slots=True)
+class FounderPrescreen:
+    """Предскрин учредителя стартапа по его личной кредитной истории. Неизменяемый: повторная
+    проверка — новая запись, действует последняя."""
+
+    id: UUID
+    organization_id: UUID
+    founder_account_id: UUID
+    founder_name: str
+    status: PrescreenStatus
+    reasons: tuple[PrescreenCheck, ...]
+    version: str  # версия правил предскрина (scoring)
+    checked_at: datetime
+    valid_until: datetime
+
+    def valid_at(self, moment: datetime) -> bool:
+        return self.checked_at <= moment <= self.valid_until
+
+
+class FounderPrescreenRepository(Protocol):
+    async def add(self, prescreen: FounderPrescreen) -> None: ...
+
+    async def latest_for_organization(self, organization_id: UUID) -> FounderPrescreen | None: ...

@@ -78,6 +78,9 @@ class RecalculatePreApprovedUseCase:
             await self._repository.replace_for_organization(organization_id, offers)
             return offers
         for product in await self._products.list_active():
+            # Продукт для стартапа без оборотов — только по заявке, после предскрина учредителя.
+            if product.startup_only:
+                continue
             check = await self._products.check_eligibility(product.code, organization_id)
             if not check.eligible:
                 continue

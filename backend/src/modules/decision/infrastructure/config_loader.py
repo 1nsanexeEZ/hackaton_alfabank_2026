@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v3`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v4`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v3"
+_DEFAULT_POLICY = "policy_v4"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -137,6 +137,12 @@ class _Strategy(_Strict):
     guarantee: _Guarantee = Field(default_factory=_Guarantee)
 
 
+class _Startup(_Strict):
+    """policy_v4: продукты для стартапа — предскрин учредителя и проектная оценка."""
+
+    products: list[str] = Field(min_length=1)
+
+
 class _Alternatives(_Strict):
     cash_gap_products: list[str]
     secured_product: str
@@ -158,6 +164,7 @@ class _PolicySchema(_Strict):
     pricing: _Pricing
     routing: _Routing
     strategy: _Strategy = Field(default_factory=_Strategy)
+    startup: _Startup | None = None
     alternatives: _Alternatives
     offer: _Offer
 
@@ -355,6 +362,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         else None,
         guarantee_grades=frozenset(strategy.guarantee.grades),
         guarantee_amount_above=strategy.guarantee.amount_above,
+        startup_products=frozenset(schema.startup.products) if schema.startup else frozenset(),
     )
 
 

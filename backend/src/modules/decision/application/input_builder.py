@@ -20,6 +20,7 @@ from uuid import UUID
 from src.core.exceptions.exceptions import NotFoundError
 from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade, ScoringInputDTO
 from src.modules.clients.facade import FinancialReportDTO, OrganizationSnapshotDTO
+from src.modules.decision.application.ports import FounderPrescreenRepository
 from src.modules.decision.domain.model import (
     AccountingInput,
     AlternativeInput,
@@ -29,6 +30,7 @@ from src.modules.decision.domain.model import (
     CompanyInput,
     CounterpartyInput,
     DecisionInput,
+    FounderPrescreenStatus,
     Grade,
     HeadBureauInput,
     ProductInput,
@@ -62,12 +64,14 @@ class DecisionInputBuilder:
         enrichment: EnrichmentFacade,
         scoring: ScoringFacade,
         products: ProductsFacade,
+        prescreens: FounderPrescreenRepository | None = None,
     ) -> None:
         self._policy = policy
         self._applications = applications
         self._enrichment = enrichment
         self._scoring = scoring
         self._products = products
+        self._prescreens = prescreens
 
     async def collect(self, application_id: UUID) -> CollectedInput:
         source = await self._applications.get_scoring_input(application_id)
@@ -95,6 +99,7 @@ class DecisionInputBuilder:
             counterparty=_counterparty_input(snapshot),
             accounting=_accounting_input(snapshot),
             head_bureau=_head_bureau_input(snapshot),
+            founder_prescreen=await self._founder_prescreen(source),
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -119,6 +124,19 @@ class DecisionInputBuilder:
             check = await self._products.check_eligibility(code, source.organization_id)
             found.append(AlternativeInput(code, check.eligible, product.amount_min))
         return tuple(found)
+
+    async def _founder_prescreen(self, source: ScoringInputDTO) -> FounderPrescreenStatus | None:
+        """Только у продукта для стартапа: последний предскрин и действовал ли он при подаче."""
+        if source.product_code not in self._policy.config.startup_products:
+            return None
+        if self._prescreens is None:
+            return "missing"
+        prescreen = await self._prescreens.latest_for_organization(source.organization_id)
+        if prescreen is None:
+            return "missing"
+        if not prescreen.valid_at(source.submitted_at):
+            return "expired"
+        return prescreen.status
 
     def _revenue_requested(self, card: ApplicationCardDTO) -> bool:
         """Был закрытый дозапрос с выпиской — повторно выручку не запрашиваем."""
