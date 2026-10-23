@@ -173,6 +173,7 @@ def scoring_input(card: ApplicationCardDTO | None = None, **overrides: Any) -> S
         statement_document_ids=(),
         credit_bureau_consent_at=NOW,
         submitted_at=c.submitted_at or NOW,
+        applicant_account_id=c.applicant_account_id,
     )
     return replace(dto, **overrides)
 

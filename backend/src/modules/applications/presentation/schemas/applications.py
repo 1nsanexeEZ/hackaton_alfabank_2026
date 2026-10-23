@@ -59,6 +59,9 @@ class CollateralIn(BaseModel):
 class ConsentsIn(BaseModel):
     personal_data: bool
     credit_bureau: bool
+    # Optional (152-FZ art. 16): consent to a decision made solely by automated processing.
+    # Without it an adverse decision on an entrepreneur is made by a person.
+    automated_decision: bool = False
 
 
 class ApplicationUpdate(BaseModel):
@@ -76,7 +79,11 @@ class ApplicationUpdate(BaseModel):
         request = self.request.to_dto() if self.request else None
         collateral = self.collateral.to_dto() if self.collateral else None
         consents = (
-            ConsentsChoiceDTO(self.consents.personal_data, self.consents.credit_bureau)
+            ConsentsChoiceDTO(
+                self.consents.personal_data,
+                self.consents.credit_bureau,
+                self.consents.automated_decision,
+            )
             if self.consents
             else None
         )
@@ -119,6 +126,7 @@ class ConsentsOut(BaseModel):
 
     personal_data_at: datetime | None
     credit_bureau_at: datetime | None
+    automated_decision_at: datetime | None = None
 
 
 class RequiredDocumentOut(BaseModel):

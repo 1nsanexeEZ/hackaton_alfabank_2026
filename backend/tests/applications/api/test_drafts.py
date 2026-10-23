@@ -133,6 +133,7 @@ def test_collateral_and_consents(world: World) -> None:
     assert body["collateral"]["description"] == "Станок ЧПУ"  # markup stripped
     assert Decimal(body["collateral"]["declared_value"]) == Decimal("2000000")
     assert body["consents"]["credit_bureau_at"] is not None
+    assert body["consents"]["automated_decision_at"] is None  # по желанию, ст. 16 152-ФЗ
 
     removed = world.client.patch(url, json={"version": 2, "collateral": None}, headers=headers)
     assert removed.json()["collateral"] is None
@@ -210,3 +211,21 @@ def test_cancel_draft(world: World) -> None:
     assert body["history"][-1]["reason"] == "Передумали"
     # the product slot is free again
     assert world.create()["status"] == "draft"
+
+
+def test_consent_to_an_automated_decision(world: World) -> None:
+    application = world.create()
+    url = f"/applications/{application['id']}"
+    body = world.client.patch(
+        url,
+        json={
+            "version": 1,
+            "consents": {
+                "personal_data": True,
+                "credit_bureau": True,
+                "automated_decision": True,
+            },
+        },
+        headers=world.headers(world.director),
+    ).json()
+    assert body["consents"]["automated_decision_at"] is not None

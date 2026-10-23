@@ -52,6 +52,7 @@ class ConsentsDTO:
     personal_data_at: datetime | None
     credit_bureau_at: datetime | None
     given_by: UUID | None
+    automated_decision_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,6 +164,10 @@ class ScoringInputDTO:
     statement_document_ids: tuple[UUID, ...]
     credit_bureau_consent_at: datetime | None
     submitted_at: datetime
+    # Who submitted it: screened as a representative under 115-FZ.
+    applicant_account_id: UUID | None = None
+    # Consent to a decision made solely by automated processing (152-FZ art. 16).
+    automated_decision_consent_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

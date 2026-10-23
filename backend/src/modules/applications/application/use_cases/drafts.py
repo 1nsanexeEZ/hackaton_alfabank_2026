@@ -143,6 +143,7 @@ class UpdateDraftUseCase:
                 credit_bureau=consents.credit_bureau if consents else False,
                 account_id=access.user_id,
                 now=now,
+                automated_decision=consents.automated_decision if consents else False,
             )
         await save(self._uow, self._repository, self._outbox, application)
         return await view(self._clients, access, application)

@@ -183,7 +183,12 @@ def collateral_dto(collateral: CollateralDeclaration | None) -> CollateralDTO | 
 
 
 def consents_dto(consents: Consents) -> ConsentsDTO:
-    return ConsentsDTO(consents.personal_data_at, consents.credit_bureau_at, consents.given_by)
+    return ConsentsDTO(
+        consents.personal_data_at,
+        consents.credit_bureau_at,
+        consents.given_by,
+        consents.automated_decision_at,
+    )
 
 
 def info_request_dto(request: InfoRequest) -> InfoRequestDTO:
@@ -299,6 +304,8 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
         ),
         credit_bureau_consent_at=application.consents.credit_bureau_at,
         submitted_at=application.submitted_at,
+        applicant_account_id=application.applicant_account_id,
+        automated_decision_consent_at=application.consents.automated_decision_at,
     )
 
 
