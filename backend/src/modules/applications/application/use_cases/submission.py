@@ -9,13 +9,20 @@ from src.modules.applications.application.dto.views import ApplicationViewDTO
 from src.modules.applications.application.interfaces.outbox import MessageOutbox
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
 from src.modules.applications.application.mappers.dto import snapshot_from_dto
-from src.modules.applications.application.use_cases.common import get_writable, save, view
+from src.modules.applications.application.use_cases.common import (
+    get_writable,
+    save,
+    take_profile_consents,
+    view,
+)
 from src.modules.applications.domain.value_objects import Actor
 from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.identity.facade import IdentityFacade
 
 
 class SubmitApplicationUseCase:
-    """The company data is frozen in the application at this moment."""
+    """The company data is frozen in the application at this moment; so are the consents,
+    those the draft lacks are taken from the profile first."""
 
     def __init__(
         self,
@@ -23,12 +30,14 @@ class SubmitApplicationUseCase:
         repository: ApplicationRepository,
         outbox: MessageOutbox,
         clients: ClientsFacade,
+        identity: IdentityFacade,
         clock: Clock,
     ) -> None:
         self._uow = uow
         self._repository = repository
         self._outbox = outbox
         self._clients = clients
+        self._identity = identity
         self._clock = clock
 
     async def execute(self, access: AccessContext, application_id: UUID) -> ApplicationViewDTO:
@@ -40,6 +49,7 @@ class SubmitApplicationUseCase:
             OrgPermission.SUBMIT_APPLICATION,
         )
         now = self._clock.now()
+        await take_profile_consents(self._identity, application, access.user_id, now)
         snapshot = await self._clients.get_snapshot(application.organization_id)
         other = await self._repository.find_active(
             application.organization_id, application.product_code, exclude_id=application.id
