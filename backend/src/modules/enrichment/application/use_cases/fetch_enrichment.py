@@ -174,6 +174,8 @@ class FetchEnrichmentUseCase:
             return await self._sources.person_bureau.fetch(person, command.head_bki_consent_at)
         if source == "bank_stop_list":
             return await self._sources.bank_stop_list.fetch(command.inn)
+        if source == "bank_turnover":
+            return await self._sources.bank_turnover.fetch(command.inn)
         raise SourceFetchError("bad_response", f"Неизвестный источник {source!r}")
 
     async def _publish(

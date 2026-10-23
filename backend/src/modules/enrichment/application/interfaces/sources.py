@@ -14,7 +14,7 @@ from src.modules.enrichment.application.dto.aml import (
     PepScreeningDTO,
     ZskRiskDTO,
 )
-from src.modules.enrichment.application.dto.bank import BankStopListDTO
+from src.modules.enrichment.application.dto.bank import BankStopListDTO, BankTurnoverDTO
 from src.modules.enrichment.application.dto.counterparty import CounterpartyRiskDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
@@ -75,6 +75,13 @@ class BankStopListSource(Protocol):
     async def fetch(self, inn: str) -> BankStopListDTO: ...
 
 
+class BankTurnoverSource(Protocol):
+    """Обороты по расчётному счёту в банке (АБС): собственные данные банка, согласия не
+    требуют."""
+
+    async def fetch(self, inn: str) -> BankTurnoverDTO: ...
+
+
 @dataclass(frozen=True)
 class Sources:
     registry: RegistrySource
@@ -87,3 +94,4 @@ class Sources:
     pep: PepSource
     zsk: ZskSource
     bank_stop_list: BankStopListSource
+    bank_turnover: BankTurnoverSource

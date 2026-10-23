@@ -185,6 +185,136 @@
         ],
         "inquiries_30d": 0
       }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7701158817",
+        "client_since": "2020-10-24",
+        "turnover": [
+          {
+            "month": "2024-10",
+            "credit_kop": 410859477,
+            "debit_kop": 318835294
+          },
+          {
+            "month": "2024-11",
+            "credit_kop": 370127450,
+            "debit_kop": 333841830
+          },
+          {
+            "month": "2024-12",
+            "credit_kop": 394218954,
+            "debit_kop": 347776470
+          },
+          {
+            "month": "2025-01",
+            "credit_kop": 397696078,
+            "debit_kop": 322265359
+          },
+          {
+            "month": "2025-02",
+            "credit_kop": 409866013,
+            "debit_kop": 352278431
+          },
+          {
+            "month": "2025-03",
+            "credit_kop": 382297385,
+            "debit_kop": 339844444
+          },
+          {
+            "month": "2025-04",
+            "credit_kop": 375343137,
+            "debit_kop": 326981699
+          },
+          {
+            "month": "2025-05",
+            "credit_kop": 389251633,
+            "debit_kop": 323980392
+          },
+          {
+            "month": "2025-06",
+            "credit_kop": 397696078,
+            "debit_kop": 316691503
+          },
+          {
+            "month": "2025-07",
+            "credit_kop": 385526143,
+            "debit_kop": 338129411
+          },
+          {
+            "month": "2025-08",
+            "credit_kop": 413591503,
+            "debit_kop": 341559477
+          },
+          {
+            "month": "2025-09",
+            "credit_kop": 378323529,
+            "debit_kop": 329554248
+          },
+          {
+            "month": "2025-10",
+            "credit_kop": 409120915,
+            "debit_kop": 354422222
+          },
+          {
+            "month": "2025-11",
+            "credit_kop": 424519607,
+            "debit_kop": 340273202
+          },
+          {
+            "month": "2025-12",
+            "credit_kop": 420049019,
+            "debit_kop": 329339869
+          },
+          {
+            "month": "2026-01",
+            "credit_kop": 366401960,
+            "debit_kop": 361067973
+          },
+          {
+            "month": "2026-02",
+            "credit_kop": 410859477,
+            "debit_kop": 331912418
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 399931372,
+            "debit_kop": 330840522
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 419552287,
+            "debit_kop": 360639215
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 395460784,
+            "debit_kop": 319264052
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 425264705,
+            "debit_kop": 332555555
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 369382352,
+            "debit_kop": 354422222
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 384781045,
+            "debit_kop": 360424836
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 425513071,
+            "debit_kop": 326767320
+          }
+        ],
+        "simulated": true
+      }
     }
   },
   "770669871605": {
@@ -288,6 +418,56 @@
         },
         "obligations": [],
         "inquiries_30d": 0
+      }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "770669871605",
+        "client_since": "2026-02-22",
+        "turnover": [
+          {
+            "month": "2026-02",
+            "credit_kop": 52236209,
+            "debit_kop": 41317647
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 49398039,
+            "debit_kop": 39334901
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 47701307,
+            "debit_kop": 41744313
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 46282222,
+            "debit_kop": 37653333
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 47269411,
+            "debit_kop": 43174901
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 50230980,
+            "debit_kop": 38155294
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 46868366,
+            "debit_kop": 40363921
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 53069150,
+            "debit_kop": 37753725
+          }
+        ],
+        "simulated": true
       }
     }
   },
@@ -478,6 +658,136 @@
           }
         ],
         "inquiries_30d": 1
+      }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7702987976",
+        "client_since": "2022-10-24",
+        "turnover": [
+          {
+            "month": "2024-10",
+            "credit_kop": 241287581,
+            "debit_kop": 200013071
+          },
+          {
+            "month": "2024-11",
+            "credit_kop": 225366013,
+            "debit_kop": 199333333
+          },
+          {
+            "month": "2024-12",
+            "credit_kop": 229156862,
+            "debit_kop": 204635294
+          },
+          {
+            "month": "2025-01",
+            "credit_kop": 251598692,
+            "debit_kop": 230737254
+          },
+          {
+            "month": "2025-02",
+            "credit_kop": 225820915,
+            "debit_kop": 223939869
+          },
+          {
+            "month": "2025-03",
+            "credit_kop": 235980392,
+            "debit_kop": 220677124
+          },
+          {
+            "month": "2025-04",
+            "credit_kop": 233099346,
+            "debit_kop": 211296732
+          },
+          {
+            "month": "2025-05",
+            "credit_kop": 232492810,
+            "debit_kop": 223260130
+          },
+          {
+            "month": "2025-06",
+            "credit_kop": 258118954,
+            "debit_kop": 232232679
+          },
+          {
+            "month": "2025-07",
+            "credit_kop": 256450980,
+            "debit_kop": 207082352
+          },
+          {
+            "month": "2025-08",
+            "credit_kop": 226882352,
+            "debit_kop": 206946405
+          },
+          {
+            "month": "2025-09",
+            "credit_kop": 255692810,
+            "debit_kop": 203275816
+          },
+          {
+            "month": "2025-10",
+            "credit_kop": 243410457,
+            "debit_kop": 204227450
+          },
+          {
+            "month": "2025-11",
+            "credit_kop": 234767320,
+            "debit_kop": 223396078
+          },
+          {
+            "month": "2025-12",
+            "credit_kop": 225517647,
+            "debit_kop": 220677124
+          },
+          {
+            "month": "2026-01",
+            "credit_kop": 250385620,
+            "debit_kop": 214015686
+          },
+          {
+            "month": "2026-02",
+            "credit_kop": 228095424,
+            "debit_kop": 221764705
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 241439215,
+            "debit_kop": 204227450
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 241590849,
+            "debit_kop": 233320261
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 238558169,
+            "debit_kop": 200420915
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 240681045,
+            "debit_kop": 208849673
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 233250980,
+            "debit_kop": 231281045
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 222788235,
+            "debit_kop": 202596078
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 249627450,
+            "debit_kop": 218366013
+          }
+        ],
+        "simulated": true
       }
     }
   },
@@ -680,6 +990,136 @@
         ],
         "inquiries_30d": 4
       }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7703417070",
+        "client_since": "2017-10-25",
+        "turnover": [
+          {
+            "month": "2024-10",
+            "credit_kop": 152964705,
+            "debit_kop": 166270588
+          },
+          {
+            "month": "2024-11",
+            "credit_kop": 139976470,
+            "debit_kop": 175164705
+          },
+          {
+            "month": "2024-12",
+            "credit_kop": 150705882,
+            "debit_kop": 181094117
+          },
+          {
+            "month": "2025-01",
+            "credit_kop": 154847058,
+            "debit_kop": 164513725
+          },
+          {
+            "month": "2025-02",
+            "credit_kop": 149388235,
+            "debit_kop": 165172549
+          },
+          {
+            "month": "2025-03",
+            "credit_kop": 144305882,
+            "debit_kop": 172090196
+          },
+          {
+            "month": "2025-04",
+            "credit_kop": 146376470,
+            "debit_kop": 179556862
+          },
+          {
+            "month": "2025-05",
+            "credit_kop": 155788235,
+            "debit_kop": 187792156
+          },
+          {
+            "month": "2025-06",
+            "credit_kop": 160400000,
+            "debit_kop": 172309803
+          },
+          {
+            "month": "2025-07",
+            "credit_kop": 143552941,
+            "debit_kop": 179337254
+          },
+          {
+            "month": "2025-08",
+            "credit_kop": 138376470,
+            "debit_kop": 174505882
+          },
+          {
+            "month": "2025-09",
+            "credit_kop": 150705882,
+            "debit_kop": 182850980
+          },
+          {
+            "month": "2025-10",
+            "credit_kop": 149105882,
+            "debit_kop": 171431372
+          },
+          {
+            "month": "2025-11",
+            "credit_kop": 154282352,
+            "debit_kop": 182631372
+          },
+          {
+            "month": "2025-12",
+            "credit_kop": 140258823,
+            "debit_kop": 170662745
+          },
+          {
+            "month": "2026-01",
+            "credit_kop": 160870588,
+            "debit_kop": 181203921
+          },
+          {
+            "month": "2026-02",
+            "credit_kop": 144211764,
+            "debit_kop": 172419607
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 157482352,
+            "debit_kop": 178898039
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 147882352,
+            "debit_kop": 177141176
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 141011764,
+            "debit_kop": 162866666
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 154752941,
+            "debit_kop": 165941176
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 157858823,
+            "debit_kop": 165062745
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 149576470,
+            "debit_kop": 185925490
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 142611764,
+            "debit_kop": 183839215
+          }
+        ],
+        "simulated": true
+      }
     }
   },
   "7704568152": {
@@ -857,6 +1297,136 @@
         ],
         "inquiries_30d": 1
       }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7704568152",
+        "client_since": "2023-10-24",
+        "turnover": [
+          {
+            "month": "2024-10",
+            "credit_kop": 97772549,
+            "debit_kop": 76905882
+          },
+          {
+            "month": "2024-11",
+            "credit_kop": 104486274,
+            "debit_kop": 72011764
+          },
+          {
+            "month": "2024-12",
+            "credit_kop": 94070588,
+            "debit_kop": 80152941
+          },
+          {
+            "month": "2025-01",
+            "credit_kop": 103482352,
+            "debit_kop": 75917647
+          },
+          {
+            "month": "2025-02",
+            "credit_kop": 98400000,
+            "debit_kop": 75258823
+          },
+          {
+            "month": "2025-03",
+            "credit_kop": 99215686,
+            "debit_kop": 78223529
+          },
+          {
+            "month": "2025-04",
+            "credit_kop": 92250980,
+            "debit_kop": 79023529
+          },
+          {
+            "month": "2025-05",
+            "credit_kop": 95200000,
+            "debit_kop": 77611764
+          },
+          {
+            "month": "2025-06",
+            "credit_kop": 97521568,
+            "debit_kop": 75117647
+          },
+          {
+            "month": "2025-07",
+            "credit_kop": 104172549,
+            "debit_kop": 78694117
+          },
+          {
+            "month": "2025-08",
+            "credit_kop": 95137254,
+            "debit_kop": 78082352
+          },
+          {
+            "month": "2025-09",
+            "credit_kop": 92564705,
+            "debit_kop": 74176470
+          },
+          {
+            "month": "2025-10",
+            "credit_kop": 106682352,
+            "debit_kop": 75305882
+          },
+          {
+            "month": "2025-11",
+            "credit_kop": 95450980,
+            "debit_kop": 79447058
+          },
+          {
+            "month": "2025-12",
+            "credit_kop": 103294117,
+            "debit_kop": 76858823
+          },
+          {
+            "month": "2026-01",
+            "credit_kop": 102290196,
+            "debit_kop": 76905882
+          },
+          {
+            "month": "2026-02",
+            "credit_kop": 105803921,
+            "debit_kop": 74882352
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 99278431,
+            "debit_kop": 76529411
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 103419607,
+            "debit_kop": 75211764
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 105866666,
+            "debit_kop": 72152941
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 94007843,
+            "debit_kop": 73141176
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 101035294,
+            "debit_kop": 72341176
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 100972549,
+            "debit_kop": 73423529
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 107121568,
+            "debit_kop": 75352941
+          }
+        ],
+        "simulated": true
+      }
     }
   },
   "7705729405": {
@@ -1003,6 +1573,136 @@
       "body": {
         "detail": "Бюро кредитных историй недоступно"
       }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7705729405",
+        "client_since": "2021-10-24",
+        "turnover": [
+          {
+            "month": "2024-10",
+            "credit_kop": 185756862,
+            "debit_kop": 184717647
+          },
+          {
+            "month": "2024-11",
+            "credit_kop": 203450980,
+            "debit_kop": 178678431
+          },
+          {
+            "month": "2024-12",
+            "credit_kop": 189396078,
+            "debit_kop": 177690196
+          },
+          {
+            "month": "2025-01",
+            "credit_kop": 203450980,
+            "debit_kop": 180105882
+          },
+          {
+            "month": "2025-02",
+            "credit_kop": 188517647,
+            "debit_kop": 176592156
+          },
+          {
+            "month": "2025-03",
+            "credit_kop": 207843137,
+            "debit_kop": 165831372
+          },
+          {
+            "month": "2025-04",
+            "credit_kop": 199184313,
+            "debit_kop": 173737254
+          },
+          {
+            "month": "2025-05",
+            "credit_kop": 206462745,
+            "debit_kop": 161878431
+          },
+          {
+            "month": "2025-06",
+            "credit_kop": 206337254,
+            "debit_kop": 177250980
+          },
+          {
+            "month": "2025-07",
+            "credit_kop": 204329411,
+            "debit_kop": 188341176
+          },
+          {
+            "month": "2025-08",
+            "credit_kop": 215372549,
+            "debit_kop": 165062745
+          },
+          {
+            "month": "2025-09",
+            "credit_kop": 213866666,
+            "debit_kop": 177690196
+          },
+          {
+            "month": "2025-10",
+            "credit_kop": 202447058,
+            "debit_kop": 171101960
+          },
+          {
+            "month": "2025-11",
+            "credit_kop": 209474509,
+            "debit_kop": 185705882
+          },
+          {
+            "month": "2025-12",
+            "credit_kop": 205458823,
+            "debit_kop": 170443137
+          },
+          {
+            "month": "2026-01",
+            "credit_kop": 194415686,
+            "debit_kop": 161219607
+          },
+          {
+            "month": "2026-02",
+            "credit_kop": 185882352,
+            "debit_kop": 175823529
+          },
+          {
+            "month": "2026-03",
+            "credit_kop": 204705882,
+            "debit_kop": 168576470
+          },
+          {
+            "month": "2026-04",
+            "credit_kop": 187388235,
+            "debit_kop": 175603921
+          },
+          {
+            "month": "2026-05",
+            "credit_kop": 191780392,
+            "debit_kop": 186254901
+          },
+          {
+            "month": "2026-06",
+            "credit_kop": 186133333,
+            "debit_kop": 164513725
+          },
+          {
+            "month": "2026-07",
+            "credit_kop": 184000000,
+            "debit_kop": 179117647
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 190650980,
+            "debit_kop": 161878431
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 209600000,
+            "debit_kop": 170113725
+          }
+        ],
+        "simulated": true
+      }
     }
   },
   "7706123455": {
@@ -1124,6 +1824,31 @@
           }
         ],
         "inquiries_30d": 1
+      }
+    },
+    "bank_turnover": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "client_since": "2026-07-24",
+        "turnover": [
+          {
+            "month": "2026-07",
+            "credit_kop": 0,
+            "debit_kop": 0
+          },
+          {
+            "month": "2026-08",
+            "credit_kop": 0,
+            "debit_kop": 0
+          },
+          {
+            "month": "2026-09",
+            "credit_kop": 0,
+            "debit_kop": 0
+          }
+        ],
+        "simulated": true
       }
     }
   }

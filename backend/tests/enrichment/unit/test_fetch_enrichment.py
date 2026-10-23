@@ -20,6 +20,7 @@ from src.modules.enrichment.facade import (
     AccountingReportsDTO,
     ArbitrationDTO,
     BankStopListDTO,
+    BankTurnoverDTO,
     CounterpartyRiskDTO,
     CreditHistoryDTO,
     EnforcementDTO,
@@ -28,6 +29,7 @@ from src.modules.enrichment.facade import (
     PersonDTO,
     RegistryExtractDTO,
     TaxProfileDTO,
+    TurnoverMonthDTO,
 )
 from tests.fakes.aml_sources import FakeAmlLists, FakePep, FakeZsk
 from tests.fakes.messaging import FakeOutboxWriter
@@ -182,6 +184,20 @@ class FakeBankStopList:
         return BankStopListDTO(listed=True, reason=self.reason, listed_at=date(2025, 6, 1))
 
 
+class FakeBankTurnover:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+
+    async def fetch(self, inn: str) -> BankTurnoverDTO:
+        if self.fail:
+            raise SourceUnavailable("unavailable", "HTTP 503")
+        months = tuple(
+            TurnoverMonthDTO(f"2025-{m:02d}", Decimal(4_000_000), Decimal(3_400_000))
+            for m in range(1, 13)
+        )
+        return BankTurnoverDTO(client_since=date(2019, 1, 15), months=months)
+
+
 def sources(
     registry: object | None = None,
     tax: object | None = None,
@@ -193,6 +209,7 @@ def sources(
     pep: object | None = None,
     zsk: object | None = None,
     bank_stop_list: object | None = None,
+    bank_turnover: object | None = None,
 ) -> Sources:
     """Все источники; не переданный — рабочий фейк."""
     return Sources(
@@ -206,6 +223,7 @@ def sources(
         pep or FakePep(),  # type: ignore[arg-type]
         zsk or FakeZsk(),  # type: ignore[arg-type]
         bank_stop_list or FakeBankStopList(),  # type: ignore[arg-type]
+        bank_turnover or FakeBankTurnover(),  # type: ignore[arg-type]
     )
 
 
@@ -398,6 +416,7 @@ _ALL = [
     "bki_head",
     "aml",
     "bank_stop_list",
+    "bank_turnover",
 ]
 
 
@@ -436,9 +455,12 @@ async def test_every_source_without_statements() -> None:
         "bki_head",
         "aml",
         "bank_stop_list",
+        "bank_turnover",
     ]
     assert event.sources_failed == [] and event.cash_gap_detected is None
     snapshot = repo.added[0]
+    turnover = snapshot.data_of("bank_turnover", BankTurnoverDTO)
+    assert turnover is not None and turnover.annual_inflow == Decimal(48_000_000)
     assert "statement" not in snapshot.results  # выписок нет — прогноза нет, и это не сбой
     head = snapshot.data_of("bki_head", CreditHistoryDTO)
     assert head is not None and head.obligations[0].overdue_days == 45
@@ -508,7 +530,15 @@ async def test_new_sources_fail_partially() -> None:
 
     event = outbox.of_type(EnrichmentCompleted)[0]
     assert event.sources_failed == ["gir_bo", "kontur"]
-    assert event.sources_ok == ["egrul", "fns", "bki", "bki_head", "aml", "bank_stop_list"]
+    assert event.sources_ok == [
+        "egrul",
+        "fns",
+        "bki",
+        "bki_head",
+        "aml",
+        "bank_stop_list",
+        "bank_turnover",
+    ]
     assert repo.added[0].results["gir_bo"].error.kind == "timeout"  # type: ignore[union-attr]
 
 
@@ -516,7 +546,9 @@ async def test_every_external_source_down_fails_without_statement() -> None:
     repo, outbox = InMemoryRepo(), FakeOutboxWriter()
     down = DownSource()
     use_case = FetchEnrichmentUseCase(
-        repo, sources(down, down, down, down, down, down, bank_stop_list=down), FrozenClock()
+        repo,
+        sources(down, down, down, down, down, down, bank_stop_list=down, bank_turnover=down),
+        FrozenClock(),
     )
 
     await use_case.execute(_full_command(), command_event_id=uuid4(), outbox=outbox)
@@ -524,5 +556,5 @@ async def test_every_external_source_down_fails_without_statement() -> None:
     assert outbox.of_type(EnrichmentFailed)[0].reason == (
         "all_sources_failed: egrul=unavailable, fns=unavailable, bki=unavailable, "
         "gir_bo=unavailable, kontur=unavailable, bki_head=unavailable, aml=incomplete, "
-        "bank_stop_list=unavailable"
+        "bank_stop_list=unavailable, bank_turnover=unavailable"
     )
