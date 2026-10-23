@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
 from uuid import UUID
 
 from src.core.exceptions.exceptions import ConflictError, ValidationError
+from src.modules.applications.domain.enums import DocumentStatus, InfoRequestStatus
 
 MAX_DOCUMENT_SIZE = 20 * 1024 * 1024
 DEFAULT_CONTENT_TYPES: frozenset[str] = frozenset({"application/pdf", "image/jpeg", "image/png"})
@@ -19,19 +19,6 @@ OPTIONAL_DOCUMENT_TYPES: frozenset[str] = frozenset(
     {"bank_statement", "financial_statement", "other"}
 )
 MAX_FILENAME_LENGTH = 255
-
-
-class DocumentStatus(StrEnum):
-    PENDING_UPLOAD = "pending_upload"
-    UPLOADED = "uploaded"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-
-
-class InfoRequestStatus(StrEnum):
-    OPEN = "open"
-    ANSWERED = "answered"
-    EXPIRED = "expired"
 
 
 def allowed_content_types(document_type: str) -> frozenset[str]:

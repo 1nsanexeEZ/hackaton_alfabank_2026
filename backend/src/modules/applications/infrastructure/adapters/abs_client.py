@@ -8,10 +8,10 @@ from uuid import UUID
 import httpx
 
 from src.core.exceptions.exceptions import InfrastructureError
-from src.modules.applications.application.ports import DisbursementReceipt
+from src.modules.applications.application.interfaces.abs import AbsClient, DisbursementReceipt
 
 
-class SimulatedAbsClient:
+class SimulatedAbsClient(AbsClient):
     """Used while the external mocks service is not configured."""
 
     async def disburse(
@@ -32,7 +32,7 @@ def settlement_account(organization_id: UUID) -> str:
     return "40702810" + f"{organization_id.int % 10**12:012d}"
 
 
-class HttpAbsClient:
+class HttpAbsClient(AbsClient):
     """`POST /abs/disbursements` of external-mocks:
     `{application_id, account, amount_kop}` →
     `{operation_id, application_id, account, amount_kop, status, simulated}`."""

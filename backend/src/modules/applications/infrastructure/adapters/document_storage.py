@@ -14,14 +14,18 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from src.core.exceptions.exceptions import InfrastructureError
-from src.modules.applications.application.ports import PresignedUpload, StoredObject
+from src.modules.applications.application.interfaces.storage import (
+    DocumentStorage,
+    PresignedUpload,
+    StoredObject,
+)
 
 logger = logging.getLogger(__name__)
 
 _CONFIG = Config(signature_version="s3v4", s3={"addressing_style": "path"})
 
 
-class MinioDocumentStorage:
+class MinioDocumentStorage(DocumentStorage):
     def __init__(
         self,
         endpoint: str,

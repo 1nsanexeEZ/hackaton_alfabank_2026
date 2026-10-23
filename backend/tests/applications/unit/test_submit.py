@@ -9,10 +9,9 @@ import pytest
 from src.core.domain import Money
 from src.core.exceptions.exceptions import InvalidStatusTransitionError, ValidationError
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.entities import DocumentStatus
+from src.modules.applications.domain.enums import ApplicationStatus, DocumentStatus
 from src.modules.applications.domain.events import ApplicationStatusChanged, ApplicationSubmitted
 from src.modules.applications.domain.fields_schema import ProductFieldsSchema
-from src.modules.applications.domain.statuses import ApplicationStatus
 from src.modules.applications.domain.value_objects import (
     Actor,
     CollateralDeclaration,

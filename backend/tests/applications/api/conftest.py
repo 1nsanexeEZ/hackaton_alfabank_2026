@@ -17,7 +17,9 @@ from src.core.domain.clock import FrozenClock
 from src.core.messaging.outbox import OutboxRecord
 from src.main import create_app
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.infrastructure.repository import SqlAlchemyApplicationRepository
+from src.modules.applications.infrastructure.repositories.applications import (
+    SqlAlchemyApplicationRepository,
+)
 from src.modules.clients.facade import ClientsFacade
 from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade, RequiredDocumentDTO

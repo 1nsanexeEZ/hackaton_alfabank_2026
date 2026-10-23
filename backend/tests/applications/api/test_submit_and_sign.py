@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from src.core.domain import Money
 from src.modules.applications.domain.value_objects import DecisionSummary, Offer
-from src.modules.applications.infrastructure.models import SignatureRecord
+from src.modules.applications.infrastructure.database.models import SignatureRecord
 from tests.applications.api.conftest import PASSWORD, World
 from tests.applications.unit.factories import offer as make_offer
 

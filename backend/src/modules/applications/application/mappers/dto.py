@@ -1,33 +1,12 @@
-"""Facade DTOs (ours and the neighbours') <-> domain objects."""
+"""DTOs (ours and the neighbours') <-> domain objects."""
 
 from datetime import datetime
 from decimal import Decimal
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import ConflictError
-from src.core.messaging.contracts import applications as contracts
-from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.serialization import from_jsonable, to_jsonable
-from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.entities import Document
-from src.modules.applications.domain.events import (
-    ApplicationCancelled,
-    ApplicationEvent,
-    ApplicationInfoProvided,
-    ApplicationSigned,
-    ApplicationStatusChanged,
-    ApplicationSubmitted,
-    OfferAccepted,
-    OfferDeclined,
-    OfferExpired,
-)
-from src.modules.applications.domain.fields_schema import ProductFieldsSchema
-from src.modules.applications.domain.value_objects import (
-    DocumentRequirement,
-    OrganizationSnapshot,
-    ProductTerms,
-)
-from src.modules.applications.facade import (
+from src.modules.applications.application.dto.applications import (
     ApplicationCardDTO,
     ApplicationSummaryDTO,
     CollateralDTO,
@@ -40,8 +19,30 @@ from src.modules.applications.facade import (
     ScoringInputDTO,
     StatusChangeDTO,
 )
+from src.modules.applications.application.dto.drafts import DraftRequestDTO
+from src.modules.applications.application.dto.views import (
+    ApplicationViewDTO,
+    ContractDTO,
+    ContractSignatureDTO,
+    ContractSignerDTO,
+    DisbursementDTO,
+)
+from src.modules.applications.domain.actions import available_actions
+from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.entities import Document, InfoRequest
+from src.modules.applications.domain.fields_schema import ProductFieldsSchema
+from src.modules.applications.domain.value_objects import (
+    CollateralDeclaration,
+    Consents,
+    DecisionSummary,
+    DocumentRequirement,
+    LoanRequest,
+    Offer,
+    OrganizationSnapshot,
+    ProductTerms,
+)
 from src.modules.clients.facade import OrganizationSnapshotDTO
-from src.modules.products.facade import ProductTermsDTO, RequiredDocumentDTO
+from src.modules.products.facade import PaymentScheduleDTO, ProductTermsDTO, RequiredDocumentDTO
 
 
 def _money(value: Decimal | None) -> Money | None:
@@ -123,6 +124,24 @@ def snapshot_to_dto(snapshot: OrganizationSnapshot) -> OrganizationSnapshotDTO:
     return from_jsonable(OrganizationSnapshotDTO, dict(snapshot.data))
 
 
+def loan_request(dto: DraftRequestDTO) -> LoanRequest:
+    return LoanRequest(
+        amount=Money.of(dto.amount) if dto.amount is not None else None,
+        term_months=dto.term_months,
+        purpose=dto.purpose,
+        purpose_comment=dto.purpose_comment,
+    )
+
+
+def collateral_declaration(dto: CollateralDTO) -> CollateralDeclaration:
+    return CollateralDeclaration(
+        type=dto.type,
+        description=dto.description,
+        declared_value=Money.of(dto.declared_value),
+        owner=dto.owner,
+    )
+
+
 def document_dto(document: Document) -> DocumentDTO:
     return DocumentDTO(
         id=document.id,
@@ -152,9 +171,65 @@ def request_dto(application: CreditApplication) -> LoanRequestDTO | None:
     )
 
 
+def collateral_dto(collateral: CollateralDeclaration | None) -> CollateralDTO | None:
+    if collateral is None:
+        return None
+    return CollateralDTO(
+        type=collateral.type,  # type: ignore[arg-type]
+        description=collateral.description,
+        declared_value=collateral.declared_value.amount,
+        owner=collateral.owner,
+    )
+
+
+def consents_dto(consents: Consents) -> ConsentsDTO:
+    return ConsentsDTO(consents.personal_data_at, consents.credit_bureau_at, consents.given_by)
+
+
+def info_request_dto(request: InfoRequest) -> InfoRequestDTO:
+    return InfoRequestDTO(
+        id=request.id,
+        requested_fields=request.requested_fields,
+        requested_documents=request.requested_documents,
+        comment=request.comment,
+        created_at=request.created_at,
+        due_at=request.due_at,
+        status=request.status.value,  # type: ignore[arg-type]
+        answered_at=request.answered_at,
+    )
+
+
+def offer_dto(offer: Offer) -> OfferDTO:
+    return OfferDTO(
+        kind=offer.kind,
+        amount=offer.amount.amount,
+        term_months=offer.term_months,
+        rate=offer.rate,
+        monthly_payment=offer.monthly_payment.amount,
+        schedule_type=offer.schedule_type,
+        conditions=offer.conditions,
+        expires_at=offer.expires_at,
+        decision_id=offer.decision_id,
+    )
+
+
+def decision_dto(summary: DecisionSummary) -> DecisionSummaryDTO:
+    return DecisionSummaryDTO(
+        outcome=summary.outcome,
+        client_explanation=summary.client_explanation,
+        improvement_hints=summary.improvement_hints,
+        alternative_product_code=summary.alternative_product_code,
+    )
+
+
+def history_dto(application: CreditApplication) -> tuple[StatusChangeDTO, ...]:
+    return tuple(
+        StatusChangeDTO(h.from_status, h.to_status, h.at, h.actor.kind, h.reason)
+        for h in application.history
+    )
+
+
 def card(application: CreditApplication) -> ApplicationCardDTO:
-    collateral = application.collateral
-    consents = application.consents
     offer = application.offer
     summary = application.decision_summary
     return ApplicationCardDTO(
@@ -166,61 +241,18 @@ def card(application: CreditApplication) -> ApplicationCardDTO:
         product_terms=terms_to_dto(application.product_terms),
         request=request_dto(application),
         product_fields=dict(application.product_fields),
-        collateral=CollateralDTO(
-            type=collateral.type,  # type: ignore[arg-type]
-            description=collateral.description,
-            declared_value=collateral.declared_value.amount,
-            owner=collateral.owner,
-        )
-        if collateral
-        else None,
-        consents=ConsentsDTO(
-            consents.personal_data_at, consents.credit_bureau_at, consents.given_by
-        ),
+        collateral=collateral_dto(application.collateral),
+        consents=consents_dto(application.consents),
         org_snapshot=snapshot_to_dto(application.org_snapshot)
         if application.org_snapshot
         else None,
         status=application.status.value,  # type: ignore[arg-type]
         client_stage=application.client_stage,
         documents=tuple(document_dto(d) for d in application.documents),
-        info_requests=tuple(
-            InfoRequestDTO(
-                id=r.id,
-                requested_fields=r.requested_fields,
-                requested_documents=r.requested_documents,
-                comment=r.comment,
-                created_at=r.created_at,
-                due_at=r.due_at,
-                status=r.status.value,  # type: ignore[arg-type]
-                answered_at=r.answered_at,
-            )
-            for r in application.info_requests
-        ),
-        offer=OfferDTO(
-            kind=offer.kind,
-            amount=offer.amount.amount,
-            term_months=offer.term_months,
-            rate=offer.rate,
-            monthly_payment=offer.monthly_payment.amount,
-            schedule_type=offer.schedule_type,
-            conditions=offer.conditions,
-            expires_at=offer.expires_at,
-            decision_id=offer.decision_id,
-        )
-        if offer
-        else None,
-        decision_summary=DecisionSummaryDTO(
-            outcome=summary.outcome,
-            client_explanation=summary.client_explanation,
-            improvement_hints=summary.improvement_hints,
-            alternative_product_code=summary.alternative_product_code,
-        )
-        if summary
-        else None,
-        history=tuple(
-            StatusChangeDTO(h.from_status, h.to_status, h.at, h.actor.kind, h.reason)
-            for h in application.history
-        ),
+        info_requests=tuple(info_request_dto(r) for r in application.info_requests),
+        offer=offer_dto(offer) if offer else None,
+        decision_summary=decision_dto(summary) if summary else None,
+        history=history_dto(application),
         version=application.version,
         created_at=application.created_at,
         updated_at=application.updated_at,
@@ -254,7 +286,6 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
     request = request_dto(application)
     if snapshot is None or request is None or application.submitted_at is None:
         raise ConflictError("Application is not submitted yet", details={"code": "not_submitted"})
-    collateral = card(application).collateral
     return ScoringInputDTO(
         application_id=application.id,
         organization_id=application.organization_id,
@@ -262,7 +293,7 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
         request=request,
         organization=snapshot_to_dto(snapshot),
         product_terms=terms_to_dto(application.product_terms),
-        collateral=collateral,
+        collateral=collateral_dto(application.collateral),
         statement_document_ids=tuple(
             d.id for d in application.uploaded_documents("bank_statement")
         ),
@@ -271,36 +302,86 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
     )
 
 
-def to_contract(event: ApplicationEvent) -> IntegrationMessage:
-    ids = {"application_id": event.application_id, "organization_id": event.organization_id}
-    match event:
-        case ApplicationSubmitted():
-            return contracts.ApplicationSubmitted(
-                **ids,
-                product_code=event.product_code,
-                amount=event.amount.amount,
-                term_months=event.term_months,
-                purpose=event.purpose,
-            )
-        case ApplicationStatusChanged():
-            return contracts.ApplicationStatusChanged(
-                **ids,
-                from_status=event.from_status,
-                to_status=event.to_status,
-                client_stage=event.client_stage,
-            )
-        case ApplicationInfoProvided():
-            return contracts.ApplicationInfoProvided(
-                **ids, info_request_id=event.info_request_id, document_ids=list(event.document_ids)
-            )
-        case OfferAccepted():
-            return contracts.OfferAccepted(**ids)
-        case OfferDeclined():
-            return contracts.OfferDeclined(**ids)
-        case OfferExpired():
-            return contracts.OfferExpired(**ids)
-        case ApplicationSigned():
-            return contracts.ApplicationSigned(**ids, signed_by=event.signed_by)
-        case ApplicationCancelled():
-            return contracts.ApplicationCancelled(**ids)
-    raise TypeError(f"No integration contract for {type(event).__name__}")
+def application_view(
+    application: CreditApplication,
+    organization: OrganizationSnapshotDTO | None,
+    permissions: frozenset[str],
+) -> ApplicationViewDTO:
+    """The application for its client. `organization` — live company data for
+    a draft (prefilled requisites); after submission the frozen snapshot inside
+    the application is the source."""
+    request = application.request
+    organization_data = None
+    if application.org_snapshot is not None:
+        organization_data = dict(application.org_snapshot.data)
+    elif organization is not None:
+        organization_data = to_jsonable(organization)
+    offer = application.offer
+    summary = application.decision_summary
+    disbursement = application.disbursement
+    return ApplicationViewDTO(
+        id=application.id,
+        number=str(application.number),
+        organization_id=application.organization_id,
+        product_code=application.product_code,
+        status=application.status.value,
+        client_stage=application.client_stage,
+        version=application.version,
+        request=DraftRequestDTO(
+            amount=request.amount.amount if request.amount else None,
+            term_months=request.term_months,
+            purpose=request.purpose,
+            purpose_comment=request.purpose_comment,
+        ),
+        product_fields=dict(application.product_fields),
+        collateral=collateral_dto(application.collateral),
+        consents=consents_dto(application.consents),
+        product_terms=terms_to_dto(application.product_terms),
+        organization=organization_data or None,
+        documents=tuple(document_dto(d) for d in application.documents),
+        info_requests=tuple(info_request_dto(r) for r in application.info_requests),
+        offer=offer_dto(offer) if offer else None,
+        decision_summary=decision_dto(summary) if summary else None,
+        disbursement=DisbursementDTO(
+            reference=disbursement.reference,
+            disbursed_at=disbursement.disbursed_at,
+            simulated=disbursement.simulated,
+        )
+        if disbursement
+        else None,
+        history=history_dto(application),
+        available_actions=tuple(available_actions(application.status, permissions)),
+        my_permissions=tuple(sorted(permissions)),
+        created_at=application.created_at,
+        updated_at=application.updated_at,
+        submitted_at=application.submitted_at,
+        closed_at=application.closed_at,
+    )
+
+
+def contract_dto(
+    application: CreditApplication,
+    offer: Offer,
+    borrower: OrganizationSnapshotDTO,
+    signers: tuple[ContractSignerDTO, ...],
+    schedule: PaymentScheduleDTO,
+    simulated: bool,
+) -> ContractDTO:
+    signature = application.signature
+    return ContractDTO(
+        number=str(application.number),
+        offer_hash=offer.fingerprint(),
+        status="signed" if signature else "unsigned",
+        borrower=borrower,
+        signers=signers,
+        terms=offer_dto(offer),
+        schedule=schedule,
+        signature=ContractSignatureDTO(
+            signed_by=signature.signed_by,
+            signed_at=signature.signed_at,
+            edo_document_id=signature.edo_document_id,
+            simulated=simulated,
+        )
+        if signature
+        else None,
+    )

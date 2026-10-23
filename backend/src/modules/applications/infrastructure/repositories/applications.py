@@ -8,16 +8,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.access.access_context import AccessContext
 from src.core.access.apply_helper import apply_access_context
 from src.core.exceptions.exceptions import NotFoundError
+from src.modules.applications.application.interfaces.repositories import ApplicationRepository
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.statuses import FINAL_STATUSES, ApplicationStatus
+from src.modules.applications.domain.enums import ApplicationStatus
+from src.modules.applications.domain.statuses import FINAL_STATUSES
 from src.modules.applications.domain.value_objects import ApplicationNumber
-from src.modules.applications.infrastructure.mappers import apply, new_record, to_domain
-from src.modules.applications.infrastructure.models import NUMBER_SEQUENCE, ApplicationRecord
+from src.modules.applications.infrastructure.database.models import (
+    NUMBER_SEQUENCE,
+    ApplicationRecord,
+)
+from src.modules.applications.infrastructure.repositories.mappers import (
+    apply,
+    new_record,
+    to_domain,
+)
 
 _FINAL = [status.value for status in FINAL_STATUSES]
 
 
-class SqlAlchemyApplicationRepository:
+class SqlAlchemyApplicationRepository(ApplicationRepository):
     """Keeps the rows it loaded, so `save` updates them in place and the
     `version` column guards against a concurrent writer."""
 

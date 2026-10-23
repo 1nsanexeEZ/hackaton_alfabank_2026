@@ -8,11 +8,11 @@ import pytest
 
 from src.core.exceptions.exceptions import InvalidStatusTransitionError
 from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.enums import ApplicationStatus
 from src.modules.applications.domain.statuses import (
     ACTIVE_STATUSES,
     FINAL_STATUSES,
     TRANSITIONS,
-    ApplicationStatus,
     can_transition,
     ensure_transition,
 )
