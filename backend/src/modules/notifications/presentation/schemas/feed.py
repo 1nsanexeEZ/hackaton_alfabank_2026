@@ -3,8 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.modules.notifications.application.ports import FeedRecord
-from src.modules.notifications.domain.news import RankedNews
+from src.modules.notifications.application.dto.feed import FeedRecordDTO
 
 
 class FeedItemRead(BaseModel):
@@ -27,7 +26,7 @@ class FeedItemRead(BaseModel):
     read_at: datetime | None
 
     @classmethod
-    def from_record(cls, record: FeedRecord) -> "FeedItemRead":
+    def from_record(cls, record: FeedRecordDTO) -> "FeedItemRead":
         item = record.item
         return cls(
             id=item.id,
@@ -77,25 +76,3 @@ class ApplicationUpdated(BaseModel):
 
 class Heartbeat(BaseModel):
     at: datetime
-
-
-class NewsRead(BaseModel):
-    id: UUID
-    title: str
-    body: str
-    published_at: datetime
-    # Why the article was picked for the company ("ОКВЭД 56 — общепит").
-    relevance: list[str]
-    read: bool
-
-    @classmethod
-    def from_ranked(cls, ranked: RankedNews, read: bool) -> "NewsRead":
-        article = ranked.article
-        return cls(
-            id=article.id,
-            title=article.title,
-            body=article.body,
-            published_at=article.published_at,
-            relevance=list(ranked.relevance),
-            read=read,
-        )

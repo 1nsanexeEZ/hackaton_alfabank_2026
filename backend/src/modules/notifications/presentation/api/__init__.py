@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.modules.notifications.api import feed, news
+from src.modules.notifications.presentation.api import feed, news
 
 router = APIRouter()
 router.include_router(feed.router)
