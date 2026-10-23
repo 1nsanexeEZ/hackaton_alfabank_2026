@@ -1,36 +1,15 @@
-"""Storage ports of the notifications use cases (implemented in infrastructure)."""
+"""Storage ports of the notifications use cases (implemented in infrastructure/repositories)."""
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from src.modules.notifications.domain.feed import Audience, Delivery, Recipient
+from src.modules.notifications.application.dto.feed import FeedFilter
+from src.modules.notifications.domain.feed import Delivery, FeedRecord, Recipient
 from src.modules.notifications.domain.news import NewsArticle
-from src.modules.notifications.facade import FeedItemDTO
-
-
-@dataclass(frozen=True, slots=True)
-class FeedRecord:
-    item: FeedItemDTO
-    # Stream position: the SSE event id.
-    seq: int
-    audience: Audience
-    recipient: Recipient
-
-
-@dataclass(frozen=True, slots=True)
-class FeedFilter:
-    organization_id: UUID | None = None
-    application_id: UUID | None = None
-    unread_only: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class StreamGrant:
-    account_id: UUID
-    recipients: tuple[Recipient, ...]
+from src.modules.notifications.domain.viewers import StreamGrant
 
 
 class FeedStore(Protocol):
@@ -65,6 +44,10 @@ class FeedStore(Protocol):
     async def after(
         self, recipients: Sequence[Recipient], seq: int, limit: int
     ) -> list[FeedRecord]: ...
+
+
+# Every poll of the stream opens its own short session: a stream must not hold a connection.
+FeedStoreFactory = Callable[[], AbstractAsyncContextManager[FeedStore]]
 
 
 class NewsStore(Protocol):

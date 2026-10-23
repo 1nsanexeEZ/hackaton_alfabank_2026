@@ -43,10 +43,11 @@ from src.core.messaging.contracts.process import (
 )
 from src.modules.applications.facade import DecisionSummaryDTO, InfoRequestDTO, OfferDTO
 from src.modules.decision.facade import PreApprovedOfferDTO
-from src.modules.notifications.application.neighbours import Neighbours
-from src.modules.notifications.application.projector import FeedProjector
-from src.modules.notifications.infrastructure.models import FeedItem
-from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
+from src.modules.notifications.application.use_cases.project_event import ProjectEventUseCase
+from src.modules.notifications.infrastructure.adapters.neighbours import FacadeNeighbours
+from src.modules.notifications.infrastructure.adapters.session_facades import SessionFacades
+from src.modules.notifications.infrastructure.database.models import FeedItem
+from src.modules.notifications.infrastructure.repositories.feed import SqlAlchemyFeedStore
 from src.modules.scoring.facade import ScoringResultDTO
 from tests.fakes import builders
 from tests.notifications.conftest import FeedHarness, World, decision_with_codes
@@ -464,10 +465,10 @@ async def test_projector_replay_without_inbox_adds_nothing(
     written = []
     for _ in range(2):
         async with session_factory() as session:
-            projector = FeedProjector(
-                SqlAlchemyFeedStore(session), Neighbours(lambda key: registry.get(key, session))
+            projector = ProjectEventUseCase(
+                SqlAlchemyFeedStore(session), FacadeNeighbours(SessionFacades(registry, session))
             )
-            written.append(await projector.project(event, event_id, builders.NOW))
+            written.append(await projector.execute(event, event_id, builders.NOW))
             await session.commit()
     assert written == [3, 0]
 

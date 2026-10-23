@@ -9,8 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from src.modules.notifications.domain.feed import Priority
-from src.modules.notifications.facade import FeedItemType
+from src.modules.notifications.domain.enums import FeedItemType, Priority
 
 _SPACES = re.compile(r"[ \t]{2,}")
 _SPACE_BEFORE_PUNCT = re.compile(r" +([,.:;!?)])")

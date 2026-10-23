@@ -4,9 +4,8 @@ not commit — the processor commits the records together with the inbox mark.""
 from src.core.messaging import topics
 from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.subscriber import HandlerContext, Subscription
-from src.modules.notifications.application.neighbours import Neighbours
-from src.modules.notifications.application.projector import FeedProjector, handled_types
-from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
+from src.modules.notifications.application.use_cases.project_event import handled_types
+from src.modules.notifications.presentation.dependencies import project_event_use_case
 
 MODULE = "notifications"
 SOURCE_TOPICS: tuple[str, ...] = (
@@ -23,8 +22,7 @@ def group_id(topic: str) -> str:
 
 
 async def handle_event(ctx: HandlerContext, message: IntegrationMessage) -> None:
-    projector = FeedProjector(SqlAlchemyFeedStore(ctx.session), Neighbours(ctx.facade))
-    await projector.project(message, ctx.envelope.event_id, ctx.clock.now())
+    await project_event_use_case(ctx).execute(message, ctx.envelope.event_id, ctx.clock.now())
 
 
 def feed_subscriptions() -> list[Subscription]:

@@ -1,28 +1,16 @@
-"""SQLAlchemy implementations of the notifications storage ports."""
-
 from collections.abc import Sequence
-from datetime import UTC, datetime
-from typing import Any, cast
+from datetime import datetime
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, and_, delete, false, func, or_, select, update
+from sqlalchemy import ColumnElement, and_, false, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.notifications.application.ports import FeedFilter, FeedRecord, StreamGrant
-from src.modules.notifications.domain.feed import Delivery, FeedEntry, Recipient
-from src.modules.notifications.domain.news import NewsArticle
-from src.modules.notifications.facade import FeedItemDTO
-from src.modules.notifications.infrastructure.models import (
-    FeedItem,
-    NewsItem,
-    NewsRead,
-    StreamTicket,
-)
-
-
-def aware(moment: datetime) -> datetime:
-    """SQLite returns naive datetimes; everything is stored in UTC."""
-    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+from src.modules.notifications.application.dto.feed import FeedFilter
+from src.modules.notifications.application.interfaces.repositories import FeedStore
+from src.modules.notifications.domain.feed import Delivery, FeedEntry, FeedRecord, Recipient
+from src.modules.notifications.infrastructure.database.models import FeedItem
+from src.modules.notifications.infrastructure.repositories.mappers import to_record
 
 
 def _recipients_clause(recipients: Sequence[Recipient]) -> ColumnElement[bool]:
@@ -47,29 +35,7 @@ def _filter_clauses(flt: FeedFilter) -> list[ColumnElement[bool]]:
     return clauses
 
 
-def to_record(row: FeedItem) -> FeedRecord:
-    item = FeedItemDTO(
-        id=row.id,
-        type=cast(Any, row.type),
-        title=row.title,
-        body=row.body,
-        link=row.link,
-        priority=cast(Any, row.priority),
-        action_required=row.action_required,
-        organization_id=row.organization_id,
-        application_id=row.application_id,
-        created_at=aware(row.created_at),
-        read_at=aware(row.read_at) if row.read_at else None,
-    )
-    return FeedRecord(
-        item=item,
-        seq=row.seq,
-        audience=cast(Any, row.audience),
-        recipient=Recipient(cast(Any, row.recipient_type), row.recipient_id),
-    )
-
-
-class SqlAlchemyFeedStore:
+class SqlAlchemyFeedStore(FeedStore):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -222,114 +188,3 @@ class SqlAlchemyFeedStore:
             .limit(limit)
         )
         return [to_record(row) for row in (await self._session.scalars(stmt)).all()]
-
-
-def to_article(row: NewsItem) -> NewsArticle:
-    return NewsArticle(
-        id=row.id,
-        slug=row.slug,
-        title=row.title,
-        body=row.body,
-        published_at=aware(row.published_at),
-        okved_prefixes=tuple(row.okved_prefixes or ()),
-        product_codes=tuple(row.product_codes or ()),
-        legal_forms=tuple(row.legal_forms or ()),
-        is_general=row.is_general,
-    )
-
-
-class SqlAlchemyNewsStore:
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def published(self, now: datetime) -> list[NewsArticle]:
-        stmt = select(NewsItem).where(NewsItem.published_at <= now).order_by(NewsItem.slug)
-        return [to_article(row) for row in (await self._session.scalars(stmt)).all()]
-
-    async def exists(self, news_id: UUID) -> bool:
-        return await self._session.get(NewsItem, news_id) is not None
-
-    async def read_ids(self, account_id: UUID, news_ids: Sequence[UUID]) -> set[UUID]:
-        if not news_ids:
-            return set()
-        stmt = select(NewsRead.news_id).where(
-            NewsRead.account_id == account_id, NewsRead.news_id.in_(list(news_ids))
-        )
-        return set((await self._session.scalars(stmt)).all())
-
-    async def mark_read(self, news_id: UUID, account_id: UUID, now: datetime) -> None:
-        if await self._session.get(NewsRead, (news_id, account_id)) is None:
-            self._session.add(NewsRead(news_id=news_id, account_id=account_id, read_at=now))
-            await self._session.flush()
-
-    async def upsert(self, article: NewsArticle, now: datetime) -> bool:
-        """Seed: insert by slug or refresh the text and tags. True when inserted;
-        the publication date of an existing article is kept."""
-        row = (
-            await self._session.scalars(select(NewsItem).where(NewsItem.slug == article.slug))
-        ).one_or_none()
-        inserted = row is None
-        if row is None:
-            row = NewsItem(
-                id=article.id, slug=article.slug, published_at=article.published_at, created_at=now
-            )
-            self._session.add(row)
-        row.title = article.title
-        row.body = article.body
-        row.okved_prefixes = list(article.okved_prefixes)
-        row.product_codes = list(article.product_codes)
-        row.legal_forms = list(article.legal_forms)
-        row.is_general = article.is_general
-        row.updated_at = now
-        await self._session.flush()
-        return inserted
-
-
-class SqlAlchemyTicketStore:
-    # Used and expired tickets are kept this long, then removed on the next issue.
-    RETENTION_SECONDS = 3600
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def add(
-        self,
-        ticket_hash: str,
-        account_id: UUID,
-        roles: Sequence[str],
-        expires_at: datetime,
-        now: datetime,
-    ) -> None:
-        cutoff = datetime.fromtimestamp(now.timestamp() - self.RETENTION_SECONDS, UTC)
-        await self._session.execute(delete(StreamTicket).where(StreamTicket.expires_at < cutoff))
-        self._session.add(
-            StreamTicket(
-                ticket_hash=ticket_hash,
-                account_id=account_id,
-                roles=list(roles),
-                expires_at=expires_at,
-                created_at=now,
-            )
-        )
-        await self._session.flush()
-
-    async def redeem(self, ticket_hash: str, now: datetime) -> StreamGrant | None:
-        row = (
-            await self._session.scalars(
-                select(StreamTicket).where(StreamTicket.ticket_hash == ticket_hash)
-            )
-        ).one_or_none()
-        if row is None or row.used_at is not None or aware(row.expires_at) <= now:
-            return None
-        # Conditional update: of two concurrent connections only one wins the ticket.
-        result = await self._session.execute(
-            update(StreamTicket)
-            .where(StreamTicket.id == row.id, StreamTicket.used_at.is_(None))
-            .values(used_at=now)
-        )
-        if getattr(result, "rowcount", 0) != 1:
-            return None
-        recipients = (Recipient.account(row.account_id),) + tuple(
-            Recipient.role(role) for role in row.roles or ()
-        )
-        return StreamGrant(account_id=row.account_id, recipients=recipients)
