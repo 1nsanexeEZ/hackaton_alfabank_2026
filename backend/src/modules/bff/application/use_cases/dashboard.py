@@ -1,6 +1,6 @@
 """The main screen of the client: their companies and, for the chosen one, the
-counters, active applications, what waits for the client, the pre-approval or
-the founder's prescreen, the feed and the news."""
+counters, active applications, what waits for the client, the consents given and
+missing, the pre-approval or the founder's prescreen, the feed and the news."""
 
 from dataclasses import asdict
 from uuid import UUID
@@ -10,6 +10,7 @@ from src.core.exceptions.exceptions import NotFoundError
 from src.modules.applications.facade import ACTIVE_STATUSES
 from src.modules.bff.application.dto.applications import ApplicationRowDTO
 from src.modules.bff.application.dto.dashboard import (
+    ConsentStateDTO,
     DashboardDTO,
     FeedDTO,
     PreApprovedProductDTO,
@@ -23,9 +24,10 @@ from src.modules.bff.application.dto.organizations import (
 from src.modules.bff.application.interfaces.neighbours import Neighbours
 from src.modules.bff.application.use_cases.common import ensure_visible, segment_of
 from src.modules.bff.domain.actions import CONSENT_PENDING_STATUSES, consent_todo, todo_for
+from src.modules.bff.domain.consents import PROFILE_CONSENTS
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.facade import DecisionFacade
-from src.modules.identity.facade import IdentityFacade
+from src.modules.identity.facade import ConsentDTO, IdentityFacade
 from src.modules.notifications.facade import NewsItemDTO, NotificationsFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.projector.facade import ProjectorFacade
@@ -55,6 +57,7 @@ class DashboardUseCase:
                 pre_approved=(),
                 active_applications=(),
                 todo=(),
+                consents=(),
                 feed=FeedDTO(unread=0, items=()),
                 news=(),
                 degraded=self._n.degraded,
@@ -93,6 +96,9 @@ class DashboardUseCase:
                     title=title,
                 )
             )
+        consents: tuple[ConsentStateDTO, ...] = await self._n.optional(
+            "consents", lambda: self._consents(account_id, chosen), ()
+        )
 
         segment = segment_of(snapshot)
         startup = None
@@ -131,6 +137,7 @@ class DashboardUseCase:
                 ApplicationRowDTO.of(r) for r in active[:DASHBOARD_APPLICATIONS]
             ),
             todo=tuple(todo),
+            consents=consents,
             feed=feed,
             news=tuple(news),
             degraded=self._n.degraded,
@@ -161,6 +168,28 @@ class DashboardUseCase:
             account_id, "credit_bureau_personal"
         )
         return consent is None
+
+    async def _consents(
+        self, account_id: UUID, organization_id: UUID
+    ) -> tuple[ConsentStateDTO, ...]:
+        """The person's personal_data, the company's credit_bureau_company and, for the head
+        by the registry, their own credit_bureau_personal."""
+        identity = self._n(IdentityFacade)
+        found: dict[str, ConsentDTO | None] = {
+            "personal_data": await identity.get_active_consent(account_id, "personal_data"),
+            "credit_bureau_company": await identity.get_active_organization_consent(
+                organization_id, "credit_bureau_company"
+            ),
+        }
+        if await self._n(ClientsFacade).get_registry_head(organization_id) == account_id:
+            found["credit_bureau_personal"] = await identity.get_active_consent(
+                account_id, "credit_bureau_personal"
+            )
+        return tuple(
+            ConsentStateDTO.of(info, found[info.type])
+            for info in PROFILE_CONSENTS
+            if info.type in found
+        )
 
     async def _product_names(self) -> dict[str, str]:
         async def load() -> dict[str, str]:
