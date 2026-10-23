@@ -1,5 +1,6 @@
 """Calculator with the pre-approval: the rate is the bank's, a request above the
-pre-approved terms gets a reason and a suggestion, not an error."""
+pre-approved terms or above what the company can afford gets a reason and a suggestion,
+not an error."""
 
 from collections.abc import Callable
 from dataclasses import replace
@@ -12,6 +13,7 @@ import pytest
 
 from src.core.access.permissions import Permissions
 from src.core.exceptions.exceptions import InfrastructureError
+from src.modules.clients.facade import FinancialReportDTO
 from src.modules.decision.facade import DecisionFacade, PreApprovedOfferDTO
 from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
 from tests.bff import factories
@@ -48,6 +50,28 @@ def monthly_payment(world: World, amount: str, term_months: int, rate: str) -> s
     return str(schedule.monthly_payment)
 
 
+def with_report(
+    world: World, revenue: str, expenses: str | None = None, debts: str | None = None
+) -> None:
+    """Make the given report the company's only annual one."""
+    report = FinancialReportDTO(
+        period_year=2025,
+        period_quarter=None,
+        source="declared",
+        revenue=Decimal(revenue),
+        expenses=Decimal(expenses) if expenses is not None else None,
+        monthly_debt_payments=Decimal(debts) if debts is not None else None,
+    )
+    snapshot = world.clients.organizations[world.romashka.id]
+    world.clients.organizations[world.romashka.id] = replace(snapshot, financial_reports=(report,))
+
+
+def affordable_report(world: World) -> Decimal:
+    """Profit 500 000 a month less debts 100 000: the payment is at most 160 000."""
+    with_report(world, "12000000", "6000000", "100000")
+    return Decimal("160000")
+
+
 # --- the pre-approval ---------------------------------------------------------
 
 
@@ -65,6 +89,9 @@ def test_without_a_pre_approval_the_base_rate_is_used(world: World) -> None:
     assert body["eligible"] is True
     assert body["reasons"] == []
     assert body["suggestion"] is None
+    assert body["max_affordable"] is None
+    assert body["affordable_by"] is None
+    assert body["above_affordable"] is False
     assert body["degraded"] == []
 
 
@@ -85,6 +112,9 @@ def test_within_the_pre_approved_terms(world: World) -> None:
     assert body["within_pre_approved"] is True
     assert body["reasons"] == []
     assert body["suggestion"] is None
+    assert body["max_affordable"] == "4000000"
+    assert body["affordable_by"] == "pre_approved"
+    assert body["above_affordable"] is False
 
 
 def test_amount_above_the_pre_approved(world: World) -> None:
@@ -110,12 +140,15 @@ def test_amount_above_the_pre_approved(world: World) -> None:
         "term_months": 24,
         "monthly_payment": monthly_payment(world, "4000000", 24, "18.5"),
     }
+    assert body["max_affordable"] == "4000000"
+    assert body["affordable_by"] == "pre_approved"
+    assert body["above_affordable"] is True
 
 
 def test_term_above_the_pre_approved(world: World) -> None:
     pre_approve(world, term_max_months=12)
 
-    body = calculate(world, amount="3000000", term_months=24).json()
+    body = calculate(world, amount="2000000", term_months=24).json()
 
     assert body["schedule"]["term_months"] == 24
     assert body["within_pre_approved"] is False
@@ -127,10 +160,11 @@ def test_term_above_the_pre_approved(world: World) -> None:
         }
     ]
     assert body["suggestion"] == {
-        "amount": "3000000",
+        "amount": "2000000",
         "term_months": 12,
-        "monthly_payment": monthly_payment(world, "3000000", 12, "18.5"),
+        "monthly_payment": monthly_payment(world, "2000000", 12, "18.5"),
     }
+    assert body["above_affordable"] is False
 
 
 def test_amount_and_term_above_the_pre_approved(world: World) -> None:
@@ -142,8 +176,8 @@ def test_amount_and_term_above_the_pre_approved(world: World) -> None:
         "amount_above_pre_approved",
         "term_above_pre_approved",
     ]
-    assert body["suggestion"]["amount"] == "4000000"
     assert body["suggestion"]["term_months"] == 12
+    assert Decimal(body["suggestion"]["amount"]) <= Decimal("4000000")
 
 
 def test_no_suggestion_below_the_product_minimum(world: World) -> None:
@@ -164,6 +198,148 @@ def test_a_pre_approval_of_another_product_is_not_used(world: World) -> None:
     assert body["pre_approved"] is None
     assert body["within_pre_approved"] is None
     assert Decimal(body["schedule"]["rate"]) == Decimal("21.5")
+
+
+# --- what the company can afford ----------------------------------------------
+
+
+def test_the_amount_is_cut_to_the_payment_the_company_can_afford(world: World) -> None:
+    capacity = affordable_report(world)
+    pre_approve(world)
+
+    response = calculate(world, amount="3500000", term_months=24)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    maximum = Decimal(body["max_affordable"])
+    assert Decimal("0") < maximum < Decimal("4000000")
+    assert maximum % 1000 == 0
+    # The largest thousand whose payment fits.
+    assert Decimal(monthly_payment(world, str(maximum), 24, "18.5")) <= capacity
+    assert Decimal(monthly_payment(world, str(maximum + 1000), 24, "18.5")) > capacity
+    assert body["affordable_by"] == "payment"
+    assert body["above_affordable"] is True
+    # Within the pre-approval, above the payment: a specialist decides.
+    assert body["within_pre_approved"] is True
+    assert body["reasons"] == [
+        {
+            "code": "amount_above_affordable",
+            "passed": False,
+            "message": f"По платёжеспособности доступно до {maximum:,.0f} ₽".replace(",", " ")
+            + ", заявку на большую сумму рассмотрит специалист",
+        }
+    ]
+    assert body["suggestion"] == {
+        "amount": str(maximum),
+        "term_months": 24,
+        "monthly_payment": monthly_payment(world, str(maximum), 24, "18.5"),
+    }
+
+
+def test_a_request_within_the_payment_is_not_flagged(world: World) -> None:
+    affordable_report(world)
+    pre_approve(world)
+
+    body = calculate(world, amount="1000000", term_months=24).json()
+
+    assert body["affordable_by"] == "payment"
+    assert body["above_affordable"] is False
+    assert body["reasons"] == []
+    assert body["suggestion"] is None
+
+
+def test_the_affordable_amount_grows_with_the_term(world: World) -> None:
+    affordable_report(world)
+    pre_approve(world)
+
+    short = calculate(world, term_months=12).json()
+    long = calculate(world, term_months=36).json()
+
+    assert Decimal(short["max_affordable"]) < Decimal(long["max_affordable"])
+
+
+def test_the_affordable_amount_follows_the_schedule(world: World) -> None:
+    capacity = affordable_report(world)
+    pre_approve(world)
+
+    body = calculate(world, term_months=24, repayment="differentiated").json()
+
+    maximum = Decimal(body["max_affordable"])
+    first = world.products.calculate_payment(maximum, 24, Decimal("18.5"), "differentiated")
+    assert first.monthly_payment <= capacity
+    assert maximum < Decimal(calculate(world, term_months=24).json()["max_affordable"])
+
+
+def test_the_pre_approval_caps_a_strong_company(world: World) -> None:
+    with_report(world, "480000000", "100000000")
+    pre_approve(world)
+
+    body = calculate(world).json()
+
+    assert body["max_affordable"] == "4000000"
+    assert body["affordable_by"] == "pre_approved"
+
+
+def test_a_term_cut_suggestion_is_affordable_for_the_shorter_term(world: World) -> None:
+    capacity = affordable_report(world)
+    pre_approve(world, term_max_months=12)
+
+    body = calculate(world, amount="2000000", term_months=24).json()
+
+    assert body["suggestion"]["term_months"] == 12
+    assert Decimal(body["suggestion"]["monthly_payment"]) <= capacity
+    assert Decimal(body["suggestion"]["amount"]) < Decimal("2000000")
+
+
+def test_without_expenses_in_the_report_a_share_of_the_revenue_is_assumed(world: World) -> None:
+    # 20% of 12 000 000 a year is 200 000 a month, 40% of it is 80 000.
+    with_report(world, "12000000")
+    pre_approve(world)
+
+    body = calculate(world).json()
+
+    maximum = Decimal(body["max_affordable"])
+    assert Decimal(monthly_payment(world, str(maximum), 24, "18.5")) <= Decimal("80000")
+    assert Decimal(monthly_payment(world, str(maximum + 1000), 24, "18.5")) > Decimal("80000")
+
+
+def test_debts_that_eat_the_flow_leave_nothing_affordable(world: World) -> None:
+    with_report(world, "12000000", "6000000", "600000")
+    pre_approve(world)
+
+    body = calculate(world).json()
+
+    assert body["max_affordable"] == "0"
+    assert body["affordable_by"] == "payment"
+    assert body["above_affordable"] is True
+    assert [r["code"] for r in body["reasons"]] == ["amount_above_affordable"]
+    assert body["suggestion"] is None
+
+
+def test_without_an_annual_report_the_pre_approved_maximum_is_kept(world: World) -> None:
+    snapshot = world.clients.organizations[world.romashka.id]
+    world.clients.organizations[world.romashka.id] = replace(snapshot, financial_reports=())
+    pre_approve(world)
+
+    body = calculate(world, amount="5000000").json()
+
+    assert body["max_affordable"] == "4000000"
+    assert body["affordable_by"] == "pre_approved"
+    assert body["above_affordable"] is True
+
+
+def test_a_project_offer_is_not_cut_by_the_reports(world: World) -> None:
+    with_report(world, "12000000", "6000000", "600000")
+    world.decision.set_pre_approved(
+        world.romashka.id, [factories.pre_approved("UNSECURED", "4000000", basis="project")]
+    )
+
+    body = calculate(world, amount="3000000").json()
+
+    assert body["max_affordable"] == "4000000"
+    assert body["affordable_by"] == "project"
+    assert body["above_affordable"] is False
+    assert body["pre_approved"]["basis"] == "estimate"
 
 
 # --- eligibility --------------------------------------------------------------
@@ -210,6 +386,8 @@ def test_without_decision_the_schedule_is_at_the_base_rate(
     assert body["pre_approved"] is None
     assert body["within_pre_approved"] is None
     assert body["suggestion"] is None
+    assert body["max_affordable"] is None
+    assert body["above_affordable"] is False
     assert Decimal(body["schedule"]["rate"]) == Decimal("21.5")
 
 

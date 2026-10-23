@@ -209,6 +209,45 @@ def test_startup_dashboard_shows_the_project_and_its_offer(world: World) -> None
     assert "figures" not in startup["project"]
 
 
+def calculate_startup(world: World, company: OrganizationSnapshotDTO, amount: str) -> Any:
+    response = world.client.post(
+        "/bff/products/STARTUP/calculate",
+        headers=world.as_client(world.petrov),
+        params={"organization_id": str(company.id)},
+        json={"amount": amount, "term_months": 24},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_startup_calculator_is_capped_by_the_project_offer(world: World) -> None:
+    company = add_startup(world)
+    world.decision.set_pre_approved(company.id, [project_offer()])
+
+    within = calculate_startup(world, company, "3000000")
+    above = calculate_startup(world, company, "4500000")
+
+    # Отчётности у стартапа нет: потолок — сумма проектной оценки, платёжеспособность не считаем.
+    assert within["max_affordable"] == "3810000"
+    assert within["affordable_by"] == "project"
+    assert within["above_affordable"] is False
+    assert within["pre_approved"]["basis"] == "estimate"
+    assert above["max_affordable"] == "3810000"
+    assert above["above_affordable"] is True
+    assert [r["code"] for r in above["reasons"]] == ["amount_above_pre_approved"]
+    assert above["suggestion"]["amount"] == "3810000"
+
+
+def test_startup_calculator_without_a_project_offer(world: World) -> None:
+    company = add_startup(world)
+
+    body = calculate_startup(world, company, "3000000")
+
+    assert body["pre_approved"] is None
+    assert body["max_affordable"] is None
+    assert body["above_affordable"] is False
+
+
 def startup_card(world: World, amount: str) -> Any:
     company = add_startup(world)
     world.clients.business_plans[company.id] = business_plan(company)

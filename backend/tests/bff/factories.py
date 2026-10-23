@@ -311,14 +311,16 @@ def news_item() -> NewsItemDTO:
     )
 
 
-def pre_approved(product_code: str = "UNSECURED", amount: str = "4000000") -> PreApprovedOfferDTO:
+def pre_approved(
+    product_code: str = "UNSECURED", amount: str = "4000000", basis: str = PRE_APPROVED_BASIS
+) -> PreApprovedOfferDTO:
     return PreApprovedOfferDTO(
         product_code=product_code,
         max_amount=Decimal(amount),
         rate_from=Decimal("18.5"),
         term_max_months=36,
         valid_until=date(2026, 12, 31),
-        basis=PRE_APPROVED_BASIS,
+        basis=basis,
     )
 
 
