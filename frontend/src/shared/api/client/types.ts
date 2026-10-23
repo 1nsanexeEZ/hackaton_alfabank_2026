@@ -405,7 +405,7 @@ export interface DashboardDto {
   } | null
   pre_approved: PreApprovedOfferDto[]
   active_applications: ApplicationRowDto[]
-  todo: { application_id: string; number: string; kind: 'info_requested' | 'offer_ready' | 'signing'; title: string }[]
+  todo: { application_id: string; number: string; kind: 'info_requested' | 'offer_ready' | 'signing' | 'consent_required'; title: string }[]
   feed: { unread: number; items: FeedItemDto[] }
   news: NewsDto[]
   /** Какие блоки не загрузились — показываем заглушку, а не ошибку */
@@ -488,6 +488,41 @@ export interface ClientApplicationCardDto {
 export interface SignResultDto {
   application: ApplicationDto
   signature: { signed_at: string; offer_hash: string; edo_document_id: string; simulated: boolean }
+}
+
+export interface ContractPaymentDto {
+  number: number
+  due_date: string | null
+  principal: string
+  interest: string
+  total: string
+  balance_after: string
+}
+
+/**
+ * Договор перед подписью (GET /applications/{id}/contract), с этапа signing и дальше.
+ * PDF нет — договор рендерим из полей; offer_hash уходит обратно в подпись.
+ */
+export interface ContractDto {
+  /** Номер заявки: отдельной нумерации договоров нет */
+  number: string
+  offer_hash: string
+  status: 'unsigned' | 'signed'
+  borrower: { name: string; inn: string; ogrn: string; kpp: string | null; legal_form: string; head_name: string | null }
+  /** Кто вправе подписать сейчас: руководитель по реестру или участник с доверенностью на подпись */
+  signers: { account_id: string; name: string; authority: 'registry' | 'power_of_attorney' }[]
+  terms: OfferDto
+  schedule: {
+    amount: string
+    term_months: number
+    rate: string
+    repayment: string
+    monthly_payment: string
+    total_interest: string
+    total_paid: string
+    payments: ContractPaymentDto[]
+  }
+  signature: { signed_by: string; signed_at: string; edo_document_id: string | null; simulated: boolean } | null
 }
 
 /** Подбор по потребности (POST /products/recommend), без входа */
@@ -674,8 +709,13 @@ export interface ClientApi {
   getApplicationCard(id: string): Promise<ClientApplicationCardDto>
   acceptOffer(id: string): Promise<ApplicationDto>
   declineOffer(id: string, reason?: string): Promise<ApplicationDto>
-  /** Подпись: пароль аккаунта ещё раз (step-up), неверный — 422 invalid_password */
-  sign(id: string, password: string): Promise<SignResultDto>
+  /** Договор для экрана подписи; до этапа signing — 409 contract_not_ready */
+  contract(id: string): Promise<ContractDto>
+  /**
+   * Подпись: пароль аккаунта ещё раз (step-up), неверный — 422 invalid_password.
+   * offerHash — из договора: если предложение изменилось после открытия договора — 409 offer_changed
+   */
+  sign(id: string, password: string, offerHash: string): Promise<SignResultDto>
   answerInfoRequest(id: string, infoRequestId: string): Promise<ApplicationDto>
   downloadDocument(id: string, documentId: string): Promise<{ url: string }>
 

@@ -38,7 +38,9 @@ export const realClientApi: ClientApi = {
   acceptOffer: (id) => call(`/applications/${id}/offer/accept`, { method: 'POST' }),
   declineOffer: (id, reason) =>
     call(`/applications/${id}/offer/decline`, { method: 'POST', body: reason ? { reason } : undefined }),
-  sign: (id, password) => call(`/applications/${id}/sign`, { method: 'POST', body: { password } }),
+  contract: (id) => call(`/applications/${id}/contract`),
+  sign: (id, password, offerHash) =>
+    call(`/applications/${id}/sign`, { method: 'POST', body: { password, offer_hash: offerHash } }),
   answerInfoRequest: (id, infoRequestId) =>
     call(`/applications/${id}/info-requests/${infoRequestId}/answer`, { method: 'POST' }),
   downloadDocument: (id, documentId) => call(`/applications/${id}/documents/${documentId}/download`),

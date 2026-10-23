@@ -10,6 +10,7 @@ import { formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, TextField } from '@/shared/ui'
 
 import { useApplicationCard } from '../model/useApplicationCard'
+import ContractView from './ContractView.vue'
 import DecisionPanel from './DecisionPanel.vue'
 import InfoRequestPanel from './InfoRequestPanel.vue'
 import OfferPanel from './OfferPanel.vue'
@@ -29,13 +30,16 @@ const emit = defineEmits<{
 }>()
 
 const application = useApplicationCard(() => props.applicationId)
-const { card, details, loading, error, busy, actionError, uploadErrors, signature, infoDocuments, can } = application
+const { card, details, loading, error, busy, actionError, uploadErrors, signature, contract, contractError, infoDocuments, can } = application
 
 const status = computed(() => card.value?.client_status ?? null)
 const meta = computed(() => (status.value ? CLIENT_STATUS_META[status.value] : null))
 const inProgress = computed(() => status.value === 'submitted' || status.value === 'checking' || status.value === 'scoring')
 /** Ручное рассмотрение: этап процесса «Заявка у специалиста» */
 const atSpecialist = computed(() => card.value?.client_stage?.toLowerCase().includes('специалист') ?? false)
+
+/** Подпись: из ответа только что подписанного или из договора, если заявку открыли позже */
+const signed = computed(() => signature.value ?? contract.value?.signature ?? null)
 
 const productTitle = (code: string) => props.products?.find((product) => product.code === code)?.title ?? null
 
@@ -160,7 +164,15 @@ function continueDraft() {
         />
       </template>
 
-      <SignPanel v-else-if="status === 'signing'" :offer="card.offer" :can-sign="can('sign')" :busy="busy" @sign="application.sign" />
+      <SignPanel
+        v-else-if="status === 'signing'"
+        :contract="contract"
+        :contract-error="contractError"
+        :can-sign="can('sign')"
+        :busy="busy"
+        @sign="application.sign"
+        @reload="application.reload"
+      />
 
       <section v-else-if="status === 'issued'" class="rounded-2xl bg-success-soft p-5">
         <p class="flex items-center gap-2 text-base font-bold text-ink">
@@ -168,15 +180,19 @@ function continueDraft() {
           Договор подписан, кредит выдан
         </p>
         <dl class="mt-3 space-y-1 text-sm text-ink">
-          <div v-if="signature" class="flex flex-wrap gap-x-2">
+          <div v-if="signed" class="flex flex-wrap gap-x-2">
             <dt class="text-ink-secondary">Документ в ЭДО:</dt>
-            <dd>{{ signature.edo_document_id }} · {{ formatDateTime(signature.signed_at) }}</dd>
+            <dd>{{ signed.edo_document_id ?? '—' }} · {{ formatDateTime(signed.signed_at) }}</dd>
           </div>
           <div v-if="details?.disbursement" class="flex flex-wrap gap-x-2">
             <dt class="text-ink-secondary">Выдача:</dt>
             <dd>№ {{ details.disbursement.reference }} · {{ formatDateTime(details.disbursement.disbursed_at) }}</dd>
           </div>
         </dl>
+        <details v-if="contract" class="mt-3 text-sm">
+          <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Договор № {{ contract.number }}</summary>
+          <ContractView class="mt-3" :contract="contract" />
+        </details>
         <p class="mt-3 text-xs text-ink-secondary">
           Подписание и выдача смоделированы (моки ЭДО и АБС): реальных подписей и денежных операций нет.
         </p>

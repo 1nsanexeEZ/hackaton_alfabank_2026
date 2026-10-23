@@ -2,12 +2,14 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import { fileProblem, myApplications, uploadApplicationDocument } from '@/entities/application'
 import { liveFeed } from '@/entities/notification'
-import { clientApi, type ApplicationDto, type ClientApplicationCardDto } from '@/shared/api'
+import { ApiError, clientApi, type ApplicationDto, type ClientApplicationCardDto, type ContractDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
 /** Пока банк думает, без живого потока перечитываем карточку сами */
 const POLL_MS = 5_000
 const PROCESSING = new Set(['submitted', 'in_review'])
+/** С этих клиентских статусов у заявки есть договор */
+const WITH_CONTRACT = new Set(['signing', 'issued'])
 
 /**
  * Карточка заявки клиента (GET /bff/applications/{id}) и действия по ней.
@@ -25,6 +27,9 @@ export function useApplicationCard(applicationId: () => string | null) {
   const actionError = ref<string | null>(null)
   const uploadErrors = ref<Record<string, string>>({})
   const signature = shallowRef<{ signed_at: string; edo_document_id: string; simulated: boolean } | null>(null)
+  /** Договор: на подписи — что клиент подписывает (и его offer_hash), после — что подписано */
+  const contract = shallowRef<ContractDto | null>(null)
+  const contractError = ref<string | null>(null)
 
   let requestId = 0
 
@@ -37,6 +42,7 @@ export function useApplicationCard(applicationId: () => string | null) {
       const next = await clientApi.getApplicationCard(id)
       // Полная заявка нужна выданному кредиту (номер выдачи) и черновику: BFF фиксирует компанию только при подаче
       const full = next.client_status === 'issued' || next.client_status === 'draft' ? await clientApi.getApplication(id) : null
+      const nextContract = WITH_CONTRACT.has(next.client_status) ? await loadContract(id) : null
       if (full && !next.organization) {
         const name =
           myApplications.state.items?.find((item) => item.id === id)?.organization_name ??
@@ -46,6 +52,7 @@ export function useApplicationCard(applicationId: () => string | null) {
       if (current !== requestId) return
       card.value = next
       details.value = full
+      contract.value = nextContract
       error.value = null
     } catch (caught) {
       if (current === requestId && !quiet) error.value = errorMessage(caught)
@@ -54,11 +61,24 @@ export function useApplicationCard(applicationId: () => string | null) {
     }
   }
 
+  async function loadContract(id: string) {
+    try {
+      const value = await clientApi.contract(id)
+      contractError.value = null
+      return value
+    } catch (caught) {
+      contractError.value = errorMessage(caught)
+      return null
+    }
+  }
+
   watch(
     applicationId,
     (id) => {
       card.value = null
       details.value = null
+      contract.value = null
+      contractError.value = null
       signature.value = null
       actionError.value = null
       uploadErrors.value = {}
@@ -105,8 +125,16 @@ export function useApplicationCard(applicationId: () => string | null) {
   const cancel = (reason: string) => run('cancel', (id) => clientApi.cancelApplication(id, reason.trim() || undefined))
   const sign = (password: string) =>
     run('sign', async (id) => {
-      const result = await clientApi.sign(id, password)
-      signature.value = result.signature
+      const offerHash = contract.value?.offer_hash
+      if (!offerHash) throw new Error('Договор ещё не загрузился — откройте заявку заново')
+      try {
+        const result = await clientApi.sign(id, password, offerHash)
+        signature.value = result.signature
+      } catch (caught) {
+        // Предложение поменялось, пока клиент читал договор: показываем новый договор, подпись — заново
+        if (caught instanceof ApiError && caught.details.code === 'offer_changed') await load(true)
+        throw caught
+      }
     })
   const answer = () =>
     run('answer', (id) => {
@@ -168,6 +196,8 @@ export function useApplicationCard(applicationId: () => string | null) {
     actionError,
     uploadErrors,
     signature,
+    contract,
+    contractError,
     infoDocuments,
     can,
     reload: () => load(),
