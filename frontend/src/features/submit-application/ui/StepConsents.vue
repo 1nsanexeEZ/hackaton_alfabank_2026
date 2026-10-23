@@ -12,10 +12,11 @@ const props = defineProps<{ wizard: ApplicationWizard }>()
 
 const { terms, organization, product, consents, headConsent, documents, fieldErrors } = props.wizard
 
-const { schedule } = useLoanSchedule(() => ({
+const { schedule, personal } = useLoanSchedule(() => ({
   product: product.value,
   amount: terms.amount,
   termMonths: terms.termMonths,
+  organizationId: terms.organizationId || null,
 }))
 
 const summary = computed(() => [
@@ -27,7 +28,7 @@ const summary = computed(() => [
   {
     label: schedule.value?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Платёж в месяц',
     value: schedule.value
-      ? `${formatMoney(schedule.value.monthlyPayment)} · от ${formatPercent(schedule.value.rate)}`
+      ? `${formatMoney(schedule.value.monthlyPayment)} · ${personal.value?.preApproved ? '' : 'от '}${formatPercent(schedule.value.rate)}`
       : '—',
   },
   ...(documents.value.length

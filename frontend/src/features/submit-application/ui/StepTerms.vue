@@ -97,10 +97,12 @@ const requisitesLine = computed(() => {
     .join(', ')
 })
 
-const { schedule, pending } = useLoanSchedule(() => ({
+// Платёж — по ставке предодобрения выбранной компании, как в калькуляторе на лендинге
+const { schedule, personal, pending } = useLoanSchedule(() => ({
   product: product.value,
   amount: terms.amount,
   termMonths: terms.termMonths,
+  organizationId: terms.organizationId || null,
 }))
 </script>
 
@@ -224,7 +226,7 @@ const { schedule, pending } = useLoanSchedule(() => ({
       <span class="text-xl font-bold transition-opacity" :class="pending && 'opacity-60'">
         {{ schedule ? formatMoney(schedule.monthlyPayment) : '—' }}
         <span class="text-sm font-normal text-on-night-secondary">
-          по ставке от {{ formatPercent(schedule?.rate ?? product.rateFrom) }}
+          по ставке {{ personal?.preApproved ? '' : 'от ' }}{{ formatPercent(schedule?.rate ?? product.rateFrom) }}
         </span>
       </span>
     </div>
