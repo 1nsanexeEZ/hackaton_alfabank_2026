@@ -5,25 +5,38 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain.clock import Clock
-from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, PreApprovedOfferDTO
+from src.modules.decision.facade import (
+    ClientDecisionDTO,
+    DecisionDTO,
+    FounderPrescreenDTO,
+    PreApprovedOfferDTO,
+)
 from src.modules.decision.infrastructure.mappers import (
     client_decision_dto,
     decision_dto,
     pre_approved_dto,
+    prescreen_dto,
 )
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyDecisionRepository,
+    SqlAlchemyFounderPrescreenRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
 
 
 class DecisionFacadeImpl:
-    """Последнее решение по заявке (ручное перекрывает авто) и действующие предодобрения."""
+    """Последнее решение по заявке (ручное перекрывает авто), действующие предодобрения и
+    предскрин учредителя стартапа."""
 
     def __init__(self, session: AsyncSession, clock: Clock) -> None:
         self._decisions = SqlAlchemyDecisionRepository(session)
         self._offers = SqlAlchemyPreApprovedOfferRepository(session)
+        self._prescreens = SqlAlchemyFounderPrescreenRepository(session)
         self._clock = clock
+
+    async def get_founder_prescreen(self, organization_id: UUID) -> FounderPrescreenDTO | None:
+        prescreen = await self._prescreens.latest_for_organization(organization_id)
+        return prescreen_dto(prescreen, self._clock.now()) if prescreen is not None else None
 
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         result = await self._decisions.latest_for_application(application_id)

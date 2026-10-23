@@ -18,7 +18,7 @@ from src.modules.process.infrastructure.catalog import (
 )
 from tests.process.unit.routes import NOW, FakeFacts, context, ids, offer
 
-CODES = ["express_v1", "mortgage_v1", "secured_v1", "standard_v1"]
+CODES = ["express_v1", "mortgage_v1", "secured_v1", "standard_v1", "startup_v1"]
 
 
 def test_all_routes_load() -> None:

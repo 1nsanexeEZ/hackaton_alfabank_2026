@@ -120,6 +120,7 @@ def write(record: CreditProductRecord, product: CreditProduct) -> None:
     record.min_annual_revenue = (
         None if rules.min_annual_revenue is None else rules.min_annual_revenue.amount
     )
+    record.startup_only = rules.startup_only
     record.required_documents = [
         {
             "type": d.type,
@@ -162,6 +163,7 @@ def to_domain(record: CreditProductRecord) -> CreditProduct:
             min_business_age_months=record.min_business_age_months,
             allowed_legal_forms=frozenset(record.allowed_legal_forms),
             min_annual_revenue=_money(record.min_annual_revenue),
+            startup_only=record.startup_only,
         ),
         processing=ProcessingProfile(
             workflow_code=record.workflow_code,

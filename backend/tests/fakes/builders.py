@@ -19,17 +19,20 @@ def organization_snapshot(
     code: str = "romashka", organization_id: UUID | None = None, **overrides: Any
 ) -> OrganizationSnapshotDTO:
     company = COMPANIES_BY_CODE[code]
-    finance = FINANCIALS_BY_CODE[code]
-    reports = [
-        FinancialReportDTO(
-            period_year=NOW.year - 1,
-            period_quarter=None,
-            source="declared",
-            revenue=finance.declared_revenue,
-            expenses=finance.declared_expenses,
+    # A startup (start) has no annual report yet.
+    finance = FINANCIALS_BY_CODE.get(code)
+    reports = []
+    if finance is not None:
+        reports.append(
+            FinancialReportDTO(
+                period_year=NOW.year - 1,
+                period_quarter=None,
+                source="declared",
+                revenue=finance.declared_revenue,
+                expenses=finance.declared_expenses,
+            )
         )
-    ]
-    if finance.declared_revenue_previous_year is not None:
+    if finance is not None and finance.declared_revenue_previous_year is not None:
         reports.append(
             FinancialReportDTO(
                 period_year=NOW.year - 2,

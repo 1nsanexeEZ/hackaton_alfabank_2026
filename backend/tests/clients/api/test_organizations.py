@@ -71,7 +71,7 @@ def test_entrepreneur_card(demo: Demo) -> None:
 def test_underwriter_sees_every_company(demo: Demo) -> None:
     headers = demo.as_underwriter()
     body = demo.client.get("/organizations", headers=headers).json()
-    assert len(body) == 6
+    assert len(body) == 7
     assert {o["my_role"] for o in body} == {None}
     assert {o["registry_status"] for o in body} == {"active", "liquidating"}
 

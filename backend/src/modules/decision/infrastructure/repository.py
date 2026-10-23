@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -8,10 +9,20 @@ from uuid import UUID
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.decision.application.ports import PreApprovalBasis, PreApprovedOffer
+from src.modules.decision.application.ports import (
+    FounderPrescreen,
+    PreApprovalBasis,
+    PreApprovedOffer,
+    PrescreenCheck,
+    PrescreenStatus,
+)
 from src.modules.decision.domain.model import Outcome
 from src.modules.decision.domain.result import DecidedByType, DecisionResult
-from src.modules.decision.infrastructure.models import DecisionResultRecord, PreApprovedOfferRecord
+from src.modules.decision.infrastructure.models import (
+    DecisionResultRecord,
+    FounderPrescreenRecord,
+    PreApprovedOfferRecord,
+)
 from src.modules.decision.infrastructure.serialization import (
     dump_info,
     dump_inputs,
@@ -94,6 +105,59 @@ class SqlAlchemyPreApprovedOfferRepository:
             .order_by(PreApprovedOfferRecord.max_amount.desc(), PreApprovedOfferRecord.product_code)
         )
         return [_offer(record) for record in await self._session.scalars(stmt)]
+
+
+class SqlAlchemyFounderPrescreenRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, prescreen: FounderPrescreen) -> None:
+        self._session.add(
+            FounderPrescreenRecord(
+                id=prescreen.id,
+                organization_id=prescreen.organization_id,
+                founder_account_id=prescreen.founder_account_id,
+                founder_name=prescreen.founder_name,
+                status=prescreen.status,
+                reasons=[
+                    {"code": r.code, "passed": r.passed, "message": r.message}
+                    for r in prescreen.reasons
+                ],
+                version=prescreen.version,
+                checked_at=prescreen.checked_at,
+                valid_until=prescreen.valid_until,
+            )
+        )
+        await self._session.flush()
+
+    async def latest_for_organization(self, organization_id: UUID) -> FounderPrescreen | None:
+        stmt = (
+            select(FounderPrescreenRecord)
+            .where(FounderPrescreenRecord.organization_id == organization_id)
+            .order_by(FounderPrescreenRecord.checked_at.desc(), FounderPrescreenRecord.id)
+            .limit(1)
+        )
+        record = (await self._session.scalars(stmt)).first()
+        if record is None:
+            return None
+        return FounderPrescreen(
+            id=record.id,
+            organization_id=record.organization_id,
+            founder_account_id=record.founder_account_id,
+            founder_name=record.founder_name,
+            status=cast(PrescreenStatus, record.status),
+            reasons=tuple(
+                PrescreenCheck(r["code"], r["passed"], r["message"]) for r in record.reasons
+            ),
+            version=record.version,
+            checked_at=_aware(record.checked_at),
+            valid_until=_aware(record.valid_until),
+        )
+
+
+def _aware(moment: datetime) -> datetime:
+    """SQLite отдаёт время без зоны; храним в UTC."""
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
 def _to_record(result: DecisionResult, sequence: int) -> DecisionResultRecord:

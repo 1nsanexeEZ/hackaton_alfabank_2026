@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.messaging import topics
 from src.core.messaging.contracts.enrichment import FetchEnrichment
@@ -30,10 +31,14 @@ def register(app: FastAPI) -> None:
 def wire(app: FastAPI) -> None:
     global _sources
     _sources = build_http_sources(EnrichmentSettings())
-    registry = _sources.registry
-    app.state.facades.register(
-        EnrichmentFacade, lambda session: EnrichmentFacadeImpl(session, registry)
-    )
+    app.state.facades.register(EnrichmentFacade, _facade)
+
+
+def _facade(session: AsyncSession) -> EnrichmentFacadeImpl:
+    """Sources are read at the call: the same ones the command handler uses."""
+    if _sources is None:
+        raise RuntimeError("enrichment module is not wired")
+    return EnrichmentFacadeImpl(session, _sources.registry, _sources.person_bureau)
 
 
 async def _on_fetch_enrichment(ctx: HandlerContext, payload: FetchEnrichment) -> None:

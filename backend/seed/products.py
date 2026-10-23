@@ -1,8 +1,9 @@
 """Seed of products: the credit catalog.
 
-Eight products, codes of seed/demo_data.PRODUCT_CODES; the first four match
-the demo catalog of the frontend. Rates and limits are synthetic. Upsert by
-code and version: running the seed again leaves the same catalog.
+Nine products, codes of seed/demo_data.PRODUCT_CODES; the first four match
+the demo catalog of the frontend, STARTUP is for a company without turnover.
+Rates and limits are synthetic. Upsert by code and version: running the seed
+again leaves the same catalog.
 """
 
 from decimal import Decimal
@@ -71,6 +72,12 @@ BANK_STATEMENT = DocumentRequirement(
 )
 EXISTING_LOANS = DocumentRequirement(
     "existing_loans_statement", "Справка о действующих кредитах: остаток долга и график"
+)
+BUSINESS_PLAN = DocumentRequirement(
+    "business_plan", "Бизнес-план: продукт, рынок, команда, план продаж"
+)
+FINANCIAL_MODEL = DocumentRequirement(
+    "financial_model", "Финансовая модель на срок кредита: выручка, расходы, денежный поток"
 )
 
 AUTO_FIELDS: dict[str, Any] = {
@@ -386,6 +393,43 @@ def catalog() -> tuple[CreditProduct, ...]:
             eligibility=Eligibility(12, ALL_FORMS, _rub(10 * MLN)),
             required_documents=_financials(),
             processing=ProcessingProfile("standard_v1", _rub(10 * MLN)),
+        ),
+        CreditProduct(
+            code=ProductCode("STARTUP"),
+            version=1,
+            status=ProductStatus.ACTIVE,
+            sort_order=9,
+            frontend_id="startup",
+            name="Кредит на запуск бизнеса",
+            short_description=(
+                "Для компании без оборотов: оценка по личной кредитной истории учредителя "
+                "и бизнес-плану."
+            ),
+            description_plain=(
+                "Кредит на старт для компании младше полугода или без годовой отчётности. "
+                "Сначала проверяем личную кредитную историю учредителя (нужно его согласие), "
+                "затем специалист оценивает бизнес-план, финансовую модель, обеспечение и "
+                "участие в программе господдержки. Поручительство учредителя обязательно."
+            ),
+            purposes=frozenset({"working_capital", "equipment", "expansion"}),
+            facility="term_loan",
+            repayment_options=("annuity",),
+            amount=AmountRange(_rub(500_000), _rub(5 * MLN)),
+            term=TermRange(12, 60),
+            rate=RateRange(Decimal("15"), Decimal("26")),
+            security=SecurityRequirement("none", guarantee="owner"),
+            support_program=SupportProgram(
+                code="MSP_START",
+                name="Льготное кредитование начинающих предпринимателей",
+                rate_cap=Decimal("17"),
+                msp_registry_required=False,
+                okved_whitelist=PRIORITY_OKVED,
+            ),
+            target_use_confirmation=True,
+            eligibility=Eligibility(0, ALL_FORMS, None, startup_only=True),
+            required_documents=(BUSINESS_PLAN, FINANCIAL_MODEL),
+            # Проектная оценка: каждую заявку решает андеррайтер.
+            processing=ProcessingProfile("startup_v1", _rub(0)),
         ),
     )
 

@@ -210,10 +210,29 @@ class EnrichmentSnapshotDTO:
     sources_skipped: tuple[SourceErrorDTO, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class PersonDTO:
+    """A person whose own credit history is asked; `company_inn` — the company
+    on whose behalf the bank asks."""
+
+    last_name: str
+    first_name: str
+    middle_name: str | None
+    company_inn: str
+
+
 class EnrichmentFacade(Protocol):
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None: ...
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         """None — the registry does not know the INN; InfrastructureError — it
         did not answer. `fresh` — past the cache (a check on request)."""
+        ...
+
+    async def lookup_person_bureau(
+        self, person: PersonDTO, consent_at: datetime
+    ) -> CreditHistoryDTO | None:
+        """The person's credit history right away, without an application (the
+        founder's prescreen); only with their consent given at `consent_at`.
+        None — the bureau does not know them; InfrastructureError — it did not answer."""
         ...

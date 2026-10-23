@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import fields
+from dataclasses import fields, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -48,15 +48,23 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v3"
+    assert policy.version == "policy_v4"
+    assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
     assert policy.config.grade_scale == tuple("ABCDEFGHIJ")
     assert policy.config.revenue_multiplier["C"] == Decimal("0.4")
 
 
+def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:
+    v3, v4 = load_policy("policy_v3").config, default_policy().config
+    assert v3.startup_products == frozenset()
+    assert v4.startup_products == frozenset({"STARTUP"})
+    assert replace(v4, version=v3.version, startup_products=frozenset()) == v3
+
+
 def test_v3_strategy_lives_in_yaml() -> None:
-    config = default_policy().config
+    config = load_policy("policy_v3").config
     assert [band.label for band in config.risk_matrix] == ["A–C", "D–E", "F–G", "H–J"]
     assert config.band("E") is not None and config.band("E").approve_up_to == Decimal("15000000")
     assert config.trigger_tax_arrears and config.trigger_head_change_months == 6
@@ -104,7 +112,7 @@ def test_earlier_versions_keep_v3_rules_off(version: str) -> None:
     assert config.guarantee_grades == frozenset() and config.guarantee_amount_above is None
 
 
-@pytest.mark.parametrize("version", ["policy_v1", "policy_v2", "policy_v3"])
+@pytest.mark.parametrize("version", ["policy_v1", "policy_v2", "policy_v3", "policy_v4"])
 def test_roundtrip_of_shipped_files_is_valid(tmp_path: Path, version: str) -> None:
     _load(tmp_path, version=version)
 

@@ -350,14 +350,35 @@ UNDERWRITER_FORM: dict[str, Any] = {
     },
     "required": ["decision", "comment"],
 }
+# Project assessment of a startup (startup_v1): the decision fields plus the
+# business plan, collateral and the state support program.
+PROJECT_ASSESSMENT_FORM: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        **UNDERWRITER_FORM["properties"],
+        "business_plan": {
+            "type": "string",
+            "title": "Оценка бизнес-плана и финмодели",
+            "enum": ["strong", "acceptable", "weak"],
+        },
+        "collateral": {"type": "string", "title": "Обеспечение", "maxLength": 500},
+        "support_program": {"type": "boolean", "title": "Подходит под программу господдержки"},
+    },
+    "required": ["decision", "comment", "business_plan"],
+}
+_FORMS: dict[str, dict[str, Any]] = {
+    "underwriter_review": UNDERWRITER_FORM,
+    "project_assessment": PROJECT_ASSESSMENT_FORM,
+}
 
 
 async def _underwriter_review(step: StepInput) -> StepResult:
+    form = step.node.config.form or "underwriter_review"
     return StepResult.create_task(
         TaskSpec(
-            task_type="underwriter_review",
+            task_type=form,
             candidate_role=step.node.config.candidate_role or "underwriter",
-            form_schema=UNDERWRITER_FORM,
+            form_schema=_FORMS[form],
             due_at=_due(step, timedelta(hours=8)),
         )
     )

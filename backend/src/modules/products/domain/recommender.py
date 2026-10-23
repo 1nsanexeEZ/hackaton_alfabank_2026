@@ -16,7 +16,7 @@ from typing import Literal
 from src.core.domain import Money
 from src.modules.products.domain import texts
 from src.modules.products.domain.calculator import PaymentCalculator
-from src.modules.products.domain.product import CreditProduct
+from src.modules.products.domain.product import CreditProduct, is_startup
 from src.modules.products.domain.value_objects import (
     BorrowerProfile,
     EligibilityCheck,
@@ -83,11 +83,22 @@ class ProductRecommender:
             check = checks[product.code.value]
             return check is None or check.eligible
 
-        def order(product: CreditProduct) -> tuple[int, int, Decimal, int, str]:
+        startup = borrower is not None and is_startup(borrower)
+
+        def order(product: CreditProduct) -> tuple[int, int, int, Decimal, int, str]:
             fits = product.fits(need.amount, need.term_months)
             group = 0 if is_eligible(product) and fits else 1 if is_eligible(product) else 2
+            # A product for startups goes after the others unless the borrower is one.
+            other_segment = 0 if product.eligibility.startup_only == startup else 1
             lifted = 0 if cash_gap and product.serves(CASH_GAP) else 1
-            return (group, lifted, product.client_rate.base, product.sort_order, product.code.value)
+            return (
+                group,
+                other_segment,
+                lifted,
+                product.client_rate.base,
+                product.sort_order,
+                product.code.value,
+            )
 
         ranked = sorted(candidates, key=order)
         alternatives = [p for p in ranked if is_eligible(p)]

@@ -41,7 +41,7 @@ _NODE_TYPES = {
 }
 # Allowed inside a process but meaningless for execution.
 _IGNORED = {"sequenceFlow", "textAnnotation", "association", "documentation", "extensionElements"}
-_PROPERTIES = {"step", "client_stage", "max_iterations", "timeout", "on_failure"}
+_PROPERTIES = {"step", "client_stage", "max_iterations", "timeout", "on_failure", "form"}
 _DURATION = re.compile(
     r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
 )
@@ -143,6 +143,7 @@ def _node(element: etree._Element, node_type: NodeType) -> Node:
             if "timeout" in properties
             else None,
             on_failure=OnFailure(properties.get("on_failure", OnFailure.FAIL.value)),
+            form=properties.get("form"),
         )
     except ValueError as exc:
         raise BpmnError(f"{node_id}: {exc}") from None

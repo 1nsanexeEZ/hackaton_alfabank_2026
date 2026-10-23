@@ -7,6 +7,8 @@ from decimal import Decimal
 from typing import Literal, Protocol
 from uuid import UUID
 
+from src.modules.enrichment.facade import CreditHistoryDTO
+
 # The PD model grades A–J by the probability of default; results of
 # scorecard_v1 (before pd_model_v2) carry A–E and no `pd_12m`.
 Grade = Literal["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
@@ -63,10 +65,29 @@ class EstimateDTO:
     pd_12m: Decimal | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PrescreenReasonDTO:
+    code: str  # no_history | no_current_overdue | no_serious_overdue | few_inquiries | debt_load
+    passed: bool
+    message: str  # for the client
+
+
+@dataclass(frozen=True, slots=True)
+class PersonPrescreenDTO:
+    version: str
+    passed: bool
+    reasons: tuple[PrescreenReasonDTO, ...]
+
+
 class ScoringFacade(Protocol):
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None: ...
 
     def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
         """No application, nothing stored: used for pre-approved offers. A new
         client (segment `new_client`) is scored only on an application."""
+        ...
+
+    def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
+        """A startup founder's own credit history instead of the turnover the
+        company does not have yet. None — the bureau does not know the person."""
         ...

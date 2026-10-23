@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, Numeric, String, Text, UniqueConstraint, false
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -62,6 +62,8 @@ class CreditProductRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # ["LLC", "IE", "JSC"]
     allowed_legal_forms: Mapped[list[str]] = mapped_column(JSONType)
     min_annual_revenue: Mapped[Decimal | None] = mapped_column(MONEY)
+    # Only a company without turnover (products_0002).
+    startup_only: Mapped[bool] = mapped_column(default=False, server_default=false())
     # [{"type", "title", "required_from_amount": "5000000.00" | null, "legal_forms": [...]}]
     required_documents: Mapped[list[dict[str, Any]]] = mapped_column(JSONType)
     # JSON Schema of the extra application form fields

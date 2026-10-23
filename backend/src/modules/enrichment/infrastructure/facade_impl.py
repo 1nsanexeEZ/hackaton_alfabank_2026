@@ -7,13 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions.exceptions import InfrastructureError
 from src.modules.enrichment.application.ports import (
+    PersonBureauSource,
+    PersonQuery,
     RegistrySource,
     SourceNotFound,
     SourceUnavailable,
 )
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
 from src.modules.enrichment.facade import (
+    CreditHistoryDTO,
     EnrichmentSnapshotDTO,
+    PersonDTO,
     RegistryExtractDTO,
     Source,
     SourceErrorDTO,
@@ -25,11 +29,18 @@ _lookup_cache: dict[str, tuple[datetime, RegistryExtractDTO]] = {}
 
 
 class EnrichmentFacadeImpl:
-    """Чтение снимка для соседей (scoring, decision, bff) и разовый просмотр реестра по ИНН."""
+    """Чтение снимка для соседей (scoring, decision, bff), разовый просмотр реестра по ИНН и
+    кредитной истории физлица (предскрин учредителя)."""
 
-    def __init__(self, session: AsyncSession, registry: RegistrySource) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        registry: RegistrySource,
+        person_bureau: PersonBureauSource | None = None,
+    ) -> None:
         self._repo = SqlAlchemyEnrichmentRepository(session)
         self._registry = registry
+        self._person_bureau = person_bureau
 
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None:
         snapshot = await self._repo.latest_for_application(application_id)
@@ -68,6 +79,25 @@ class EnrichmentFacadeImpl:
             raise InfrastructureError("Реестр временно недоступен") from exc
         _lookup_cache[inn] = (now + _LOOKUP_TTL, extract)
         return extract
+
+    async def lookup_person_bureau(
+        self, person: PersonDTO, consent_at: datetime
+    ) -> CreditHistoryDTO | None:
+        """Без кеша: согласие и ответ бюро — на момент запроса."""
+        if self._person_bureau is None:
+            raise InfrastructureError("БКИ физлиц не подключено")
+        query = PersonQuery(
+            last_name=person.last_name,
+            first_name=person.first_name,
+            middle_name=person.middle_name,
+            company_inn=person.company_inn,
+        )
+        try:
+            return await self._person_bureau.fetch(query, consent_at)
+        except SourceNotFound:
+            return None
+        except SourceUnavailable as exc:
+            raise InfrastructureError("Бюро кредитных историй временно недоступно") from exc
 
 
 def _errors(snapshot: EnrichmentSnapshot, sources: list[Source]) -> tuple[SourceErrorDTO, ...]:

@@ -178,6 +178,7 @@ def test_workflows_api(pipeline: Pipeline) -> None:
         "mortgage_v1",
         "secured_v1",
         "standard_v1",
+        "startup_v1",
     ]
     diagram = client.get("/workflows/express_v1/diagram", headers=pipeline.underwriter())
     assert diagram.headers["content-type"].startswith("application/xml")

@@ -60,9 +60,9 @@ async def test_seed_is_idempotent(session_factory: Sessions) -> None:
         await counts(session_factory)
         == first
         == {
-            "clients_organizations": 6,
-            "clients_members": 8,
-            # last year for every company, the year before for all but Ivanov
+            "clients_organizations": 7,
+            "clients_members": 9,
+            # last year for every company but the startup, the year before for all but Ivanov
             "clients_financial_reports": 11,
             # the initial state publishes nothing
             "core_outbox": 0,
@@ -96,7 +96,7 @@ async def test_seed_follows_demo_data(session_factory: Sessions) -> None:
                     assert member.authority.value == membership.authority, account.email
 
     roles = Counter(m.role for a in ACCOUNTS for m in a.memberships)
-    assert roles == {"director": 5, "accountant": 2, "owner": 1}
+    assert roles == {"director": 6, "accountant": 2, "owner": 1}
 
 
 async def test_missing_account_is_skipped_without_personal_data(
@@ -105,20 +105,20 @@ async def test_missing_account_is_skipped_without_personal_data(
     identity = demo_identity(skip=KUZNETSOVA)
     with caplog.at_level(logging.WARNING, logger="seed.clients"):
         await clients_seed.seed(context(session_factory, identity))
-    assert (await counts(session_factory))["clients_members"] == 6
+    assert (await counts(session_factory))["clients_members"] == 7
     assert "accountant" in caplog.text
     assert "@" not in caplog.text and "Кузнецова" not in caplog.text
 
     # Once identity has the account, the next run completes the companies.
     add_demo_account(identity, ACCOUNTS_BY_EMAIL[KUZNETSOVA])
     await clients_seed.seed(context(session_factory, identity))
-    assert (await counts(session_factory))["clients_members"] == 8
+    assert (await counts(session_factory))["clients_members"] == 9
 
 
 async def test_seed_without_identity_creates_companies(session_factory: Sessions) -> None:
     await clients_seed.seed(context(session_factory, None))
     assert await counts(session_factory) == {
-        "clients_organizations": 6,
+        "clients_organizations": 7,
         "clients_members": 0,
         "clients_financial_reports": 11,
         "core_outbox": 0,

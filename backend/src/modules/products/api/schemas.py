@@ -72,6 +72,8 @@ class ProductRead(_Read):
     workflow_code: str
     auto_decision_limit: Decimal
     status: ProductStatus
+    # Only for a company without turnover: younger than 6 months or without an annual report.
+    startup_only: bool
 
     @classmethod
     def of(cls, product: CreditProduct) -> "ProductRead":

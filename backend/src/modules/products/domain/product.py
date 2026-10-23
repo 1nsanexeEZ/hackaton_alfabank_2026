@@ -35,6 +35,7 @@ from src.modules.products.domain.value_objects import (
     TermRange,
     invalid,
 )
+from src.modules.products.facade import STARTUP_AGE_MONTHS
 
 _FRONTEND_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
@@ -211,6 +212,8 @@ class CreditProduct:
         ]
         if rules.min_annual_revenue is not None:
             reasons.append(_revenue_reason(rules.min_annual_revenue, borrower))
+        if rules.startup_only:
+            reasons.append(_startup_reason(borrower))
         if self.support_program is not None:
             reasons += _support_program_reasons(self.support_program, borrower)
         if borrower.registry_status != "active":
@@ -255,6 +258,23 @@ def _business_age_reason(rules: Eligibility, borrower: BorrowerProfile) -> Eligi
             "business_age", True, f"Срок работы подходит: нужно {need}, у вас {age}"
         )
     return EligibilityReason("business_age", False, f"Нужно {need} работы, у вас {age}")
+
+
+def is_startup(borrower: BorrowerProfile) -> bool:
+    return borrower.business_age_months < STARTUP_AGE_MONTHS or borrower.annual_revenue is None
+
+
+def _startup_reason(borrower: BorrowerProfile) -> EligibilityReason:
+    if is_startup(borrower):
+        return EligibilityReason(
+            "startup", True, "Компания без оборотов и годовой отчётности — продукт для неё"
+        )
+    return EligibilityReason(
+        "startup",
+        False,
+        f"Продукт для компаний младше {texts.from_months(STARTUP_AGE_MONTHS)} или без "
+        "годовой отчётности; у вас есть обороты — подойдут другие продукты",
+    )
 
 
 def _revenue_reason(minimum: Money, borrower: BorrowerProfile) -> EligibilityReason:

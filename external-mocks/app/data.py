@@ -304,6 +304,33 @@ DEMO: dict[str, Company] = {
         ),
         bki_inquiries_30d=1,
     ),
+    # Стартап (S-9): три месяца, выручки и кредитной истории ещё нет.
+    "7706123455": Company(
+        inn="7706123455",
+        form="ООО",
+        name="Общество с ограниченной ответственностью «Старт»",
+        ogrn="1267700123459",
+        kpp="770601001",
+        okved="62.01",
+        status="ACTIVE",
+        reg_days_ago=91,
+        head_fio="Стартов Степан Сергеевич",
+        head_position="Генеральный директор",
+        founders=(("Стартов Степан Сергеевич", 100),),
+        address="г. Москва, ул. Большая Новодмитровская, д. 36",
+        region_code="77",
+        mass_address=False,
+        arrears_kop=0,
+        headcount=3,
+        revenue_kop=0,
+        expenses_kop=0,
+        tax_regime="УСН",
+        disqualified_head=False,
+        msp_registry=True,
+        bki_obligations=(),
+        bki_inquiries_30d=0,
+        bki_no_history=True,
+    ),
 }
 
 

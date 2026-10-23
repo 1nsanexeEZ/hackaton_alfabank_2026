@@ -158,6 +158,9 @@ class PolicyConfig:
     rate_components: RateComponents | None = None
     guarantee_grades: frozenset[str] = frozenset()
     guarantee_amount_above: Decimal | None = None
+    # policy_v4: продукты для стартапа — нужен пройденный предскрин учредителя, вместо матрицы
+    # грейд × сумма — проектная оценка андеррайтером.
+    startup_products: frozenset[str] = frozenset()
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -536,6 +539,9 @@ class _Evaluation:
             reasons.append(ReasonCode.STOP_OVERDUE_90)
 
         self._external_stops(reasons)
+        prescreen = self._founder_prescreen()
+        if prescreen is not None:
+            reasons.append(prescreen)
 
         # В policy_v3 грейд отсекает матрица, а не стоп-фактор.
         if self._c.stop_grades:
@@ -573,6 +579,21 @@ class _Evaluation:
             self._okved(company),
         )
         reasons.extend(code for code in checks if code is not None)
+
+    def _founder_prescreen(self) -> ReasonCode | None:
+        """policy_v4: заявка на продукт для стартапа — только с пройденным предскрином."""
+        if self._in.product.code not in self._c.startup_products:
+            return None
+        status = self._in.founder_prescreen or "missing"
+        details = {
+            "passed": "предскрин учредителя пройден",
+            "failed": "предскрин учредителя не пройден",
+            "expired": "предскрин учредителя истёк к подаче заявки",
+            "missing": "предскрина учредителя не было",
+        }
+        matched = status != "passed"
+        self._hit("stop.founder_prescreen", matched, details[status])
+        return ReasonCode.STOP_FOUNDER_PRESCREEN if matched else None
 
     def _current_overdue(self) -> ReasonCode | None:
         days = self._c.stop_current_overdue_days
@@ -1051,6 +1072,13 @@ class _Evaluation:
 
     def _risk_matrix(self, grade: Grade) -> MatrixVerdict | None:
         if not self._c.risk_matrix:
+            return None
+        if self._in.product.code in self._c.startup_products:
+            self._hit(
+                "strategy.risk_matrix",
+                False,
+                "продукт для стартапа: вместо матрицы — проектная оценка андеррайтером",
+            )
             return None
         band = self._c.band(grade)
         amount = self._in.request.amount

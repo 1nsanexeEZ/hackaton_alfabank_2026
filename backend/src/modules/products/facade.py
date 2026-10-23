@@ -22,6 +22,10 @@ CollateralKind = Literal["none", "optional", "required"]
 Guarantee = Literal["none", "owner", "msp_corporation"]
 ProductStatus = Literal["draft", "active", "archived"]
 
+# A startup: the business is younger than this or has no annual report yet.
+# Such a company is offered only startup products, and those only to it.
+STARTUP_AGE_MONTHS = 6
+
 
 @dataclass(frozen=True, slots=True)
 class RequiredDocumentDTO:
@@ -74,6 +78,8 @@ class ProductDTO:
     workflow_code: str
     auto_decision_limit: Decimal
     status: ProductStatus
+    # Only for a startup (STARTUP_AGE_MONTHS): a company without turnover.
+    startup_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)

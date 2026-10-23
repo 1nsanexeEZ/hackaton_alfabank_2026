@@ -113,6 +113,27 @@ class PreApprovedOfferDTO:
     basis: str
 
 
+@dataclass(frozen=True, slots=True)
+class PrescreenReasonDTO:
+    code: str
+    passed: bool
+    message: str  # shown to the client
+
+
+@dataclass(frozen=True, slots=True)
+class FounderPrescreenDTO:
+    """The startup founder's prescreen by their own credit history."""
+
+    status: Literal["passed", "failed"]
+    founder_account_id: UUID
+    founder_name: str
+    checked_at: datetime
+    valid_until: datetime
+    # False — expired: a STARTUP application needs a new prescreen.
+    valid: bool
+    reasons: tuple[PrescreenReasonDTO, ...]
+
+
 class DecisionFacade(Protocol):
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         """Back office only: includes rule_trace and reason codes."""
@@ -121,3 +142,7 @@ class DecisionFacade(Protocol):
     async def get_client_view(self, application_id: UUID) -> ClientDecisionDTO | None: ...
 
     async def get_pre_approved(self, organization_id: UUID) -> list[PreApprovedOfferDTO]: ...
+
+    async def get_founder_prescreen(self, organization_id: UUID) -> FounderPrescreenDTO | None:
+        """The latest prescreen of the company's founder; None — not run yet."""
+        ...

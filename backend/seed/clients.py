@@ -58,8 +58,17 @@ ADDRESSES = {
     "zakat": "г. Москва, ул. Сретенка, д. 9",
     "progress": "г. Москва, Каширское ш., д. 61, корп. 3",
     "sboy": "г. Москва, ул. Нижегородская, д. 32",
+    "start": "г. Москва, ул. Большая Новодмитровская, д. 36",
 }
-EMPLOYEES = {"romashka": 24, "ivanov": 2, "vector": 57, "zakat": 9, "progress": 31, "sboy": 18}
+EMPLOYEES = {
+    "romashka": 24,
+    "ivanov": 2,
+    "vector": 57,
+    "zakat": 9,
+    "progress": 31,
+    "sboy": 18,
+    "start": 3,
+}
 # A company's first member must be able to manage members: heads go first.
 ROLE_ORDER = {"owner": 0, "director": 0, "accountant": 1, "employee": 2}
 
@@ -159,8 +168,11 @@ async def add_reports(
     reports: SqlAlchemyFinancialReportRepository,
     now: datetime,
 ) -> None:
-    """Annual declared reports for the last year and the one before (if known)."""
-    finance = FINANCIALS_BY_CODE[company.code]
+    """Annual declared reports for the last year and the one before (if known).
+    A startup has none yet."""
+    finance = FINANCIALS_BY_CODE.get(company.code)
+    if finance is None:
+        return
     items = [
         (
             FiscalPeriod(now.year - 1),

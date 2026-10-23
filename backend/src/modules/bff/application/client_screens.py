@@ -7,6 +7,7 @@ sees the result of an action right away. Access to the company is checked
 before anything is read: the projector has no checks of its own."""
 
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError, ValidationError
@@ -20,11 +21,22 @@ from src.modules.bff.application.actions import (
 )
 from src.modules.bff.application.client_status import client_status, offer_kind_of_row
 from src.modules.bff.application.neighbours import Neighbours
-from src.modules.clients.facade import ClientsFacade, OrganizationSummaryDTO, OrgPermission
+from src.modules.clients.facade import (
+    ClientsFacade,
+    OrganizationSnapshotDTO,
+    OrganizationSummaryDTO,
+    OrgPermission,
+)
 from src.modules.decision.facade import ClientDecisionDTO, DecisionFacade, PreApprovedOfferDTO
 from src.modules.identity.facade import IdentityFacade
 from src.modules.notifications.facade import FeedItemDTO, NotificationsFacade
-from src.modules.products.facade import ProductDTO, ProductsFacade, Purpose, Repayment
+from src.modules.products.facade import (
+    STARTUP_AGE_MONTHS,
+    ProductDTO,
+    ProductsFacade,
+    Purpose,
+    Repayment,
+)
 from src.modules.projector.facade import ApplicationOverviewDTO, ProjectorFacade, TimelineEntryDTO
 
 DASHBOARD_APPLICATIONS = 5
@@ -107,9 +119,22 @@ class ClientScreens:
                 )
             )
 
-        pre_approved = await self._n.optional(
-            "pre_approved", lambda: self._pre_approved(chosen), []
-        )
+        segment = _segment(snapshot)
+        startup = None
+        if segment == "startup":
+            pre_approved: list[views.PreApprovedOffer] = []
+            prescreen = await self._n.optional(
+                "prescreen",
+                lambda: self._n(DecisionFacade).get_founder_prescreen(chosen),
+                None,
+            )
+            startup = views.StartupBlock(
+                prescreen=views.FounderPrescreen.model_validate(prescreen) if prescreen else None
+            )
+        else:
+            pre_approved = await self._n.optional(
+                "pre_approved", lambda: self._pre_approved(chosen), []
+            )
         feed = await self._n.optional(
             "feed", lambda: self._feed(account_id, chosen), views.Feed(unread=0, items=[])
         )
@@ -124,6 +149,7 @@ class ClientScreens:
                 **_brief(summary).model_dump(),
                 verification_status=snapshot.verification_status,
                 registry_status=snapshot.registry_status,
+                segment=segment,
             ),
             organizations=briefs,
             counters=views.Counters.model_validate(counters) if counters else None,
@@ -133,6 +159,7 @@ class ClientScreens:
             feed=feed,
             news=[views.NewsItem.model_validate(n) for n in news],
             degraded=self._n.degraded,
+            startup=startup,
         )
 
     async def _pre_approved(self, organization_id: UUID) -> list[views.PreApprovedOffer]:
@@ -257,8 +284,11 @@ class ClientScreens:
         term_months: int,
     ) -> views.Recommendations:
         pre_approved: dict[str, Decimal] = {}
+        startup: bool | None = None
         if organization_id is not None:
             await self._ensure_visible(account_id, member_of, organization_id)
+            snapshot = await self._n(ClientsFacade).get_snapshot(organization_id)
+            startup = _segment(snapshot) == "startup"
 
             async def load() -> dict[str, Decimal]:
                 offers = await self._n(DecisionFacade).get_pre_approved(organization_id)
@@ -269,6 +299,9 @@ class ClientScreens:
             await self._n(ProductsFacade).recommend(purpose, amount, term_months, organization_id),
             key=lambda r: r.rank,
         )
+        # A startup sees only the startup products, a business with turnover — all but them.
+        if startup is not None:
+            found = [r for r in found if r.product.startup_only == startup]
         best = next((r.product.code for r in found if r.eligible is not False), None)
         items = [
             views.Recommendation(
@@ -426,6 +459,15 @@ def _rub(value: Decimal) -> str:
     """`Decimal("5000000")` -> `5 000 000 ₽`."""
     whole, _, kopecks = f"{value:,.2f}".replace(",", " ").partition(".")
     return f"{whole},{kopecks} ₽" if kopecks != "00" else f"{whole} ₽"
+
+
+def _segment(snapshot: OrganizationSnapshotDTO) -> Literal["established", "startup"]:
+    """A startup has no turnover yet: younger than the youngest product allows or without an
+    annual report. It gets the founder's prescreen and the startup product."""
+    annual = [r for r in snapshot.financial_reports if r.period_quarter is None]
+    if snapshot.business_age_months < STARTUP_AGE_MONTHS or not annual:
+        return "startup"
+    return "established"
 
 
 def _brief(summary: OrganizationSummaryDTO) -> views.OrganizationBrief:
