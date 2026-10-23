@@ -33,7 +33,7 @@ from src.modules.applications.facade import ApplicationsFacade, ScoringInputDTO
 from src.modules.applications.infrastructure.repository import SqlAlchemyApplicationRepository
 from src.modules.clients.infrastructure.models import OrganizationModel
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
-from src.modules.enrichment.application.sources import Sources
+from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource

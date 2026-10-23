@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.modules.enrichment.infrastructure.mappers import to_domain, to_records
-from src.modules.enrichment.infrastructure.models import (
+from src.modules.enrichment.infrastructure.database.mappers import to_domain, to_records
+from src.modules.enrichment.infrastructure.database.models import (
     EnrichmentSnapshotRecord,
     SourceResultRecord,
 )

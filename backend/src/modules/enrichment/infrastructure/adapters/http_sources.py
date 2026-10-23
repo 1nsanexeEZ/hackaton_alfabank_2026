@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import httpx
 
-from src.modules.enrichment.application.sources import Sources
-from src.modules.enrichment.config import EnrichmentSettings
+from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
 from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
 from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
 from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
+from src.modules.enrichment.infrastructure.config import EnrichmentSettings
 
 
 def build_http_sources(config: EnrichmentSettings) -> Sources:

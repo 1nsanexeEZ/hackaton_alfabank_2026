@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import httpx
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.core.domain.clock import FrozenClock
 from src.core.exceptions.exceptions import InfrastructureError
-from src.modules.enrichment.infrastructure import facade_impl
+from src.modules.enrichment.application.use_cases.lookup_registry import LookupRegistryUseCase
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
-from src.modules.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
+from src.modules.enrichment.infrastructure.adapters.registry_cache import InMemoryRegistryCache
 from tests.enrichment.fixtures import ROMASHKA_EGRUL
 
 INN = "7701158817"
@@ -33,37 +35,40 @@ class _Registry:
         return EgrulHttpSource(client, backoff=())
 
 
-@pytest.fixture(autouse=True)
-def empty_cache(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(facade_impl, "_lookup_cache", {})
+def _lookup(
+    registry: _Registry, cache: InMemoryRegistryCache | None = None
+) -> LookupRegistryUseCase:
+    return LookupRegistryUseCase(registry.source(), cache or InMemoryRegistryCache())
 
 
-async def test_lookup_is_cached_and_fresh_goes_past_the_cache(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> None:
+async def test_lookup_is_cached_and_fresh_goes_past_the_cache() -> None:
     registry = _Registry()
-    async with session_factory() as session:
-        facade = EnrichmentFacadeImpl(session, registry.source())
+    lookup = _lookup(registry)
 
-        first = await facade.lookup_registry(INN)
-        again = await facade.lookup_registry(INN)
-        assert registry.calls == 1 and first == again
+    first = await lookup.execute(INN)
+    again = await lookup.execute(INN)
+    assert registry.calls == 1 and first == again
 
-        fresh = await facade.lookup_registry(INN, fresh=True)
-        assert registry.calls == 2
-        assert fresh is not None and fresh.kpp == "770101001"
+    fresh = await lookup.execute(INN, fresh=True)
+    assert registry.calls == 2
+    assert fresh is not None and fresh.kpp == "770101001"
 
 
-async def test_unknown_inn_and_unavailable_registry(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> None:
-    async with session_factory() as session:
-        assert (
-            await EnrichmentFacadeImpl(session, _Registry().source()).lookup_registry(
-                "7702987976", fresh=True
-            )
-            is None
-        )
-        down = EnrichmentFacadeImpl(session, _Registry(status=503).source())
-        with pytest.raises(InfrastructureError):
-            await down.lookup_registry(INN, fresh=True)
+async def test_cached_lookup_expires() -> None:
+    registry, clock = _Registry(), FrozenClock()
+    lookup = _lookup(registry, InMemoryRegistryCache(ttl=timedelta(minutes=10), clock=clock))
+
+    await lookup.execute(INN)
+    clock.advance(timedelta(minutes=9))
+    await lookup.execute(INN)
+    assert registry.calls == 1
+
+    clock.advance(timedelta(minutes=1))
+    await lookup.execute(INN)
+    assert registry.calls == 2
+
+
+async def test_unknown_inn_and_unavailable_registry() -> None:
+    assert await _lookup(_Registry()).execute("7702987976", fresh=True) is None
+    with pytest.raises(InfrastructureError):
+        await _lookup(_Registry(status=503)).execute(INN, fresh=True)

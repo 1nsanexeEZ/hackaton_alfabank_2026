@@ -8,20 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.messaging import topics
 from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.core.messaging.subscriber import HandlerContext, Subscription
-from src.modules.applications.facade import ApplicationsFacade
-from src.modules.enrichment.application.cashflow import CashflowBuilder
-from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.modules.enrichment.application.sources import Sources
-from src.modules.enrichment.config import EnrichmentSettings
+from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.facade import EnrichmentFacade
-from src.modules.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
-from src.modules.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
-from src.modules.enrichment.infrastructure.sources import build_http_sources
+from src.modules.enrichment.infrastructure.adapters.http_sources import build_http_sources
+from src.modules.enrichment.infrastructure.adapters.registry_cache import InMemoryRegistryCache
+from src.modules.enrichment.infrastructure.config import EnrichmentSettings
+from src.modules.enrichment.presentation.consumers import on_fetch_enrichment
+from src.modules.enrichment.presentation.dependencies import enrichment_facade
+from src.modules.enrichment.presentation.facade_impl import EnrichmentFacadeImpl
 
 NAME = "enrichment"
 
 # HTTP sources live for the process; built in wire(), used by the Kafka handler.
 _sources: Sources | None = None
+# Registry lookups are cached for the process, across sessions.
+_registry_cache = InMemoryRegistryCache()
 
 
 def register(app: FastAPI) -> None:
@@ -36,21 +37,17 @@ def wire(app: FastAPI) -> None:
 
 def _facade(session: AsyncSession) -> EnrichmentFacadeImpl:
     """Sources are read at the call: the same ones the command handler uses."""
-    if _sources is None:
-        raise RuntimeError("enrichment module is not wired")
-    return EnrichmentFacadeImpl(session, _sources.registry, _sources.person_bureau)
+    return enrichment_facade(session, _wired_sources(), _registry_cache)
 
 
 async def _on_fetch_enrichment(ctx: HandlerContext, payload: FetchEnrichment) -> None:
+    await on_fetch_enrichment(ctx, payload, _wired_sources())
+
+
+def _wired_sources() -> Sources:
     if _sources is None:
         raise RuntimeError("enrichment module is not wired")
-    use_case = FetchEnrichmentUseCase(
-        SqlAlchemyEnrichmentRepository(ctx.session),
-        _sources,
-        ctx.clock,
-        CashflowBuilder(ctx.facade(ApplicationsFacade)),
-    )
-    await use_case.execute(payload, command_event_id=ctx.envelope.event_id, outbox=ctx.outbox)
+    return _sources
 
 
 def subscribers() -> list[Subscription]:

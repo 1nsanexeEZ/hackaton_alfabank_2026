@@ -5,15 +5,15 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
-from src.modules.enrichment.domain.cashflow import Transaction, build_forecast, parse_statement
-from src.modules.enrichment.facade import CashflowForecastDTO
+from src.modules.enrichment.domain.cashflow import CashflowForecast, Transaction, build_forecast
+from src.modules.enrichment.infrastructure.adapters.statement_csv import CsvStatementParser
 
 _SEED = Path(__file__).resolve().parents[3] / "seed" / "statements"
 _AS_OF = date(2026, 10, 1)
 
 
-def _forecast(code: str, current: str, new: str, declared: str) -> CashflowForecastDTO:
-    transactions = parse_statement((_SEED / f"{code}.csv").read_bytes())
+def _forecast(code: str, current: str, new: str, declared: str) -> CashflowForecast:
+    transactions = CsvStatementParser().parse((_SEED / f"{code}.csv").read_bytes())
     return build_forecast(
         transactions,
         current_monthly_payments=Decimal(current),

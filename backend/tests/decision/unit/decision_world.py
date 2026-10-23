@@ -29,10 +29,11 @@ from src.modules.applications.facade import CollateralDTO, DocumentDTO, InfoRequ
 from src.modules.clients.facade import OrganizationSnapshotDTO
 from src.modules.decision.application.input_builder import DecisionInputBuilder
 from src.modules.decision.domain.policy import CreditPolicy
-from src.modules.enrichment.application.cashflow import CashflowBuilder
-from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.use_cases.build_cashflow import CashflowBuilder
+from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.modules.enrichment.facade import EnrichmentSnapshotDTO, SourceErrorDTO
+from src.modules.enrichment.infrastructure.adapters.statement_csv import CsvStatementParser
 from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
 from src.modules.scoring.application.input_builder import build_scoring_input
@@ -240,7 +241,10 @@ async def _enrich(
     source = await applications.get_scoring_input(application_id)
     repository = _InMemorySnapshots()
     use_case = FetchEnrichmentUseCase(
-        repository, mock_sources(), FrozenClock(NOW), CashflowBuilder(applications)
+        repository,
+        mock_sources(),
+        FrozenClock(NOW),
+        CashflowBuilder(applications, CsvStatementParser()),
     )
     command = FetchEnrichment(
         application_id=application_id,
@@ -253,7 +257,7 @@ async def _enrich(
         head_bki_consent_at=_CONSENT if head_consent and head is not None else None,
     )
     await use_case.execute(command, command_event_id=uuid4(), outbox=FakeOutboxWriter())
-    return _snapshot_dto(repository.added[-1])
+    return await GetSnapshotUseCase(repository).execute(application_id)
 
 
 class _InMemorySnapshots:
@@ -268,34 +272,6 @@ class _InMemorySnapshots:
 
     async def latest_for_application(self, application_id: UUID) -> EnrichmentSnapshot | None:
         return self.added[-1] if self.added else None
-
-
-def _snapshot_dto(snapshot: EnrichmentSnapshot) -> EnrichmentSnapshotDTO:
-    """Как `EnrichmentFacadeImpl.get_snapshot`, только без базы."""
-
-    def errors(sources: list[Any]) -> tuple[SourceErrorDTO, ...]:
-        return tuple(
-            SourceErrorDTO(source, error.kind, error.message)
-            for source in sources
-            if (error := snapshot.results[source].error) is not None
-        )
-
-    return EnrichmentSnapshotDTO(
-        id=snapshot.id,
-        application_id=snapshot.application_id,
-        organization_id=snapshot.organization_id,
-        collected_at=snapshot.completed_at or snapshot.started_at,
-        sources_ok=tuple(snapshot.sources_ok),
-        sources_failed=errors(snapshot.sources_failed),
-        egrul=snapshot.registry(),
-        fns=snapshot.tax(),
-        bki=snapshot.credit_history(),
-        cashflow=snapshot.cashflow(),
-        gir_bo=snapshot.accounting(),
-        kontur=snapshot.counterparty(),
-        bki_head=snapshot.head_credit_history(),
-        sources_skipped=errors(snapshot.sources_skipped),
-    )
 
 
 def with_score(world: DecisionWorld, **overrides: Any) -> None:

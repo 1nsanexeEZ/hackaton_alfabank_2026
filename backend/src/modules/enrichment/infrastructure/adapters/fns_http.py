@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import AccountBlockDTO, TaxProfileDTO
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource, kop_to_rub
+from src.modules.enrichment.application.dto.tax import AccountBlockDTO, TaxProfileDTO
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource, kop_to_rub
 
 
 class FnsHttpSource(HttpSource):

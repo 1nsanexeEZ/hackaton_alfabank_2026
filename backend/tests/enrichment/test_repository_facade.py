@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
 from src.modules.enrichment.facade import (
     CashflowForecastDTO,
@@ -15,8 +16,9 @@ from src.modules.enrichment.facade import (
     RegistryExtractDTO,
     TaxProfileDTO,
 )
-from src.modules.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
-from src.modules.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
+from src.modules.enrichment.infrastructure.repositories.enrichment_repository import (
+    SqlAlchemyEnrichmentRepository,
+)
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 
@@ -82,7 +84,9 @@ async def test_roundtrip_through_facade(
         await session.commit()
 
     async with session_factory() as session:
-        dto = await EnrichmentFacadeImpl(session, registry=None).get_snapshot(application_id)  # type: ignore[arg-type]
+        dto = await GetSnapshotUseCase(SqlAlchemyEnrichmentRepository(session)).execute(
+            application_id
+        )
 
     assert dto is not None
     assert set(dto.sources_ok) == {"egrul", "fns"}
@@ -114,7 +118,7 @@ async def test_get_by_command_reconstructs_data(
 
     assert found is not None
     assert found.id == snapshot.id
-    registry = found.registry()
+    registry = found.data_of("egrul", RegistryExtractDTO)
     assert registry is not None
     assert registry.inn == "7701158817"
     assert registry.okved_extra == ("56.29",)
@@ -152,7 +156,9 @@ async def test_cashflow_roundtrip_through_facade(
         await session.commit()
 
     async with session_factory() as session:
-        dto = await EnrichmentFacadeImpl(session, registry=None).get_snapshot(application_id)  # type: ignore[arg-type]
+        dto = await GetSnapshotUseCase(SqlAlchemyEnrichmentRepository(session)).execute(
+            application_id
+        )
 
     assert dto is not None
     assert dto.cashflow is not None

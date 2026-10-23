@@ -5,9 +5,9 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import CreditHistoryDTO, ObligationDTO
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource, kop_to_rub
+from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, ObligationDTO
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource, kop_to_rub
 
 
 class BkiHttpSource(HttpSource):

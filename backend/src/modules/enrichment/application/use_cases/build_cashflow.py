@@ -8,15 +8,22 @@ from decimal import Decimal
 
 from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.modules.applications.facade import ApplicationsFacade
-from src.modules.enrichment.domain.cashflow import Transaction, build_forecast, parse_statement
-from src.modules.enrichment.facade import CashflowForecastDTO, CreditHistoryDTO
+from src.modules.enrichment.application.dto.cashflow import (
+    CashflowForecastDTO,
+    CashflowMonthDTO,
+    CashflowProjectionDTO,
+)
+from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO
+from src.modules.enrichment.application.interfaces.statement_parser import StatementParser
+from src.modules.enrichment.domain.cashflow import CashflowForecast, Transaction, build_forecast
 
 _CENT = Decimal("0.01")
 
 
 class CashflowBuilder:
-    def __init__(self, applications: ApplicationsFacade) -> None:
+    def __init__(self, applications: ApplicationsFacade, parser: StatementParser) -> None:
         self._applications = applications
+        self._parser = parser
 
     async def build(
         self, command: FetchEnrichment, bki: CreditHistoryDTO | None
@@ -27,11 +34,11 @@ class CashflowBuilder:
         transactions: list[Transaction] = []
         for document_id in command.statement_document_ids:
             content = await self._applications.read_document(command.application_id, document_id)
-            transactions.extend(parse_statement(content))
+            transactions.extend(self._parser.parse(content))
         if not transactions:
             return None
         reports = scoring_input.organization.financial_reports
-        return build_forecast(
+        forecast = build_forecast(
             transactions,
             current_monthly_payments=bki.total_monthly_payments if bki is not None else Decimal(0),
             new_loan_payment=_annuity(
@@ -41,8 +48,31 @@ class CashflowBuilder:
             ),
             declared_annual_revenue=reports[0].revenue if reports else None,
             as_of=scoring_input.submitted_at.date(),
-            statement_document_ids=command.statement_document_ids,
+            statement_document_ids=tuple(command.statement_document_ids),
         )
+        return to_dto(forecast)
+
+
+def to_dto(forecast: CashflowForecast) -> CashflowForecastDTO:
+    return CashflowForecastDTO(
+        months_history=tuple(
+            CashflowMonthDTO(
+                month=m.month, inflow=m.inflow, outflow=m.outflow, net=m.net, balance=m.balance
+            )
+            for m in forecast.months_history
+        ),
+        forecast=tuple(
+            CashflowProjectionDTO(month=p.month, projected_balance=p.projected_balance)
+            for p in forecast.forecast
+        ),
+        gap_detected=forecast.gap_detected,
+        gap_month=forecast.gap_month,
+        gap_amount=forecast.gap_amount,
+        annual_inflow=forecast.annual_inflow,
+        revenue_confirmed=forecast.revenue_confirmed,
+        method=forecast.method,
+        statement_document_ids=forecast.statement_document_ids,
+    )
 
 
 def _annuity(amount: Decimal, term_months: int, annual_rate_percent: Decimal) -> Decimal:

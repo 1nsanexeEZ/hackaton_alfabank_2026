@@ -4,9 +4,9 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import FounderDTO, RegistryExtractDTO
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource
+from src.modules.enrichment.application.dto.registry import FounderDTO, RegistryExtractDTO
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
 _STATUS = {
     "ACTIVE": "active",
