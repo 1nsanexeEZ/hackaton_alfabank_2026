@@ -11,7 +11,8 @@ Python на `Decimal`, воспроизводимый бит в бит.
 PD-модели.
 
 Признаки считает `ml_features` — одна функция и для обучения, и для прода: обучение и
-инференс не могут разъехаться.
+инференс не могут разъехаться. Справочник отраслей (секции ОКВЭД низкого и высокого риска) —
+в YAML модели: на нём посчитаны WoE, и правка конфига PD-модели его не меняет.
 """
 
 from __future__ import annotations
@@ -24,8 +25,6 @@ from src.modules.scoring.domain.scorecard import estimated_payment, okved_sectio
 
 FeatureValue = Decimal | str | None
 
-_LOW_RISK_SECTIONS = frozenset({62, 63, 69, 70, 71, 72, 73, 74, 86})
-_HIGH_RISK_SECTIONS = frozenset({41, 42, 43, 55, 56, 79})
 _PD_STEP = Decimal("0.0001")
 _RATIO_STEP = Decimal("0.0001")
 _REASON_CODES = 3
@@ -55,6 +54,14 @@ class FeatureSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class IndustrySections:
+    """Секции ОКВЭД (две первые цифры) низкого и высокого риска; остальные — средний."""
+
+    low: frozenset[int]
+    high: frozenset[int]
+
+
+@dataclass(frozen=True, slots=True)
 class MlConfig:
     version: str
     intercept: Decimal
@@ -63,9 +70,10 @@ class MlConfig:
     base_odds: Decimal
     pdo: Decimal  # на сколько баллов растёт скор при удвоении шансов
     grade_bands: tuple[tuple[Grade, Decimal], ...]  # грейд и верхняя граница PD (не включительно)
+    industry: IndustrySections
 
 
-def ml_features(inp: ScoringInput) -> dict[str, FeatureValue]:
+def ml_features(inp: ScoringInput, industry: IndustrySections) -> dict[str, FeatureValue]:
     """Сырые признаки модели из входа скоринга; None — данных нет."""
     company, bureau, request = inp.company, inp.bureau, inp.request
     revenue = company.declared_revenue or inp.tax.reported_revenue
@@ -131,7 +139,7 @@ def ml_features(inp: ScoringInput) -> dict[str, FeatureValue]:
         "bureau_inquiries": inquiries,
         "tax_arrears": tax_arrears,
         "verification": company.verification_status,
-        "industry_risk": _industry(company.okved_main),
+        "industry_risk": _industry(company.okved_main, industry),
         "cash_gap": cash_gap,
         "revenue_confirmed": confirmed,
         "collateral_coverage": coverage,
@@ -151,7 +159,7 @@ class MlModel:
         return self._c
 
     def predict(self, inp: ScoringInput) -> MlScore:
-        values = ml_features(inp)
+        values = ml_features(inp, self._c.industry)
         with localcontext() as ctx:
             ctx.prec = 34
             factor = self._c.pdo / Decimal(2).ln()
@@ -215,11 +223,11 @@ def _woe(spec: FeatureSpec, value: FeatureValue) -> tuple[Decimal, str]:
     return spec.missing_woe, "вне корзин"
 
 
-def _industry(okved_main: str) -> str:
+def _industry(okved_main: str, industry: IndustrySections) -> str:
     section = okved_section(okved_main)
-    if section in _LOW_RISK_SECTIONS:
+    if section in industry.low:
         return "low"
-    if section in _HIGH_RISK_SECTIONS:
+    if section in industry.high:
         return "high"
     return "mid"
 

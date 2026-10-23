@@ -7,8 +7,10 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.core.domain.clock import FrozenClock
 from src.modules.scoring.application.serialization import dump_input, input_hash, load_input
-from src.modules.scoring.domain.model import ScoringResult
+from src.modules.scoring.domain.model import ScoringInput, ScoringResult
+from src.modules.scoring.domain.scorecard import ScorecardOutput
 from src.modules.scoring.facade import CompanyProfileDTO
 from src.modules.scoring.infrastructure.config_loader import load_pd_model, load_scorecard
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
@@ -101,6 +103,31 @@ def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:
     estimate = ScoringFacadeImpl(None, _MODEL).estimate(profile)  # type: ignore[arg-type]
     assert estimate.segment == "new_client"
     assert estimate.pd_12m is not None and estimate.grade in set("ABCDEFGHIJ")
+
+
+def test_estimate_is_dated_by_the_application_clock() -> None:
+    """Оценка для предодобрения берёт дату из часов приложения, а не из системной даты."""
+    seen: list[ScoringInput] = []
+
+    class Spy:
+        version = _MODEL.version
+
+        def calculate(self, inp: ScoringInput) -> ScorecardOutput:
+            seen.append(inp)
+            return _MODEL.calculate(inp)
+
+    profile = CompanyProfileDTO(
+        legal_form="LLC",
+        business_age_months=40,
+        okved_main="56.10",
+        annual_revenue=Decimal("48000000"),
+        previous_annual_revenue=None,
+        verification_status="verified",
+        registry_status="active",
+    )
+    clock = FrozenClock(datetime(2025, 3, 14, 23, 30, tzinfo=UTC))
+    ScoringFacadeImpl(None, Spy(), clock=clock).estimate(profile)  # type: ignore[arg-type]
+    assert seen[0].as_of.isoformat() == "2025-03-14"
 
 
 def _result() -> tuple[ScoringResult, dict]:
