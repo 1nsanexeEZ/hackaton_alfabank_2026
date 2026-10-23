@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 import { loanDraft, type ApplicationDraft } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
 import { fitLoanParams, getDefaultLoanParams } from '@/features/calculate-loan'
-import { clientApi, type LoanPurpose, type PreApprovedOfferDto } from '@/shared/api'
+import { clientApi, type LoanPurpose } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
 import { scrollToSection } from '@/shared/lib'
 import { AsyncState, BaseContainer } from '@/shared/ui'
@@ -50,25 +50,35 @@ function applyForProduct(productId: string) {
   void startApplication()
 }
 
-/** Предодобрение компании вошедшего клиента — калькулятор показывает лимит и предупреждает, если сумма больше */
-const preApproved = shallowRef<{ companyName: string; offers: PreApprovedOfferDto[] } | null>(null)
+/**
+ * Компании вошедшего клиента: калькулятор считает по ставке предодобрения выбранной
+ * (POST /bff/products/{code}/calculate), а «Оформить» открывает заявку от неё же
+ */
+const companies = shallowRef<{ id: string; name: string }[] | null>(null)
+const calculatorCompany = ref('')
 
 watch(
   () => customer.state.me?.id,
   async (id) => {
-    preApproved.value = null
+    companies.value = null
+    calculatorCompany.value = ''
     if (!id) return
     try {
-      const dashboard = await clientApi.dashboard()
-      if (dashboard.organization && dashboard.pre_approved.length) {
-        preApproved.value = { companyName: dashboard.organization.name, offers: dashboard.pre_approved }
-      }
+      const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+      companies.value = list.map((item) => ({ id: item.id, name: item.name }))
+      const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
+      calculatorCompany.value = preferred?.id ?? ''
     } catch {
-      // Без предодобрения калькулятор считает по базовой ставке, как для гостя
+      // Без компаний калькулятор считает по базовой ставке, как для гостя
     }
   },
   { immediate: true },
 )
+
+function applyFromCalculator() {
+  if (calculatorCompany.value) loanDraft.organizationId = calculatorCompany.value
+  void startApplication()
+}
 
 /** Подбор под задачу: условия подогнаны под продукт — переносим их в заявку или калькулятор как есть */
 function pickedProduct(code: string) {
@@ -112,9 +122,10 @@ function continueApplication(draft: ApplicationDraft) {
       v-model:product-id="loanDraft.productId"
       v-model:amount="loanDraft.amount"
       v-model:term-months="loanDraft.termMonths"
+      v-model:organization-id="calculatorCompany"
       :products="products"
-      :pre-approved="preApproved"
-      @apply="startApplication()"
+      :companies="companies"
+      @apply="applyFromCalculator"
     />
   </template>
   <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->

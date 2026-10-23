@@ -12,6 +12,7 @@ import { AsyncState, BaseBadge, BaseButton, TextField } from '@/shared/ui'
 import { useApplicationCard } from '../model/useApplicationCard'
 import ContractView from './ContractView.vue'
 import DecisionPanel from './DecisionPanel.vue'
+import HeadConsentNotice from './HeadConsentNotice.vue'
 import InfoRequestPanel from './InfoRequestPanel.vue'
 import OfferPanel from './OfferPanel.vue'
 import SignPanel from './SignPanel.vue'
@@ -37,6 +38,13 @@ const meta = computed(() => (status.value ? CLIENT_STATUS_META[status.value] : n
 const inProgress = computed(() => status.value === 'submitted' || status.value === 'checking' || status.value === 'scoring')
 /** Ручное рассмотрение: этап процесса «Заявка у специалиста» */
 const atSpecialist = computed(() => card.value?.client_stage?.toLowerCase().includes('специалист') ?? false)
+
+/** Согласие руководителя на его БКИ нужно, пока банк рассматривает заявку */
+const headConsentMissing = computed(() => {
+  const head = card.value?.consents?.head_credit_bureau
+  const deciding = ['submitted', 'checking', 'scoring', 'info_requested'].includes(status.value ?? '')
+  return head && head.required && !head.given && deciding && card.value?.organization ? head : null
+})
 
 /** Подпись: из ответа только что подписанного или из договора, если заявку открыли позже */
 const signed = computed(() => signature.value ?? contract.value?.signature ?? null)
@@ -111,6 +119,13 @@ function continueDraft() {
           </span>
         </div>
       </header>
+
+      <HeadConsentNotice
+        v-if="headConsentMissing"
+        :organization-id="card.organization!.id"
+        :head-name="headConsentMissing.head_name"
+        @given="application.reload"
+      />
 
       <!-- Что происходит сейчас и что нужно от клиента -->
       <section v-if="status === 'draft'" class="rounded-2xl bg-surface-soft p-5">

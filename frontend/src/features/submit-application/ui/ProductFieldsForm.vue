@@ -7,11 +7,17 @@ import { BaseButton, SelectField, TextField } from '@/shared/ui'
 import { ENUM_LABEL, newRow, type FieldRow, type FieldValues } from '../model/productFields'
 
 /** Поля заявки, которые продукт описывает JSON Schema: строки, числа, списки значений и списки строк-записей */
-const props = defineProps<{
+defineProps<{
   schema: FieldsSchema
-  values: FieldValues
   errors: Record<string, string>
 }>()
+
+/** Значения полей — v-model:values: скалярное поле меняем новым объектом, а не правкой пропса */
+const values = defineModel<FieldValues>('values', { required: true })
+
+function setScalar(key: string, value: string) {
+  values.value = { ...values.value, [key]: value }
+}
 
 const isNumeric = (field: FieldSchema) => field.type === 'number' || field.type === 'integer'
 
@@ -19,12 +25,12 @@ const enumOptions = (field: FieldSchema) =>
   (field.enum ?? []).map((value) => ({ value, label: ENUM_LABEL[value] ?? value }))
 
 function rows(key: string): FieldRow[] {
-  const value = props.values[key]
+  const value = values.value[key]
   return Array.isArray(value) ? value : []
 }
 
 function scalar(key: string): string {
-  const value = props.values[key]
+  const value = values.value[key]
   return typeof value === 'string' ? value : ''
 }
 
@@ -106,12 +112,12 @@ function label(field: FieldSchema, key: string, required: boolean) {
         :model-value="scalar(String(key))"
         :label="label(field, String(key), isRequired(schema, String(key)))"
         :options="enumOptions(field)"
-        @update:model-value="values[key] = $event"
+        @update:model-value="setScalar(String(key), $event)"
       />
       <TextField
         v-else
         :model-value="scalar(String(key))"
-        @update:model-value="values[key] = $event"
+        @update:model-value="setScalar(String(key), $event)"
         :label="label(field, String(key), isRequired(schema, String(key)))"
         :inputmode="isNumeric(field) ? 'decimal' : 'text'"
         :maxlength="field.maxLength"

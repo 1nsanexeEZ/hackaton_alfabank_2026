@@ -6,7 +6,7 @@ import { formatMoney } from '@/shared/lib'
 import { BaseButton, SelectField, TextField } from '@/shared/ui'
 
 /** Финансовая отчётность компании: что знает банк и подача своих цифр (пересчитывает предодобрение) */
-const props = defineProps<{ reports: FinancialReportDto[]; canEdit: boolean; busy: boolean }>()
+defineProps<{ reports: FinancialReportDto[]; canEdit: boolean; busy: boolean }>()
 
 const emit = defineEmits<{ submit: [input: FinancialReportInput, done: () => void] }>()
 

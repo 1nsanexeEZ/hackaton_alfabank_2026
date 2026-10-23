@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BellRing, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { BellRing, ChevronLeft, ChevronRight, UserCheck } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import {
@@ -12,7 +12,7 @@ import {
   type ApplicationPreview,
 } from '@/entities/application'
 import type { CreditProduct } from '@/entities/credit-product'
-import { customer, useCustomer } from '@/entities/customer'
+import { customer, personalConsents, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
 import { BaseButton } from '@/shared/ui'
 
@@ -38,7 +38,10 @@ watch(
 )
 
 // Банк поменял заявку (этап, решение, запрос) — статус на карточке меняется сам, без перезагрузки
-const stopLive = liveFeed.onApplication(() => void myApplications.refresh())
+const stopLive = liveFeed.onApplication(() => {
+  void myApplications.refresh()
+  void personalConsents.loadReminders()
+})
 onBeforeUnmount(stopLive)
 
 /** На первом экране — только заявки в работе; закрытые видны в «Моих заявках» */
@@ -58,6 +61,11 @@ const mode = computed<'example' | 'loading' | 'error' | 'empty' | 'list'>(() => 
 
 const count = computed(() => active.value?.length ?? 0)
 const current = computed(() => active.value?.[index.value] ?? null)
+
+/** Банк ждёт согласие руководителя на его БКИ по этой заявке — пункт consent_required из дашборда */
+const needsConsent = computed(() =>
+  Boolean(current.value && personalConsents.state.reminders.some((item) => item.applicationId === current.value!.id)),
+)
 
 const productOf = (code: string) => props.products?.find((product) => product.code === code)
 
@@ -124,7 +132,14 @@ function continueDraft() {
       </template>
       <template #footer>
         <p
-          v-if="current && ACTION_REQUIRED_LABEL[current.action_required]"
+          v-if="needsConsent"
+          class="mt-5 flex items-center gap-2 rounded-xl bg-brand/15 px-3 py-2 text-sm font-medium text-on-night"
+        >
+          <UserCheck class="size-4 shrink-0 text-brand" aria-hidden="true" />
+          Нужно ваше согласие на запрос кредитной истории
+        </p>
+        <p
+          v-else-if="current && ACTION_REQUIRED_LABEL[current.action_required]"
           class="mt-5 flex items-center gap-2 rounded-xl bg-brand/15 px-3 py-2 text-sm font-medium text-on-night"
         >
           <BellRing class="size-4 shrink-0 text-brand" aria-hidden="true" />

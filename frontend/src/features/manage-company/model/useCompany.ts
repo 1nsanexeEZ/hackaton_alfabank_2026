@@ -10,6 +10,7 @@ import {
   type OrganizationSummaryDto,
   type PowerOfAttorneyInput,
   type PreApprovedOfferDto,
+  type VerificationResultDto,
 } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
@@ -32,6 +33,8 @@ export function useCompany() {
   const busy = ref<string | null>(null)
   const actionError = ref<string | null>(null)
   const notice = ref<string | null>(null)
+  /** Итог последней ручной сверки с ЕГРЮЛ: что обновили молча */
+  const verification = shallowRef<VerificationResultDto | null>(null)
 
   const can = (permission: string) => detail.value?.my_permissions.includes(permission as never) ?? false
   const canEditFinancials = computed(() => can('edit_financials'))
@@ -79,6 +82,7 @@ export function useCompany() {
     if (previous && next !== previous) {
       notice.value = null
       actionError.value = null
+      verification.value = null
       void loadCompany()
     }
   })
@@ -137,6 +141,38 @@ export function useCompany() {
       'Доверенность выдана',
     )
 
+  /** Сверка с ЕГРЮЛ/ЕГРИП мимо кэша: адрес, КПП, ОКВЭД, наименование обновляются, руководитель — в расхождения */
+  const verify = () =>
+    run(
+      'verify',
+      async () => {
+        const result = await clientApi.verifyOrganization(organizationId.value)
+        detail.value = result.organization
+        verification.value = result
+      },
+      'Сверили с реестром',
+    )
+
+  const changeMemberRole = (accountId: string, role: MemberRole) =>
+    run(
+      `role:${accountId}`,
+      async () => {
+        await clientApi.changeMemberRole(organizationId.value, accountId, role)
+        members.value = await clientApi.members(organizationId.value)
+      },
+      'Роль изменена',
+    )
+
+  const removeMember = (accountId: string) =>
+    run(
+      `remove:${accountId}`,
+      async () => {
+        await clientApi.removeMember(organizationId.value, accountId)
+        members.value = await clientApi.members(organizationId.value)
+      },
+      'Участник удалён из компании',
+    )
+
   return {
     organizations,
     organizationId,
@@ -149,6 +185,7 @@ export function useCompany() {
     busy,
     actionError,
     notice,
+    verification,
     canEditFinancials,
     canManageMembers,
     loadOrganizations,
@@ -156,6 +193,9 @@ export function useCompany() {
     submitReport,
     addMember,
     grantPowerOfAttorney,
+    verify,
+    changeMemberRole,
+    removeMember,
   }
 }
 

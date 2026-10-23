@@ -1,17 +1,33 @@
 <script setup lang="ts">
-import { CircleAlert, CircleCheck, CircleHelp } from 'lucide-vue-next'
+import { CircleAlert, CircleCheck, CircleHelp, RefreshCw } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import type { OrganizationDetailDto } from '@/shared/api'
+import type { OrganizationDetailDto, VerificationResultDto } from '@/shared/api'
 import { formatDate, formatDateTime, formatTerm } from '@/shared/lib'
+import { BaseButton } from '@/shared/ui'
 
-/** Реквизиты из базы банка — клиенту их не вводить — и результат сверки с ЕГРЮЛ */
-const props = defineProps<{ company: OrganizationDetailDto }>()
+/**
+ * Реквизиты из базы банка — клиенту их не вводить — и сверка с ЕГРЮЛ. Сверку бэкенд делает и сам по
+ * каждой заявке; кнопка — чтобы подтянуть изменения из реестра сейчас (POST /organizations/{id}/verification).
+ */
+const props = defineProps<{ company: OrganizationDetailDto; verification: VerificationResultDto | null; verifying: boolean }>()
+
+const emit = defineEmits<{ verify: [] }>()
 
 const LEGAL_FORM: Record<string, string> = { LLC: 'ООО', IE: 'ИП', JSC: 'АО' }
 /** Как в clients/domain/value_objects.py TaxRegime */
 const TAX_REGIME: Record<string, string> = { osn: 'ОСН', usn: 'УСН', ausn: 'АУСН', eshn: 'ЕСХН', patent: 'Патент' }
-const FIELD: Record<string, string> = { head_name: 'Руководитель', name: 'Наименование', address: 'Адрес', kpp: 'КПП', okved_main: 'ОКВЭД' }
+const FIELD: Record<string, string> = {
+  head_name: 'Руководитель',
+  name: 'Наименование',
+  address: 'Адрес',
+  'address.full': 'Адрес',
+  'address.region_code': 'Код региона',
+  kpp: 'КПП',
+  okved_main: 'ОКВЭД',
+  okved_extra: 'Дополнительные ОКВЭД',
+  registry_status: 'Статус в реестре',
+}
 
 const rows = computed(() => {
   const company = props.company
@@ -59,6 +75,19 @@ const rows = computed(() => {
           </ul>
         </template>
         <p v-else>Сверки с ЕГРЮЛ ещё не было</p>
+        <template v-if="verification">
+          <p v-if="verification.updated_fields.length" class="mt-2 font-medium">Обновили из реестра:</p>
+          <ul v-if="verification.updated_fields.length" class="mt-0.5 space-y-0.5 text-ink-secondary">
+            <li v-for="item in verification.updated_fields" :key="item.field">
+              {{ FIELD[item.field] ?? item.field }}: «{{ item.before ?? '—' }}» → «{{ item.after ?? '—' }}»
+            </li>
+          </ul>
+          <p v-else class="mt-1 text-ink-secondary">Реквизиты в банке совпадают с реестром — обновлять нечего.</p>
+        </template>
+        <BaseButton size="s" variant="secondary" class="mt-3" :loading="verifying" @click="emit('verify')">
+          <RefreshCw class="size-4" aria-hidden="true" />
+          Сверить с ЕГРЮЛ сейчас
+        </BaseButton>
       </div>
     </div>
 

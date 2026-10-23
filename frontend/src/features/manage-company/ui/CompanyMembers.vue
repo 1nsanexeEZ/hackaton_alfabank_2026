@@ -2,6 +2,7 @@
 import { UserPlus } from 'lucide-vue-next'
 import { reactive, ref } from 'vue'
 
+import { customer } from '@/entities/customer'
 import type { MemberDto, MemberRole, PowerOfAttorneyInput } from '@/shared/api'
 import { formatDate } from '@/shared/lib'
 import { BaseButton, CheckboxField, SelectField, TextField } from '@/shared/ui'
@@ -15,7 +16,13 @@ defineProps<{ members: MemberDto[]; canManage: boolean; busy: string | null }>()
 const emit = defineEmits<{
   add: [login: string, role: MemberRole, done: () => void]
   grant: [accountId: string, input: PowerOfAttorneyInput, done: () => void]
+  changeRole: [accountId: string, role: MemberRole]
+  remove: [accountId: string]
 }>()
+
+/** Себя не меняем и не удаляем: так легко потерять доступ к компании */
+const isMe = (member: MemberDto) => member.account_id === customer.state.me?.id
+const removing = ref<string | null>(null)
 
 const ROLE: Record<MemberRole, string> = { owner: 'Собственник', director: 'Руководитель', accountant: 'Бухгалтер', employee: 'Сотрудник' }
 const ROLE_OPTIONS = (Object.keys(ROLE) as MemberRole[]).map((value) => ({ value, label: ROLE[value] }))
@@ -103,14 +110,36 @@ function grant(accountId: string) {
             </p>
             <p class="mt-1 text-xs text-ink-muted">Может: {{ member.permissions.map((item) => PERMISSION[item] ?? item).join(', ') }}</p>
           </div>
-          <BaseButton
-            v-if="canManage && member.authority !== 'registry' && granting !== member.account_id"
-            size="s"
-            variant="ghost"
-            @click="openGrant(member.account_id)"
-          >
-            Выдать доверенность
-          </BaseButton>
+          <div v-if="canManage && !isMe(member)" class="flex flex-wrap items-center gap-2">
+            <SelectField
+              :model-value="member.role"
+              :label="`Роль: ${name(member)}`"
+              :options="ROLE_OPTIONS"
+              dense
+              hide-label
+              @update:model-value="(role: MemberRole) => role !== member.role && emit('changeRole', member.account_id, role)"
+            />
+            <BaseButton
+              v-if="member.authority !== 'registry' && granting !== member.account_id"
+              size="s"
+              variant="ghost"
+              @click="openGrant(member.account_id)"
+            >
+              Выдать доверенность
+            </BaseButton>
+            <BaseButton v-if="removing !== member.account_id" size="s" variant="ghost" @click="removing = member.account_id">Удалить</BaseButton>
+          </div>
+          <span v-else-if="isMe(member)" class="text-xs text-ink-muted">Это вы</span>
+        </div>
+
+        <div v-if="removing === member.account_id" class="mt-3 space-y-2 border-t border-line pt-3">
+          <p class="text-sm text-ink">Удалить участника «{{ name(member) }}» из компании? Он больше не увидит заявки компании и не сможет действовать от её имени.</p>
+          <div class="flex flex-wrap gap-3">
+            <BaseButton size="s" variant="secondary" :loading="busy === `remove:${member.account_id}`" @click="emit('remove', member.account_id)">
+              Удалить
+            </BaseButton>
+            <BaseButton size="s" variant="ghost" :disabled="Boolean(busy)" @click="removing = null">Отмена</BaseButton>
+          </div>
         </div>
 
         <form v-if="granting === member.account_id" class="mt-3 space-y-3 border-t border-line pt-3" @submit.prevent="grant(member.account_id)">
