@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.core.access.apply_helper import apply_policies
 from src.core.access.permissions import Permissions
 from src.core.infrastructure.database.mixins import OrganizationOwnedMixin
-from src.modules.projector.infrastructure.models import ApplicationOverviewRow
+from src.modules.projector.infrastructure.database.models import ApplicationOverviewRow
 from tests.projector.unit.factories import overview
 from tests.projector.world import OpenStore
 

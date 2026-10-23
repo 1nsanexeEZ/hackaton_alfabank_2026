@@ -1,4 +1,5 @@
-from dataclasses import fields
+"""Writes of the projection (ReadModelStore)."""
+
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
@@ -6,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.projector.application.interfaces.repositories import ReadModelStore
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     ApplicationOverview,
@@ -13,13 +15,14 @@ from src.modules.projector.domain.read_models import (
     QueueItem,
 )
 from src.modules.projector.domain.timeline import TimelineEntry
-from src.modules.projector.infrastructure.models import (
+from src.modules.projector.infrastructure.database.models import (
     ApplicationOverviewRow,
     BackofficeMetricsRow,
     OrganizationDashboardRow,
     TimelineEntryRow,
     UnderwritingQueueRow,
 )
+from src.modules.projector.infrastructure.repositories.mappers import copy_to_row, to_record
 
 ALL_ROWS: tuple[type[Any], ...] = (
     ApplicationOverviewRow,
@@ -30,39 +33,12 @@ ALL_ROWS: tuple[type[Any], ...] = (
 )
 
 
-def aware(value: Any) -> Any:
-    """SQLite gives timestamps back without a zone; everything is stored in UTC."""
-    if isinstance(value, datetime) and value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value
-
-
-def _stored(value: Any) -> Any:
-    if isinstance(value, datetime):
-        return value.astimezone(UTC)
-    if isinstance(value, tuple):
-        return list(value)
-    return value
-
-
-def to_record[R](record_type: type[R], row: Any) -> R:
-    values = {f.name: aware(getattr(row, f.name)) for f in fields(record_type)}  # type: ignore[arg-type]
-    if "routing_reasons" in values:
-        values["routing_reasons"] = tuple(values["routing_reasons"] or ())
-    return record_type(**values)
-
-
-def _copy(record: Any, row: Any) -> None:
-    for f in fields(record):
-        setattr(row, f.name, _stored(getattr(record, f.name)))
-
-
 def day_bounds(day: date) -> tuple[datetime, datetime]:
     start = datetime.combine(day, time.min, tzinfo=UTC)
     return start, start + timedelta(days=1)
 
 
-class SqlAlchemyReadModelStore:
+class SqlAlchemyReadModelStore(ReadModelStore):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -71,7 +47,7 @@ class SqlAlchemyReadModelStore:
         if row is None:
             row = model()
             self._session.add(row)
-        _copy(record, row)
+        copy_to_row(record, row)
         # Later reads of the same handler (counts, metrics) must see the change.
         await self._session.flush()
 
@@ -147,7 +123,7 @@ class SqlAlchemyReadModelStore:
         if exists is not None:
             return False
         row = TimelineEntryRow()
-        _copy(entry, row)
+        copy_to_row(entry, row)
         self._session.add(row)
         await self._session.flush()
         return True

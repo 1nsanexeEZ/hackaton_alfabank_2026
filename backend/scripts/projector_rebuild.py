@@ -28,8 +28,9 @@ from aiokafka import AIOKafkaConsumer, TopicPartition
 from src.core.config import Settings, get_settings
 from src.core.http.request_id import configure_logging
 from src.core.infrastructure.database.session import build_engine, build_session_factory
-from src.modules.projector.infrastructure.consumer import GROUP_PREFIX, PROJECTED_TOPICS
-from src.modules.projector.infrastructure.rebuild import RebuildStats, rebuild
+from src.modules.projector.application.dto.rebuild import RebuildStats
+from src.modules.projector.presentation.consumers import GROUP_PREFIX, PROJECTED_TOPICS
+from src.modules.projector.presentation.rebuild import rebuild
 
 logger = logging.getLogger("projector.rebuild")
 

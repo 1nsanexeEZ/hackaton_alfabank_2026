@@ -19,7 +19,8 @@ from aiokafka import TopicPartition
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from scripts import projector_rebuild
-from src.modules.projector.infrastructure.rebuild import RebuildStats, rebuild
+from src.modules.projector.application.dto.rebuild import RebuildStats
+from src.modules.projector.presentation.rebuild import rebuild
 from tests.projector.golden_scenario import (
     A1,
     A2,

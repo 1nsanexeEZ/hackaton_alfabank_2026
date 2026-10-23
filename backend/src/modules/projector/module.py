@@ -4,8 +4,8 @@ from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
 from src.modules.projector.facade import ProjectorFacade
-from src.modules.projector.infrastructure import consumer
-from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.presentation import consumers
+from src.modules.projector.presentation.dependencies import projector_facade
 
 NAME = "projector"
 
@@ -16,10 +16,10 @@ def register(app: FastAPI) -> None:
 
 def wire(app: FastAPI) -> None:
     app.state.facades.register(
-        ProjectorFacade, lambda session: ProjectorFacadeImpl(session, app.state.clock)
+        ProjectorFacade, lambda session: projector_facade(session, app.state.clock)
     )
 
 
 def subscribers() -> list[Subscription]:
     """One consumer group per topic: `projector.read-models.<topic>`."""
-    return consumer.subscriptions()
+    return consumers.subscriptions()

@@ -26,7 +26,7 @@ from src.core.messaging.contracts.process import (
     UserTaskCompleted,
     UserTaskCreated,
 )
-from src.modules.projector.application.timeline import timeline_entry
+from src.modules.projector.application.mappers.timeline import timeline_entry
 from src.modules.projector.domain.timeline import BANK, CLIENT, TimelineEntry, entry_id
 
 AT = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
