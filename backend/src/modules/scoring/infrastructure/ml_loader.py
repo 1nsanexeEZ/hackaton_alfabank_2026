@@ -15,7 +15,13 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from src.modules.scoring.domain.ml_model import FeatureSpec, MlConfig, MlModel, NumericBin
+from src.modules.scoring.domain.ml_model import (
+    FeatureSpec,
+    IndustrySections,
+    MlConfig,
+    MlModel,
+    NumericBin,
+)
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _DEFAULT_MODEL = "ml_logreg_v1"
@@ -73,11 +79,17 @@ class _Band(_Strict):
     max_pd: Decimal
 
 
+class _IndustrySections(_Strict):
+    low: list[int]
+    high: list[int]
+
+
 class _Schema(_Strict):
     version: str
     intercept: Decimal
     scaling: _Scaling
     grade_bands: list[_Band]
+    industry_sections: _IndustrySections
     features: list[_Feature]
     metadata: dict[str, Any] = {}
 
@@ -105,6 +117,10 @@ def load_ml_model_file(path: Path) -> MlModel:
             base_odds=schema.scaling.base_odds,
             pdo=schema.scaling.pdo,
             grade_bands=tuple((band.grade, band.max_pd) for band in schema.grade_bands),
+            industry=IndustrySections(
+                low=frozenset(schema.industry_sections.low),
+                high=frozenset(schema.industry_sections.high),
+            ),
         )
     )
 
@@ -149,3 +165,8 @@ def _check(schema: _Schema, path: Path) -> None:
     bands = [band.max_pd for band in schema.grade_bands]
     if [band.grade for band in schema.grade_bands] != list("ABCDEFGHI") or bands != sorted(bands):
         raise MlConfigError(f"ML-модель {path}: границы грейдов A–I по возрастанию PD")
+    sections = schema.industry_sections
+    if not sections.low or not sections.high or set(sections.low) & set(sections.high):
+        raise MlConfigError(
+            f"ML-модель {path}: industry_sections — непустые low и high без общих секций"
+        )

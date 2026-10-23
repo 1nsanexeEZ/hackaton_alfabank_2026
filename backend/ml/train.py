@@ -38,7 +38,11 @@ from sklearn.model_selection import train_test_split  # noqa: E402
 
 from ml.population import DEVELOPMENT, OUT_OF_TIME, Applicant, generate  # noqa: E402
 from src.modules.scoring.application.serialization import dump_input  # noqa: E402
-from src.modules.scoring.domain.ml_model import MlModel, ml_features  # noqa: E402
+from src.modules.scoring.domain.ml_model import (  # noqa: E402
+    IndustrySections,
+    MlModel,
+    ml_features,
+)
 from src.modules.scoring.infrastructure.config_loader import (  # noqa: E402
     load_pd_model,
     load_scorecard,
@@ -74,6 +78,10 @@ CATEGORY: dict[str, str] = {
 }
 IV_THRESHOLD = 0.02
 GRADES = list("ABCDEFGHIJ")
+# Справочник отраслей берём из PD-модели при обучении и записываем в YAML ML-модели: на нём
+# посчитаны WoE признака industry_risk, прод читает его оттуда же.
+_PD_CONFIG = load_pd_model().config
+INDUSTRY = IndustrySections(low=_PD_CONFIG.industry_low, high=_PD_CONFIG.industry_high)
 SCALING = {"base_score": 600, "base_odds": 50, "pdo": 40}
 MISSING = "__missing__"
 
@@ -180,7 +188,7 @@ def _keys(rows: list[Applicant]) -> pd.DataFrame:
     """Ключ корзины для каждого признака: строка с номером корзины или категорией."""
     records = []
     for a in rows:
-        values = ml_features(a.inp)
+        values = ml_features(a.inp, INDUSTRY)
         record = {}
         for name, (_, edges) in NUMERIC.items():
             value = values[name]
@@ -289,6 +297,7 @@ def _export(model: LogisticRegression, woe: dict[str, dict[str, float]], names: 
         "intercept": _dec(model.intercept_[0]),
         "scaling": {k: str(v) for k, v in SCALING.items()},
         "grade_bands": [{"grade": g, "max_pd": str(p)} for g, p in load_pd_model().config.grades],
+        "industry_sections": {"low": sorted(INDUSTRY.low), "high": sorted(INDUSTRY.high)},
         "features": features,
         "metadata": {
             "method": "WoE-биннинг + логистическая регрессия (L2, C=1.0)",
