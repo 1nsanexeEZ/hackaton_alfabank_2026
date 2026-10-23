@@ -252,7 +252,7 @@ ConsentRead {
 | `identity/facade.py` | `get_active_consent(account_id, type) -> ConsentDTO \| None` |
 | `clients/facade.py` | `get_registry_head(organization_id) -> UUID \| None` — участник, чьё ФИО совпало с руководителем в реестре (`list_members` отдаёт только id, без полномочия) |
 | `core/messaging/contracts/enrichment.py` | `FetchEnrichment` + `head: PersonRef \| None` (`account_id`, `last_name`, `first_name`, `middle_name`) и `head_bki_consent_at: datetime \| None` — оба необязательные |
-| `process/infrastructure/facts.py` | при сборке команды: `get_registry_head` → `get_active_consent` → поля выше |
+| `process/infrastructure/adapters/application_facts.py` | при сборке команды: `get_registry_head` → `get_active_consent` → поля выше |
 | `applications`, `bff` | поле `consents.head_credit_bureau` в карточке и `todo` на дашборде |
 | миграция | `YYYYMMDD_HHMM_identity_consents.py`, `revision = "identity_0002"` |
 | `tests/identity`, `tests/process` | срок действия, отзыв, история; команда без согласия — `head_bki_consent_at = null` |
