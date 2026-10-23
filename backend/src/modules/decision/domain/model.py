@@ -91,6 +91,13 @@ class ReasonCode(StrEnum):
     ROUTE_MODELS_CHECK = "ROUTE_MODELS_CHECK"
     ROUTE_MODELS_DISAGREE = "ROUTE_MODELS_DISAGREE"
     ROUTE_ML_UNAVAILABLE = "ROUTE_ML_UNAVAILABLE"
+    # policy_v6: 115-ФЗ и ст. 16 152-ФЗ.
+    STOP_AML_LISTED = "STOP_AML_LISTED"
+    STOP_ZSK_HIGH_RISK = "STOP_ZSK_HIGH_RISK"
+    ROUTE_AML_INCOMPLETE = "ROUTE_AML_INCOMPLETE"
+    ROUTE_ZSK_MEDIUM_RISK = "ROUTE_ZSK_MEDIUM_RISK"
+    ROUTE_PEP = "ROUTE_PEP"
+    ROUTE_AUTOMATED_DECISION_CONSENT = "ROUTE_AUTOMATED_DECISION_CONSENT"
 
 
 # --- вход политики -----------------------------------------------------------
@@ -219,6 +226,33 @@ class ScoreInput:
     ml_pd_12m: Decimal | None = None
 
 
+# ok — проверка по 115-ФЗ выполнена на этой заявке; failed — не выполнена (не ответили
+# перечни, база ПДЛ, ЗСК или ЕГРЮЛ, не установить бенефициаров); not_requested — не запрашивали.
+AmlStatus = Literal["ok", "failed", "not_requested"]
+ZskLevel = Literal["low", "medium", "high"]
+
+
+@dataclass(frozen=True, slots=True)
+class AmlHit:
+    """Совпадение для трассы банка: кто и где. Клиенту не показывается (115-ФЗ)."""
+
+    subject: str  # «бенефициар Цепочкин Цезарь Цезаревич»
+    detail: str  # «перечень ФРОМУ, запись ФРОМУ-2025-0042»
+
+
+@dataclass(frozen=True, slots=True)
+class AmlInput:
+    """Проверка по 115-ФЗ на этой заявке (enrichment): перечни, ПДЛ, ЗСК, бенефициары."""
+
+    status: AmlStatus
+    list_hits: tuple[AmlHit, ...] = ()  # перечни Росфинмониторинга, решения МВК, ФРОМУ
+    pep_hits: tuple[AmlHit, ...] = ()
+    foreign_pep: bool = False  # иностранное ПДЛ — нужно письменное решение руководителя банка
+    zsk_level: ZskLevel | None = None
+    beneficial_owners: tuple[str, ...] = ()  # для трассы: «Цепочкин Ц. Ц. — 80%»
+    lists_date: str | None = None  # версия перечней, ISO-дата
+
+
 @dataclass(frozen=True, slots=True)
 class AlternativeInput:
     """Продукт-кандидат в альтернативу: прошла ли компания его eligibility."""
@@ -246,6 +280,10 @@ class DecisionInput:
     head_bureau: HeadBureauInput | None = None
     # Предскрин учредителя на дату подачи — только у продукта для стартапа (policy_v4).
     founder_prescreen: FounderPrescreenStatus | None = None
+    # Проверка по 115-ФЗ на этой заявке (policy_v6); None — не собиралась.
+    aml: AmlInput | None = None
+    # Согласие на решение только на основании автоматизированной обработки (ст. 16 152-ФЗ).
+    automated_decision_consent: bool = False
 
 
 @dataclass(frozen=True, slots=True)

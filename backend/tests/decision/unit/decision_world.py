@@ -6,7 +6,8 @@
   external-mocks (`tests/assessment/fixtures/external_mocks.json`), прогноз кассового разрыва —
   настоящий `CashflowBuilder` по `seed/statements/<код>.csv`. Мир policy_v1 опрашивает ЕГРЮЛ,
   ФНС и БКИ, как в момент её выхода; мир policy_v2 — все источники, руководитель по реестру
-  дал согласие на свою кредитную историю;
+  дал согласие на свою кредитную историю. Проверка по 115-ФЗ (`aml`) — в каждом мире, как в
+  конвейере на каждой заявке; policy_v1–v5 её не читают;
 - результат скоринга — настоящая модель на том же входе, что собрал бы scoring: действующая
   PD-модель или, для golden policy_v1 и policy_v2, scorecard_v1 их времени.
 """
@@ -110,6 +111,7 @@ async def build_world(
     sources: Sequence[str] = V1_SOURCES,
     head_consent: bool = False,
     scoring_model: ScoringModel | None = None,
+    automated_decision_consent: bool = False,
 ) -> DecisionWorld:
     """`head_consent` — руководитель по реестру дал личное согласие на запрос своего БКИ;
     `scoring_model` — чем считать скоринг, по умолчанию действующая PD-модель и рядом с ней
@@ -165,7 +167,9 @@ async def build_world(
     applications = FakeApplicationsFacade()
     applications.add_card(card)
     applications.scoring_inputs[card.id] = builders.scoring_input(
-        card, statement_document_ids=tuple(d.id for d in documents)
+        card,
+        statement_document_ids=tuple(d.id for d in documents),
+        automated_decision_consent_at=NOW if automated_decision_consent else None,
     )
     for document in documents:
         applications.add_document_content(
@@ -266,7 +270,7 @@ async def _enrich(
         application_id=application_id,
         organization_id=source.organization_id,
         inn=source.organization.inn,
-        sources=list(sources),
+        sources=list(dict.fromkeys((*sources, "aml"))),
         bki_consent_at=_CONSENT,
         statement_document_ids=list(source.statement_document_ids),
         head=head,

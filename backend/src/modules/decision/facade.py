@@ -23,6 +23,8 @@ DISPUTE_REASON_CODES: frozenset[str] = frozenset(
         "ROUTE_VERIFICATION_MISMATCH",
         "ROUTE_MASS_ADDRESS",
         "ROUTE_REVENUE_MISMATCH",
+        # policy_v6: проверки по 115-ФЗ нет — данным нельзя доверять.
+        "ROUTE_AML_INCOMPLETE",
     }
 )
 
