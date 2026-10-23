@@ -1,9 +1,13 @@
 /**
  * Подписи для рабочего места андеррайтера. Коды — из модулей бэкенда: маршруты и стоп-факторы —
- * decision/infrastructure/config/explanations_ru.yaml, факторы — scoring/infrastructure/config/scorecard_v1.yaml,
- * флаги — scoring/domain/model.py RiskFlag. Неизвестный код показываем как есть.
- * Грейды — шкала A–J модели PD (scoring/infrastructure/config/pd_model_v2.yaml).
+ * decision/infrastructure/config/explanations_ru.yaml, признаки — scoring/infrastructure/config/pd_model_v2.yaml
+ * и ml_logreg_v1.yaml, флаги — scoring/domain/model.py RiskFlag. Неизвестный код показываем как есть.
+ * Грейды — общая шкала A–J PD- и ML-модели, зоны — policy_v5.yaml (strategy.two_models).
  */
+
+import type { Grade, ReviewKind } from '@/shared/api'
+
+type Tone = 'success' | 'info' | 'warning' | 'brand' | 'neutral'
 
 /** Почему решение не принято автоматически или почему отказ */
 export const REASON_LABEL: Record<string, string> = {
@@ -16,6 +20,9 @@ export const REASON_LABEL: Record<string, string> = {
   ROUTE_TAX_ARREARS: 'Недоимка по налогам',
   ROUTE_RISK_MATRIX: 'Сумма выше авторешения для грейда',
   ROUTE_SOFT_TRIGGER: 'Сработал мягкий триггер',
+  ROUTE_MODELS_CHECK: 'Модели видят умеренный риск',
+  ROUTE_MODELS_DISAGREE: 'Модели расходятся в оценке риска',
+  ROUTE_ML_UNAVAILABLE: 'Нет оценки ML-модели',
   STOP_LIQUIDATION: 'Компания ликвидируется',
   STOP_BANKRUPTCY: 'Процедура банкротства',
   STOP_BANKRUPTCY_MESSAGE: 'Сообщение о банкротстве',
@@ -32,6 +39,7 @@ export const REASON_LABEL: Record<string, string> = {
   STOP_FORBIDDEN_OKVED: 'Вид деятельности не кредитуется',
   STOP_FOUNDER_PRESCREEN: 'Нет предскрининга учредителя',
   STOP_RISK_MATRIX: 'Сумма выше допустимой для грейда',
+  STOP_MODELS_HIGH_RISK: 'Обе модели в красной зоне',
   STOP_GRADE_E: 'Грейд E',
   INFO_REVENUE_NOT_CONFIRMED: 'Нужна выписка для подтверждения выручки',
   LIMIT_BY_PRODUCT: 'Лимит продукта',
@@ -46,10 +54,15 @@ export const REASON_LABEL: Record<string, string> = {
   CASH_GAP_FORECAST: 'Прогноз кассового разрыва',
 }
 
+/** Признаки PD- и ML-модели; общие коды у моделей совпадают по смыслу */
 export const FACTOR_LABEL: Record<string, string> = {
   business_age: 'Возраст бизнеса',
+  business_age_months: 'Возраст бизнеса',
   revenue_trend: 'Динамика выручки',
+  revenue_growth: 'Рост выручки год к году',
   debt_load: 'Долговая нагрузка',
+  debt_service_ratio: 'Платежи по кредитам к выручке',
+  revenue_gap: 'Расхождение выручки с ФНС',
   bureau_overdue: 'Просрочки в БКИ',
   bureau_inquiries: 'Запросы в БКИ за 30 дней',
   tax_arrears: 'Недоимка ФНС',
@@ -103,7 +116,7 @@ export const RELIABILITY: Record<string, { label: string; tone: 'success' | 'war
   red: { label: 'Надёжность низкая', tone: 'brand' },
 }
 
-export const OUTCOME_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'info' | 'brand' | 'neutral' }> = {
+export const OUTCOME_LABEL: Record<string, { label: string; tone: Tone }> = {
   APPROVE: { label: 'Одобрить', tone: 'success' },
   COUNTER_OFFER: { label: 'Контрпредложение', tone: 'warning' },
   REQUEST_INFO: { label: 'Запрос информации', tone: 'info' },
@@ -111,18 +124,37 @@ export const OUTCOME_LABEL: Record<string, { label: string; tone: 'success' | 'w
   REJECT: { label: 'Отказ', tone: 'brand' },
 }
 
-export const GRADE_TONE: Record<string, 'success' | 'info' | 'warning' | 'brand'> = {
-  A: 'success',
-  B: 'success',
-  C: 'info',
-  D: 'warning',
-  E: 'warning',
-  F: 'warning',
-  G: 'warning',
-  H: 'brand',
-  I: 'brand',
-  J: 'brand',
+/** Вид ручной проверки: check — модели видят умеренный риск, dispute — модели или данные расходятся */
+export const REVIEW_LABEL: Record<ReviewKind, { label: string; tone: Tone }> = {
+  check: { label: 'Проверка', tone: 'info' },
+  dispute: { label: 'Спорная', tone: 'warning' },
 }
+
+export type GradeZone = 'green' | 'yellow' | 'red'
+
+/** Зоны риска одинаковы для обеих моделей: A–D зелёная, E–G жёлтая, H–J красная */
+export const GRADE_ZONE: Record<Grade, GradeZone> = {
+  A: 'green',
+  B: 'green',
+  C: 'green',
+  D: 'green',
+  E: 'yellow',
+  F: 'yellow',
+  G: 'yellow',
+  H: 'red',
+  I: 'red',
+  J: 'red',
+}
+
+export const ZONE_LABEL: Record<GradeZone, { label: string; tone: 'success' | 'warning' | 'brand' }> = {
+  green: { label: 'зелёная зона', tone: 'success' },
+  yellow: { label: 'жёлтая зона', tone: 'warning' },
+  red: { label: 'красная зона', tone: 'brand' },
+}
+
+/** Цвет грейда — по зоне; неизвестный грейд — нейтральный */
+export const gradeTone = (grade: string | null | undefined): Tone =>
+  (grade && ZONE_LABEL[GRADE_ZONE[grade as Grade]]?.tone) || 'neutral'
 
 export const TASK_STATUS_LABEL: Record<string, string> = {
   open: 'Ждёт специалиста',

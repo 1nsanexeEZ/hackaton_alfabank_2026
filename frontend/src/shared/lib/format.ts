@@ -2,6 +2,7 @@ const LOCALE = 'ru-RU'
 
 const integerFormatter = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 })
 const decimalFormatter = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 })
+const probabilityFormatter = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** 1500000 → «1 500 000 ₽» */
 export function formatMoney(value: number): string {
@@ -19,6 +20,11 @@ export function formatMoneyShort(value: number): string {
 /** 21.5 → «21,5%» */
 export function formatPercent(value: number): string {
   return `${decimalFormatter.format(value)}%`
+}
+
+/** Вероятность-доля: 0.0421 → «4,21%» — для PD моделей, где важны сотые */
+export function formatProbability(share: number): string {
+  return `${probabilityFormatter.format(share * 100)}%`
 }
 
 /** pluralize(5, ['год', 'года', 'лет']) → «лет» */
