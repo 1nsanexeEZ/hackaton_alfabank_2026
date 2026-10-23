@@ -38,7 +38,8 @@
 - `model_version`, `segment`, `scorecard`;
 - `score`, `pd_12m`, `grade`, признаки, `reason_codes`, флаги, `data_completeness`;
 - `bank_notes` — пояснения банку, например про кассовый разрыв;
-- `ml` — оценка ML-модели (с `scoring_0003`, JSON): версия, PD, балл, грейд, признаки, коды причин.
+- `ml` — оценка ML-модели (с `scoring_0003`, JSON): версия, PD, балл, грейд, признаки, коды причин;
+- `quality` и `quality_reasons` — «Данные полные?» (с `scoring_0004`): `ok` / `degraded` и почему.
 
 Идемпотентность — по `requested_by_command`. У результатов scorecard_v1 (до `scoring_0002`) нет
 сегмента, PD и кодов причин: колонки пустые.
@@ -80,8 +81,21 @@
    нет, просрочек нет. Причин может быть меньше трёх или ни одной.
 9. **Журнал** — вход (`input_snapshot`), выход и `model_version` в `scoring_results`.
 
-Неполные данные (`quality = degraded`) по-прежнему видны через `data_completeness` и флаги
-(`bureau_unavailable`): маршрутизирует их decision.
+### «Данные полные?» — `quality_v1`
+
+Развилка модели оценки PD общей схемы (#144). После расчёта `QualityPolicy`
+(`domain/quality.py`, пороги — `config/quality_v1.yaml`) смотрит, на чём посчитано:
+
+| Условие | Причина в `quality_reasons` |
+|---|---|
+| не ответил критичный источник: ФНС (недоимка, выручка для сверки) или БКИ (просрочки, запросы, платежи) | `source_failed:<источник>` |
+| доля признаков скоркарты с данными (`data_completeness`) меньше **0,7** | `completeness_below:<доля>` |
+
+Есть причина — `quality = degraded`, иначе `ok`. Модели **всё равно считаются**: андеррайтер
+видит PD- и ML-оценку, а решение (policy_v7) отдаёт заявку человеку как спорную. Сбой ГИР БО,
+Контура или БКИ руководителя модели не касается — его разбирают стоп-факторы и маршруты решения.
+Конфиг проверяется при старте: неизвестный источник или порог вне 0–1 — `ScorecardConfigError`.
+У результатов до `scoring_0004` `quality` пустое.
 
 ### Признаки
 
@@ -227,8 +241,8 @@ D 450–549 · E < 450), `config/scorecard_v1.yaml`. Не меняется: по
 
 - Слушает `scoring.commands` → `CalculateScore {application_id}` (group `scoring.commands`).
 - Публикует `scoring.events`:
-  - `ScoreCalculated {application_id, result_id, score, risk_grade, flags}` (`causation_id` —
-    event_id команды); `risk_grade` — A–J;
+  - `ScoreCalculated {application_id, result_id, score, risk_grade, flags, quality}`
+    (`causation_id` — event_id команды); `risk_grade` — A–J, `quality` — `ok` / `degraded`;
   - `ScoringFailed {application_id, reason}` — если снимка обогащения нет (считать не на чем).
 
 ## Фасад
@@ -236,7 +250,8 @@ D 450–549 · E < 450), `config/scorecard_v1.yaml`. Не меняется: по
 - `get_result(application_id)` — последний результат для `decision` и карточки андеррайтера (bff):
   `segment`, `scorecard`, `pd_12m`, `reason_codes` вдобавок к прежним полям; `ml` —
   `MlScoreDTO {model_version, pd_12m, score, grade, factors, reason_codes}` ML-модели (у результатов
-  до `scoring_0003` — `null`). `ScoreCalculated` не менялся: в событии оценка PD-модели.
+  до `scoring_0003` — `null`), `quality` и `quality_reasons`. В событии — оценка PD-модели и
+  `quality`. Карточка андеррайтера в bff отдаёт результат целиком, с качеством данных.
 - `estimate(company, amount=None)` — быстрая оценка без заявки и БКИ, ничего не сохраняет; для
   предодобрения. Допущения (чистая история, нет текущих платежей) — оценка ориентировочная. Отдаёт
   `segment` и `pd_12m`: новому клиенту предодобрения нет, decision его пропускает.

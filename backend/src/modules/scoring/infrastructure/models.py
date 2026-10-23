@@ -37,3 +37,6 @@ class ScoringResultRecord(Base):
     reason_codes: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
     # ML-модель (scoring_0003): версия, PD, скор, грейд, факторы и коды причин; до неё — пусто.
     ml: Mapped[dict[str, Any] | None] = mapped_column(JSONType, default=None)
+    # Качество данных (scoring_0004): ok / degraded и почему; до неё — пусто.
+    quality: Mapped[str | None] = mapped_column(String(16), default=None)
+    quality_reasons: Mapped[list[str] | None] = mapped_column(JSONType, default=None)

@@ -106,6 +106,8 @@ class _Routing(_Strict):
     grades: list[str]
     flags: dict[str, ReasonCode]
     tax_arrears: bool = False  # policy_v2
+    # policy_v7: скоринг пометил данные неполными (quality = degraded) → ручная проверка.
+    data_quality: bool = False
 
 
 class _TurnoverSpike(_Strict):
@@ -462,6 +464,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         if consent is not None
         else frozenset(),
         screen_before_scoring=stops.before_scoring,
+        route_degraded_quality=schema.routing.data_quality,
     )
 
 

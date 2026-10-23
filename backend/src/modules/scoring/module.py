@@ -10,9 +10,13 @@ from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
-from src.modules.scoring.application.ports import MlScoringModel, ScoringModel
+from src.modules.scoring.application.ports import (
+    DataQualityAssessor,
+    MlScoringModel,
+    ScoringModel,
+)
 from src.modules.scoring.facade import ScoringFacade
-from src.modules.scoring.infrastructure.config_loader import default_model
+from src.modules.scoring.infrastructure.config_loader import default_model, default_quality
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.ml_loader import default_ml_model
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
@@ -22,6 +26,7 @@ NAME = "scoring"
 # Модели грузятся один раз на процесс; невалидный YAML → исключение при старте.
 _scorecard: ScoringModel | None = None
 _ml_model: MlScoringModel | None = None
+_quality: DataQualityAssessor | None = None
 
 
 def register(app: FastAPI) -> None:
@@ -29,9 +34,10 @@ def register(app: FastAPI) -> None:
 
 
 def wire(app: FastAPI) -> None:
-    global _scorecard, _ml_model
+    global _scorecard, _ml_model, _quality
     _scorecard = default_model()
     _ml_model = default_ml_model()
+    _quality = default_quality()
     scorecard = _scorecard
     # Часы читаются на каждый вызов: тесты могут подменить app.state.clock.
     app.state.facades.register(
@@ -50,6 +56,7 @@ async def _on_calculate_score(ctx: HandlerContext, payload: CalculateScore) -> N
         ctx.facade(EnrichmentFacade),
         ctx.clock,
         _ml_model,
+        _quality,
     )
     await use_case.execute(payload, command_event_id=ctx.envelope.event_id, outbox=ctx.outbox)
 

@@ -172,6 +172,11 @@
       "detail": "уровень риска ЗСК: низкий"
     },
     {
+      "rule": "route.data_quality",
+      "matched": true,
+      "detail": "данные неполные: не ответили источники: bki — решает человек"
+    },
+    {
       "rule": "route.auto_decision_limit",
       "matched": false,
       "detail": "сумма 1 000 000, лимит автоматического решения 5 000 000"

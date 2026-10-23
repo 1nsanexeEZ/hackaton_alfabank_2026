@@ -57,10 +57,14 @@ def test_default_policy_loads() -> None:
     assert policy.config.revenue_multiplier["C"] == Decimal("0.4")
 
 
-def test_v7_is_v6_with_stop_factors_before_scoring() -> None:
+def test_v7_is_v6_with_stop_factors_before_scoring_and_data_quality() -> None:
     v6, v7 = load_policy("policy_v6").config, load_policy("policy_v7").config
     assert not v6.screen_before_scoring and v7.screen_before_scoring
-    assert replace(v7, version=v6.version, screen_before_scoring=False) == v6
+    assert not v6.route_degraded_quality and v7.route_degraded_quality
+    assert (
+        replace(v7, version=v6.version, screen_before_scoring=False, route_degraded_quality=False)
+        == v6
+    )
 
 
 def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:

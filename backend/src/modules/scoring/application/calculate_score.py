@@ -5,8 +5,10 @@
 - идемпотентность по event_id команды: повтор возвращает тот же результат и повторно публикует
   ScoreCalculated (causation_id = event_id команды);
 - нет снимка обогащения → ScoringFailed (считать не на чем — решит процесс по on_failure);
+- «Данные полные?»: не ответил критичный источник или мало признаков с данными → `quality =
+  degraded`; модели всё равно посчитаны (их видит андеррайтер), решение отдаёт заявку человеку;
 - scoring ничего не знает про ставки и лимиты и не меняет статусы;
-- ScoreCalculated несёт оценку PD-модели, как раньше; ML-оценку decision читает из результата.
+- ScoreCalculated несёт оценку PD-модели и качество данных; ML-оценку decision читает из результата.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.input_builder import build_scoring_input
 from src.modules.scoring.application.ports import (
+    DataQualityAssessor,
     MlScoringModel,
     ScoringModel,
     ScoringRepository,
@@ -37,10 +40,12 @@ class CalculateScoreUseCase:
         enrichment: EnrichmentFacade,
         clock: Clock,
         ml_model: MlScoringModel | None = None,
+        quality: DataQualityAssessor | None = None,
     ) -> None:
         self._repository = repository
         self._scorecard = scorecard
         self._ml_model = ml_model
+        self._quality = quality
         self._applications = applications
         self._enrichment = enrichment
         self._clock = clock
@@ -68,6 +73,11 @@ class CalculateScoreUseCase:
         application = await self._applications.get_scoring_input(command.application_id)
         scoring_input = build_scoring_input(application, snapshot)
         output = self._scorecard.calculate(scoring_input)
+        quality = (
+            self._quality.assess(scoring_input.sources_failed, output.data_completeness)
+            if self._quality is not None
+            else None
+        )
         stored = dump_input(scoring_input)
         result = ScoringResult(
             id=uuid4(),
@@ -87,6 +97,8 @@ class CalculateScoreUseCase:
             pd_12m=output.pd_12m,
             reason_codes=output.reason_codes,
             ml=self._ml_model.predict(scoring_input) if self._ml_model is not None else None,
+            quality=quality.level if quality is not None else None,
+            quality_reasons=quality.reasons if quality is not None else (),
         )
         await self._repository.add(result, input_snapshot=stored)
         await self._publish_calculated(outbox, result, command_event_id)
@@ -101,6 +113,7 @@ class CalculateScoreUseCase:
                 score=result.score,
                 risk_grade=result.grade,
                 flags=list(result.flags),
+                quality=result.quality,
             ),
             key=result.application_id,
             correlation_id=result.application_id,

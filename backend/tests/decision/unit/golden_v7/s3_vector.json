@@ -178,6 +178,11 @@
       "detail": "уровень риска ЗСК: низкий"
     },
     {
+      "rule": "route.data_quality",
+      "matched": false,
+      "detail": "данные полные"
+    },
+    {
       "rule": "route.auto_decision_limit",
       "matched": false,
       "detail": "сумма 10 000 000, лимит автоматического решения 10 000 000"

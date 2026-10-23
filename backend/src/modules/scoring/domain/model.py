@@ -13,6 +13,8 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
+from src.modules.scoring.domain.quality import QualityLevel
+
 # scorecard_v1 ставит A–E по баллу; PD-модель (pd_model_v2) — A–J по вероятности дефолта.
 Grade = Literal["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 Direction = Literal["positive", "negative", "neutral"]
@@ -139,3 +141,6 @@ class ScoringResult:
     reason_codes: tuple[str, ...] = ()  # топ-3 признака, снизивших балл, по потере баллов
     # ML-модель (scoring_0003); у результатов до неё — None.
     ml: MlScore | None = None
+    # Качество данных (scoring_0004): «Данные полные?» общей схемы; у результатов до неё — None.
+    quality: QualityLevel | None = None
+    quality_reasons: tuple[str, ...] = ()

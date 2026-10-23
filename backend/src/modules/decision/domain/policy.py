@@ -58,7 +58,9 @@ policy_v6 — v5 и обязательные требования закона:
 
 policy_v7 — стоп-факторы до модели, как на общей схеме: `screen` проверяет их отдельным шагом
 процесса до скоринга, сработал — решение без модели. В `decide` они тоже идут раньше проверки,
-есть ли результат скоринга: стоп-фактор даёт отказ, даже если скоринг не посчитался.
+есть ли результат скоринга: стоп-фактор даёт отказ, даже если скоринг не посчитался. «Данные
+полные?»: скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная;
+модели не дают отказа на неполных данных.
 
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
@@ -214,6 +216,8 @@ class PolicyConfig:
     # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
     # в policy_v1–v6: без скоринга сразу ручная проверка.
     screen_before_scoring: bool = False
+    # policy_v7: скоринг пометил данные неполными (quality = degraded) → решает человек.
+    route_degraded_quality: bool = False
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -500,6 +504,22 @@ def _zsk(level: str | None) -> str:
 
 def _pd_note(pd: Decimal | None) -> str:
     return f" (PD {_pct(pd * _HUNDRED)})" if pd is not None else ""
+
+
+def _quality_detail(score: ScoreInput) -> str:
+    """Трасса «Данные полные?»: почему скоринг пометил данные неполными."""
+    if score.quality is None:
+        return "качество данных скоринг не оценивал — проверка не выполнена"
+    if score.quality == "ok":
+        return "данные полные"
+    parts: list[str] = []
+    failed = [r.split(":", 1)[1] for r in score.quality_reasons if r.startswith("source_failed:")]
+    if failed:
+        parts.append(f"не ответили источники: {', '.join(failed)}")
+    for reason in score.quality_reasons:
+        if reason.startswith("completeness_below:"):
+            parts.append(f"данные есть по доле признаков {reason.split(':', 1)[1]} — ниже порога")
+    return "данные неполные: " + ("; ".join(parts) or "так решил скоринг") + " — решает человек"
 
 
 class _Evaluation:
@@ -1143,6 +1163,12 @@ class _Evaluation:
     def _routing(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
         product, request, company = self._in.product, self._in.request, self._in.company
         reasons: list[ReasonCode] = self._aml_routes()
+
+        if self._c.route_degraded_quality:
+            degraded = score.quality == "degraded"
+            self._hit("route.data_quality", degraded, _quality_detail(score))
+            if degraded:
+                reasons.append(ReasonCode.ROUTE_SOURCES_FAILED)
 
         over_limit = request.amount > product.auto_decision_limit
         self._hit(
