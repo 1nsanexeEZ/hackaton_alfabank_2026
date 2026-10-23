@@ -5577,6 +5577,36 @@
         "title": "BankStopListDTO",
         "description": "Компания во внутреннем стоп-листе банка или нет; причина — для банка, не для клиента."
       },
+      "BankTurnoverDTO": {
+        "properties": {
+          "client_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Since"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/TurnoverMonthDTO"
+            },
+            "type": "array",
+            "title": "Months",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_since"
+        ],
+        "title": "BankTurnoverDTO",
+        "description": "Клиент банка с какой даты и обороты по его счёту по месяцам, от старых к новым (без\nтекущего месяца). Не клиент банка — `client_since = None`, оборотов нет."
+      },
       "BankruptcyMessageDTO": {
         "properties": {
           "date": {
@@ -8128,7 +8158,8 @@
                 "kontur",
                 "bki_head",
                 "aml",
-                "bank_stop_list"
+                "bank_stop_list",
+                "bank_turnover"
               ]
             },
             "type": "array",
@@ -8233,6 +8264,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/BankStopListDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bank_turnover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankTurnoverDTO"
               },
               {
                 "type": "null"
@@ -13600,7 +13641,8 @@
               "kontur",
               "bki_head",
               "aml",
-              "bank_stop_list"
+              "bank_stop_list",
+              "bank_turnover"
             ],
             "title": "Source"
           },
@@ -14449,6 +14491,29 @@
         ],
         "title": "TriggerDTO",
         "description": "A soft trigger (policy_v3): not a refusal, a reason for a person to look."
+      },
+      "TurnoverMonthDTO": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "inflow": {
+            "type": "string",
+            "title": "Inflow"
+          },
+          "outflow": {
+            "type": "string",
+            "title": "Outflow"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "inflow",
+          "outflow"
+        ],
+        "title": "TurnoverMonthDTO"
       },
       "UnderwriterCard": {
         "properties": {
