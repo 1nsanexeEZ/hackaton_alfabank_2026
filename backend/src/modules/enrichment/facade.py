@@ -12,6 +12,14 @@ from src.modules.enrichment.application.dto.accounting import (
     AccountingPeriodDTO,
     AccountingReportsDTO,
 )
+from src.modules.enrichment.application.dto.aml import (
+    AmlCheckDTO,
+    AmlSubjectDTO,
+    BeneficialOwnerDTO,
+    ListHitDTO,
+    PepHitDTO,
+    ZskRiskDTO,
+)
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -36,6 +44,12 @@ from src.modules.enrichment.domain.enums import Source
 
 __all__ = [
     "AccountBlockDTO",
+    "AmlCheckDTO",
+    "AmlSubjectDTO",
+    "BeneficialOwnerDTO",
+    "ListHitDTO",
+    "PepHitDTO",
+    "ZskRiskDTO",
     "AccountingPeriodDTO",
     "AccountingReportsDTO",
     "ArbitrationDTO",

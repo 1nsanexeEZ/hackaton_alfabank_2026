@@ -106,6 +106,8 @@ class EnrichmentRequestFact:
     # The head by the registry and their own consent to request their credit history.
     head: PersonFact | None = None
     head_bki_consent_at: datetime | None = None
+    # Who submitted the application, when not the head: a representative for the 115-FZ check.
+    representative: PersonFact | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,8 +146,19 @@ class StepSpec:
 
 
 # What enrichment is asked for: registry, tax, company bureau, the bank statement forecast,
-# accounting reports (GIR BO), courts and bailiffs (Kontur), the head's own bureau report.
-ENRICHMENT_SOURCES = ("egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head")
+# accounting reports (GIR BO), courts and bailiffs (Kontur), the head's own bureau report and
+# the 115-FZ check (beneficial owners, lists, PEP, KYC platform) — on every application, a
+# repeat borrower included.
+ENRICHMENT_SOURCES = (
+    "egrul",
+    "fns",
+    "bki",
+    "statement",
+    "gir_bo",
+    "kontur",
+    "bki_head",
+    "aml",
+)
 
 
 def _ids(ctx: ProcessContext) -> dict[str, Any]:
@@ -192,6 +205,7 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 "statement_document_ids": list(fact.statement_document_ids),
                 "head": _person(fact.head),
                 "head_bki_consent_at": fact.head_bki_consent_at,
+                "representative": _person(fact.representative),
             },
         ),
         {"EnrichmentCompleted", "EnrichmentFailed"},

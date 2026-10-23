@@ -36,6 +36,11 @@ from src.modules.applications.infrastructure.repositories.applications import (
 from src.modules.clients.infrastructure.database.models import OrganizationModel
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
 from src.modules.enrichment.application.interfaces.sources import Sources
+from src.modules.enrichment.infrastructure.adapters.aml_http import (
+    PepHttpSource,
+    RfmHttpSource,
+    ZskHttpSource,
+)
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -73,6 +78,9 @@ def mock_sources() -> Sources:
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
+        aml = _aml_answer(request)
+        if aml is not None:
+            return aml
         if path == "/bki/report":
             source, inn = "bki", json.loads(request.content)["inn"]
         elif path == "/bki/person-report":
@@ -97,7 +105,30 @@ def mock_sources() -> Sources:
         accounting=GirBoHttpSource(client, backoff=backoff),
         counterparty=KonturHttpSource(client, backoff=backoff),
         person_bureau=BkiPersonHttpSource(client, backoff=backoff),
+        aml_lists=RfmHttpSource(client, backoff=backoff),
+        pep=PepHttpSource(client, backoff=backoff),
+        zsk=ZskHttpSource(client, backoff=backoff),
     )
+
+
+def _aml_answer(request: httpx.Request) -> httpx.Response | None:
+    """Проверки по 115-ФЗ: демо-компании и их люди чистые, уровень ЗСК низкий (как отвечает
+    external-mocks, `app/compliance.py`); ответ собирается по запросу."""
+    path = request.url.path
+    if path == "/rfm/screen":
+        subjects = json.loads(request.content)["subjects"]
+        results = [{"id": subject["id"], "Совпадения": []} for subject in subjects]
+        return httpx.Response(200, json={"ДатаАктуальности": "2026-10-21", "Результаты": results})
+    if path == "/pep/screen":
+        persons = json.loads(request.content)["persons"]
+        return httpx.Response(
+            200, json={"Результаты": [{"id": person["id"], "ПДЛ": None} for person in persons]}
+        )
+    if path.startswith("/zsk/"):
+        inn = path.removeprefix("/zsk/")
+        body = {"ИНН": inn, "Уровень": "НИЗКИЙ", "ДатаАктуальности": "2026-10-21"}
+        return httpx.Response(200, json=body)
+    return None
 
 
 @dataclass
