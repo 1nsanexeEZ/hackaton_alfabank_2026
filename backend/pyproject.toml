@@ -60,6 +60,11 @@ markers = [
 # The deploy workflow runs plain `pytest`: heavy suites are opt-in (`-m integration`).
 addopts = "-m 'not integration and not e2e'"
 
+[tool.mypy]
+# Ключи реестра фасадов — Protocol: реестр ищет фасад по контракту и никогда не создаёт
+# экземпляр ключа, а mypy считает передачу Protocol в type[T] ошибкой (python/mypy#4717).
+disable_error_code = ["type-abstract"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

@@ -33,7 +33,11 @@ def wire(app: FastAPI) -> None:
     _scorecard = default_model()
     _ml_model = default_ml_model()
     scorecard = _scorecard
-    app.state.facades.register(ScoringFacade, lambda session: ScoringFacadeImpl(session, scorecard))
+    # Часы читаются на каждый вызов: тесты могут подменить app.state.clock.
+    app.state.facades.register(
+        ScoringFacade,
+        lambda session: ScoringFacadeImpl(session, scorecard, clock=app.state.clock),
+    )
 
 
 async def _on_calculate_score(ctx: HandlerContext, payload: CalculateScore) -> None:

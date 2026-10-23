@@ -25,6 +25,24 @@ grade_bands:
   max_pd: '0.1400'
 - grade: I
   max_pd: '0.2200'
+industry_sections:
+  low:
+  - 62
+  - 63
+  - 69
+  - 70
+  - 71
+  - 72
+  - 73
+  - 74
+  - 86
+  high:
+  - 41
+  - 42
+  - 43
+  - 55
+  - 56
+  - 79
 features:
 - name: business_age_months
   title: Возраст бизнеса, мес.

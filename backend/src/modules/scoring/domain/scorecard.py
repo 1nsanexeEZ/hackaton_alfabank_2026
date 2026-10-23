@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
+from src.core.domain.annuity import annuity_payment
 from src.modules.scoring.domain.model import (
     CashflowInput,
     Direction,
@@ -378,11 +379,8 @@ def okved_section(okved_main: str) -> int:
 
 
 def estimated_payment(amount: Decimal, term_months: int, annual_rate_percent: Decimal) -> Decimal:
-    """Оценочный аннуитетный платёж по новому кредиту — консервативная нагрузка, не решение."""
+    """Оценочный аннуитетный платёж по новому кредиту — консервативная нагрузка, не решение.
+    Формула общая с графиком и офферами (`core.domain.annuity`)."""
     if term_months <= 0:
         return amount
-    monthly_rate = annual_rate_percent / Decimal(100) / Decimal(12)
-    if monthly_rate == 0:
-        return (amount / term_months).quantize(Decimal("0.01"), ROUND_HALF_UP)
-    factor = (1 + monthly_rate) ** term_months
-    return (amount * monthly_rate * factor / (factor - 1)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    return annuity_payment(amount, term_months, annual_rate_percent)
