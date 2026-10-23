@@ -170,7 +170,7 @@ class _PolicySchema(_Strict):
     version: str
     key_rate_reference: Decimal = Field(ge=0)
     # Шкала грейдов; нет ключа — A–E scorecard_v1 (policy_v1, policy_v2).
-    grades: list[str] = Field(default_factory=lambda: list(LEGACY_SCALE))
+    grades: list[str] = Field(default_factory=lambda: list[str](LEGACY_SCALE))
     stop_factors: _StopFactors
     info_request: _InfoRequest
     limits: _Limits
