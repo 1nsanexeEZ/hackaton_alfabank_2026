@@ -42,6 +42,22 @@ def test_segment_by_turnover_months_and_legal_form(
     assert (out.segment, out.scorecard) == (segment, scorecard)
 
 
+@pytest.mark.parametrize(
+    ("bank_months", "segment"),
+    [
+        (None, "legal_entity"),
+        (72, "legal_entity"),
+        (6, "legal_entity"),
+        (3, "new_client"),
+        (0, "new_client"),
+    ],
+)
+def test_segment_by_turnover_in_the_bank(bank_months: int | None, segment: str) -> None:
+    """Обороты в банке (АБС) решают сегмент; АБС не ответила — по возрасту бизнеса (72 мес.)."""
+    inp = replace(with_company(ROMASHKA, business_age_months=72), bank_months=bank_months)
+    assert MODEL.calculate(inp).segment == segment
+
+
 def test_new_client_card_is_simplified() -> None:
     out = MODEL.calculate(with_company(ROMASHKA, business_age_months=3))
     codes = {f.code for f in out.factors}

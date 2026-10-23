@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from src.modules.applications.facade import ScoringInputDTO
@@ -75,4 +76,18 @@ def build_scoring_input(
         mass_address=snapshot.egrul.mass_address if snapshot.egrul is not None else False,
         sources_failed=tuple(error.source for error in snapshot.sources_failed),
         as_of=application.submitted_at.date(),
+        bank_months=_bank_months(snapshot, application.submitted_at.date()),
     )
+
+
+def _bank_months(snapshot: EnrichmentSnapshotDTO, as_of: date) -> int | None:
+    """Полных месяцев оборотов в банке до даты заявки: не клиент банка — 0, АБС не ответила —
+    None (сегмент тогда по возрасту бизнеса)."""
+    turnover = snapshot.bank_turnover
+    if turnover is None:
+        return None
+    since = turnover.client_since
+    if since is None or since > as_of:
+        return 0
+    months = (as_of.year - since.year) * 12 + as_of.month - since.month
+    return max(months - (1 if as_of.day < since.day else 0), 0)

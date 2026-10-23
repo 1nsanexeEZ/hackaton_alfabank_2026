@@ -93,6 +93,9 @@ class ScoringInput:
     mass_address: bool
     sources_failed: tuple[str, ...]
     as_of: date
+    # Полных месяцев оборотов в банке (АБС) до даты заявки; None — АБС не ответила или снимок до
+    # неё, тогда сегмент — по возрасту бизнеса.
+    bank_months: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
