@@ -13,11 +13,16 @@ from src.core.messaging.contracts.clients import (
     OrganizationVerificationMismatch,
     OrganizationVerified,
 )
-from src.core.messaging.contracts.decision import MakeDecision, RecordManualDecision
+from src.core.messaging.contracts.decision import (
+    CheckStopFactors,
+    MakeDecision,
+    RecordManualDecision,
+)
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.api import router
+from src.modules.decision.application.check_stop_factors import CheckStopFactorsUseCase
 from src.modules.decision.application.input_builder import DecisionInputBuilder
 from src.modules.decision.application.make_decision import MakeDecisionUseCase
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
@@ -80,20 +85,34 @@ def _pre_approval(ctx: HandlerContext) -> RecalculatePreApprovedUseCase:
     )
 
 
-async def _on_command(ctx: HandlerContext, payload: MakeDecision | RecordManualDecision) -> None:
+def _builder(ctx: HandlerContext, policy: CreditPolicy) -> DecisionInputBuilder:
+    return DecisionInputBuilder(
+        policy,
+        ctx.facade(ApplicationsFacade),
+        ctx.facade(EnrichmentFacade),
+        ctx.facade(ScoringFacade),
+        ctx.facade(ProductsFacade),
+        SqlAlchemyFounderPrescreenRepository(ctx.session),
+    )
+
+
+async def _on_command(
+    ctx: HandlerContext, payload: CheckStopFactors | MakeDecision | RecordManualDecision
+) -> None:
     current = _current()
     repository = SqlAlchemyDecisionRepository(ctx.session)
     products = ctx.facade(ProductsFacade)
     event_id = ctx.envelope.event_id
-    if isinstance(payload, MakeDecision):
-        builder = DecisionInputBuilder(
+    if isinstance(payload, CheckStopFactors):
+        await CheckStopFactorsUseCase(
+            repository,
             current.policy,
-            ctx.facade(ApplicationsFacade),
-            ctx.facade(EnrichmentFacade),
-            ctx.facade(ScoringFacade),
-            products,
-            SqlAlchemyFounderPrescreenRepository(ctx.session),
-        )
+            _builder(ctx, current.policy),
+            ctx.clock,
+            current.key_rate,
+        ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
+    elif isinstance(payload, MakeDecision):
+        builder = _builder(ctx, current.policy)
         await MakeDecisionUseCase(
             repository, current.policy, builder, products, ctx.clock, current.key_rate
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
@@ -124,7 +143,9 @@ def subscribers() -> list[Subscription]:
             topic=topics.DECISION_COMMANDS,
             group_id="decision.commands",
             handler=_on_command,
-            message_types=frozenset({MakeDecision.TYPE, RecordManualDecision.TYPE}),
+            message_types=frozenset(
+                {CheckStopFactors.TYPE, MakeDecision.TYPE, RecordManualDecision.TYPE}
+            ),
         ),
         Subscription(
             module=NAME,

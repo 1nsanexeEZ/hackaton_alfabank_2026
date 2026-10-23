@@ -48,12 +48,19 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v6"
+    assert policy.version == "policy_v7"
+    assert policy.config.screen_before_scoring
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
     assert policy.config.grade_scale == tuple("ABCDEFGHIJ")
     assert policy.config.revenue_multiplier["C"] == Decimal("0.4")
+
+
+def test_v7_is_v6_with_stop_factors_before_scoring() -> None:
+    v6, v7 = load_policy("policy_v6").config, load_policy("policy_v7").config
+    assert not v6.screen_before_scoring and v7.screen_before_scoring
+    assert replace(v7, version=v6.version, screen_before_scoring=False) == v6
 
 
 def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:

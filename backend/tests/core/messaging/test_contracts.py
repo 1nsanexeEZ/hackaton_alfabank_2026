@@ -46,6 +46,8 @@ EXPECTED = {
     "CalculateScore",
     "ScoreCalculated",
     "ScoringFailed",
+    "CheckStopFactors",
+    "StopFactorsPassed",
     "MakeDecision",
     "RecordManualDecision",
     "DecisionMade",

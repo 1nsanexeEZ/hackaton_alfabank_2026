@@ -25,6 +25,23 @@ class ManualTerms(ContractModel):
     conditions: list[str] = []
 
 
+class CheckStopFactors(IntegrationMessage):
+    """Stop factors before scoring: none — `StopFactorsPassed`, one matched — the decision
+    is made right away and the reply is `DecisionMade`."""
+
+    TYPE = "CheckStopFactors"
+    TOPIC = topics.DECISION_COMMANDS
+
+    application_id: UUID
+
+
+class StopFactorsPassed(IntegrationMessage):
+    TYPE = "StopFactorsPassed"
+    TOPIC = topics.DECISION_EVENTS
+
+    application_id: UUID
+
+
 class MakeDecision(IntegrationMessage):
     TYPE = "MakeDecision"
     TOPIC = topics.DECISION_COMMANDS
