@@ -106,6 +106,10 @@ services:
       # Signing (EDO) and payout (ABS) go through the external mocks (simulated, marked in API answers).
       APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-http://external-mocks:8100}
       ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
+      ENRICHMENT_SOURCE_TIMEOUT_SECONDS: ${ENRICHMENT_SOURCE_TIMEOUT_SECONDS:-3}
+      ENRICHMENT_RETRIES: ${ENRICHMENT_RETRIES:-3}
+      # Key rate of the Bank of Russia, % per year: the base of the offer rate in decision.
+      DECISION_KEY_RATE: ${DECISION_KEY_RATE:-16.50}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
