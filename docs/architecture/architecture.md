@@ -82,12 +82,14 @@ flowchart TD
 
 ## Модель принятия решения
 
-Решение принимают два модуля: `scoring` оценивает риск (PD, грейд, причины), `decision` по нему и по правилам банка выбирает исход, сумму, срок и ставку. Действующие версии — PD-модель `pd_model_v2` и политика `policy_v4`.
+Решение принимают два модуля: `scoring` оценивает риск, `decision` по нему и по правилам банка выбирает исход, сумму, срок и ставку. На каждой заявке scoring считает две независимые оценки на одной шкале A–J: экспертную PD-модель (как на схеме) и обученную ML-модель. Действующие версии — `pd_model_v2`, `ml_logreg_v1` и политика `policy_v5`.
 
 ```mermaid
 flowchart TD
+    Call["Вызов моделей: команда CalculateScore"]
+
     subgraph PD["Модель оценки PD — scoring, pd_model_v2"]
-        Call["Вызов модели: команда CalculateScore"] --> Segment{"Сегмент"}
+        Segment{"Сегмент"}
         Segment -->|ЮЛ, обороты в банке ≥ 6 мес.| CardLE["Скоркарта ЮЛ"]
         Segment -->|ИП, обороты в банке ≥ 6 мес.| CardIE["Скоркарта ИП"]
         Segment -->|новый клиент| CardNew["Упрощённая скоркарта"]
@@ -102,17 +104,23 @@ flowchart TD
         Reasons --> LogPD["Журнал: вход, выход, версия модели"]
     end
 
-    subgraph Strategy["Стратегия решения — decision, policy_v4"]
-        Result["PD, грейд, причины"] --> StopF{"Стоп-фактор?"}
+    subgraph ML["ML-модель — scoring, ml_logreg_v1"]
+        MLFeatures["10 признаков из тех же данных"] --> MLWoE["Корзины и WoE"]
+        MLWoE --> Logit["Логистическая регрессия: PD на 12 мес."]
+        Logit --> MLGrade["Грейд A–J на тех же границах PD"]
+        MLGrade --> MLReasons["Коды причин"]
+    end
+
+    subgraph Strategy["Стратегия решения — decision, policy_v5"]
+        Result["Две оценки: PD, грейд, причины"] --> StopF{"Стоп-фактор?"}
         StopF -->|да| Reject["REJECT"]
-        StopF -->|нет| Complete{"Данные полные?"}
-        Complete -->|нет| Manual["MANUAL_REVIEW"]
-        Complete -->|да| Soft{"Мягкий триггер?<br/>налоги, смена руководителя,<br/>«разгон» оборотов"}
-        Soft -->|да| Manual
-        Soft -->|нет| Matrix{"Матрица грейд × сумма"}
-        Matrix -->|ручное| Manual
-        Matrix -->|отказ| Reject
-        Matrix -->|одобрить| Limit["Лимит: минимум из ограничений"]
+        StopF -->|нет| Revenue{"Выручка не подтверждена,<br/>дозапроса ещё не было?"}
+        Revenue -->|да| Info["REQUEST_INFO: выписка"]
+        Revenue -->|нет| Zones{"Зона PD-модели × зона ML-модели<br/>green A–D · yellow E–G · red H–J"}
+        Zones -->|обе red, данные полные| Reject
+        Zones -->|"спорная: одна red, нет оценки ML,<br/>сбой источников, расхождения в данных"| Dispute["MANUAL_REVIEW, вид dispute"]
+        Zones -->|"проверка: есть yellow, мягкий триггер,<br/>сумма выше автоматики продукта"| Check["MANUAL_REVIEW, вид check"]
+        Zones -->|обе green| Limit["Лимит: минимум из ограничений"]
         Limit --> Min{"Лимит ≥ минимума продукта?"}
         Min -->|нет| Reject
         Min -->|да| Term["Срок и платёж: сначала удлинить срок,<br/>потом снизить сумму"]
@@ -124,13 +132,18 @@ flowchart TD
         Guarantee --> LogDecision["Журнал: решение, причины, версия политики"]
     end
 
+    Call --> Segment
+    Call --> MLFeatures
     LogPD --> Result
     Degraded --> Result
+    MLReasons --> Result
 ```
 
-Всё, что на схеме, есть в коде; пороги — в YAML (`scoring/infrastructure/config/pd_model_v2.yaml`, `decision/infrastructure/config/policy_v4.yaml`). Порядок правил, таблицы порогов и разбор S-1…S-9 — в [`scoring.md`](../modules/scoring.md) и [`decision.md`](../modules/decision.md). Кроме исходов на схеме, `decision` умеет `REQUEST_INFO`: выручка не подтверждается — банк просит выписку (S-5).
+Пороги и коэффициенты лежат в YAML: `scoring/infrastructure/config/pd_model_v2.yaml`, `ml_logreg_v1.yaml` (его пишет скрипт обучения `backend/ml/train.py`), `decision/infrastructure/config/policy_v5.yaml`. Порядок правил, матрица зон, метрики моделей и разбор S-1…S-9 — в [`scoring.md`](../modules/scoring.md) и [`decision.md`](../modules/decision.md). Андеррайтер видит обе оценки и вид ручной проверки (`check` или `dispute`); клиенту модели не показываются, только общие тексты причин.
 
 **Код и схема.**
+- ML-модели на схеме нет. В `policy_v5` она заменяет «Матрицу грейд × сумма»: где модели согласны, решает автоматика, где расходятся или видят умеренный риск — андеррайтер. Матрица грейд × сумма осталась в `policy_v3` и `policy_v4`: вышедшие версии не правятся и нужны для истории и отката.
+- Мягкие триггеры на схеме отправляют на ручную проверку сразу. В `policy_v5` они дают «не меньше проверки», но от отказа не спасают, если обе модели в красной зоне.
 - Стоп-факторы из таблицы схемы — те, по которым есть данные: ликвидация и банкротство, дисквалификация руководителя, просрочка компании и руководителя, блокировки счетов и недоимка, сообщения о банкротстве, иски и исполнительные производства выше порогов, отрицательный капитал, массовый адрес, запрещённый ОКВЭД. Нет данных — нет правила: реорганизация и исключение из реестра, недостоверность сведений, массовый руководитель, экстремисты, стоп-лист банка и 115-ФЗ. Возраст бизнеса проверяет `products` при подаче.
 - Лимит — минимум из семи ограничений, а не шести: к оборотам, выручке, нагрузке, грейду, продукту и группе добавлен LTV для залоговых продуктов.
 - «Хранилище признаков» — это снимок обогащения на заявку и сама заявка: признаки строятся из фасадов `enrichment.get_snapshot` и `applications.get_scoring_input`, отдельного feature store нет.
@@ -149,7 +162,7 @@ flowchart TB
         Applications["applications<br/>CreditApplication, Documents,<br/>Info requests, Offer"]
         Process["process<br/>Workflows (BPMN), Process instances,<br/>User tasks, Step registry"]
         Enrichment["enrichment<br/>Snapshots, адаптеры источников"]
-        Scoring["scoring<br/>PD model, Scorecard,<br/>Scoring results, Prescreen"]
+        Scoring["scoring<br/>PD model, ML model, Scorecard,<br/>Scoring results, Prescreen"]
         Decision["decision<br/>Credit policy, Decisions,<br/>Pre-approved offers"]
         Notifications["notifications<br/>Feed, Personal news, SSE"]
         Projector["projector<br/>модели чтения"]
@@ -179,8 +192,8 @@ flowchart TB
 | `applications` | заявка и её статус (единственный владелец), документы в MinIO, дозапросы, оффер, договор, подпись, выдача | [`state-machine.md`](../state-machine.md) |
 | `process` | движок BPMN: маршрут продукта (`express_v1`, `standard_v1`, `secured_v1`, `mortgage_v1`, `startup_v1`), команды модулям, задачи андеррайтера | — |
 | `enrichment` | ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и руководителя, ГИР БО, Контур, прогноз кассового разрыва по выпискам; снимок на заявку | [`enrichment.md`](../modules/enrichment.md) |
-| `scoring` | PD-модель на скоркартах, грейд A–J, коды причин; предскрин учредителя | [`scoring.md`](../modules/scoring.md) |
-| `decision` | кредитная политика: стоп-факторы, триггеры, матрица, лимит, ставка, исход и объяснение; предодобрение | [`decision.md`](../modules/decision.md) |
+| `scoring` | две оценки риска на шкале A–J: PD-модель на скоркартах и ML-модель (логистическая регрессия), коды причин; предскрин учредителя | [`scoring.md`](../modules/scoring.md) |
+| `decision` | кредитная политика: стоп-факторы, триггеры, матрица зон двух моделей, лимит, ставка, исход и объяснение; предодобрение | [`decision.md`](../modules/decision.md) |
 | `notifications` | лента событий и персональные новости, SSE | [`notifications.md`](../modules/notifications.md) |
 | `projector` | денормализованные таблицы под списки, очередь и метрики | [`projector.md`](../modules/projector.md) |
 | `bff` | ответы под экраны кабинета клиента и бэк-офиса | [`client-journey.md`](../api/client-journey.md) |
