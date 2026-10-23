@@ -11,32 +11,33 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from src.modules.enrichment.domain.snapshot import SourceData
-from src.modules.enrichment.facade import (
-    AccountBlockDTO,
+from src.modules.enrichment.application.dto.accounting import (
     AccountingPeriodDTO,
     AccountingReportsDTO,
-    ArbitrationDTO,
-    BankruptcyMessageDTO,
+)
+from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
     CashflowProjectionDTO,
-    CounterpartyRiskDTO,
-    CreditHistoryDTO,
-    EnforcementDTO,
-    FounderDTO,
-    GovContractsDTO,
-    ObligationDTO,
-    RegistryExtractDTO,
-    Source,
-    TaxProfileDTO,
 )
+from src.modules.enrichment.application.dto.counterparty import (
+    ArbitrationDTO,
+    BankruptcyMessageDTO,
+    CounterpartyRiskDTO,
+    EnforcementDTO,
+    GovContractsDTO,
+)
+from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, ObligationDTO
+from src.modules.enrichment.application.dto.registry import FounderDTO, RegistryExtractDTO
+from src.modules.enrichment.application.dto.snapshot import SourceData
+from src.modules.enrichment.application.dto.tax import AccountBlockDTO, TaxProfileDTO
+from src.modules.enrichment.domain.enums import Source
 
 # Поля периода ГИР БО: все суммы, кроме года.
 _PERIOD_AMOUNTS = tuple(f.name for f in fields(AccountingPeriodDTO) if f.name != "year")
 
 
-def data_to_json(source: Source, data: SourceData) -> dict[str, Any]:
+def data_to_json(source: Source, data: object) -> dict[str, Any]:
     if isinstance(data, RegistryExtractDTO):
         return _registry_to_json(data)
     if isinstance(data, TaxProfileDTO):

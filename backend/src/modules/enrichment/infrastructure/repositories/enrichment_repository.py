@@ -5,15 +5,16 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.enrichment.application.interfaces.repositories import EnrichmentRepository
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
-from src.modules.enrichment.infrastructure.mappers import to_domain, to_records
-from src.modules.enrichment.infrastructure.models import (
+from src.modules.enrichment.infrastructure.database.models import (
     EnrichmentSnapshotRecord,
     SourceResultRecord,
 )
+from src.modules.enrichment.infrastructure.repositories.mappers import to_domain, to_records
 
 
-class SqlAlchemyEnrichmentRepository:
+class SqlAlchemyEnrichmentRepository(EnrichmentRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

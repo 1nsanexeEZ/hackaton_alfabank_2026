@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from src.modules.enrichment.application.ports import SourceNotFound, SourceUnavailable
+from src.modules.enrichment.domain.exceptions import SourceNotFound, SourceUnavailable
 
 
 def kop_to_rub(kopecks: int) -> Decimal:

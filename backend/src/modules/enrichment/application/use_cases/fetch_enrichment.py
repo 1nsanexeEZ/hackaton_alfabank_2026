@@ -27,17 +27,16 @@ from src.core.messaging.contracts.enrichment import (
     FetchEnrichment,
 )
 from src.core.messaging.outbox import OutboxWriter
-from src.modules.enrichment.application.cashflow import CashflowBuilder
-from src.modules.enrichment.application.ports import (
-    EnrichmentRepository,
-    PersonQuery,
-    SourceError,
-)
-from src.modules.enrichment.application.sources import Sources
-from src.modules.enrichment.domain.cashflow import StatementParseError
-from src.modules.enrichment.domain.snapshot import INTERNAL_SOURCES, EnrichmentSnapshot, SourceData
-from src.modules.enrichment.domain.snapshot import SourceError as SnapshotError
-from src.modules.enrichment.facade import Source
+from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
+from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
+from src.modules.enrichment.application.dto.snapshot import SourceData
+from src.modules.enrichment.application.interfaces.repositories import EnrichmentRepository
+from src.modules.enrichment.application.interfaces.sources import Sources
+from src.modules.enrichment.application.use_cases.build_cashflow import CashflowBuilder
+from src.modules.enrichment.domain.consent_policy import skip_reason
+from src.modules.enrichment.domain.enums import INTERNAL_SOURCES, Source
+from src.modules.enrichment.domain.exceptions import SourceFetchError, StatementParseError
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
 
 
 class FetchEnrichmentUseCase:
@@ -75,7 +74,12 @@ class FetchEnrichmentUseCase:
         for source in command.sources:
             if source in INTERNAL_SOURCES:
                 continue
-            skip = _skip_reason(cast(Source, source), command)
+            skip = skip_reason(
+                cast(Source, source),
+                bki_consent=command.bki_consent_at is not None,
+                head_known=command.head is not None,
+                head_consent=command.head_bki_consent_at is not None,
+            )
             if skip is not None:
                 snapshot.record_skipped(cast(Source, source), skip)
                 continue
@@ -93,9 +97,11 @@ class FetchEnrichmentUseCase:
         if self._cashflow is None or not command.statement_document_ids:
             return
         try:
-            forecast = await self._cashflow.build(command, snapshot.credit_history())
+            forecast = await self._cashflow.build(
+                command, snapshot.data_of("bki", CreditHistoryDTO)
+            )
         except StatementParseError as exc:
-            snapshot.record_cashflow_failed(SnapshotError("bad_response", str(exc)))
+            snapshot.record_cashflow_failed(SourceError("bad_response", str(exc)))
             return
         if forecast is not None:
             snapshot.record_cashflow(forecast, fetched_at=self._clock.now())
@@ -106,10 +112,10 @@ class FetchEnrichmentUseCase:
         started = time.perf_counter()
         try:
             data = await self._call(source, command)
-        except SourceError as exc:
+        except SourceFetchError as exc:
             snapshot.record_failure(
                 source,
-                SnapshotError(exc.kind, str(exc)),
+                SourceError(exc.kind, str(exc)),
                 attempts=exc.attempts,
                 latency_ms=_elapsed_ms(started),
             )
@@ -133,9 +139,9 @@ class FetchEnrichmentUseCase:
         if source == "bki_head":
             head = command.head
             assert head is not None and command.head_bki_consent_at is not None
-            person = PersonQuery(head.last_name, head.first_name, head.middle_name, command.inn)
+            person = PersonDTO(head.last_name, head.first_name, head.middle_name, command.inn)
             return await self._sources.person_bureau.fetch(person, command.head_bki_consent_at)
-        raise SourceError("bad_response", f"Неизвестный источник {source!r}")
+        raise SourceFetchError("bad_response", f"Неизвестный источник {source!r}")
 
     async def _publish(
         self, outbox: OutboxWriter, snapshot: EnrichmentSnapshot, command_event_id: UUID
@@ -150,7 +156,7 @@ class FetchEnrichmentUseCase:
                 causation_id=command_event_id,
             )
             return
-        cashflow = snapshot.cashflow()
+        cashflow = snapshot.data_of("statement", CashflowForecastDTO)
         await outbox.add(
             EnrichmentCompleted(
                 application_id=snapshot.application_id,
@@ -167,20 +173,6 @@ class FetchEnrichmentUseCase:
 
 def _elapsed_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
-
-
-def _skip_reason(source: Source, command: FetchEnrichment) -> SnapshotError | None:
-    """Источник не запрашиваем: нет согласия субъекта (218-ФЗ) или некого спрашивать."""
-    if source == "bki" and command.bki_consent_at is None:
-        return SnapshotError("no_consent", "Нет согласия на запрос кредитной истории")
-    if source == "bki_head":
-        if command.head is None:
-            return SnapshotError("no_head", "Руководитель по реестру не найден среди участников")
-        if command.head_bki_consent_at is None:
-            return SnapshotError(
-                "no_consent", "Нет согласия руководителя на запрос его кредитной истории"
-            )
-    return None
 
 
 def _failure_reason(snapshot: EnrichmentSnapshot) -> str:

@@ -3,38 +3,17 @@
 согласия источник помечается `skipped`, а не запрашивается. БКИ руководителя — так же,
 по его личному согласию; нет руководителя по реестру — тоже `skipped`.
 
-Данные источников переносим в DTO из facade.py (они — чистые dataclass'ы), чтобы
-не дублировать структуры; бизнес-логика снимка — здесь.
+Ответ источника для снимка — непрозрачные данные: снимок следит за статусами, а форму данных
+задают DTO слоя application. Типизированно их достают через `data_of`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
-from src.modules.enrichment.facade import (
-    AccountingReportsDTO,
-    CashflowForecastDTO,
-    CounterpartyRiskDTO,
-    CreditHistoryDTO,
-    RegistryExtractDTO,
-    Source,
-    TaxProfileDTO,
-)
-
-SourceData = (
-    RegistryExtractDTO
-    | TaxProfileDTO
-    | CreditHistoryDTO
-    | CashflowForecastDTO
-    | AccountingReportsDTO
-    | CounterpartyRiskDTO
-)
-SourceStatus = Literal["ok", "failed", "skipped"]
-# Прогноз по выписке строит сам модуль: это не внешний источник, в ok / failed он не считается.
-INTERNAL_SOURCES: frozenset[Source] = frozenset({"statement"})
+from src.modules.enrichment.domain.enums import INTERNAL_SOURCES, Source, SourceStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +29,7 @@ class SourceResult:
     fetched_at: datetime | None = None
     latency_ms: int | None = None
     attempts: int = 0
-    data: SourceData | None = None
+    data: object | None = None
     error: SourceError | None = None
 
 
@@ -69,7 +48,7 @@ class EnrichmentSnapshot:
     def record_success(
         self,
         source: Source,
-        data: SourceData,
+        data: object,
         *,
         fetched_at: datetime,
         latency_ms: int | None = None,
@@ -127,42 +106,17 @@ class EnrichmentSnapshot:
             if s not in INTERNAL_SOURCES and s in self.results and self.results[s].status == status
         ]
 
-    def _data(self, source: Source) -> SourceData | None:
+    def data_of[T](self, source: Source, kind: type[T]) -> T | None:
+        """Данные источника, если он ответил и данные нужного вида."""
         result = self.results.get(source)
-        return result.data if result is not None and result.status == "ok" else None
+        if result is None or result.status != "ok":
+            return None
+        return result.data if isinstance(result.data, kind) else None
 
-    def registry(self) -> RegistryExtractDTO | None:
-        data = self._data("egrul")
-        return data if isinstance(data, RegistryExtractDTO) else None
-
-    def tax(self) -> TaxProfileDTO | None:
-        data = self._data("fns")
-        return data if isinstance(data, TaxProfileDTO) else None
-
-    def credit_history(self) -> CreditHistoryDTO | None:
-        data = self._data("bki")
-        return data if isinstance(data, CreditHistoryDTO) else None
-
-    def head_credit_history(self) -> CreditHistoryDTO | None:
-        data = self._data("bki_head")
-        return data if isinstance(data, CreditHistoryDTO) else None
-
-    def accounting(self) -> AccountingReportsDTO | None:
-        data = self._data("gir_bo")
-        return data if isinstance(data, AccountingReportsDTO) else None
-
-    def counterparty(self) -> CounterpartyRiskDTO | None:
-        data = self._data("kontur")
-        return data if isinstance(data, CounterpartyRiskDTO) else None
-
-    def record_cashflow(self, forecast: CashflowForecastDTO, *, fetched_at: datetime) -> None:
+    def record_cashflow(self, forecast: object, *, fetched_at: datetime) -> None:
         self.results["statement"] = SourceResult(
             source="statement", status="ok", fetched_at=fetched_at, data=forecast
         )
 
     def record_cashflow_failed(self, error: SourceError) -> None:
         self.results["statement"] = SourceResult(source="statement", status="failed", error=error)
-
-    def cashflow(self) -> CashflowForecastDTO | None:
-        data = self._data("statement")
-        return data if isinstance(data, CashflowForecastDTO) else None

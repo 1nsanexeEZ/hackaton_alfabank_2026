@@ -3,14 +3,18 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import AccountingPeriodDTO, AccountingReportsDTO
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource
+from src.modules.enrichment.application.dto.accounting import (
+    AccountingPeriodDTO,
+    AccountingReportsDTO,
+)
+from src.modules.enrichment.application.interfaces.sources import AccountingReportsSource
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
 _THOUSAND = Decimal(1000)
 
 
-class GirBoHttpSource(HttpSource):
+class GirBoHttpSource(HttpSource, AccountingReportsSource):
     """ГИР БО: строки форм 0710001 / 0710002 в тыс. ₽ → периоды в рублях."""
 
     async def fetch(self, inn: str) -> AccountingReportsDTO:

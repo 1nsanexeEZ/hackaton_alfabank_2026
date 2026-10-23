@@ -3,18 +3,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast
 
-from src.modules.enrichment.domain.snapshot import (
-    EnrichmentSnapshot,
-    SourceError,
-    SourceResult,
-    SourceStatus,
-)
-from src.modules.enrichment.facade import Source
-from src.modules.enrichment.infrastructure.models import (
+from src.modules.enrichment.domain.enums import Source, SourceStatus
+from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError, SourceResult
+from src.modules.enrichment.infrastructure.database.models import (
     EnrichmentSnapshotRecord,
     SourceResultRecord,
 )
-from src.modules.enrichment.infrastructure.serialization import data_from_json, data_to_json
+from src.modules.enrichment.infrastructure.repositories.serialization import (
+    data_from_json,
+    data_to_json,
+)
 
 
 def to_records(

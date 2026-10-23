@@ -10,7 +10,7 @@
 
 | Внешняя система | Что делает в процессе | Мок | Адаптер в backend | Пометка |
 |---|---|---|---|---|
-| ЕГРЮЛ / ЕГРИП (ФНС России) | статус и дата регистрации, ОКВЭД, руководитель, учредители, адрес | `GET /egrul/{inn}` — ключи кириллицей, даты строками | `EgrulHttpSource` (`backend/src/enrichment/infrastructure/adapters/egrul_http.py`) | **смоделировано** |
+| ЕГРЮЛ / ЕГРИП (ФНС России) | статус и дата регистрации, ОКВЭД, руководитель, учредители, адрес | `GET /egrul/{inn}` — ключи кириллицей, даты строками | `EgrulHttpSource` (`backend/src/modules/enrichment/infrastructure/adapters/egrul_http.py`) | **смоделировано** |
 | ФНС «Прозрачный бизнес» | недоимка, численность, выручка и расходы, налоговый режим, реестр МСП | `GET /fns/{inn}` — суммы в копейках | `FnsHttpSource` (`.../adapters/fns_http.py`) | **смоделировано** |
 | Бюро кредитных историй | обязательства, платежи, просрочки, запросы за 30 дней | `POST /bki/report` `{inn, consent_at, request_id}`; без `consent_at` — 400; ИНН из `MOCK_BKI_ALWAYS_FAIL_INNS` — всегда 503 (сценарий S-6) | `BkiHttpSource` (`.../adapters/bki_http.py`), запрос только при согласии клиента | **смоделировано** |
 | ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/applications/infrastructure/edo.py`) | **смоделировано**, ответ API `simulated: true` |

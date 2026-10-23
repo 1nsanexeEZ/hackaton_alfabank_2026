@@ -3,16 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from src.modules.enrichment.application.ports import PersonQuery, SourceUnavailable
-from src.modules.enrichment.facade import CreditHistoryDTO
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource
+from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
+from src.modules.enrichment.application.interfaces.sources import PersonBureauSource
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.infrastructure.adapters.bki_http import map_credit_history
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
 
-class BkiPersonHttpSource(HttpSource):
+class BkiPersonHttpSource(HttpSource, PersonBureauSource):
     """Кредитный отчёт физлица (руководителя): в запрос уходит согласие самого человека."""
 
-    async def fetch(self, person: PersonQuery, consent_at: datetime) -> CreditHistoryDTO:
+    async def fetch(self, person: PersonDTO, consent_at: datetime) -> CreditHistoryDTO:
         raw = await self._request(
             "POST",
             "/bki/person-report",

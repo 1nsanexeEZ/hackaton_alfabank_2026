@@ -8,12 +8,8 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from src.modules.enrichment.application.ports import (
-    PersonQuery,
-    SourceNotFound,
-    SourceUnavailable,
-)
-from src.modules.enrichment.facade import AccountBlockDTO, BankruptcyMessageDTO
+from src.modules.enrichment.domain.exceptions import SourceNotFound, SourceUnavailable
+from src.modules.enrichment.facade import AccountBlockDTO, BankruptcyMessageDTO, PersonDTO
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -207,7 +203,7 @@ async def test_person_bureau_sends_the_person_and_the_consent() -> None:
         seen.append(json.loads(request.content))
         return httpx.Response(200, json=ZAKATOV_BKI)
 
-    person = PersonQuery("Закатов", "Олег", "Олегович", "7703417070")
+    person = PersonDTO("Закатов", "Олег", "Олегович", "7703417070")
     consent = datetime(2026, 10, 21, 10, tzinfo=UTC)
     dto = await BkiPersonHttpSource(_client(handler), backoff=()).fetch(person, consent)
 
@@ -257,6 +253,6 @@ async def test_new_sources_timeout_after_retries(source: type) -> None:
 
 async def test_person_bureau_unavailable() -> None:
     source = BkiPersonHttpSource(_client(lambda _: httpx.Response(503)), backoff=())
-    person = PersonQuery("Сбоев", "Семён", None, "7705729405")
+    person = PersonDTO("Сбоев", "Семён", None, "7705729405")
     with pytest.raises(SourceUnavailable):
         await source.fetch(person, datetime(2026, 10, 21, tzinfo=UTC))

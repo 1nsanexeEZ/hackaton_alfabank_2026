@@ -4,20 +4,21 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from src.modules.enrichment.application.ports import SourceUnavailable
-from src.modules.enrichment.facade import (
+from src.modules.enrichment.application.dto.counterparty import (
     ArbitrationDTO,
     BankruptcyMessageDTO,
     CounterpartyRiskDTO,
     EnforcementDTO,
     GovContractsDTO,
 )
-from src.modules.enrichment.infrastructure.adapters.base import HttpSource
+from src.modules.enrichment.application.interfaces.sources import CounterpartyRiskSource
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
+from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
 _RELIABILITY = frozenset({"green", "yellow", "red"})
 
 
-class KonturHttpSource(HttpSource):
+class KonturHttpSource(HttpSource, CounterpartyRiskSource):
     """Контур.Фокус: арбитраж, ФССП, банкротство; суммы у источника — в рублях."""
 
     async def fetch(self, inn: str) -> CounterpartyRiskDTO:
