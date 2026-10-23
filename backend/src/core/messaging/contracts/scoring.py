@@ -1,5 +1,6 @@
 """scoring.commands and scoring.events — key: application_id."""
 
+from typing import Literal
 from uuid import UUID
 
 from src.core.messaging import topics
@@ -22,6 +23,9 @@ class ScoreCalculated(IntegrationMessage):
     score: int
     risk_grade: str
     flags: list[str] = []
+    # "Is the data complete?": degraded — a critical source failed or too few features had
+    # data; the models are computed anyway, a person decides. None — results before it.
+    quality: Literal["ok", "degraded"] | None = None
 
 
 class ScoringFailed(IntegrationMessage):

@@ -12,11 +12,12 @@ from __future__ import annotations
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from src.modules.enrichment.facade import Source
 from src.modules.scoring.domain.features import FEATURES
 from src.modules.scoring.domain.model import Grade, Segment
 from src.modules.scoring.domain.pd_model import (
@@ -28,12 +29,14 @@ from src.modules.scoring.domain.pd_model import (
     ScorecardSpec,
 )
 from src.modules.scoring.domain.prescreen import FounderPrescreen, PrescreenConfig
+from src.modules.scoring.domain.quality import QualityPolicy
 from src.modules.scoring.domain.scorecard import Scorecard, ScorecardConfig
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _DEFAULT_CARD = "scorecard_v1"
 _DEFAULT_MODEL = "pd_model_v2"
 _DEFAULT_PRESCREEN = "prescreen_v1"
+_DEFAULT_QUALITY = "quality_v1"
 
 # Фактор → обязательные корзины (должны совпадать с логикой в domain/scorecard.py).
 _REQUIRED_BUCKETS: dict[str, frozenset[str]] = {
@@ -151,6 +154,45 @@ def load_prescreen_file(path: Path) -> FounderPrescreen:
 @lru_cache(maxsize=4)
 def default_prescreen() -> FounderPrescreen:
     return load_prescreen()
+
+
+# --- качество данных ---------------------------------------------------------------------------
+
+
+class _QualitySchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    critical_sources: list[str]
+    min_completeness: Decimal = Field(ge=0, le=1)
+
+
+def load_quality(name: str = _DEFAULT_QUALITY) -> QualityPolicy:
+    return load_quality_file(_CONFIG_DIR / f"{name}.yaml")
+
+
+def load_quality_file(path: Path) -> QualityPolicy:
+    try:
+        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScorecardConfigError(f"Не удалось прочитать качество данных {path}: {exc}") from exc
+    try:
+        schema = _QualitySchema.model_validate(raw)
+    except ValidationError as exc:
+        raise ScorecardConfigError(f"Качество данных {path} не прошло схему: {exc}") from exc
+    unknown = set(schema.critical_sources) - set(get_args(Source))
+    if unknown:
+        raise ScorecardConfigError(f"{path}: неизвестные источники {sorted(unknown)}")
+    return QualityPolicy(
+        version=schema.version,
+        critical_sources=frozenset(schema.critical_sources),
+        min_completeness=schema.min_completeness,
+    )
+
+
+@lru_cache(maxsize=4)
+def default_quality() -> QualityPolicy:
+    return load_quality()
 
 
 # --- PD-модель ---------------------------------------------------------------------------------

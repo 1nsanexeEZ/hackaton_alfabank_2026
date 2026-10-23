@@ -16,6 +16,7 @@ from src.modules.scoring.domain.model import (
     ScoringResult,
     Segment,
 )
+from src.modules.scoring.domain.quality import QualityLevel
 from src.modules.scoring.infrastructure.models import ScoringResultRecord
 
 
@@ -64,6 +65,8 @@ def _to_record(result: ScoringResult, input_snapshot: dict[str, Any]) -> Scoring
         pd_12m=result.pd_12m,
         reason_codes=list(result.reason_codes) if result.pd_12m is not None else None,
         ml=_ml_to_json(result.ml) if result.ml is not None else None,
+        quality=result.quality,
+        quality_reasons=list(result.quality_reasons) if result.quality is not None else None,
     )
 
 
@@ -86,6 +89,8 @@ def _to_domain(record: ScoringResultRecord) -> ScoringResult:
         pd_12m=Decimal(str(record.pd_12m)) if record.pd_12m is not None else None,
         reason_codes=tuple(record.reason_codes or ()),
         ml=_ml_from_json(record.ml) if record.ml is not None else None,
+        quality=cast(QualityLevel | None, record.quality),
+        quality_reasons=tuple(record.quality_reasons or ()),
     )
 
 

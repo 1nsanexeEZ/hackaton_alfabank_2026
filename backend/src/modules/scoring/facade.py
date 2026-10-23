@@ -58,6 +58,11 @@ class ScoringResultDTO:
     reason_codes: tuple[str, ...] = ()
     # The ML model next to the PD model; None for results computed before it.
     ml: MlScoreDTO | None = None
+    # "Is the data complete?": degraded — a critical source failed or too few features had
+    # data, a person decides; reasons: `source_failed:<source>`, `completeness_below:<share>`.
+    # None for results computed before it.
+    quality: Literal["ok", "degraded"] | None = None
+    quality_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

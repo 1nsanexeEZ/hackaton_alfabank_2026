@@ -3,10 +3,13 @@ enrichment) scoring читает через их фасады напрямую �
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from decimal import Decimal
 from typing import Any, Protocol
 from uuid import UUID
 
 from src.modules.scoring.domain.model import MlScore, ScoringInput, ScoringResult
+from src.modules.scoring.domain.quality import DataQuality
 from src.modules.scoring.domain.scorecard import ScorecardOutput
 
 
@@ -26,6 +29,12 @@ class MlScoringModel(Protocol):
     def version(self) -> str: ...
 
     def predict(self, inp: ScoringInput) -> MlScore: ...
+
+
+class DataQualityAssessor(Protocol):
+    """«Данные полные?»: какие источники не ответили и сколько признаков без данных."""
+
+    def assess(self, sources_failed: Sequence[str], completeness: Decimal) -> DataQuality: ...
 
 
 class ScoringRepository(Protocol):

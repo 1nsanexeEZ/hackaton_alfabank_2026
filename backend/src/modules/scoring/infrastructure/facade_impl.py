@@ -91,6 +91,8 @@ class ScoringFacadeImpl:
             pd_12m=result.pd_12m,
             reason_codes=result.reason_codes,
             ml=_ml(result.ml) if result.ml is not None else None,
+            quality=result.quality,
+            quality_reasons=result.quality_reasons,
         )
 
     def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
