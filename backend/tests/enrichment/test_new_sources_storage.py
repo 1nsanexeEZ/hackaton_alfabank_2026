@@ -26,12 +26,12 @@ from src.modules.enrichment.facade import (
     TaxProfileDTO,
 )
 from src.modules.enrichment.infrastructure.database.models import SourceResultRecord
-from src.modules.enrichment.infrastructure.database.serialization import (
-    data_from_json,
-    data_to_json,
-)
 from src.modules.enrichment.infrastructure.repositories.enrichment_repository import (
     SqlAlchemyEnrichmentRepository,
+)
+from src.modules.enrichment.infrastructure.repositories.serialization import (
+    data_from_json,
+    data_to_json,
 )
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)

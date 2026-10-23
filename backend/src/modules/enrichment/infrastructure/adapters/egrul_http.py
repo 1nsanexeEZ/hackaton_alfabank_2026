@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any
 
 from src.modules.enrichment.application.dto.registry import FounderDTO, RegistryExtractDTO
+from src.modules.enrichment.application.interfaces.sources import RegistrySource
 from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
@@ -16,7 +17,7 @@ _STATUS = {
 }
 
 
-class EgrulHttpSource(HttpSource):
+class EgrulHttpSource(HttpSource, RegistrySource):
     async def fetch(self, inn: str) -> RegistryExtractDTO:
         raw = await self._request("GET", f"/egrul/{inn}")
         try:

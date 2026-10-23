@@ -11,13 +11,14 @@ from src.modules.enrichment.application.dto.counterparty import (
     EnforcementDTO,
     GovContractsDTO,
 )
+from src.modules.enrichment.application.interfaces.sources import CounterpartyRiskSource
 from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource
 
 _RELIABILITY = frozenset({"green", "yellow", "red"})
 
 
-class KonturHttpSource(HttpSource):
+class KonturHttpSource(HttpSource, CounterpartyRiskSource):
     """Контур.Фокус: арбитраж, ФССП, банкротство; суммы у источника — в рублях."""
 
     async def fetch(self, inn: str) -> CounterpartyRiskDTO:

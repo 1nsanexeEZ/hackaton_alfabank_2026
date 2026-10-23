@@ -7,13 +7,14 @@ import io
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from src.modules.enrichment.application.interfaces.statement_parser import StatementParser
 from src.modules.enrichment.domain.cashflow import Transaction
 from src.modules.enrichment.domain.exceptions import StatementParseError
 
 _REQUIRED_COLUMNS = ("date", "amount")
 
 
-class CsvStatementParser:
+class CsvStatementParser(StatementParser):
     def parse(self, content: bytes) -> list[Transaction]:
         """CSV (UTF-8, разделитель `;`) → список операций. Пустой файл → []."""
         reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";")

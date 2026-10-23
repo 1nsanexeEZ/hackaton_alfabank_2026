@@ -9,7 +9,7 @@ from src.modules.enrichment.infrastructure.database.models import (
     EnrichmentSnapshotRecord,
     SourceResultRecord,
 )
-from src.modules.enrichment.infrastructure.database.serialization import (
+from src.modules.enrichment.infrastructure.repositories.serialization import (
     data_from_json,
     data_to_json,
 )

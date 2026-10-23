@@ -10,12 +10,12 @@ from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.enrichment.infrastructure.adapters.enrichment_facade import EnrichmentFacadeImpl
 from src.modules.enrichment.infrastructure.adapters.http_sources import build_http_sources
 from src.modules.enrichment.infrastructure.adapters.registry_cache import InMemoryRegistryCache
 from src.modules.enrichment.infrastructure.config import EnrichmentSettings
 from src.modules.enrichment.presentation.consumers import on_fetch_enrichment
 from src.modules.enrichment.presentation.dependencies import enrichment_facade
-from src.modules.enrichment.presentation.facade_impl import EnrichmentFacadeImpl
 
 NAME = "enrichment"
 

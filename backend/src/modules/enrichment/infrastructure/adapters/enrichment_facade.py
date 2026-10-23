@@ -1,5 +1,5 @@
-"""Реализация `EnrichmentFacade` для соседей (scoring, decision, bff, clients): только зовёт
-use case'ы, своей логики нет."""
+"""`EnrichmentFacade` для соседей (scoring, decision, bff, clients): только зовёт use case'ы,
+своей логики нет."""
 
 from __future__ import annotations
 
@@ -14,9 +14,10 @@ from src.modules.enrichment.application.use_cases.lookup_person_bureau import (
     LookupPersonBureauUseCase,
 )
 from src.modules.enrichment.application.use_cases.lookup_registry import LookupRegistryUseCase
+from src.modules.enrichment.facade import EnrichmentFacade
 
 
-class EnrichmentFacadeImpl:
+class EnrichmentFacadeImpl(EnrichmentFacade):
     def __init__(
         self,
         get_snapshot: GetSnapshotUseCase,

@@ -6,11 +6,12 @@ from datetime import datetime, timedelta
 
 from src.core.domain.clock import Clock, SystemClock
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
+from src.modules.enrichment.application.interfaces.registry_cache import RegistryCache
 
 _LOOKUP_TTL = timedelta(minutes=10)
 
 
-class InMemoryRegistryCache:
+class InMemoryRegistryCache(RegistryCache):
     def __init__(self, *, ttl: timedelta = _LOOKUP_TTL, clock: Clock | None = None) -> None:
         self._ttl = ttl
         self._clock = clock or SystemClock()

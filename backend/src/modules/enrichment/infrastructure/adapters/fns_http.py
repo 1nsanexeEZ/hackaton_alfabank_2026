@@ -4,11 +4,12 @@ from datetime import date
 from typing import Any
 
 from src.modules.enrichment.application.dto.tax import AccountBlockDTO, TaxProfileDTO
+from src.modules.enrichment.application.interfaces.sources import TaxSource
 from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.infrastructure.adapters.http_base import HttpSource, kop_to_rub
 
 
-class FnsHttpSource(HttpSource):
+class FnsHttpSource(HttpSource, TaxSource):
     async def fetch(self, inn: str) -> TaxProfileDTO:
         raw = await self._request("GET", f"/fns/{inn}")
         try:
