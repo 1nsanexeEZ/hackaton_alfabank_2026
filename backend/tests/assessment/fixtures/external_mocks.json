@@ -992,5 +992,125 @@
         "detail": "Бюро кредитных историй недоступно"
       }
     }
+  },
+  "7706123455": {
+    "code": "start",
+    "egrul": {
+      "status": 200,
+      "body": {
+        "ИНН": "7706123455",
+        "ОГРН": "1267700123459",
+        "НаимПолн": "Общество с ограниченной ответственностью «Старт»",
+        "Статус": {
+          "Код": "ACTIVE"
+        },
+        "ДатаРег": "2026-07-23",
+        "ОКВЭДОсн": {
+          "Код": "62.01"
+        },
+        "ОКВЭДДоп": [],
+        "Руководитель": {
+          "ФИО": "Стартов Степан Сергеевич",
+          "Должность": "Генеральный директор",
+          "ДатаЗаписи": "2026-07-23"
+        },
+        "Учредители": [
+          {
+            "ФИО": "Стартов Степан Сергеевич",
+            "Доля": 100
+          }
+        ],
+        "Адрес": {
+          "Полный": "г. Москва, ул. Большая Новодмитровская, д. 36",
+          "КодРегиона": "77"
+        },
+        "МассовыйАдрес": false,
+        "ОрганизационнаяФорма": "ООО",
+        "КПП": "770601001"
+      }
+    },
+    "fns": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "arrears_kop": 0,
+        "avg_headcount": 3,
+        "revenue_kop": 0,
+        "expenses_kop": 0,
+        "tax_regime": "УСН",
+        "disqualified_head": false,
+        "msp_registry": true,
+        "report_year": 2025,
+        "account_blocks": []
+      }
+    },
+    "bki": {
+      "status": 200,
+      "body": {
+        "obligations": [],
+        "inquiries_30d": 0
+      }
+    },
+    "gir_bo": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "unit": "тыс. руб.",
+        "available": false,
+        "reason": "Компания зарегистрирована менее года назад: годовой отчётности ещё нет",
+        "periods": []
+      }
+    },
+    "kontur": {
+      "status": 200,
+      "body": {
+        "inn": "7706123455",
+        "reliability": "yellow",
+        "reliability_notes": [
+          "Компания зарегистрирована менее 12 месяцев назад"
+        ],
+        "arbitration": {
+          "as_defendant": 0,
+          "as_plaintiff": 0,
+          "defendant_sum_rub": 0
+        },
+        "enforcement_proceedings": {
+          "active": 0,
+          "sum_rub": 0
+        },
+        "gov_contracts": {
+          "count": 0,
+          "sum_rub": 0
+        },
+        "bankruptcy_messages": [],
+        "active_pledges": 0,
+        "affiliated_companies": 0,
+        "checked_at": "2026-10-22"
+      }
+    },
+    "bki_head": {
+      "status": 200,
+      "body": {
+        "subject": {
+          "last_name": "Стартов",
+          "first_name": "Степан",
+          "middle_name": "Сергеевич"
+        },
+        "obligations": [
+          {
+            "type": "card",
+            "creditor": "АО «Банк»",
+            "amount_kop": 25000000,
+            "outstanding_kop": 3000000,
+            "monthly_payment_kop": 500000,
+            "opened": "2023-11-01",
+            "closes": "2028-11-01",
+            "overdue_days": 0,
+            "max_overdue_days": 0
+          }
+        ],
+        "inquiries_30d": 1
+      }
+    }
   }
 }

@@ -175,6 +175,7 @@ DEMO_KONTUR: dict[str, Kontur] = {
     ),
     "7704568152": Kontur("green", active_pledges=1, affiliated_companies=1),
     "7705729405": Kontur("green", as_plaintiff=3, active_pledges=1, affiliated_companies=2),
+    "7706123455": Kontur("yellow", ("Компания зарегистрирована менее 12 месяцев назад",)),
 }
 
 
@@ -324,6 +325,15 @@ DEMO_HEADS: dict[str, PersonHistory] = {
         1,
     ),
     "7705729405": PersonHistory((), 0),
+    # Стартов, учредитель стартапа: кредитная карта без просрочек — предскрин проходит.
+    "7706123455": PersonHistory(
+        (
+            Obligation(
+                "card", "АО «Банк»", 250 * _K, 30 * _K, 5 * _K, "2023-11-01", "2028-11-01", 0, 0
+            ),
+        ),
+        1,
+    ),
 }
 
 
