@@ -18,8 +18,22 @@ const props = defineProps<{ products: ProductCatalog | null }>()
 const emit = defineEmits<{ applyProduct: [code: string, organizationId: string, maxAmount: number] }>()
 
 const company = useCompany()
-const { organizations, organizationId, detail, reports, preApproved, members, loading, error, busy, actionError, notice, canEditFinancials, canManageMembers } =
-  company
+const {
+  organizations,
+  organizationId,
+  detail,
+  reports,
+  preApproved,
+  members,
+  loading,
+  error,
+  busy,
+  actionError,
+  notice,
+  verification,
+  canEditFinancials,
+  canManageMembers,
+} = company
 
 onMounted(() => void company.loadOrganizations())
 
@@ -42,7 +56,7 @@ const productTitle = (code: string) => props.products?.find((product) => product
       </p>
       <p v-if="actionError" class="rounded-2xl bg-brand-soft p-3 text-sm text-brand" role="alert">{{ actionError }}</p>
 
-      <CompanyRequisites :company="detail" />
+      <CompanyRequisites :company="detail" :verification="verification" :verifying="busy === 'verify'" @verify="company.verify" />
       <FounderPrescreenPanel v-if="isStartup" :organization-id="detail.id" />
       <PreApprovedOffers
         v-else
@@ -62,6 +76,8 @@ const productTitle = (code: string) => props.products?.find((product) => product
         :busy="busy"
         @add="async (login, role, done) => (await company.addMember(login, role)) && done()"
         @grant="async (accountId, input, done) => (await company.grantPowerOfAttorney(accountId, input)) && done()"
+        @change-role="company.changeMemberRole"
+        @remove="company.removeMember"
       />
     </div>
   </AsyncState>
