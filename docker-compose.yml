@@ -1,8 +1,15 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16.4-alpine
     container_name: alfa_credit_db
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
@@ -23,6 +30,7 @@ services:
     container_name: alfa_credit_minio
     user: "root"
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -42,6 +50,7 @@ services:
     image: apache/kafka:3.8.0
     container_name: alfa_credit_kafka
     restart: unless-stopped
+    logging: *default-logging
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -77,6 +86,7 @@ services:
     build: ./external-mocks
     container_name: alfa_credit_external_mocks
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MOCK_LATENCY_MS_MIN: ${MOCK_LATENCY_MS_MIN:-100}
       MOCK_LATENCY_MS_MAX: ${MOCK_LATENCY_MS_MAX:-400}
@@ -90,6 +100,7 @@ services:
     build: ./backend
     container_name: alfa_credit_backend
     restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-30}
@@ -141,6 +152,7 @@ services:
     build: ./frontend
     container_name: alfa_credit_frontend
     restart: unless-stopped
+    logging: *default-logging
     networks:
       - alfa_network
 
@@ -148,6 +160,11 @@ services:
     image: nginx:1.31.7-alpine
     container_name: alfa_credit_nginx
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "10"
     ports:
       - "80:80"
       - "443:443"
