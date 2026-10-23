@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
+from src.modules.enrichment.application.use_cases.latest_cashflow import GetLatestCashflowUseCase
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
 from src.modules.enrichment.facade import (
     CashflowForecastDTO,
@@ -171,6 +173,37 @@ async def test_cashflow_roundtrip_through_facade(
     # `statement` — внутренний источник, не попадает ни в успешные, ни в проваленные.
     assert "statement" not in dto.sources_ok
     assert all(error.source != "statement" for error in dto.sources_failed)
+
+
+async def test_latest_cashflow_of_the_company(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Самый свежий прогноз по выписке среди заявок компании; более новая заявка без выписки
+    его не затирает, у компании без выписок — None."""
+    with_statement, _ = _snapshot()
+    with_statement.record_cashflow(_forecast(), fetched_at=_NOW)
+    organization_id = with_statement.organization_id
+    later, _ = _snapshot()
+    later.organization_id = organization_id
+    later.started_at = _NOW + timedelta(days=3)
+    newer_forecast = replace(_forecast(), gap_detected=False, gap_month=None, gap_amount=None)
+    older, _ = _snapshot()
+    older.organization_id = organization_id
+    older.started_at = _NOW - timedelta(days=30)
+    older.record_cashflow(newer_forecast, fetched_at=_NOW)
+    async with session_factory() as session:
+        repository = SqlAlchemyEnrichmentRepository(session)
+        for snapshot in (with_statement, later, older):
+            await repository.add(snapshot)
+        await session.commit()
+
+    async with session_factory() as session:
+        use_case = GetLatestCashflowUseCase(SqlAlchemyEnrichmentRepository(session))
+        found = await use_case.execute(organization_id)
+        missing = await use_case.execute(uuid4())
+
+    assert found is not None and found.gap_detected is True and found.gap_month == "2026-11"
+    assert missing is None
 
 
 def test_credit_history_dto_isolation() -> None:

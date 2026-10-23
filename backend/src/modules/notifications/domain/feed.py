@@ -1,14 +1,10 @@
 """Feed entries: what a business event turns into, and who receives it."""
 
 from dataclasses import dataclass
-from typing import Literal
+from datetime import datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from src.modules.notifications.facade import FeedItemType
-
-RecipientType = Literal["account", "role"]
-Audience = Literal["client", "bank"]
-Priority = Literal["low", "normal", "high"]
+from src.modules.notifications.domain.enums import Audience, FeedItemType, Priority, RecipientType
 
 # Role of the back office feed (`role:underwriter`).
 UNDERWRITER_ROLE = "underwriter"
@@ -67,6 +63,27 @@ class Delivery:
     recipients: tuple[Recipient, ...]
     # True: replace the recipient's entry with the same group_key.
     replace_group: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class FeedRecord:
+    """A stored entry of one recipient."""
+
+    id: UUID
+    # Stream position: the SSE event id.
+    seq: int
+    recipient: Recipient
+    audience: Audience
+    type: FeedItemType
+    title: str
+    body: str
+    link: str | None
+    priority: Priority
+    action_required: bool
+    organization_id: UUID | None
+    application_id: UUID | None
+    created_at: datetime
+    read_at: datetime | None
 
 
 def stage_group(application_id: UUID) -> str:

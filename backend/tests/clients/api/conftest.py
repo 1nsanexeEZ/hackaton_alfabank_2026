@@ -21,8 +21,9 @@ from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.outbox import OutboxRecord
 from src.main import create_app
-from src.modules.clients.infrastructure.facade_impl import ClientsFacadeImpl
-from src.modules.clients.infrastructure.models import OrganizationModel
+from src.modules.clients.infrastructure.adapters.clients_facade import ClientsFacadeImpl
+from src.modules.clients.infrastructure.database.models import OrganizationModel
+from src.modules.clients.presentation.dependencies import clients_facade
 from src.modules.identity.facade import AccountRefDTO, IdentityFacade
 from tests.fakes import install
 from tests.fakes.identity_facade import FakeIdentityFacade
@@ -101,7 +102,7 @@ class Demo:
     def facade_call[T](self, call: Callable[[ClientsFacadeImpl], Awaitable[T]]) -> T:
         async def go() -> T:
             async with self.app.state.session_factory() as session:
-                return await call(ClientsFacadeImpl(session, self.clock))
+                return await call(clients_facade(session, self.clock))
 
         return self.run(go)
 

@@ -8,14 +8,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from seed.products import catalog as product_catalog
-from src.modules.process.domain.process import ProcessInstance, ProcessStatus
+from src.modules.process.domain.enums import ProcessStatus
+from src.modules.process.domain.process import ProcessInstance
 from src.modules.process.domain.steps import CollateralFact, Trigger
-from src.modules.process.infrastructure.bpmn import BpmnError, parse_bpmn, parse_duration
-from src.modules.process.infrastructure.catalog import (
+from src.modules.process.infrastructure.adapters.workflow_catalog import (
     WORKFLOWS_DIR,
     WorkflowLoadError,
     load_workflows,
 )
+from src.modules.process.infrastructure.bpmn import BpmnError, parse_bpmn, parse_duration
 from tests.process.unit.routes import NOW, FakeFacts, context, ids, offer
 
 CODES = ["express_v1", "mortgage_v1", "secured_v1", "standard_v1", "startup_v1"]

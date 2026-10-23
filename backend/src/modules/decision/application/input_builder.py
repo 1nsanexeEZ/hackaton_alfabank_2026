@@ -2,8 +2,9 @@
 
 - заявка, снимок компании и копия условий продукта — `applications.get_scoring_input`,
   дозапросы — `applications.get_card`;
-- ЕГРЮЛ, ФНС, БКИ компании и руководителя, ГИР БО, Контур и прогноз по выписке —
-  `enrichment.get_snapshot`;
+- ЕГРЮЛ, ФНС, БКИ компании и руководителя, ГИР БО, Контур, прогноз по выписке и проверка по
+  115-ФЗ этой заявки — `enrichment.get_snapshot`;
+- согласие на автоматизированное решение (ст. 16 152-ФЗ) — `applications.get_scoring_input`;
 - грейд, флаги и подсказки — `scoring.get_result`;
 - программа господдержки, поручительство и альтернативы — `products`.
 
@@ -24,6 +25,8 @@ from src.modules.decision.application.ports import FounderPrescreenRepository
 from src.modules.decision.domain.model import (
     AccountingInput,
     AlternativeInput,
+    AmlHit,
+    AmlInput,
     BureauInput,
     CashflowInput,
     CollateralInput,
@@ -41,7 +44,7 @@ from src.modules.decision.domain.model import (
 )
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.domain.result import DecisionInputRefs
-from src.modules.enrichment.facade import EnrichmentFacade, EnrichmentSnapshotDTO
+from src.modules.enrichment.facade import AmlCheckDTO, EnrichmentFacade, EnrichmentSnapshotDTO
 from src.modules.products.facade import ProductDTO, ProductsFacade
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 
@@ -100,6 +103,8 @@ class DecisionInputBuilder:
             accounting=_accounting_input(snapshot),
             head_bureau=_head_bureau_input(snapshot),
             founder_prescreen=await self._founder_prescreen(source),
+            aml=_aml_input(snapshot),
+            automated_decision_consent=source.automated_decision_consent_at is not None,
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -302,4 +307,62 @@ def _sources_failed(snapshot: EnrichmentSnapshotDTO | None) -> tuple[str, ...]:
         return _EXTERNAL_SOURCES
     return tuple(
         dict.fromkeys(e.source for e in snapshot.sources_failed if e.source in _EXTERNAL_SOURCES)
+    )
+
+
+_ROLES = {
+    "company": "компания",
+    "head": "руководитель",
+    "beneficial_owner": "бенефициар",
+    "founder_company": "учредитель-юрлицо",
+    "representative": "представитель",
+}
+_LISTS = {
+    "terrorism": "перечень причастных к экстремизму и терроризму",
+    "freeze": "решение МВК о замораживании",
+    "wmd": "перечень ФРОМУ",
+}
+_PEP = {
+    "foreign": "иностранное ПДЛ",
+    "russian": "российское ПДЛ",
+    "international": "должностное лицо международной организации",
+}
+
+
+def _aml_input(snapshot: EnrichmentSnapshotDTO | None) -> AmlInput:
+    """Проверка по 115-ФЗ этой заявки; не ответила — `failed`, не запрашивали — `not_requested`."""
+    if snapshot is None:
+        return AmlInput("not_requested")
+    check = snapshot.aml
+    if check is None:
+        failed = any(e.source == "aml" for e in snapshot.sources_failed)
+        return AmlInput("failed" if failed else "not_requested")
+    return AmlInput(
+        status="ok",
+        list_hits=tuple(
+            AmlHit(_who(h.subject.role, h.subject.name), f"{_LISTS[h.list]}, запись {h.record}")
+            for h in check.list_hits
+        ),
+        pep_hits=tuple(
+            AmlHit(_who(h.subject.role, h.subject.name), f"{_PEP[h.kind]}: {h.position}")
+            for h in check.pep_hits
+        ),
+        foreign_pep=any(h.kind == "foreign" for h in check.pep_hits),
+        zsk_level=check.zsk.level,
+        beneficial_owners=_owners(check),
+        lists_date=check.lists_date.isoformat(),
+    )
+
+
+def _who(role: str, name: str) -> str:
+    return f"{_ROLES.get(role, role)} {name}"
+
+
+def _owners(check: AmlCheckDTO) -> tuple[str, ...]:
+    basis = {"head_by_default": "руководитель, больше 25% ни у кого", "entrepreneur": "ИП"}
+    return tuple(
+        f"{o.name} — {o.share_percent}%"
+        if o.share_percent is not None
+        else f"{o.name} ({basis.get(o.basis, o.basis)})"
+        for o in check.beneficial_owners
     )

@@ -7,9 +7,9 @@ from uuid import UUID, uuid4
 
 from src.core.domain import Money
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.entities import Document, DocumentStatus, InfoRequest
+from src.modules.applications.domain.entities import Document, InfoRequest
+from src.modules.applications.domain.enums import ApplicationStatus, DocumentStatus
 from src.modules.applications.domain.fields_schema import ProductFieldsSchema
-from src.modules.applications.domain.statuses import ApplicationStatus
 from src.modules.applications.domain.value_objects import (
     ApplicationNumber,
     CollateralDeclaration,

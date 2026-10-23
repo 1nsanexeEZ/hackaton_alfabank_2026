@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v4`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v6`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v5"
+_DEFAULT_POLICY = "policy_v6"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -156,6 +156,29 @@ class _Startup(_Strict):
     products: list[str] = Field(min_length=1)
 
 
+_ZskLevel = Literal["low", "medium", "high"]
+_OutcomeName = Literal["APPROVE", "COUNTER_OFFER", "REQUEST_INFO", "MANUAL_REVIEW", "REJECT"]
+
+
+class _Aml(_Strict):
+    """policy_v6, 115-ФЗ: перечни и решения МВК — всегда отказ; уровни ЗСК — из конфига."""
+
+    zsk_stop_levels: list[_ZskLevel] = Field(min_length=1)
+    zsk_review_levels: list[_ZskLevel] = Field(default_factory=list)
+
+
+class _AutomatedDecision(_Strict):
+    """policy_v6, ст. 16 152-ФЗ: для каких форм и исходов нужно согласие субъекта."""
+
+    legal_forms: list[str] = Field(min_length=1)
+    outcomes: list[_OutcomeName] = Field(min_length=1)
+
+
+class _Compliance(_Strict):
+    aml: _Aml | None = None
+    automated_decision_consent: _AutomatedDecision | None = None
+
+
 class _Alternatives(_Strict):
     cash_gap_products: list[str]
     secured_product: str
@@ -170,7 +193,7 @@ class _PolicySchema(_Strict):
     version: str
     key_rate_reference: Decimal = Field(ge=0)
     # Шкала грейдов; нет ключа — A–E scorecard_v1 (policy_v1, policy_v2).
-    grades: list[str] = Field(default_factory=lambda: list(LEGACY_SCALE))
+    grades: list[str] = Field(default_factory=lambda: list[str](LEGACY_SCALE))
     stop_factors: _StopFactors
     info_request: _InfoRequest
     limits: _Limits
@@ -178,6 +201,7 @@ class _PolicySchema(_Strict):
     routing: _Routing
     strategy: _Strategy = Field(default_factory=_Strategy)
     startup: _Startup | None = None
+    compliance: _Compliance = Field(default_factory=_Compliance)
     alternatives: _Alternatives
     offer: _Offer
 
@@ -252,6 +276,7 @@ def _check_policy(schema: _PolicySchema, path: Path) -> None:
     _check_strategy(schema, scale, path)
     if not schema.alternatives.cash_gap_products:
         raise PolicyConfigError(f"{path}: пустой alternatives.cash_gap_products")
+    _check_compliance(schema.compliance, path)
     bad_okved = [c for c in schema.stop_factors.okved_classes if not _OKVED_CLASS.match(c)]
     if bad_okved:
         raise PolicyConfigError(
@@ -293,6 +318,20 @@ def _check_two_models(strategy: _Strategy, path: Path) -> None:
         raise PolicyConfigError(
             f"{path}: strategy.two_models.matrix — по строке и столбцу на каждую зону "
             f"{sorted(zones)}"
+        )
+
+
+def _check_compliance(compliance: _Compliance, path: Path) -> None:
+    aml = compliance.aml
+    if aml is not None and set(aml.zsk_stop_levels) & set(aml.zsk_review_levels):
+        raise PolicyConfigError(
+            f"{path}: compliance.aml — уровень ЗСК и в отказе, и в ручной проверке"
+        )
+    consent = compliance.automated_decision_consent
+    if consent is not None and "MANUAL_REVIEW" in consent.outcomes:
+        raise PolicyConfigError(
+            f"{path}: compliance.automated_decision_consent.outcomes — ручная проверка и так "
+            "решение человека"
         )
 
 
@@ -343,6 +382,8 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     spike = triggers.turnover_spike
     components = schema.pricing.components
     two_models = strategy.two_models
+    aml = schema.compliance.aml
+    consent = schema.compliance.automated_decision_consent
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -409,6 +450,15 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         }
         if two_models is not None
         else {},
+        aml_checks=aml is not None,
+        zsk_stop_levels=frozenset(aml.zsk_stop_levels) if aml is not None else frozenset(),
+        zsk_review_levels=frozenset(aml.zsk_review_levels) if aml is not None else frozenset(),
+        automated_decision_forms=frozenset(consent.legal_forms)
+        if consent is not None
+        else frozenset(),
+        automated_decision_outcomes=frozenset(consent.outcomes)
+        if consent is not None
+        else frozenset(),
     )
 
 

@@ -4601,6 +4601,93 @@
         ],
         "title": "AddressRead"
       },
+      "AmlCheckDTO": {
+        "properties": {
+          "lists_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Lists Date"
+          },
+          "zsk": {
+            "$ref": "#/components/schemas/ZskRiskDTO"
+          },
+          "beneficial_owners": {
+            "items": {
+              "$ref": "#/components/schemas/BeneficialOwnerDTO"
+            },
+            "type": "array",
+            "title": "Beneficial Owners"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/AmlSubjectDTO"
+            },
+            "type": "array",
+            "title": "Subjects"
+          },
+          "list_hits": {
+            "items": {
+              "$ref": "#/components/schemas/ListHitDTO"
+            },
+            "type": "array",
+            "title": "List Hits",
+            "default": []
+          },
+          "pep_hits": {
+            "items": {
+              "$ref": "#/components/schemas/PepHitDTO"
+            },
+            "type": "array",
+            "title": "Pep Hits",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "lists_date",
+          "zsk",
+          "beneficial_owners",
+          "subjects"
+        ],
+        "title": "AmlCheckDTO"
+      },
+      "AmlSubjectDTO": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "company",
+              "head",
+              "beneficial_owner",
+              "founder_company",
+              "representative"
+            ],
+            "title": "Role"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "name"
+        ],
+        "title": "AmlSubjectDTO",
+        "description": "Кого проверили: организацию — по ИНН, человека — по ФИО."
+      },
       "ApplicationCardDTO": {
         "properties": {
           "id": {
@@ -5477,6 +5564,40 @@
         ],
         "title": "BankruptcyMessageDTO"
       },
+      "BeneficialOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "head_by_default",
+              "entrepreneur"
+            ],
+            "title": "Basis"
+          },
+          "share_percent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "BeneficialOwnerDTO"
+      },
       "CalculateBody": {
         "properties": {
           "amount": {
@@ -6261,6 +6382,18 @@
               }
             ],
             "title": "Given By"
+          },
+          "automated_decision_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automated Decision At"
           }
         },
         "type": "object",
@@ -6280,6 +6413,11 @@
           "credit_bureau": {
             "type": "boolean",
             "title": "Credit Bureau"
+          },
+          "automated_decision": {
+            "type": "boolean",
+            "title": "Automated Decision",
+            "default": false
           }
         },
         "type": "object",
@@ -6314,6 +6452,18 @@
               }
             ],
             "title": "Credit Bureau At"
+          },
+          "automated_decision_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automated Decision At"
           }
         },
         "type": "object",
@@ -7939,7 +8089,8 @@
                 "statement",
                 "gir_bo",
                 "kontur",
-                "bki_head"
+                "bki_head",
+                "aml"
               ]
             },
             "type": "array",
@@ -8029,6 +8180,16 @@
             "type": "array",
             "title": "Sources Skipped",
             "default": []
+          },
+          "aml": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AmlCheckDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8701,6 +8862,17 @@
           "share_percent": {
             "type": "string",
             "title": "Share Percent"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
           }
         },
         "type": "object",
@@ -8708,7 +8880,8 @@
           "name",
           "share_percent"
         ],
-        "title": "FounderDTO"
+        "title": "FounderDTO",
+        "description": "Учредитель: физлицо — ФИО, юрлицо — наименование и ИНН (по нему идём по цепочке)."
       },
       "FounderPrescreen": {
         "properties": {
@@ -9236,6 +9409,33 @@
           "by_capacity"
         ],
         "title": "LimitsDTO"
+      },
+      "ListHitDTO": {
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/AmlSubjectDTO"
+          },
+          "list": {
+            "type": "string",
+            "enum": [
+              "terrorism",
+              "freeze",
+              "wmd"
+            ],
+            "title": "List"
+          },
+          "record": {
+            "type": "string",
+            "title": "Record"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "list",
+          "record"
+        ],
+        "title": "ListHitDTO"
       },
       "LoanRequest": {
         "properties": {
@@ -10787,6 +10987,33 @@
           "payments"
         ],
         "title": "PaymentScheduleRead"
+      },
+      "PepHitDTO": {
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/AmlSubjectDTO"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "foreign",
+              "russian",
+              "international"
+            ],
+            "title": "Kind"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "kind",
+          "position"
+        ],
+        "title": "PepHitDTO"
       },
       "Permissions": {
         "type": "string",
@@ -13290,7 +13517,8 @@
               "statement",
               "gir_bo",
               "kontur",
-              "bki_head"
+              "bki_head",
+              "aml"
             ],
             "title": "Source"
           },
@@ -14529,6 +14757,30 @@
           "flows"
         ],
         "title": "WorkflowOut"
+      },
+      "ZskRiskDTO": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Level"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "as_of"
+        ],
+        "title": "ZskRiskDTO"
       }
     },
     "securitySchemes": {

@@ -6,6 +6,11 @@ import type { ApplicationStatusCode, ClientStatus } from '../client/types'
  * Поля — как в openapi.json; здесь только то, что показывает рабочее место.
  */
 
+/** Вид ручной проверки (policy_v5): check — проверка, dispute — спорная (модели или данные расходятся) */
+export type ReviewKind = 'check' | 'dispute'
+
+export type Grade = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
+
 export interface QueueItemDto {
   task_id: string
   application_id: string
@@ -14,13 +19,14 @@ export interface QueueItemDto {
   inn: string
   product_code: string
   amount: string | null
-  /** Балл скоринга и грейд A–E */
+  /** Балл и грейд PD-модели, A–J */
   score: number | null
   risk_grade: string | null
   /** По выпискам ожидается кассовый разрыв */
   cash_gap: boolean
   /** Почему заявка ушла на ручную проверку: ROUTE_* */
   routing_reasons: string[]
+  review?: ReviewKind | null
   due_at: string | null
   overdue: boolean
   assignee_id: string | null
@@ -179,11 +185,31 @@ export interface EnrichmentDto {
   } | null
 }
 
+export interface FactorDto {
+  code: string
+  value: string | null
+  bin: string
+  points: number
+  direction: 'positive' | 'negative' | 'neutral'
+  client_hint: string | null
+}
+
+/** Оценка ML-модели на тех же данных и той же шкале A–J, что у PD-модели */
+export interface MlScoreDto {
+  model_version: string
+  /** Вероятность дефолта за 12 месяцев, доля */
+  pd_12m: string
+  score: number
+  grade: Grade
+  factors: FactorDto[]
+  reason_codes: string[]
+}
+
 export interface ScoringDto {
   model_version: string
   score: number
-  grade: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
-  factors: { code: string; value: string | null; bin: string; points: number; direction: 'positive' | 'negative' | 'neutral'; client_hint: string | null }[]
+  grade: Grade
+  factors: FactorDto[]
   flags: string[]
   data_completeness: string
   computed_at: string
@@ -193,6 +219,8 @@ export interface ScoringDto {
   pd_12m?: string | null
   /** Факторы, сильнее всего снизившие балл */
   reason_codes?: string[]
+  /** Оценка ML-модели; нет — заявка оценена до появления второй модели */
+  ml?: MlScoreDto | null
 }
 
 /** Лимиты движка; binding — какой из них дал итоговый минимум */
@@ -225,6 +253,8 @@ export interface DecisionDto {
   triggers?: { code: string; detail: string }[]
   /** Из чего сложилась ставка, процентные пункты */
   rate_breakdown?: { funding: string; expected_loss: string; capital: string; margin: string; total: string } | null
+  /** Вид ручной проверки — только у MANUAL_REVIEW */
+  review?: ReviewKind | null
 }
 
 export interface UnderwriterTaskDto {
@@ -256,6 +286,43 @@ export interface UnderwriterCardDto {
   } | null
   task: UnderwriterTaskDto | null
   degraded: string[]
+}
+
+/** Состояние процесса: running — идёт, waiting — ждёт человека или внешний сервис, остальные — финал */
+export type ProcessStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
+
+/** Шаг процесса — один проход узла BPMN; узел, пройденный дважды, даёт два шага с iteration 1 и 2 */
+export interface ProcessStepDto {
+  node_id: string
+  step_code: string | null
+  /** immediate — выполнен сразу, async — ждёт внешний сервис, stoppable — ждёт человека */
+  kind: 'immediate' | 'async' | 'stoppable'
+  iteration: number
+  started_at: string
+  finished_at: string | null
+  /** completed | failed | cancelled; null — шаг ещё идёт */
+  outcome: string | null
+  client_stage: string | null
+  error: string | null
+}
+
+/** Где заявка на маршруте банка (GET /processes/{application_id}) */
+export interface ProcessDto {
+  process_id: string
+  application_id: string
+  /** Код маршрута: схема — GET /workflows/{code}/diagram */
+  workflow_code: string
+  workflow_version: number
+  status: ProcessStatus
+  /** Узел, на котором процесс сейчас; у завершённого — null */
+  current_node_id: string | null
+  client_stage: string | null
+  /** Пройденные узлы без повторов, в порядке первого прохода */
+  visited_node_ids: string[]
+  /** Шаги по времени, с повторами */
+  steps: ProcessStepDto[]
+  started_at: string
+  finished_at: string | null
 }
 
 export interface MetricsDto {
@@ -299,4 +366,8 @@ export interface BackofficeApi {
   complete(taskId: string, input: TaskResultInput): Promise<UnderwriterTaskDto>
   metrics(query?: { dateFrom?: string; dateTo?: string }): Promise<MetricsDto>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
+  /** Процесс заявки: текущий узел и пройденные шаги */
+  process(applicationId: string): Promise<ProcessDto>
+  /** Схема маршрута — BPMN 2.0 XML */
+  workflowDiagram(code: string): Promise<string>
 }

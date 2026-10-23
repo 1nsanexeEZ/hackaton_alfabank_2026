@@ -23,23 +23,24 @@ from seed.demo_data import (
 )
 from src.core.domain import Money
 from src.core.exceptions.exceptions import AppError
-from src.modules.clients.domain.financial_report import ReportFigures, ReportSource
+from src.modules.clients.domain.enums import MemberRole, RegistryStatus, ReportSource, TaxRegime
+from src.modules.clients.domain.financial_report import ReportFigures
 from src.modules.clients.domain.member import Actor
 from src.modules.clients.domain.organization import Organization
-from src.modules.clients.domain.rights import HEAD_ROLES, MemberRole
+from src.modules.clients.domain.rights import HEAD_ROLES
 from src.modules.clients.domain.value_objects import (
     Address,
     Discrepancy,
     FiscalPeriod,
     OkvedCode,
     PersonName,
-    RegistryStatus,
     Requisites,
-    TaxRegime,
     VerificationResult,
 )
-from src.modules.clients.infrastructure.repositories import (
+from src.modules.clients.infrastructure.repositories.financial_report import (
     SqlAlchemyFinancialReportRepository,
+)
+from src.modules.clients.infrastructure.repositories.organization import (
     SqlAlchemyOrganizationRepository,
 )
 from src.modules.identity.facade import IdentityFacade

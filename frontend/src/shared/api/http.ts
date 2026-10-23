@@ -4,9 +4,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 /**
  * Режим API рабочего места сотрудников: mock — всё в браузере на синтетических данных,
- * real — вход, пользователи и роли идут в бэкенд. Сайт для клиентов всегда ходит в бэкенд.
+ * real — вход, пользователи, роли и бэк-офис идут в бэкенд. Сайт для клиентов всегда ходит в бэкенд.
+ * VITE_API_MODE не задан — решает тип сборки: npm run build (стенд) — real, npm run dev — mock.
  */
-export const API_MODE: 'mock' | 'real' = import.meta.env.VITE_API_MODE === 'real' ? 'real' : 'mock'
+export const API_MODE: 'mock' | 'real' = (import.meta.env.VITE_API_MODE ?? (import.meta.env.PROD ? 'real' : 'mock')) === 'real' ? 'real' : 'mock'
 
 /** Нарушение в поле: `{ code: "missing", field: "consents.credit_bureau" }` */
 export interface ApiViolation {
@@ -67,6 +68,8 @@ interface RequestOptions {
   query?: Query
   /** Чьим токеном подписать запрос; по умолчанию — сотрудника */
   realm?: AuthRealm
+  /** Ответ — текст как есть (BPMN XML схемы маршрута), а не JSON */
+  text?: boolean
 }
 
 /** Адрес ручки с префиксом API — для того, что ходит в бэк мимо http(): EventSource, ссылки */
@@ -84,7 +87,7 @@ function buildUrl(path: string, query?: Query): string {
 }
 
 export async function http<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: options.text ? '*/*' : 'application/json' }
   const provider = providers[options.realm ?? 'staff']
   const token = provider.getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -102,6 +105,7 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
   }
 
   if (response.status === 204) return undefined as T
+  if (response.ok && options.text) return (await response.text()) as T
 
   const data: unknown = await response.json().catch(() => null)
   if (response.ok) return data as T

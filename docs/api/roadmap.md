@@ -119,9 +119,9 @@ flowchart LR
 
 | Где | Что |
 |---|---|
-| `bff/application/client_screens.py` | `ClientScreens.personal_schedule(account_id, member_of, organization_id, code, amount, term_months, repayment)`: `_ensure_visible` → `ProductsFacade.get_product` и `check_eligibility` → `DecisionFacade.get_pre_approved` (берём предложение по `code`) → `ProductsFacade.calculate_payment` по `rate_from` или `rate_base`; второй расчёт — для `suggestion` |
-| `bff/application/views.py` | `PersonalSchedule`, `PreApprovedTerms`, `Suggestion` |
-| `bff/api/client.py` | маршрут с зависимостью `CanReadProducts`, как у `/bff/products/recommend` |
+| `bff/application/use_cases/products.py` | `PersonalScheduleUseCase.execute(access, organization_id, code, request)`: `ensure_visible` → `ProductsFacade.get_product` и `check_eligibility` → `DecisionFacade.get_pre_approved` (берём предложение по `code`) → `ProductsFacade.calculate_payment` по `rate_from` или `rate_base`; второй расчёт — для `suggestion` |
+| `bff/application/dto/products.py`, `bff/presentation/schemas/client.py` | `PersonalSchedule`, `PreApprovedTerms`, `Suggestion` |
+| `bff/presentation/api/client.py` | маршрут с зависимостью `CanReadProducts`, как у `/bff/products/recommend` |
 | `tests/bff` | все строки таблицы выше + чужая компания → 404 |
 
 ```mermaid
@@ -182,10 +182,10 @@ sequenceDiagram
 | Где | Что |
 |---|---|
 | `clients/domain/organization.py` | `Organization.apply_registry(extract, now) -> RegistryChanges`: сравнить, обновить реквизиты, собрать `discrepancies`, вызвать `record_verification` |
-| `clients/application/` | `VerifyOrganizationUseCase`; порт `RegistryLookup` |
-| `clients/infrastructure/` | адаптер порта на `EnrichmentFacade.lookup_registry` |
+| `clients/application/` | `VerifyOrganizationUseCase` (`use_cases/verification.py`); порт `RegistryLookup` (`interfaces/registry.py`) |
+| `clients/infrastructure/` | адаптер порта на `EnrichmentFacade.lookup_registry` (`adapters/enrichment_registry.py`) |
 | `enrichment/facade.py` | `lookup_registry(inn, *, fresh: bool = False)` — ручная сверка идёт мимо кэша |
-| `clients/api/` | маршрут и схема `VerificationResultRead` |
+| `clients/presentation/` | маршрут (`api/organizations.py`) и схема `VerificationResultRead` (`schemas/organizations.py`) |
 | `decision/module.py` | пересчёт предодобрения подписать ещё и на `OrganizationVerificationMismatch` (сейчас — только `FinancialReportSubmitted` и `OrganizationVerified`) |
 | автосверка | `clients` слушает `EnrichmentCompleted` и сверяет компанию по выписке ЕГРЮЛ из снимка заявки (`EnrichmentFacade.get_snapshot`) — так данные обновляются при каждой подаче без лишнего запроса в реестр |
 | `tests/clients` | домен: каждое поле таблицы; API: 200, 404, 422, 503; consumer: снимок без `egrul` пропускается |
@@ -252,7 +252,7 @@ ConsentRead {
 | `identity/facade.py` | `get_active_consent(account_id, type) -> ConsentDTO \| None` |
 | `clients/facade.py` | `get_registry_head(organization_id) -> UUID \| None` — участник, чьё ФИО совпало с руководителем в реестре (`list_members` отдаёт только id, без полномочия) |
 | `core/messaging/contracts/enrichment.py` | `FetchEnrichment` + `head: PersonRef \| None` (`account_id`, `last_name`, `first_name`, `middle_name`) и `head_bki_consent_at: datetime \| None` — оба необязательные |
-| `process/infrastructure/facts.py` | при сборке команды: `get_registry_head` → `get_active_consent` → поля выше |
+| `process/infrastructure/adapters/application_facts.py` | при сборке команды: `get_registry_head` → `get_active_consent` → поля выше |
 | `applications`, `bff` | поле `consents.head_credit_bureau` в карточке и `todo` на дашборде |
 | миграция | `YYYYMMDD_HHMM_identity_consents.py`, `revision = "identity_0002"` |
 | `tests/identity`, `tests/process` | срок действия, отзыв, история; команда без согласия — `head_bki_consent_at = null` |
@@ -386,9 +386,9 @@ sequenceDiagram
 
 | Где | Что |
 |---|---|
-| `applications/application/service.py` | `contract(access, application_id)`: заявка → оффер → `ProductsFacade.calculate_payment` по условиям оффера → подписанты: `ClientsFacade.list_members(org, "sign")` + `IdentityFacade.get_account` |
+| `applications/application/use_cases/contracts.py` | `GetContractUseCase`: заявка → оффер → `ProductsFacade.calculate_payment` по условиям оффера → подписанты: `ClientsFacade.list_members(org, "sign")` + `IdentityFacade.get_account` |
 | `applications/domain/application.py` | `sign(actor, now, expected_hash)`: сравнить с `offer.fingerprint()` до перехода |
-| `applications/api/` | маршрут, `ContractOut`, `SignIn.offer_hash` |
+| `applications/presentation/` | маршрут, `ContractOut`, `SignIn.offer_hash` |
 | `tests/applications` | 409 до `signing`, договор после подписи, `offer_changed`, неверный пароль |
 
 ```mermaid
@@ -457,7 +457,7 @@ pre_approved: []                                               // у старт�
 | `decision` | `FounderPrescreenUseCase`, таблица `decision_founder_prescreens`, маршруты рядом с `pre-approved-offers`. Сегмент сохраняется вместе с пересчётом предодобрения. В новой версии политики — правило: продукт `STARTUP` без пройденного предскрина → `STOP_FOUNDER_PRESCREEN` |
 | `products` (сид) | продукт `STARTUP`: `min_business_age_months = 0`, `required_documents` — `business_plan` и `financial_model`, `processing = ProcessingProfile("startup_v1", 0)`, то есть всегда ручное решение, господдержка — `support_program` |
 | `process/workflows/startup_v1.bpmn` | обогащение → скоринг → решение → задача андеррайтеру «Проектная оценка» (`form_schema`: оценка бизнес-плана, обеспечение, господдержка) → оффер |
-| `bff/application/client_screens.py` | `segment`, `startup.prescreen`; для стартапа в подборе продуктов — только `STARTUP` |
+| `bff/application/use_cases/` | `segment`, `startup.prescreen` (`dashboard.py`); для стартапа в подборе продуктов — только `STARTUP` (`products.py`) |
 | миграция | `decision_founder_prescreens` и сегмент: следующий свободный номер `decision_NNNN` |
 
 Проверку предскрина при подаче держим в `decision`, а не в eligibility `products`: иначе `products` начнёт читать `decision`, и появится цикл.

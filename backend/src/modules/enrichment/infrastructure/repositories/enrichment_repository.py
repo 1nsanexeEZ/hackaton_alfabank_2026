@@ -40,6 +40,18 @@ class SqlAlchemyEnrichmentRepository(EnrichmentRepository):
         head = (await self._session.scalars(stmt)).first()
         return await self._load(head) if head is not None else None
 
+    async def recent_for_organization(
+        self, organization_id: UUID, limit: int
+    ) -> list[EnrichmentSnapshot]:
+        stmt = (
+            select(EnrichmentSnapshotRecord)
+            .where(EnrichmentSnapshotRecord.organization_id == organization_id)
+            .order_by(EnrichmentSnapshotRecord.started_at.desc(), EnrichmentSnapshotRecord.id)
+            .limit(limit)
+        )
+        heads = (await self._session.scalars(stmt)).all()
+        return [await self._load(head) for head in heads]
+
     async def _load(self, head: EnrichmentSnapshotRecord) -> EnrichmentSnapshot:
         stmt = select(SourceResultRecord).where(SourceResultRecord.snapshot_id == head.id)
         results = (await self._session.scalars(stmt)).all()

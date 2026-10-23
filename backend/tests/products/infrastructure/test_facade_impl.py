@@ -8,14 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.core.exceptions.exceptions import NotFoundError
 from src.core.facades import FacadeRegistry
 from src.modules.clients.facade import ClientsFacade
+from src.modules.enrichment.facade import CashflowForecastDTO, EnrichmentFacade
 from src.modules.products.domain.errors import ProductNotAvailableError
 from src.modules.products.infrastructure.facade_impl import ProductsFacadeImpl
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
-from src.modules.scoring.facade import EstimateDTO, ScoringFacade
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
+from tests.fakes.enrichment_facade import FakeEnrichmentFacade
 from tests.fakes.products_facade import FakeProductsFacade
-from tests.fakes.scoring_facade import FakeScoringFacade
 from tests.products.infrastructure.test_repository import run_seed
 
 
@@ -129,8 +129,19 @@ async def test_recommend(
     plain = await facade.recommend("working_capital", Decimal("3000000"), 24, romashka.id)
     assert plain[0].product.code == "GOV_SUPPORT" and plain[0].eligible is True
 
-    gap = EstimateDTO(score=640, grade="C", flags=("cash_gap",), factors=())
-    registry.register(ScoringFacade, lambda _session: FakeScoringFacade(gap))
+    enrichment = FakeEnrichmentFacade()
+    enrichment.cashflows[romashka.id] = CashflowForecastDTO(
+        months_history=(),
+        forecast=(),
+        gap_detected=True,
+        gap_month="2026-11",
+        gap_amount=Decimal("150000"),
+        annual_inflow=Decimal("48000000"),
+        revenue_confirmed=True,
+        method="тест",
+        statement_document_ids=(),
+    )
+    registry.register(EnrichmentFacade, lambda _session: enrichment)
     lifted = await facade.recommend("working_capital", Decimal("3000000"), 24, romashka.id)
     assert [r.product.code for r in lifted][0] == "CREDIT_LINE"
     assert "OVERDRAFT" in [r.product.code for r in lifted]

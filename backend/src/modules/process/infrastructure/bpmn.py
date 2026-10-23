@@ -15,18 +15,13 @@ import re
 
 from lxml import etree
 
-from src.modules.process.domain.conditions import Condition, ConditionError
+from src.modules.process.domain.conditions import Condition
 from src.modules.process.domain.context import CONDITION_FIELDS
+from src.modules.process.domain.enums import NodeType, OnFailure
+from src.modules.process.domain.exceptions import ConditionError
 from src.modules.process.domain.steps import STEPS
 from src.modules.process.domain.validation import validate
-from src.modules.process.domain.workflow import (
-    Edge,
-    Node,
-    NodeConfig,
-    NodeType,
-    OnFailure,
-    WorkflowDefinition,
-)
+from src.modules.process.domain.workflow import Edge, Node, NodeConfig, WorkflowDefinition
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 CAMUNDA = "http://camunda.org/schema/1.0/bpmn"

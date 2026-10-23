@@ -34,6 +34,7 @@ const {
   error,
   violations,
   ineligibleReason,
+  startupBlock,
 } = wizard
 
 watch(open, (isOpen) => isOpen && wizard.prepare(), { immediate: true })
@@ -130,7 +131,7 @@ function close() {
           <ArrowLeft class="size-4" aria-hidden="true" />
           Назад
         </BaseButton>
-        <BaseButton v-if="step === 'terms'" :loading="busy" :disabled="Boolean(ineligibleReason)" @click="wizard.submitTerms">
+        <BaseButton v-if="step === 'terms'" :loading="busy" :disabled="Boolean(ineligibleReason || startupBlock)" @click="wizard.submitTerms">
           Далее
           <ArrowRight class="size-4" aria-hidden="true" />
         </BaseButton>

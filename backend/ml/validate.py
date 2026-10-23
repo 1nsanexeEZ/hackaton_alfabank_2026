@@ -5,10 +5,13 @@
 1. **Значимость.** Бутстрап (1000 перевыборок тестовой когорты): доверительные интервалы Gini
    ML-модели, PD-модели (`pd_model_v2`) и их разницы. Если интервал разницы не задевает ноль —
    преимущество не случайность выборки.
-2. **Устойчивость к допущениям.** Данные синтетические, а их параметры (доля завышающих выручку,
+2. **Разброс по разбиению.** Бутстрап видит только случайность тестовой выборки, а не то, какие
+   заявки попали в обучение. Переобучаем модель с нуля на других разбиениях той же когорты и
+   смотрим, где среди них разбиение, на котором посчитан отчёт.
+3. **Устойчивость к допущениям.** Данные синтетические, а их параметры (доля завышающих выручку,
    маржа, шум, сила влияния денежного потока) выбрали мы. Меняем каждый параметр, переобучаем
    ML-модель с нуля и смотрим, сохраняется ли преимущество.
-3. **Честность сравнения.** Генерируем данные, где «правда» — сама PD-модель. Тогда она —
+4. **Честность сравнения.** Генерируем данные, где «правда» — сама PD-модель. Тогда она —
    идеальная модель, и ML-модель не должна её обыгрывать. Если обыгрывает — сравнение
    перекошено в его пользу.
 
@@ -33,6 +36,7 @@ from src.modules.scoring.infrastructure.ml_loader import load_ml_model
 REPORT = Path(__file__).resolve().parent / "reports" / "ml_validation.md"
 N_BOOT, N_BOOT_VARIANT, SEED_BOOT = 1000, 300, 7
 N_VARIANT = 30_000
+SPLIT_SEEDS = tuple(range(10))
 
 _PD_MODEL = load_pd_model()
 
@@ -63,13 +67,15 @@ class Interval:
 
 def main() -> None:
     significance = _significance()
+    splits = _splits()
     sensitivity = [_variant(name, title, a) for name, title, a in VARIANTS]
     fairness = _fairness()
-    _report(significance, sensitivity, fairness)
+    _report(significance, splits, sensitivity, fairness)
     print(
         json.dumps(
             {
                 "significance": {k: v["diff"].text() for k, v in significance.items()},
+                "splits": {k: v.text() for k, v in splits["spread"].items()},
                 "sensitivity": {s["name"]: s["diff"].text() for s in sensitivity},
                 "fairness": {
                     k: v if isinstance(v, float) else v.text() for k, v in fairness.items()
@@ -112,7 +118,44 @@ def _bootstrap(y: np.ndarray, ml: np.ndarray, pdm: np.ndarray, n: int) -> dict[s
     return {"ml": _interval(g_ml), "pd_model": _interval(g_pdm), "diff": _interval(diff)}
 
 
-# --- 2. устойчивость к допущениям ------------------------------------------
+# --- 2. разброс по разбиению -----------------------------------------------
+
+
+def _splits() -> dict:
+    """Та же когорта, что в отчёте, разные разбиения на обучение и тест, модель — с нуля."""
+    dev = generate(N_DEV, SEED_DEV, DEVELOPMENT)
+    y, pdm = _y(dev), _pd_model_pd(dev)
+    rows = []
+    for seed in (SEED_SPLIT, *SPLIT_SEEDS):
+        train_idx, test_idx = train_test_split(
+            np.arange(len(dev)), test_size=0.3, random_state=seed, stratify=y
+        )
+        fitted = fit([dev[i] for i in train_idx])
+        g_ml = _gini(y[test_idx], predict(fitted, [dev[i] for i in test_idx]))
+        g_pdm = _gini(y[test_idx], pdm[test_idx])
+        rows.append(
+            {
+                "seed": seed,
+                "ml": g_ml,
+                "pd_model": g_pdm,
+                "diff": g_ml - g_pdm,
+                "features": len(fitted.selected),
+            }
+        )
+    others = rows[1:]
+    return {
+        "reported": rows[0],
+        "others": others,
+        "spread": {key: _spread([r[key] for r in others]) for key in ("ml", "pd_model", "diff")},
+    }
+
+
+def _spread(values: list[float]) -> Interval:
+    """Среднее и размах (min; max) — для десятка значений квантили не нужны."""
+    return Interval(float(np.mean(values)), float(np.min(values)), float(np.max(values)))
+
+
+# --- 3. устойчивость к допущениям ------------------------------------------
 
 
 def _variant(name: str, title: str, assumptions: Assumptions) -> dict:
@@ -132,7 +175,7 @@ def _variant(name: str, title: str, assumptions: Assumptions) -> dict:
     }
 
 
-# --- 3. честность сравнения -------------------------------------------------
+# --- 4. честность сравнения -------------------------------------------------
 
 
 def _fairness() -> dict:
@@ -213,7 +256,7 @@ def _verdict(diff: Interval) -> str:
     return "разница не значима"
 
 
-def _report(significance: dict, sensitivity: list[dict], fairness: dict) -> None:
+def _report(significance: dict, splits: dict, sensitivity: list[dict], fairness: dict) -> None:
     sig_rows = [
         f"| {cohort} | {v['ml'].text()} | {v['pd_model'].text()} | {v['diff'].text()} | "
         f"{_verdict(v['diff'])} |"
@@ -222,6 +265,15 @@ def _report(significance: dict, sensitivity: list[dict], fairness: dict) -> None
             ("вне времени", significance["out_of_time"]),
         )
     ]
+    reported, others = splits["reported"], splits["others"]
+    split_rows = [
+        f"| {r['seed']}{' (отчёт)' if r is reported else ''} | {r['ml']:.3f} | "
+        f"{r['pd_model']:.3f} | {r['diff']:.3f} | {r['features']} |"
+        for r in (reported, *others)
+    ]
+    spread = splits["spread"]
+    split_wins = sum(1 for r in others if r["diff"] > 0)
+    rank = 1 + sum(1 for r in others if r["diff"] > reported["diff"])
     sens_rows = [
         f"| {s['title']} | {s['default_rate']:.1%} | {s['features']} | {s['ml'].text()} | "
         f"{s['pd_model'].text()} | {s['diff'].text()} | {_verdict(s['diff'])} |"
@@ -248,7 +300,21 @@ def _report(significance: dict, sensitivity: list[dict], fairness: dict) -> None
 |---|---|---|---|---|
 {chr(10).join(sig_rows)}
 
-## 2. Устойчивость к нашим допущениям о данных
+## 2. Разброс по разбиению на обучение и тест
+
+Та же когорта ({N_DEV} заявок), что в отчёте об обучении; на каждом разбиении 70/30 ML-модель
+обучается с нуля. Бутстрап выше этого разброса не видит: он перевыбирает один и тот же тест.
+
+| Разбиение (seed) | Gini ML | Gini pd_model_v2 | Разница | Признаков |
+|---|---|---|---|---|
+{chr(10).join(split_rows)}
+
+На {len(others)} других разбиениях — среднее [min; max]: Gini ML {spread["ml"].text()},
+pd_model_v2 {spread["pd_model"].text()}, разница {spread["diff"].text()}. ML-модель лучше на
+{split_wins} из {len(others)}. Разбиение отчёта — {rank}-е из {len(others) + 1} по разнице: оценка
+преимущества по нему {"выше" if reported["diff"] > spread["diff"].mean else "не выше"} типичной.
+
+## 3. Устойчивость к нашим допущениям о данных
 
 Для каждого варианта — новая популяция ({N_VARIANT} заявок), ML-модель обучается с нуля по той же
 процедуре (WoE, отбор по IV, исключение неверных знаков); бутстрап {N_BOOT_VARIANT} перевыборок.
@@ -259,7 +325,7 @@ def _report(significance: dict, sensitivity: list[dict], fairness: dict) -> None
 
 ML-модель значимо лучше в {wins} из {len(sensitivity)} вариантов.
 
-## 3. Честность сравнения: «правда» — сама PD-модель
+## 4. Честность сравнения: «правда» — сама PD-модель
 
 Дефолт сгенерирован прямо из PD `pd_model_v2` (логит сдвинут до доли дефолтов
 {fairness["default_rate"]:.1%}). PD-модель здесь — идеальная модель: её Gini совпадает с потолком
@@ -278,6 +344,7 @@ ML-модель значимо лучше в {wins} из {len(sensitivity)} ва
 - Разница на синтетике — свойство **наших допущений о данных**, а не доказательство качества на
   клиентах банка; проверки выше показывают, насколько она устойчива к этим допущениям и не
   создана ли самой процедурой сравнения.
+- Метрики отчёта об обучении посчитаны на одном разбиении; типичные значения — в разделе 2.
 - Поэтому модели работают вместе, а не одна вместо другой: решение видит обе оценки
   (`policy_v5`), расхождение уходит андеррайтеру.
 - Реальное качество покажет только обучение и валидация на истории банка.

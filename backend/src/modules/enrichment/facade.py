@@ -12,6 +12,14 @@ from src.modules.enrichment.application.dto.accounting import (
     AccountingPeriodDTO,
     AccountingReportsDTO,
 )
+from src.modules.enrichment.application.dto.aml import (
+    AmlCheckDTO,
+    AmlSubjectDTO,
+    BeneficialOwnerDTO,
+    ListHitDTO,
+    PepHitDTO,
+    ZskRiskDTO,
+)
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -36,6 +44,12 @@ from src.modules.enrichment.domain.enums import Source
 
 __all__ = [
     "AccountBlockDTO",
+    "AmlCheckDTO",
+    "AmlSubjectDTO",
+    "BeneficialOwnerDTO",
+    "ListHitDTO",
+    "PepHitDTO",
+    "ZskRiskDTO",
     "AccountingPeriodDTO",
     "AccountingReportsDTO",
     "ArbitrationDTO",
@@ -61,6 +75,11 @@ __all__ = [
 
 class EnrichmentFacade(Protocol):
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None: ...
+
+    async def latest_cashflow(self, organization_id: UUID) -> CashflowForecastDTO | None:
+        """The latest cash flow forecast of the company, from a bank statement in any of
+        its recent applications. None — no statement yet: a cash gap is unknown."""
+        ...
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         """None — the registry does not know the INN; InfrastructureError — it

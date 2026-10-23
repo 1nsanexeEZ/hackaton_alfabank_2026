@@ -25,7 +25,15 @@ PRESCREEN_FAILED = PersonPrescreenDTO(
 class FakeScoringFacade:
     def __init__(self, estimate: EstimateDTO | None = None) -> None:
         self.results: dict[UUID, ScoringResultDTO] = {}
-        self.default_estimate = estimate or EstimateDTO(score=700, grade="B", flags=(), factors=())
+        # Как отвечает PD-модель для Ромашки: грейд B, PD 0,55%, юрлицо с оборотами.
+        self.default_estimate = estimate or EstimateDTO(
+            score=700,
+            grade="B",
+            flags=(),
+            factors=(),
+            segment="legal_entity",
+            pd_12m=Decimal("0.0055"),
+        )
         self.estimate_calls: list[CompanyProfileDTO] = []
         self.prescreen = PRESCREEN_PASSED
         self.prescreen_calls: list[CreditHistoryDTO | None] = []

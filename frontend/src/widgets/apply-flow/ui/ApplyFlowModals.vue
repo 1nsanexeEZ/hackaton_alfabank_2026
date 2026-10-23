@@ -6,7 +6,7 @@ import { loanDraft, myApplications } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
 import { CustomerLoginModal } from '@/features/customer-login'
-import { ClientProfileForm } from '@/features/edit-client-profile'
+import { ClientProfileForm, PersonalConsents } from '@/features/edit-client-profile'
 import { CompanyPanel } from '@/features/manage-company'
 import { NotificationsPanel } from '@/features/read-notifications'
 import { ApplicationModal } from '@/features/submit-application'
@@ -118,6 +118,9 @@ function applyWith(
   </BaseModal>
 
   <BaseModal v-model:open="profileOpen" title="Профиль">
-    <ClientProfileForm v-if="profileOpen" />
+    <template v-if="profileOpen">
+      <ClientProfileForm />
+      <PersonalConsents class="mt-6" />
+    </template>
   </BaseModal>
 </template>

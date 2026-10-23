@@ -21,7 +21,7 @@ from src.core.messaging.contracts.base import IntegrationMessage
 from src.core.messaging.contracts.process import UserTaskCreated
 from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.main import create_app
-from src.modules.notifications.application import stream
+from src.modules.notifications.application.use_cases import stream
 from tests.fakes import builders
 from tests.helpers import bearer, create_schema, token_for
 from tests.notifications.conftest import World

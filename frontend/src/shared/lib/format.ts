@@ -2,6 +2,7 @@ const LOCALE = 'ru-RU'
 
 const integerFormatter = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 })
 const decimalFormatter = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 })
+const probabilityFormatter = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** 1500000 → «1 500 000 ₽» */
 export function formatMoney(value: number): string {
@@ -19,6 +20,11 @@ export function formatMoneyShort(value: number): string {
 /** 21.5 → «21,5%» */
 export function formatPercent(value: number): string {
   return `${decimalFormatter.format(value)}%`
+}
+
+/** Вероятность-доля: 0.0421 → «4,21%» — для PD моделей, где важны сотые */
+export function formatProbability(share: number): string {
+  return `${probabilityFormatter.format(share * 100)}%`
 }
 
 /** pluralize(5, ['год', 'года', 'лет']) → «лет» */
@@ -83,4 +89,24 @@ export function formatRelativeTime(value: string | Date, now = Date.now()): stri
   const hours = Math.round(minutes / 60)
   if (Math.abs(hours) < 48) return relativeFormatter.format(hours, 'hour')
   return relativeFormatter.format(Math.round(hours / 24), 'day')
+}
+
+const timeFormatter = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+/** «14:05:12» — время шага процесса, где важны секунды */
+export function formatTime(value: string | Date): string {
+  return timeFormatter.format(new Date(value))
+}
+
+/** Длительность: 800 → «< 1 с», 42 000 → «42 с», 3 900 000 → «1 ч 5 мин», 2 дня и 3 часа → «2 дн. 3 ч» */
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  if (seconds < 1) return '< 1 с'
+  if (seconds < 60) return `${seconds} с`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} мин`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return minutes % 60 ? `${hours} ч ${minutes % 60} мин` : `${hours} ч`
+  const days = Math.floor(hours / 24)
+  return hours % 24 ? `${days} дн. ${hours % 24} ч` : `${days} дн.`
 }

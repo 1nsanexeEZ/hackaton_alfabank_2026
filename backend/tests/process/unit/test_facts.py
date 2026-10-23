@@ -1,5 +1,6 @@
 """FetchEnrichment carries the head by the registry and their own consent (218-FZ):
-the company's consent in the application does not cover a person's credit history."""
+the company's consent in the application does not cover a person's credit history. Who
+submitted the application, when not the head, goes as a representative for the 115-FZ check."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
@@ -7,10 +8,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.core.messaging.contracts.enrichment import FetchEnrichment, PersonRef
-from src.modules.process.application.service import command_contract
+from src.modules.process.application.mappers.messages import command_contract
+from src.modules.process.domain.enums import NodeType
 from src.modules.process.domain.steps import STEPS, PersonFact, StepInput
-from src.modules.process.domain.workflow import Node, NodeConfig, NodeType
-from src.modules.process.infrastructure.facts import ApplicationFacts
+from src.modules.process.domain.workflow import Node, NodeConfig
+from src.modules.process.infrastructure.adapters.application_facts import ApplicationFacts
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade
@@ -124,4 +126,39 @@ async def test_command_asks_every_source(world: World) -> None:
         "gir_bo",
         "kontur",
         "bki_head",
+        "aml",
     ]
+
+
+async def test_the_applicant_is_a_representative(world: World) -> None:
+    """115-FZ: who acts for the client is screened too, on this very application."""
+    world.head_is_registry_head()
+    applicant = world.identity.add_account(
+        last_name="Бухгалтерова", first_name="Вера", account_id=uuid4()
+    )
+    card = builders.application_card(
+        id=world.application_id,
+        organization_id=world.organization_id,
+        applicant_account_id=applicant.id,
+    )
+    world.applications.add_card(card)
+
+    command = await _command(world)
+
+    assert command.representative == PersonRef(
+        account_id=applicant.id, last_name="Бухгалтерова", first_name="Вера", middle_name=None
+    )
+
+
+async def test_the_head_applying_is_not_a_representative(world: World) -> None:
+    world.head_is_registry_head()
+    card = builders.application_card(
+        id=world.application_id,
+        organization_id=world.organization_id,
+        applicant_account_id=world.head.id,
+    )
+    world.applications.add_card(card)
+
+    command = await _command(world)
+
+    assert command.head is not None and command.representative is None

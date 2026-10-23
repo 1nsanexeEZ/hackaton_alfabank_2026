@@ -3,13 +3,13 @@ import { Calculator, CalendarCheck } from 'lucide-vue-next'
 
 import type { ProductCatalog } from '@/entities/credit-product'
 import { LoanCalculator } from '@/features/calculate-loan'
-import type { PreApprovedOfferDto } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
 import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
 defineProps<{
   products: ProductCatalog
-  preApproved?: { companyName: string; offers: readonly PreApprovedOfferDto[] } | null
+  /** Компании вошедшего клиента — расчёт по ставке предодобрения */
+  companies?: readonly { id: string; name: string }[] | null
 }>()
 
 const emit = defineEmits<{ apply: [] }>()
@@ -17,6 +17,7 @@ const emit = defineEmits<{ apply: [] }>()
 const productId = defineModel<string>('productId', { required: true })
 const amount = defineModel<number>('amount', { required: true })
 const termMonths = defineModel<number>('termMonths', { required: true })
+const organizationId = defineModel<string>('organizationId', { default: '' })
 </script>
 
 <template>
@@ -41,7 +42,11 @@ const termMonths = defineModel<number>('termMonths', { required: true })
       />
       <SectionHeader
         title="Рассчитайте платёж"
-        description="Выберите продукт, сумму и срок — параметры сразу перенесутся в заявку."
+        :description="
+          companies?.length
+            ? 'Расчёт по ставке, которую банк предварительно одобрил вашей компании, — параметры сразу перенесутся в заявку.'
+            : 'Выберите продукт, сумму и срок — параметры сразу перенесутся в заявку.'
+        "
       />
       <div class="relative isolate mt-8 lg:mt-12">
         <PeekSticker art="banknote" class="absolute -top-16 right-14 -z-10" :tilt="-10" :delay="3" />
@@ -50,8 +55,9 @@ const termMonths = defineModel<number>('termMonths', { required: true })
           v-model:product-id="productId"
           v-model:amount="amount"
           v-model:term-months="termMonths"
+          v-model:organization-id="organizationId"
           :products="products"
-          :pre-approved="preApproved"
+          :companies="companies"
           @apply="emit('apply')"
         />
       </div>

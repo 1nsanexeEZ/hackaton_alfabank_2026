@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -12,15 +11,8 @@ from src.core.exceptions.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from src.modules.process.domain.enums import TaskStatus
 from src.modules.process.domain.events import UserTaskCompleted
-
-
-class TaskStatus(StrEnum):
-    OPEN = "open"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-    CANCELLED = "cancelled"
-
 
 DECISIONS = frozenset({"approve", "counter_offer", "reject", "request_info"})
 

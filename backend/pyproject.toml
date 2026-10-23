@@ -60,6 +60,11 @@ markers = [
 # The deploy workflow runs plain `pytest`: heavy suites are opt-in (`-m integration`).
 addopts = "-m 'not integration and not e2e'"
 
+[tool.mypy]
+# Ключи реестра фасадов — Protocol: реестр ищет фасад по контракту и никогда не создаёт
+# экземпляр ключа, а mypy считает передачу Protocol в type[T] ошибкой (python/mypy#4717).
+disable_error_code = ["type-abstract"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
@@ -113,7 +118,7 @@ forbidden_modules = ["src.modules.*.presentation", "src.modules.*.api", "src.mod
 [[tool.importlinter.contracts]]
 name = "Layered modules: presentation -> infrastructure -> application -> domain"
 type = "layers"
-containers = ["src.modules.identity", "src.modules.enrichment"]
+containers = ["src.modules.identity", "src.modules.enrichment", "src.modules.projector", "src.modules.notifications", "src.modules.clients", "src.modules.bff", "src.modules.process", "src.modules.applications"]
 layers = ["module", "presentation", "infrastructure", "(facade)", "application", "domain"]
 
 [[tool.importlinter.contracts]]

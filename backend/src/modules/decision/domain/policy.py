@@ -43,6 +43,19 @@ policy_v5 — две модели вместо матрицы грейд × су
 мягкие триггеры и сумма выше лимита автоматики — не меньше проверки. Вид ручной проверки
 (проверка или спорная) — `review_kind` контракта decision по кодам причин.
 
+policy_v6 — v5 и обязательные требования закона:
+- 115-ФЗ, первым правилом, до скоринга: компания, руководитель, бенефициар, учредитель-юрлицо
+  цепочки или представитель в перечне Росфинмониторинга, в решении МВК о замораживании или в
+  перечне ФРОМУ → отказ (STOP_AML_LISTED); высокий уровень риска на платформе ЗСК → отказ
+  (STOP_ZSK_HIGH_RISK). Проверка делается на каждой заявке, повторный заёмщик — не исключение;
+- 115-ФЗ, маршрутизация: проверка не выполнена (ROUTE_AML_INCOMPLETE, спорная), ПДЛ
+  (ROUTE_PEP; иностранному ПДЛ — письменное решение руководителя банка), средний риск ЗСК
+  (ROUTE_ZSK_MEDIUM_RISK) → ручная проверка, автоматического одобрения нет;
+- ст. 16 152-ФЗ: отказ или встречное предложение ИП (физлицу) только автоматически — лишь с его
+  согласием на такое решение; без согласия решает человек (ROUTE_AUTOMATED_DECISION_CONSENT).
+  Отказ по 115-ФЗ — исключение: обслуживать лицо из перечня закон запрещает.
+Клиенту — нейтральные тексты: о мерах по 115-ФЗ клиента не информируют.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
 ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
@@ -56,6 +69,7 @@ from dataclasses import dataclass, field, replace
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from typing import Literal
 
+from src.core.domain.annuity import annuity_payment, max_principal
 from src.modules.decision.domain.explanations import ExplanationCatalog, month_in, render, rub
 from src.modules.decision.domain.model import (
     LEGACY_SCALE,
@@ -81,7 +95,6 @@ from src.modules.decision.domain.model import (
 _ZERO = Decimal(0)
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal(100)
-_MONTHLY_DIVISOR = Decimal(1200)  # 12 месяцев × 100 %
 _TWELVE = Decimal(12)
 _MAX_HINTS = 4
 _HEAD_BUREAU_SKIPPED = {
@@ -186,6 +199,14 @@ class PolicyConfig:
     # policy_v5: грейд → зона и (зона PD-модели, зона ML-модели) → вердикт. Пусто — выключено.
     model_zones: Mapping[str, Zone] = field(default_factory=dict)
     model_matrix: Mapping[tuple[Zone, Zone], ModelsVerdict] = field(default_factory=dict)
+    # policy_v6: 115-ФЗ. False / пусто — выключено (так ведут себя policy_v1–v5).
+    aml_checks: bool = False
+    zsk_stop_levels: frozenset[str] = frozenset()
+    zsk_review_levels: frozenset[str] = frozenset()
+    # policy_v6: ст. 16 152-ФЗ — для каких форм (физлица) и исходов нужно согласие на
+    # решение только на основании автоматизированной обработки.
+    automated_decision_forms: frozenset[str] = frozenset()
+    automated_decision_outcomes: frozenset[str] = frozenset()
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -228,27 +249,6 @@ class CreditPolicy:
 
 
 # --- расчётные функции (общие для решения и предодобрения) -----------------------------------
-
-
-def annuity_payment(amount: Decimal, term_months: int, rate: Decimal) -> Decimal:
-    """Аннуитетный платёж, округлён до копеек — та же формула, что в products."""
-    monthly = rate / _MONTHLY_DIVISOR
-    if monthly == 0:
-        return (amount / term_months).quantize(_CENT, rounding=ROUND_HALF_UP)
-    payment = amount * monthly / (1 - (1 + monthly) ** -term_months)
-    return payment.quantize(_CENT, rounding=ROUND_HALF_UP)
-
-
-def max_principal(payment: Decimal, term_months: int, rate: Decimal) -> Decimal:
-    """Обратный аннуитет: наибольшая сумма, при которой платёж не превышает `payment`."""
-    if payment <= 0:
-        return _ZERO
-    monthly = rate / _MONTHLY_DIVISOR
-    if monthly == 0:
-        principal = payment * term_months
-    else:
-        principal = payment * (1 - (1 + monthly) ** -term_months) / monthly
-    return principal.quantize(_CENT, rounding=ROUND_DOWN)
 
 
 def round_down(amount: Decimal, step: Decimal) -> Decimal:
@@ -403,7 +403,9 @@ def _pre_approve(
 ) -> PreApproval | None:
     """Предодобрение по облегчённым данным (без БКИ и выписок): лимит на грейд осторожнее.
     В policy_v3 лимит не выше и того, что по этому грейду одобряет автоматика (матрица и
-    ограничение по грейду): клиенту не предлагают сумму, которую потом не дадут."""
+    ограничение по грейду): клиенту не предлагают сумму, которую потом не дадут. В policy_v5
+    по той же причине предодобрения нет, если в зоне осторожного грейда автоматика не одобряет
+    ни при какой оценке ML-модели."""
     if inp.registry_status in config.stop_registry_statuses or inp.grade in config.stop_grades:
         return None
     scale = config.grade_scale
@@ -416,6 +418,8 @@ def _pre_approve(
     cautious = scale[position]
     k = config.revenue_multiplier.get(cautious)
     if revenue is None or revenue <= 0 or k is None or cautious in config.stop_grades:
+        return None
+    if config.model_matrix and not _models_may_approve(config, cautious):
         return None
     product = inp.product
     ceilings = [product.amount_max]
@@ -454,6 +458,16 @@ def _pre_approve(
     )
 
 
+def _models_may_approve(config: PolicyConfig, grade: str) -> bool:
+    """policy_v5: есть ли в строке матрицы для зоны PD-модели хоть одно одобрение."""
+    zone = config.model_zones.get(grade)
+    return any(
+        verdict == "approve"
+        for (pd_zone, _), verdict in config.model_matrix.items()
+        if pd_zone == zone
+    )
+
+
 def _num(value: Decimal) -> str:
     """Число для трассы банка: разряды пробелом, копейки только если есть."""
     quantized = value.quantize(_CENT, rounding=ROUND_HALF_UP)
@@ -465,6 +479,10 @@ def _num(value: Decimal) -> str:
 
 def _pct(value: Decimal) -> str:
     return f"{value.quantize(_CENT, rounding=ROUND_HALF_UP)}%"
+
+
+def _zsk(level: str | None) -> str:
+    return {"low": "низкий", "medium": "средний", "high": "высокий"}.get(level or "", "нет данных")
 
 
 def _pd_note(pd: Decimal | None) -> str:
@@ -492,6 +510,13 @@ class _Evaluation:
         self._triggers: list[Trigger] = []
 
     def run(self) -> PolicyDecision:
+        # 115-ФЗ — до всего остального: клиента из перечня банк не обслуживает при любом скоре.
+        aml_stops = self._aml_stops()
+        if aml_stops:
+            return self._result("REJECT", aml_stops)
+        return self._automated_decision_consent(self._decide())
+
+    def _decide(self) -> PolicyDecision:
         score = self._in.score
         if score is None:
             self._hit("input.scoring", True, "результата скоринга нет — решение за андеррайтером")
@@ -998,9 +1023,94 @@ class _Evaluation:
 
     # --- 5. маршрутизация ------------------------------------------------------------------------
 
+    # --- policy_v6: 115-ФЗ и ст. 16 152-ФЗ ---------------------------------------------------
+
+    def _aml_stops(self) -> tuple[ReasonCode, ...]:
+        """Перечни Росфинмониторинга и высокий риск ЗСК — отказ; правило — только в policy_v6."""
+        if not self._c.aml_checks:
+            return ()
+        aml = self._in.aml
+        if aml is None or aml.status != "ok":
+            self._hit(
+                "aml.lists",
+                False,
+                "проверка по 115-ФЗ на этой заявке не выполнена — решает человек",
+            )
+            return ()
+        reasons: list[ReasonCode] = []
+        listed = bool(aml.list_hits)
+        self._hit(
+            "aml.lists",
+            listed,
+            "; ".join(f"{h.subject}: {h.detail}" for h in aml.list_hits)
+            if listed
+            else f"совпадений с перечнями нет (перечни на {aml.lists_date}); бенефициары: "
+            + (", ".join(aml.beneficial_owners) or "—"),
+        )
+        if listed:
+            reasons.append(ReasonCode.STOP_AML_LISTED)
+        zsk_stop = aml.zsk_level in self._c.zsk_stop_levels
+        self._hit("aml.zsk_stop", zsk_stop, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
+        if zsk_stop:
+            reasons.append(ReasonCode.STOP_ZSK_HIGH_RISK)
+        return tuple(reasons)
+
+    def _aml_routes(self) -> list[ReasonCode]:
+        """Без автоматического одобрения: проверка не выполнена, ПДЛ, средний риск ЗСК."""
+        if not self._c.aml_checks:
+            return []
+        aml = self._in.aml
+        reasons: list[ReasonCode] = []
+        done = aml is not None and aml.status == "ok"
+        self._hit(
+            "route.aml_incomplete",
+            not done,
+            "проверка по 115-ФЗ выполнена"
+            if done
+            else "перечни, база ПДЛ, ЗСК или ЕГРЮЛ не ответили — проверка не выполнена",
+        )
+        if not done or aml is None:
+            return [ReasonCode.ROUTE_AML_INCOMPLETE]
+        pep = bool(aml.pep_hits)
+        detail = "; ".join(f"{h.subject}: {h.detail}" for h in aml.pep_hits) or "ПДЛ нет"
+        if aml.foreign_pep:
+            detail += " — нужно письменное решение руководителя банка и источник средств"
+        self._hit("route.pep", pep, detail)
+        if pep:
+            reasons.append(ReasonCode.ROUTE_PEP)
+        medium = aml.zsk_level in self._c.zsk_review_levels
+        self._hit("route.zsk", medium, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
+        if medium:
+            reasons.append(ReasonCode.ROUTE_ZSK_MEDIUM_RISK)
+        return reasons
+
+    def _automated_decision_consent(self, decision: PolicyDecision) -> PolicyDecision:
+        """ст. 16 152-ФЗ: неблагоприятное решение по физлицу без его согласия — человеку."""
+        forms = self._c.automated_decision_forms
+        if not forms or self._in.company.legal_form not in forms:
+            return decision
+        adverse = decision.outcome in self._c.automated_decision_outcomes
+        consent = self._in.automated_decision_consent
+        needed = adverse and not consent
+        self._hit(
+            "consent.automated_decision",
+            needed,
+            f"исход {decision.outcome}, согласие на автоматизированное решение "
+            + ("есть" if consent else "не дано")
+            + (" — решает человек" if needed else ""),
+        )
+        if not needed:
+            return replace(decision, rule_trace=tuple(self._trace))
+        return self._result(
+            "MANUAL_REVIEW",
+            (ReasonCode.ROUTE_AUTOMATED_DECISION_CONSENT, *decision.reason_codes),
+            explain=(ReasonCode.ROUTE_AUTOMATED_DECISION_CONSENT,),
+            hints=False,
+        )
+
     def _routing(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
         product, request, company = self._in.product, self._in.request, self._in.company
-        reasons: list[ReasonCode] = []
+        reasons: list[ReasonCode] = self._aml_routes()
 
         over_limit = request.amount > product.auto_decision_limit
         self._hit(
@@ -1437,6 +1547,7 @@ class _Evaluation:
         requested_info: InfoNeed | None = None,
         explain: tuple[ReasonCode, ...] | None = None,
         values: Mapping[str, str] | None = None,
+        hints: bool = True,
     ) -> PolicyDecision:
         """`gap` — продукт под кассовый разрыв (его называет текст о разрыве), `alternative` —
         итоговая альтернатива решения; при отказе это может быть и другой продукт."""
@@ -1452,13 +1563,13 @@ class _Evaluation:
         if alternative is not None and not (gap_named and alternative == gap):
             sentences.append(render(self._x.notes["alternative"], self._values(alternative)))
 
-        hints: list[str] = []
-        for code in reasons:
+        advice: list[str] = []
+        for code in reasons if hints else ():
             hint = self._x.reasons[code].hint
             if hint:
-                hints.append(render(hint, rendered))
-        if self._in.score is not None:
-            hints.extend(self._in.score.client_hints)
+                advice.append(render(hint, rendered))
+        if hints and self._in.score is not None:
+            advice.extend(self._in.score.client_hints)
 
         return PolicyDecision(
             policy_version=self._c.version,
@@ -1468,7 +1579,7 @@ class _Evaluation:
             alternative_product_code=alternative.code if alternative else None,
             reason_codes=tuple(dict.fromkeys(reasons)),
             client_explanation=" ".join(s for s in dict.fromkeys(sentences) if s),
-            improvement_hints=tuple(dict.fromkeys(hints))[:_MAX_HINTS],
+            improvement_hints=tuple(dict.fromkeys(advice))[:_MAX_HINTS],
             requested_info=requested_info,
             rule_trace=tuple(self._trace),
             limits=self._limits,

@@ -14,9 +14,9 @@ from src.core.messaging.contracts import CONTRACTS
 from src.core.messaging.runtime import validate_subscriptions
 from src.modules.notifications import module
 from src.modules.notifications.domain.feed import UNDERWRITERS, Delivery, FeedEntry, Recipient
-from src.modules.notifications.infrastructure.facade_impl import NotificationsFacadeImpl
-from src.modules.notifications.infrastructure.models import NewsItem
-from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
+from src.modules.notifications.infrastructure.database.models import NewsItem
+from src.modules.notifications.infrastructure.repositories.feed import SqlAlchemyFeedStore
+from src.modules.notifications.presentation.dependencies import notifications_facade
 from tests.notifications.conftest import World
 
 
@@ -80,7 +80,7 @@ async def test_facade_reads_the_feed_of_an_account(
 
     await seed_news(seed_context(session_factory, clock))
     async with session_factory() as session:
-        facade = NotificationsFacadeImpl(session, registry, clock)
+        facade = notifications_facade(session, registry, clock)
         assert await facade.unread_count(world.director) == 1
         assert await facade.unread_count(world.director, world.ivanov.id) == 0
         assert [i.title for i in await facade.latest(world.director, world.romashka.id)] == ["своя"]
@@ -109,7 +109,7 @@ async def test_facade_without_identity_shows_own_records_only(
         )
         await session.commit()
     async with session_factory() as session:
-        facade = NotificationsFacadeImpl(session, FacadeRegistry(), clock)
+        facade = notifications_facade(session, FacadeRegistry(), clock)
         assert await facade.latest(account) == []
         assert await facade.personal_news(uuid4()) == [], "unknown company and no news seeded"
 

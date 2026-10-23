@@ -43,5 +43,7 @@ export const DOCUMENT_TITLE: Record<string, string> = {
   collateral_documents: 'Документы на залог: право собственности и оценка',
   purchase_contract: 'Договор купли-продажи или счёт продавца',
   existing_loans_statement: 'Справка о действующих кредитах: остаток долга и график',
+  business_plan: 'Бизнес-план',
+  financial_model: 'Финансовая модель',
   other: 'Другой документ',
 }

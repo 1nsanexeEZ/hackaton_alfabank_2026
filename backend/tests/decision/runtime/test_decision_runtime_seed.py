@@ -17,7 +17,7 @@ from seed.run import SeedContext
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.main import create_app
-from src.modules.clients.infrastructure.models import OrganizationModel
+from src.modules.clients.infrastructure.database.models import OrganizationModel
 from src.modules.decision.facade import DecisionFacade, PreApprovedOfferDTO
 from tests.decision.unit.decision_world import NOW
 from tests.helpers import create_schema

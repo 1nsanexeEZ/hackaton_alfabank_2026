@@ -9,6 +9,7 @@ from src.core.exceptions.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from src.modules.clients.domain.enums import Authority, MemberRole, OrgPermission, TaxRegime
 from src.modules.clients.domain.events import (
     MemberAdded,
     MemberRemoved,
@@ -18,12 +19,10 @@ from src.modules.clients.domain.events import (
 )
 from src.modules.clients.domain.member import Actor
 from src.modules.clients.domain.organization import months_between
-from src.modules.clients.domain.rights import Authority, MemberRole, OrgPermission
 from src.modules.clients.domain.value_objects import (
     Discrepancy,
     PersonName,
     Requisites,
-    TaxRegime,
     VerificationResult,
 )
 from tests.clients.unit.factories import (

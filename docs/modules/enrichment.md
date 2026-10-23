@@ -40,7 +40,7 @@ enrichment/
 │   ├── interfaces/           # sources (порты источников + Sources), repositories,
 │   │                         # statement_parser, registry_cache
 │   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
-│                             # lookup_registry, lookup_person_bureau
+│                             # latest_cashflow, lookup_registry, lookup_person_bureau
 ├── infrastructure/
 │   ├── config.py             # ENRICHMENT_* из окружения
 │   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
@@ -65,15 +65,16 @@ enrichment/
 
 | `Source` | Что | Порт → адаптер | Мок | В снимке |
 |---|---|---|---|---|
-| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель и дата записи о нём (`head_since`, «Руководитель.ДатаЗаписи» — для мягкого триггера смены руководителя в policy_v3), учредители, адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
+| `egrul` | ЕГРЮЛ / ЕГРИП: статус, руководитель и дата записи о нём (`head_since`, «Руководитель.ДатаЗаписи» — для мягкого триггера смены руководителя в policy_v3), учредители (у юрлица — `inn`), адрес | `RegistrySource` → `egrul_http.py` | `GET /egrul/{inn}` | `egrul: RegistryExtractDTO` |
 | `fns` | ФНС «Прозрачный бизнес»: недоимка, выручка, блокировки счетов | `TaxSource` → `fns_http.py` | `GET /fns/{inn}` | `fns: TaxProfileDTO` (+ `account_blocks`) |
 | `bki` | БКИ компании | `CreditBureauSource` → `bki_http.py` | `POST /bki/report` | `bki: CreditHistoryDTO` |
 | `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
 | `kontur` | Контур.Фокус: арбитраж, исполнительные производства, банкротство, госконтракты | `CounterpartyRiskSource` → `kontur_http.py` | `GET /kontur/{inn}` | `kontur: CounterpartyRiskDTO` |
 | `bki_head` | БКИ руководителя по реестру | `PersonBureauSource` → `bki_person_http.py` | `POST /bki/person-report` | `bki_head: CreditHistoryDTO` |
+| `aml` | проверка по 115-ФЗ: бенефициары (больше 25% прямо или по цепочке учредителей-юрлиц), перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ), ПДЛ, уровень риска ЗСК — [`compliance-115.md`](../compliance-115.md) | `AmlListsSource`, `PepSource`, `ZskSource` → `aml_http.py`; цепочка — `RegistrySource`; расчёт — `check_aml.py`, `domain/beneficial_owners.py` | `POST /rfm/screen`, `POST /pep/screen`, `GET /zsk/{inn}` | `aml: AmlCheckDTO` |
 | `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `StatementParser` → `statement_csv.py`, расчёт — `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
 
-Процесс просит все семь (`FetchEnrichment.sources` по умолчанию — тоже все семь). Новые источники
+Процесс просит все (`FetchEnrichment.sources` по умолчанию — тоже все). Новые источники
 хранятся так же, как старые, — строкой `enrichment_source_results` с JSONB `data`, поэтому миграция
 не понадобилась; старые снимки читаются (нет `account_blocks` — блокировок нет).
 
@@ -97,7 +98,25 @@ kontur: {
 bki_head: CreditHistoryDTO | null                     // та же схема, что у bki компании
 fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 sources_skipped: [{ source, code, message }]          // не запрошенные: no_consent, no_head
+aml: {
+  lists_date, zsk: { level: "low" | "medium" | "high", as_of },
+  beneficial_owners: [{ name, basis: "ownership" | "head_by_default" | "entrepreneur",
+                        share_percent | null }],
+  subjects: [{ role: "company" | "founder_company" | "head" | "beneficial_owner" |
+                     "representative", name, inn | null }],     // кого проверили
+  list_hits: [{ subject, list: "terrorism" | "freeze" | "wmd", record }],
+  pep_hits: [{ subject, kind: "foreign" | "russian" | "international", position }]
+} | null                                              // null — проверка не выполнена (aml в failed)
 ```
+
+**Проверка по 115-ФЗ (`aml`)** идёт после остальных источников, потому что ей нужна выписка ЕГРЮЛ
+этого же снимка: руководитель, учредители, цепочка владения. Делается на каждой команде заново —
+повторный заёмщик проверяется так же, как новый, кеша нет. Проверяются компания и учредители-юрлица
+цепочки (по ИНН), руководитель, бенефициары и представитель — тот, кто подал заявку, если это не
+руководитель (`FetchEnrichment.representative`). Не ответил ЕГРЮЛ, не найдено звено цепочки, не
+ответили перечни, база ПДЛ или ЗСК — `aml` в `failed` с видом `incomplete` или ошибкой источника:
+лучше «проверка не выполнена», чем молча пропущенное совпадение. Незнакомый код перечня, категории
+ПДЛ или уровня ЗСК в ответе — тоже `bad_response`.
 
 `total_liabilities` — строка 1700, итог пассива (капитал и обязательства), как в форме 0710001.
 Периоды ГИР БО — от старых к новым, `AccountingReportsDTO.latest` — последний.
@@ -195,6 +214,9 @@ date;amount;counterparty_inn;counterparty_name;purpose
 
 - `get_snapshot(application_id)` — последний снимок для `scoring`, `decision`, карточки андеррайтера
   (bff).
+- `latest_cashflow(organization_id)` — последний прогноз движения денег по компании: самый свежий
+  снимок с выпиской среди её последних 10 заявок. Для подбора продуктов (products) вне заявки.
+  Выписки не было → `None`: разрыв неизвестен, а не «разрыва нет».
 - `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
   мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
   недоступен → `InfrastructureError` (503).

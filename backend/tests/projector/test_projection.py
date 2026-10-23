@@ -28,7 +28,7 @@ from src.core.messaging.contracts.process import (
 from src.core.messaging.envelope import Envelope
 from src.core.messaging.outbox import build_envelope
 from src.modules.applications.facade import ApplicationsFacade
-from src.modules.projector.infrastructure.rebuild import apply_one
+from src.modules.projector.presentation.rebuild import apply_one
 from tests.projector.world import (
     Consumer,
     OpenFacade,

@@ -7,8 +7,11 @@ from decimal import Decimal
 
 @dataclass(frozen=True, slots=True)
 class FounderDTO:
+    """Учредитель: физлицо — ФИО, юрлицо — наименование и ИНН (по нему идём по цепочке)."""
+
     name: str
     share_percent: Decimal
+    inn: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

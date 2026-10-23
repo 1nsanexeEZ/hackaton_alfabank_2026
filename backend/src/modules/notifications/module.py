@@ -3,10 +3,10 @@
 from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
-from src.modules.notifications.api import router
 from src.modules.notifications.facade import NotificationsFacade
-from src.modules.notifications.infrastructure.consumer import feed_subscriptions
-from src.modules.notifications.infrastructure.facade_impl import NotificationsFacadeImpl
+from src.modules.notifications.presentation.api import router
+from src.modules.notifications.presentation.consumers import feed_subscriptions
+from src.modules.notifications.presentation.dependencies import notifications_facade
 
 NAME = "notifications"
 
@@ -19,7 +19,7 @@ def wire(app: FastAPI) -> None:
     facades = app.state.facades
     app.state.facades.register(
         NotificationsFacade,
-        lambda session: NotificationsFacadeImpl(session, facades, app.state.clock),
+        lambda session: notifications_facade(session, facades, app.state.clock),
     )
 
 

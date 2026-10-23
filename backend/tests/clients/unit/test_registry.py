@@ -7,12 +7,17 @@ from uuid import uuid4
 import pytest
 
 from seed.demo_data import COMPANIES_BY_CODE
+from src.modules.clients.domain.enums import (
+    Authority,
+    MemberRole,
+    RegistryStatus,
+    VerificationStatus,
+)
 from src.modules.clients.domain.events import (
     OrganizationVerificationMismatch,
     OrganizationVerified,
 )
 from src.modules.clients.domain.organization import Organization
-from src.modules.clients.domain.rights import Authority, MemberRole
 from src.modules.clients.domain.value_objects import (
     Address,
     Discrepancy,
@@ -23,8 +28,6 @@ from src.modules.clients.domain.value_objects import (
     OkvedCode,
     PersonName,
     RegistryExtract,
-    RegistryStatus,
-    VerificationStatus,
 )
 from tests.clients.unit.factories import BANK, NOW, head_of, organization, stranger_name, with_head
 

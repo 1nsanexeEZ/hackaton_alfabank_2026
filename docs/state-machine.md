@@ -59,8 +59,8 @@ stateDiagram-v2
 Три вида инициаторов, они же `actor_type` в истории статусов:
 
 - **клиент** (`client`) — действие пользователя через HTTP API модуля `applications`, `actor_id` — его аккаунт;
-- **процесс** (`process`) — команда движка процесса в топике `applications.commands` (контракты — `backend/src/core/messaging/contracts/applications.py`, консьюмер — `applications/infrastructure/consumers.py`);
-- **система** (`system`) — фоновая проверка срока предложения: цикл `run_offer_expiry` в том же файле периодически вызывает `expire_offer` у заявок с истёкшим `expires_at`, по транзакции на заявку.
+- **процесс** (`process`) — команда движка процесса в топике `applications.commands` (контракты — `backend/src/core/messaging/contracts/applications.py`, консьюмер — `applications/presentation/consumers.py`);
+- **система** (`system`) — фоновая проверка срока предложения: цикл `run_offer_expiry` (`applications/presentation/expiry.py`) периодически запускает `ExpireOffersUseCase` для заявок с истёкшим `expires_at`, по транзакции на заявку.
 
 | Из | В | Кто | Чем вызывается | Метод агрегата | Условия | Событие кроме `ApplicationStatusChanged` |
 |---|---|---|---|---|---|---|

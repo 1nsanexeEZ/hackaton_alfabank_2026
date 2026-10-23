@@ -4,19 +4,18 @@ import pytest
 
 from seed.demo_data import COMPANIES, DemoCompany
 from src.core.exceptions.exceptions import ValidationError
+from src.modules.clients.domain.enums import LegalForm, VerificationStatus
 from src.modules.clients.domain.value_objects import (
     Address,
     Discrepancy,
     FiscalPeriod,
     Inn,
     Kpp,
-    LegalForm,
     Ogrn,
     OkvedCode,
     PersonName,
     Requisites,
     VerificationResult,
-    VerificationStatus,
 )
 
 ROMASHKA = next(c for c in COMPANIES if c.code == "romashka")

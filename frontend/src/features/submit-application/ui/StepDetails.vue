@@ -60,7 +60,7 @@ const OWNER_OPTIONS: { value: CollateralForm['owner']; label: string }[] = [
         <h3 class="text-base font-bold text-ink">Анкета продукта</h3>
         <p class="mt-0.5 text-sm text-ink-secondary">Эти данные нужны для продукта «{{ product.title }}»</p>
       </div>
-      <ProductFieldsForm :schema="product.fieldsSchema" :values="productFields" :errors="fieldErrors" />
+      <ProductFieldsForm v-model:values="productFields" :schema="product.fieldsSchema" :errors="fieldErrors" />
     </section>
 
     <section v-if="documents.length" class="space-y-4">

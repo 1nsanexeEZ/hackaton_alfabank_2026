@@ -1,7 +1,8 @@
 import pytest
 
+from src.modules.process.domain.exceptions import WorkflowValidationError
 from src.modules.process.domain.steps import STEPS
-from src.modules.process.domain.validation import WorkflowValidationError, validate
+from src.modules.process.domain.validation import validate
 from tests.process.unit.routes import RouteBuilder, express
 
 

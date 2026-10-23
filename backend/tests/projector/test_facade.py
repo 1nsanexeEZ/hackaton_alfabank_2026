@@ -19,7 +19,7 @@ from src.modules.projector.facade import (
     QueueItemDTO,
     TimelineEntryDTO,
 )
-from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.adapters.projector_facade import ProjectorFacadeImpl
 from tests.projector.unit.factories import T0, overview, queue_item
 from tests.projector.world import OpenFacade, OpenStore
 

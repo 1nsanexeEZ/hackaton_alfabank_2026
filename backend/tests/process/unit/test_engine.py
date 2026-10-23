@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
+from src.modules.process.domain.enums import OnFailure, ProcessStatus, WaitKind
 from src.modules.process.domain.events import (
     ProcessCompleted,
     ProcessFailed,
@@ -14,15 +15,10 @@ from src.modules.process.domain.events import (
     StepCompleted,
     UserTaskCreated,
 )
-from src.modules.process.domain.process import (
-    OutgoingCommand,
-    ProcessInstance,
-    ProcessStatus,
-    WaitKind,
-)
+from src.modules.process.domain.process import OutgoingCommand, ProcessInstance
 from src.modules.process.domain.steps import CollateralFact, CompletenessFact, Trigger
 from src.modules.process.domain.tasks import UserTask
-from src.modules.process.domain.workflow import OnFailure, WorkflowDefinition
+from src.modules.process.domain.workflow import WorkflowDefinition
 from tests.process.unit.routes import NOW, FakeFacts, context, express, ids, offer, secured
 
 

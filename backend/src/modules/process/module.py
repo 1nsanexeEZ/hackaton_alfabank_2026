@@ -5,12 +5,13 @@ import asyncio
 from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
-from src.modules.process.api.routes import router
-from src.modules.process.application.ports import WorkflowSource
+from src.modules.process.application.interfaces.workflows import WorkflowSource
 from src.modules.process.facade import ProcessFacade
-from src.modules.process.infrastructure.catalog import load_workflows
-from src.modules.process.infrastructure.consumers import run_timeouts, subscriptions
-from src.modules.process.infrastructure.facade_impl import ProcessFacadeImpl
+from src.modules.process.infrastructure.adapters.workflow_catalog import load_workflows
+from src.modules.process.presentation.api import router
+from src.modules.process.presentation.consumers import subscriptions
+from src.modules.process.presentation.dependencies import process_facade
+from src.modules.process.presentation.timeouts import run_timeouts
 
 NAME = "process"
 
@@ -25,7 +26,7 @@ def wire(app: FastAPI) -> None:
     app.state.workflows = catalog
     # Module-private port for the Kafka handlers.
     app.state.facades.register(WorkflowSource, lambda _session: catalog)
-    app.state.facades.register(ProcessFacade, ProcessFacadeImpl)
+    app.state.facades.register(ProcessFacade, process_facade)
 
 
 async def startup(app: FastAPI) -> None:
@@ -33,9 +34,7 @@ async def startup(app: FastAPI) -> None:
         return
     stop = asyncio.Event()
     task = asyncio.create_task(
-        run_timeouts(
-            app.state.session_factory, app.state.facades, app.state.workflows, app.state.clock, stop
-        ),
+        run_timeouts(app.state.session_factory, app.state.facades, app.state.clock, stop),
         name="process-timeouts",
     )
     app.state.process_jobs = (stop, task)
