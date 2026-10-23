@@ -8,8 +8,10 @@ from uuid import UUID, uuid4
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEnrichment
 from src.modules.applications.facade import ScoringInputDTO
-from src.modules.enrichment.application.cashflow import CashflowBuilder
-from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.application.use_cases.build_cashflow import CashflowBuilder
+from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.facade import CashflowForecastDTO
+from src.modules.enrichment.infrastructure.adapters.statement_csv import CsvStatementParser
 from tests.enrichment.unit.test_fetch_enrichment import (
     FakeBureau,
     FakeRegistry,
@@ -70,14 +72,16 @@ def _use_case(
 
 async def test_cashflow_added_when_statement_present() -> None:
     scoring_input = _ivanov_scoring_input()
-    builder = CashflowBuilder(StubApplications(scoring_input, (_SEED / "ivanov.csv").read_bytes()))
+    builder = CashflowBuilder(
+        StubApplications(scoring_input, (_SEED / "ivanov.csv").read_bytes()), CsvStatementParser()
+    )
     use_case, repo, outbox = _use_case(builder)
 
     await use_case.execute(
         _command(scoring_input, [uuid4()]), command_event_id=uuid4(), outbox=outbox
     )
 
-    forecast = repo.added[0].cashflow()
+    forecast = repo.added[0].data_of("statement", CashflowForecastDTO)
     assert forecast is not None
     assert forecast.gap_detected is True
     assert forecast.revenue_confirmed is True
@@ -86,18 +90,20 @@ async def test_cashflow_added_when_statement_present() -> None:
 
 async def test_no_cashflow_without_statement() -> None:
     scoring_input = _ivanov_scoring_input()
-    builder = CashflowBuilder(StubApplications(scoring_input, b""))
+    builder = CashflowBuilder(StubApplications(scoring_input, b""), CsvStatementParser())
     use_case, repo, outbox = _use_case(builder)
 
     await use_case.execute(_command(scoring_input, []), command_event_id=uuid4(), outbox=outbox)
 
-    assert repo.added[0].cashflow() is None
+    assert repo.added[0].data_of("statement", CashflowForecastDTO) is None
     assert outbox.of_type(EnrichmentCompleted)[0].cash_gap_detected is None
 
 
 async def test_unparseable_statement_does_not_fail_enrichment() -> None:
     scoring_input = _ivanov_scoring_input()
-    builder = CashflowBuilder(StubApplications(scoring_input, b"foo;bar\n1;2\n"))
+    builder = CashflowBuilder(
+        StubApplications(scoring_input, b"foo;bar\n1;2\n"), CsvStatementParser()
+    )
     use_case, repo, outbox = _use_case(builder)
 
     await use_case.execute(
@@ -105,7 +111,7 @@ async def test_unparseable_statement_does_not_fail_enrichment() -> None:
     )
 
     snapshot = repo.added[0]
-    assert snapshot.cashflow() is None
+    assert snapshot.data_of("statement", CashflowForecastDTO) is None
     assert "statement" not in snapshot.sources_failed  # внутренний источник, не внешний провал
     assert set(snapshot.sources_ok) == {"egrul", "fns", "bki"}
     assert outbox.of_type(EnrichmentCompleted)[0].cash_gap_detected is None

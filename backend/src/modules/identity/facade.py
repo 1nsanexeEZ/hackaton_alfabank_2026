@@ -2,12 +2,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Protocol
+from typing import Protocol
 from uuid import UUID
 
-# personal_data — processing of personal data (152-FZ), valid until revoked;
-# credit_bureau_personal — the person's own credit history (218-FZ), six months.
-ConsentType = Literal["personal_data", "credit_bureau_personal"]
+from src.modules.identity.domain.enums import ConsentType
+
+__all__ = ["AccountRefDTO", "ConsentDTO", "ConsentType", "IdentityFacade"]
 
 
 @dataclass(frozen=True, slots=True)

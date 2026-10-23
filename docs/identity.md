@@ -1,6 +1,6 @@
 # Identity: RBAC + ABAC
 
-Модуль входа, аккаунтов и прав. Код — `backend/src/identity`, общая часть доступа — `backend/src/core/access`.
+Модуль входа, аккаунтов и прав. Код — `backend/src/modules/identity` (слои по [`settings/04-module-structure.md`](../settings/04-module-structure.md), модуль — эталон), общая часть доступа — `backend/src/core/access`.
 Реализация повторяет access-слой из проекта лида: те же `Permissions`/`Policies`, `AccessContext`, `apply_policies`, `get_access_context_for`.
 
 ## Принятые решения
@@ -20,6 +20,17 @@
 | Соседи | Читают аккаунты только через `IdentityFacade` (`src/modules/identity/facade.py`) |
 
 Следствия «без хранения»: после истечения токена — повторный вход; смена роли или удаление аккаунта вступают в силу, когда истечёт уже выданный токен (максимум 30 минут).
+
+## Код
+
+| Слой | Что там |
+|---|---|
+| `domain/` | `Account`, `Profile`, `Role`, `Consent`; правила входа (`login_policy.py`), сроки и редакции согласий (`enums.py`), исключения без HTTP (`exceptions.py`) |
+| `application/` | `use_cases/` — класс на операцию (`LoginUseCase`, `CreateRoleUseCase`…); `interfaces/` — `TokenService`, `PasswordHasher`, репозитории, `DemoAccountCatalog`; `dto/` |
+| `infrastructure/` | `adapters/` — `JwtTokenService` (RS256), `Argon2PasswordHasher`, каталог демо-учёток, `IdentityFacadeImpl`; `database/models.py`; `repositories/`; `exception_handler.py` — доменные ошибки в `{code, message}` |
+| `presentation/` | роутеры (`api/`), pydantic-схемы (`schemas/`), `dependencies.py` — сборка use cases |
+
+`module.py::startup` создаёт хешер и JWT-сервис (`app.state.password_hasher`, `app.state.token_adapter`) и заводит bootstrap-админа.
 
 ## Модель данных
 
@@ -133,7 +144,7 @@
 
 ## Фасад для модулей
 
-Другие модули читают аккаунты только через `IdentityFacade` (`src/modules/identity/facade.py`), реализация — `src/modules/identity/facade_impl.py`, регистрируется в `src/modules/identity/module.py::wire`.
+Другие модули читают аккаунты только через `IdentityFacade` (`src/modules/identity/facade.py`), реализация — `src/modules/identity/infrastructure/adapters/identity_facade.py`, регистрируется в `src/modules/identity/module.py::wire`.
 
 | Метод | Что делает |
 |---|---|
@@ -165,7 +176,7 @@ identity = ctx.facade(IdentityFacade)
 - `POST /me/consents` — каждый тип становится новой строкой с `given_at = now`, IP и `User-Agent` запроса. Повторное согласие до истечения не трогает старое: действует самое свежее.
 - `DELETE /me/consents/{type}` ставит `revoked_at = now` всем действующим согласиям типа. Истёкшие не трогаются, повторный отзыв ничего не меняет и тоже отвечает 204.
 - `active` в ответе — не отозвано и `valid_until` позже текущего момента. Время — по `app.state.clock`.
-- Редакции текста — `CONSENT_TEXT_VERSIONS` в `services.py`: новый текст согласия — новая версия там.
+- Редакции текста — `CONSENT_TEXT_VERSIONS` в `domain/enums.py`: новый текст согласия — новая версия там.
 
 Кто читает: процесс при сборке `FetchEnrichment` берёт руководителя по реестру (`ClientsFacade.get_registry_head`) и его `get_active_consent(..., "credit_bureau_personal")`. Есть согласие — в команде `head_bki_consent_at`, и enrichment запрашивает БКИ руководителя; нет — `null`.
 

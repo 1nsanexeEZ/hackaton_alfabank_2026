@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
 from src.modules.enrichment.facade import (
     AccountBlockDTO,
@@ -24,10 +25,14 @@ from src.modules.enrichment.facade import (
     ObligationDTO,
     TaxProfileDTO,
 )
-from src.modules.enrichment.infrastructure.facade_impl import EnrichmentFacadeImpl
-from src.modules.enrichment.infrastructure.models import SourceResultRecord
-from src.modules.enrichment.infrastructure.repository import SqlAlchemyEnrichmentRepository
-from src.modules.enrichment.infrastructure.serialization import data_from_json, data_to_json
+from src.modules.enrichment.infrastructure.database.models import SourceResultRecord
+from src.modules.enrichment.infrastructure.repositories.enrichment_repository import (
+    SqlAlchemyEnrichmentRepository,
+)
+from src.modules.enrichment.infrastructure.repositories.serialization import (
+    data_from_json,
+    data_to_json,
+)
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 
@@ -134,8 +139,8 @@ async def _store_and_read(
         await SqlAlchemyEnrichmentRepository(session).add(snapshot)
         await session.commit()
     async with session_factory() as session:
-        facade = EnrichmentFacadeImpl(session, registry=None)  # type: ignore[arg-type]
-        return await facade.get_snapshot(snapshot.application_id)
+        repository = SqlAlchemyEnrichmentRepository(session)
+        return await GetSnapshotUseCase(repository).execute(snapshot.application_id)
 
 
 async def test_new_sources_through_the_facade(
@@ -178,7 +183,7 @@ async def test_old_tax_row_without_blocks_reads(
         )
         await session.commit()
     async with session_factory() as session:
-        dto = await EnrichmentFacadeImpl(session, registry=None).get_snapshot(  # type: ignore[arg-type]
+        dto = await GetSnapshotUseCase(SqlAlchemyEnrichmentRepository(session)).execute(
             snapshot.application_id
         )
 

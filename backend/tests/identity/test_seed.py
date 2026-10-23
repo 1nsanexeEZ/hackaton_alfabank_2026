@@ -5,8 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from seed import identity
 from seed.demo_data import ACCOUNTS
-from src.modules.identity.models import Account, Profile, Role
-from src.modules.identity.passwords import PasswordHasher
+from src.modules.identity.infrastructure.adapters.argon2_hasher import Argon2PasswordHasher
+from src.modules.identity.infrastructure.database.models import (
+    AccountModel,
+    ProfileModel,
+    RoleModel,
+)
 from tests.identity.conftest import DEMO_PASSWORD, seed_context
 
 Sessions: TypeAlias = async_sessionmaker[AsyncSession]
@@ -42,14 +46,14 @@ UNDERWRITER_PERMISSIONS = [
 ]
 
 
-async def roles_by_name(sessions: Sessions) -> dict[str, Role]:
+async def roles_by_name(sessions: Sessions) -> dict[str, RoleModel]:
     async with sessions() as session:
-        return {role.name: role for role in (await session.scalars(select(Role))).all()}
+        return {role.name: role for role in (await session.scalars(select(RoleModel))).all()}
 
 
-async def accounts_by_email(sessions: Sessions) -> dict[str | None, Account]:
+async def accounts_by_email(sessions: Sessions) -> dict[str | None, AccountModel]:
     async with sessions() as session:
-        accounts = (await session.scalars(select(Account))).unique().all()
+        accounts = (await session.scalars(select(AccountModel))).unique().all()
     assert len({account.email for account in accounts}) == len(accounts), "duplicate emails"
     return {account.email: account for account in accounts}
 
@@ -82,7 +86,7 @@ async def test_roles_have_exactly_the_declared_rights(seeded: Sessions) -> None:
 
 async def test_demo_accounts_follow_demo_data(seeded: Sessions) -> None:
     accounts = await accounts_by_email(seeded)
-    hasher = PasswordHasher()
+    hasher = Argon2PasswordHasher()
 
     assert set(accounts) == {demo.email for demo in ACCOUNTS}
     for demo in ACCOUNTS:
@@ -118,7 +122,7 @@ async def test_second_run_changes_nothing(seeded: Sessions) -> None:
 
 async def test_edited_role_is_brought_back_to_the_declared_rights(seeded: Sessions) -> None:
     async with seeded() as session:
-        role = (await session.scalars(select(Role).where(Role.name == "client"))).one()
+        role = (await session.scalars(select(RoleModel).where(RoleModel.name == "client"))).one()
         role.permissions = ["requests.read", "accounts.read"]
         role.policies = {}
         await session.commit()
@@ -131,10 +135,14 @@ async def test_edited_role_is_brought_back_to_the_declared_rights(seeded: Sessio
 
 
 async def test_existing_account_keeps_its_password(seeded: Sessions) -> None:
-    hasher = PasswordHasher()
+    hasher = Argon2PasswordHasher()
     async with seeded() as session:
         account = (
-            (await session.scalars(select(Account).where(Account.email == "owner@romashka.test")))
+            (
+                await session.scalars(
+                    select(AccountModel).where(AccountModel.email == "owner@romashka.test")
+                )
+            )
             .unique()
             .one()
         )
@@ -151,14 +159,14 @@ async def test_taken_login_is_skipped(session_factory: Sessions) -> None:
     """Someone already has the demo phone: the seed leaves it alone instead of
     failing the startup on the unique index."""
     async with session_factory() as session:
-        role = Role(name="manager", permissions=[], policies={})
+        role = RoleModel(name="manager", permissions=[], policies={})
         session.add(
-            Account(
+            AccountModel(
                 email="someone@example.com",
                 phone="+79990000001",
-                password_hash=PasswordHasher().hash("Some-password-1"),
+                password_hash=Argon2PasswordHasher().hash("Some-password-1"),
                 role=role,
-                profile=Profile(last_name="Иной", first_name="Иван"),
+                profile=ProfileModel(last_name="Иной", first_name="Иван"),
             )
         )
         await session.commit()

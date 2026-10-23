@@ -20,11 +20,46 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 
 Не отвечает за: оценку риска (`scoring`), стоп-факторы и выводы (`decision`).
 
+## Структура
+
+Модуль — эталон раскладки по слоям из [settings/04-module-structure.md](../../settings/04-module-structure.md).
+
+```
+enrichment/
+├── facade.py                 # EnrichmentFacade + реэкспорт DTO для соседей;
+│                             # реализация — infrastructure/adapters/enrichment_facade.py
+├── module.py                 # wire: HTTP-источники и кеш реестра на процесс, фасад, подписка
+├── domain/
+│   ├── snapshot.py           # агрегат EnrichmentSnapshot, SourceResult, SourceError
+│   ├── cashflow.py           # прогноз кассового разрыва: Transaction, CashflowForecast
+│   ├── consent_policy.py     # кого не спрашиваем: no_consent / no_head (218-ФЗ)
+│   ├── enums.py              # Source, SourceStatus, INTERNAL_SOURCES
+│   └── exceptions.py         # SourceNotFound, SourceUnavailable, StatementParseError
+├── application/
+│   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot
+│   ├── interfaces/           # sources (порты источников + Sources), repositories,
+│   │                         # statement_parser, registry_cache
+│   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
+│                             # lookup_registry, lookup_person_bureau
+├── infrastructure/
+│   ├── config.py             # ENRICHMENT_* из окружения
+│   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
+│   │                         # statement_csv.py, registry_cache.py, enrichment_facade.py
+│   ├── database/             # models
+│   └── repositories/         # SqlAlchemyEnrichmentRepository, mappers, serialization (DTO ↔ JSONB)
+└── presentation/
+    ├── api/, schemas/        # пусто (.gitkeep): HTTP API у модуля нет
+    ├── consumers.py          # FetchEnrichment из Kafka → FetchEnrichmentUseCase
+    └── dependencies.py       # сборка use case'ов и фасада
+```
+
 ## Агрегат
 
 `EnrichmentSnapshot` — один снимок на одну команду `FetchEnrichment` (поле `requested_by_command`
 уникально). Хранит по каждому источнику `SourceResult` со статусом `ok | failed | skipped`,
-задержкой и числом попыток. Данные источников переносятся в DTO из `facade.py`.
+задержкой и числом попыток. Сами данные источника для снимка непрозрачны: их форму задают DTO из
+`application/dto/`, достаются они типизированно — `snapshot.data_of("egrul", RegistryExtractDTO)`.
+Соседям DTO отдаёт `facade.py`.
 
 ## Источники
 
@@ -36,7 +71,7 @@ HTTP-границей, а модуль ходит к ним через **ACL-а�
 | `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
 | `kontur` | Контур.Фокус: арбитраж, исполнительные производства, банкротство, госконтракты | `CounterpartyRiskSource` → `kontur_http.py` | `GET /kontur/{inn}` | `kontur: CounterpartyRiskDTO` |
 | `bki_head` | БКИ руководителя по реестру | `PersonBureauSource` → `bki_person_http.py` | `POST /bki/person-report` | `bki_head: CreditHistoryDTO` |
-| `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
+| `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `StatementParser` → `statement_csv.py`, расчёт — `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
 
 Процесс просит все семь (`FetchEnrichment.sources` по умолчанию — тоже все семь). Новые источники
 хранятся так же, как старые, — строкой `enrichment_source_results` с JSONB `data`, поэтому миграция

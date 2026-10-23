@@ -11,9 +11,9 @@ from src.core.messaging.contracts.enrichment import (
     FetchEnrichment,
     PersonRef,
 )
-from src.modules.enrichment.application.fetch_enrichment import FetchEnrichmentUseCase
-from src.modules.enrichment.application.ports import PersonQuery, SourceUnavailable
-from src.modules.enrichment.application.sources import Sources
+from src.modules.enrichment.application.interfaces.sources import Sources
+from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
+from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot
 from src.modules.enrichment.facade import (
     AccountingPeriodDTO,
@@ -24,6 +24,7 @@ from src.modules.enrichment.facade import (
     EnforcementDTO,
     GovContractsDTO,
     ObligationDTO,
+    PersonDTO,
     RegistryExtractDTO,
     TaxProfileDTO,
 )
@@ -143,9 +144,9 @@ class FakeCounterparty:
 class FakePersonBureau:
     def __init__(self, *, overdue_days: int = 0) -> None:
         self.overdue_days = overdue_days
-        self.calls: list[tuple[PersonQuery, datetime]] = []
+        self.calls: list[tuple[PersonDTO, datetime]] = []
 
-    async def fetch(self, person: PersonQuery, consent_at: datetime) -> CreditHistoryDTO:
+    async def fetch(self, person: PersonDTO, consent_at: datetime) -> CreditHistoryDTO:
         self.calls.append((person, consent_at))
         loan = ObligationDTO(
             creditor="АО «Банк»",
@@ -358,11 +359,12 @@ async def test_all_seven_sources_without_statements() -> None:
     assert event.sources_failed == [] and event.cash_gap_detected is None
     snapshot = repo.added[0]
     assert "statement" not in snapshot.results  # выписок нет — прогноза нет, и это не сбой
-    head = snapshot.head_credit_history()
+    head = snapshot.data_of("bki_head", CreditHistoryDTO)
     assert head is not None and head.obligations[0].overdue_days == 45
-    assert snapshot.accounting() is not None and snapshot.counterparty() is not None
+    assert snapshot.data_of("gir_bo", AccountingReportsDTO) is not None
+    assert snapshot.data_of("kontur", CounterpartyRiskDTO) is not None
     [(query, consent_at)] = person.calls
-    assert query == PersonQuery("Смирнова", "Анна", "Сергеевна", "7701158817")
+    assert query == PersonDTO("Смирнова", "Анна", "Сергеевна", "7701158817")
     assert consent_at == _CONSENT
 
 

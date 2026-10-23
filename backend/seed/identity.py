@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING
 from seed.demo_data import ACCOUNTS, COMPANIES_BY_CODE, DemoAccount
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
-from src.modules.identity.models import Account, Profile, Role
-from src.modules.identity.passwords import PasswordHasher
-from src.modules.identity.repositories import AccountRepository, RoleRepository
-from src.modules.identity.schemas import normalize_phone
-from src.modules.identity.services import normalize_role_rules
+from src.modules.identity.application.interfaces.repositories import RoleRepository
+from src.modules.identity.domain.account import Account
+from src.modules.identity.domain.entities import Role, normalize_role_rules
+from src.modules.identity.domain.login_policy import normalize_email, normalize_phone
+from src.modules.identity.domain.profile import Profile
+from src.modules.identity.infrastructure.adapters.argon2_hasher import Argon2PasswordHasher
+from src.modules.identity.infrastructure.repositories.account import SqlAlchemyAccountRepository
+from src.modules.identity.infrastructure.repositories.role import SqlAlchemyRoleRepository
 
 if TYPE_CHECKING:
     from seed.run import SeedContext
@@ -90,10 +93,10 @@ async def seed(context: "SeedContext") -> None:
     """Idempotent. Roles are brought to the declared rights on every run;
     an existing account is left as is, its password is not reset."""
     # Every demo account has the same public DEMO_PASSWORD: one hash is enough.
-    password_hash = PasswordHasher().hash(context.settings.demo_password)
+    password_hash = Argon2PasswordHasher().hash(context.settings.demo_password)
     async with context.session_factory() as session:
-        roles_repo = RoleRepository(session)
-        accounts = AccountRepository(session)
+        roles_repo = SqlAlchemyRoleRepository(session)
+        accounts = SqlAlchemyAccountRepository(session)
 
         roles: dict[str, Role] = {}
         for spec in ROLES:
@@ -101,12 +104,12 @@ async def seed(context: "SeedContext") -> None:
 
         created = 0
         for demo in ACCOUNTS:
-            email = demo.email.lower()
+            email = normalize_email(demo.email)
             phone = normalize_phone(demo.phone) if demo.phone else None
             if await accounts.login_taken(email, phone):
                 continue
-            accounts.add(
-                Account(
+            await accounts.add(
+                Account.register(
                     email=email,
                     phone=phone,
                     password_hash=password_hash,
@@ -126,22 +129,19 @@ async def seed(context: "SeedContext") -> None:
 
 
 async def _ensure_role(roles: RoleRepository, spec: RoleSpec) -> Role:
-    permissions, policies = normalize_role_rules(spec.permissions, spec.policies)
     role = await roles.get_by_name(spec.name)
     if role is None:
-        role = Role(
-            name=spec.name,
-            description=spec.description,
-            permissions=permissions,
-            policies=policies,
-        )
-        roles.add(role)
+        role = Role.create(spec.name, spec.description, spec.permissions, spec.policies)
+        await roles.add(role)
         return role
+    permissions, policies = normalize_role_rules(spec.permissions, spec.policies)
     # Compared first, so an unchanged role keeps its updated_at.
-    if role.description != spec.description:
+    if (role.description, role.permissions, role.policies) != (
+        spec.description,
+        permissions,
+        policies,
+    ):
         role.description = spec.description
-    if role.permissions != permissions:
-        role.permissions = permissions
-    if role.policies != policies:
-        role.policies = policies
+        role.permissions, role.policies = permissions, policies
+        await roles.save(role)
     return role

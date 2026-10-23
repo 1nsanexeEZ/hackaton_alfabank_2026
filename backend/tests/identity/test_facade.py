@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.domain.clock import FrozenClock
 from src.modules.identity.facade import AccountRefDTO, IdentityFacade
-from src.modules.identity.facade_impl import IdentityFacadeImpl
-from src.modules.identity.passwords import PasswordHasher
-from src.modules.identity.repositories import AccountRepository
+from src.modules.identity.infrastructure.adapters.argon2_hasher import Argon2PasswordHasher
+from src.modules.identity.infrastructure.adapters.identity_facade import IdentityFacadeImpl
+from src.modules.identity.infrastructure.repositories.account import SqlAlchemyAccountRepository
 from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD
 from tests.identity.conftest import DEMO_PASSWORD
 
-HASHER = PasswordHasher()
+HASHER = Argon2PasswordHasher()
 
 
 @pytest.fixture
@@ -81,9 +81,11 @@ async def test_deleted_account_is_invisible(
 ) -> None:
     account = await facade.find_by_login("owner@zakat.test")
     assert account is not None
-    stored = await AccountRepository(session).get_active_by_id(account.id)
+    accounts = SqlAlchemyAccountRepository(session)
+    stored = await accounts.get_active_by_id(account.id)
     assert stored is not None
-    stored.mark_deleted()
+    stored.mark_deleted(FrozenClock().now())
+    await accounts.save(stored)
     await session.commit()
 
     assert await facade.get_account(account.id) is None

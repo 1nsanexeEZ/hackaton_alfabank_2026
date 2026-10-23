@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from src.modules.enrichment.domain.snapshot import EnrichmentSnapshot, SourceError
-from src.modules.enrichment.facade import RegistryExtractDTO
+from src.modules.enrichment.facade import CreditHistoryDTO, RegistryExtractDTO, TaxProfileDTO
 
 _NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 
@@ -47,15 +47,15 @@ def test_record_success_exposes_data() -> None:
     registry = _registry()
     snapshot.record_success("egrul", registry, fetched_at=_NOW)
     assert snapshot.sources_ok == ["egrul"]
-    assert snapshot.registry() is registry
-    assert snapshot.tax() is None
+    assert snapshot.data_of("egrul", RegistryExtractDTO) is registry
+    assert snapshot.data_of("fns", TaxProfileDTO) is None
 
 
 def test_record_failure_is_not_ok() -> None:
     snapshot = _snapshot()
     snapshot.record_failure("bki", SourceError("unavailable", "503"))
     assert snapshot.sources_failed == ["bki"]
-    assert snapshot.credit_history() is None
+    assert snapshot.data_of("bki", CreditHistoryDTO) is None
 
 
 def test_skipped_is_neither_ok_nor_failed() -> None:

@@ -110,7 +110,7 @@ Postgres (одна БД, таблицы с префиксом модуля, `doc
 Известные исключения, которые стоит закрыть:
 
 - одноразовый тикет SSE (`GET /feed/stream?ticket=…`, живёт 30 секунд) и подпись presigned URL (`/credit-documents/…?X-Amz-Signature=…`, 1–5 минут) попадают в строки доступа uvicorn и nginx вместе с query-параметрами;
-- bootstrap пишет email технического администратора при его создании (`identity/bootstrap.py`);
+- bootstrap пишет email технического администратора при его создании (`identity/application/use_cases/bootstrap.py`);
 - текст ошибки при отправке сообщения в DLQ (`core/messaging/subscriber.py`) может содержать фрагмент невалидного payload — например, ИНН из `FetchEnrichment`; само сообщение уходит в топик `<topic>.dlq` целиком.
 
 ## Сроки хранения
