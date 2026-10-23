@@ -1,131 +1,283 @@
-# Архитектура (черновая схема)
+# Архитектура
 
-Источник — схема команды в draw.io: [architecture.drawio](architecture.drawio).
-Открыть: app.diagrams.net → File → Open from → Device, или расширение Draw.io Integration в VS Code (файл открывается прямо в редакторе).
+Источник — схема команды в draw.io, копия в репозитории: [architecture.drawio](architecture.drawio). Открыть: app.diagrams.net → File → Open from → Device или расширение Draw.io Integration в VS Code.
 
-**Правило: меняем схему — правим оба файла** (`.drawio` и этот `.md`), иначе они разъедутся.
+**Правило: меняем схему — правим и `.drawio`, и этот `.md`**, иначе они разъедутся. Ниже — то же, что на схеме, в mermaid и со ссылками на код; где код отличается от схемы, это сказано в конце каждого раздела.
 
----
+На схеме шесть частей:
 
-## Схема
+| Часть схемы | Раздел | Подробно |
+|---|---|---|
+| Путь клиента (BPMN, дорожки «Клиент» и «Бэк») | [Путь клиента](#путь-клиента) | [`docs/api/client-journey.md`](../api/client-journey.md) — шаг схемы → ручки |
+| Стоп-факторы, «Скоринг система»: модель оценки PD и стратегия решения | [Модель принятия решения](#модель-принятия-решения) | [`scoring.md`](../modules/scoring.md), [`decision.md`](../modules/decision.md) |
+| DDD: модули, хранилища, внешние источники | [Модули](#модули) | [`docs/platform.md`](../platform.md), документы модулей |
+| Projector и что он отдаёт экранам | [Модели чтения](#модели-чтения) | [`projector.md`](../modules/projector.md) |
+| Путь заявки через модули и Kafka | [Путь заявки через Kafka](#путь-заявки-через-kafka) | [`docs/platform.md`](../platform.md), «Kafka» |
+| Диаграмма статусов заявки | — | [`docs/state-machine.md`](../state-machine.md) |
+
+## Развёртывание
+
+Модульный монолит: один процесс backend (FastAPI), внутри — 11 модулей. Всё поднимается одним `docker compose up`.
 
 ```mermaid
 flowchart LR
-    BFF["FastAPI Web BFF"]
-
-    subgraph backend["Периметр бэкенда"]
-        Broker[("Message broker")]
-        Scoring["Scoring — логика кредитного решения.<br/>Наружу только API, внутренняя реализация пока не определена"]
-
-        subgraph Identity["Identity"]
-            Auth["Auth"]
-            ACL["ACL (RBAC, ABAC)"]
-            Account["Account"]
-            Profile["Profile"]
-        end
-
-        subgraph Request["Request — заявки на кредит"]
-            Credit["Credit"]
-            Req["Request"]
-            Step["Step"]
-        end
-    end
-
-    BFF --> Scoring
-    Scoring --> Broker
-    Request --> Broker
-    Identity --> Broker
+    Browser["Браузер: сайт клиента и рабочее место сотрудника"] --> Nginx["nginx"]
+    Nginx --> Frontend["frontend<br/>Vue 3, статика"]
+    Nginx --> Backend["backend (FastAPI)<br/>11 модулей + core"]
+    Backend --> Postgres[("Postgres 16<br/>таблицы модулей,<br/>outbox, inbox")]
+    Backend <-->|outbox → топики,<br/>консьюмеры с inbox, DLQ| Kafka[("Kafka 3.8, KRaft")]
+    Backend -->|S3 API, presigned URL| MinIO[("MinIO<br/>документы заявок")]
+    Backend -->|HTTP-адаптеры| Mocks["external-mocks (FastAPI)<br/>ЕГРЮЛ/ЕГРИП, ФНС, БКИ,<br/>ГИР БО, Контур, ЭДО, АБС"]
 ```
 
-Отличия от `.drawio`, которые Mermaid не умеет передать:
-- на исходной схеме стрелка BFF упирается в **границу периметра** на уровне Scoring, а не в сам Scoring;
-- периметр разделён вертикальной пунктирной линией: слева Scoring и Identity, справа Request;
-- Message broker стоит **на левой границе периметра**; стрелки Scoring и Request сходятся в одну горизонталь, Identity подключается к ней снизу.
+Сервисы, лимиты памяти и проверки здоровья — в [`docs/sla.md`](../sla.md).
 
----
+## Путь клиента
 
-## Нарисовано на схеме и наши допущения
+Дорожка «Клиент» — что видит предприниматель, дорожка «Бэк» — что в это время делает банк.
 
-| Нарисовано на схеме | Наше допущение (на схеме нет) |
+```mermaid
+flowchart TD
+    Site["Клиент на сайте"] --> Calc["Кредитный калькулятор"]
+    Calc --> Auth{"Авторизован?"}
+    Auth -->|нет| Login["Вход в ЛК"] --> Terms
+    Auth -->|да| Terms["Клиент выбирает условия"]
+    Terms --> Consent["Согласие: БКИ физлица + ПДн"]
+    Consent --> Business{"Есть ли бизнес?"}
+
+    Business -->|да, есть обороты| BankData["Данные из базы банка"]
+    BankData --> Egrul["Сверка с ЕГРЮЛ"]
+    Egrul -->|данные изменились| Reload["Загрузили новые"] --> Egrul
+    Egrul --> Prescoring["Предскоринг"]
+    Prescoring --> PreApproved["Предодобренное предложение"]
+    PreApproved --> Chosen["Клиент выбрал конкретные условия"]
+    Chosen --> Requests["Запросы: ГИР БО, Контур, ФНС,<br/>БКИ компании, БКИ руководителя"]
+    Requests --> Stop{"Стоп-фактор?"}
+    Stop -->|да| Rejected["Отказано"]
+    Stop -->|нет| Scoring["Скоринг система:<br/>модель PD → стратегия решения"]
+    Scoring --> Sign["Подпиши договор"] --> Done["Кредит оформлен"]
+
+    Business -->|нет, стартап| StartupTerms["Выбрать условия и оформить (стартап)"]
+    StartupTerms --> Prescreen["Личный скоринг учредителя (предскрин)"]
+    Prescreen --> Passed{"Прошёл предскрин?"}
+    Passed -->|нет| StartupRejected["Отказ (стартап)"]
+    Passed -->|да| Plan["Загрузить бизнес-план и финмодель"]
+    Plan --> Project["Проектная оценка:<br/>бизнес-план, обеспечение, господдержка"]
+    Project --> PreApproved
+```
+
+| Шаг | Кто в коде |
 |---|---|
-| FastAPI Web BFF вне периметра бэкенда | BFF — единственный вход для фронта, ходит по HTTP во все сервисы |
-| Стрелка BFF → граница периметра на уровне Scoring | Тип связи — синхронный HTTP |
-| Scoring: «вся логика кредитного решения, наружу только API, что внутри — пока не знаю» | Внутри: балльная модель + правила решения |
-| Request с блоками Credit, Request, Step | Смысл блоков (см. трактовку подмодулей ниже) |
-| Identity с блоками Auth, ACL (RBAC ABAC), Account, Profile | Смысл блоков (см. трактовку подмодулей ниже) |
-| Message broker на левой границе периметра | Конкретный брокер (RabbitMQ), формат событий |
-| Линии Scoring, Request, Identity в брокер | Тип — асинхронные события; кто публикует и кто читает |
-| Вертикальный пунктирный разделитель периметра | Только визуальная группировка |
-| — | Фронт (Vue), Postgres, моки внешних источников, хранилище документов, LLM-ассистент |
+| Калькулятор с учётом предскоринга | `bff` (`POST /bff/products/{code}/calculate`), расчёт — `products`, предодобрение — `decision` |
+| Вход | `identity`: по email или телефону, JWT RS256 |
+| Согласия | личные (ПДн, БКИ руководителя) — `identity` (`/me/consents`), согласия компании в заявке — `applications` |
+| Данные банка, сверка с ЕГРЮЛ | `clients` (сиды — это «база банка»), реестр — `enrichment.lookup_registry` |
+| Предскоринг и предодобрение | `decision` (пересчёт по событиям `clients`), грейд — `scoring` |
+| Запросы во внешние источники | `enrichment`: семь источников параллельно, частичный результат при сбоях |
+| Стоп-факторы, скоринг, решение | `scoring` → `decision`, порядок задаёт BPMN-маршрут в `process` |
+| Договор, подпись, выдача | `applications`: договор с `offer_hash`, подпись с повторным паролем, ЭДО и АБС — моки |
+| Ветка стартапа | предскрин — `decision` + `scoring` (`prescreen_v1`), маршрут `startup_v1`: проектная оценка — задача андеррайтеру в `process` |
 
-Всё ниже, что не помечено «Нарисовано», — наша трактовка.
+**Код и схема.** Стоп-факторы на схеме стоят до модели, а в коде их проверяет `decision` уже после скоринга: маршрут всегда «обогащение → скоринг → решение», грейд и коды причин нужны и в журнале, и андеррайтеру. Исход тот же: стоп-фактор → отказ. Стартап на схеме выбирает условия до предскрина; в кабинете предскрин проходят кнопкой до заявки, а заявку на `STARTUP` без пройденного предскрина `decision` отклоняет (сценарий S-9).
 
----
+## Модель принятия решения
 
-## Компоненты
+Решение принимают два модуля: `scoring` оценивает риск (PD, грейд, причины), `decision` по нему и по правилам банка выбирает исход, сумму, срок и ставку. Действующие версии — PD-модель `pd_model_v2` и политика `policy_v4`.
 
-Колонка «Ответственность» — наша трактовка; «Подмодули», «Что торчит наружу» и «Связь с брокером» — как на схеме.
+```mermaid
+flowchart TD
+    subgraph PD["Модель оценки PD — scoring, pd_model_v2"]
+        Call["Вызов модели: команда CalculateScore"] --> Segment{"Сегмент"}
+        Segment -->|ЮЛ, обороты в банке ≥ 6 мес.| CardLE["Скоркарта ЮЛ"]
+        Segment -->|ИП, обороты в банке ≥ 6 мес.| CardIE["Скоркарта ИП"]
+        Segment -->|новый клиент| CardNew["Упрощённая скоркарта"]
+        CardLE & CardIE & CardNew --> Features["Признаки на дату заявки"]
+        Features --> Full{"Данные полные?"}
+        Full -->|нет| Degraded["quality = degraded:<br/>внешняя система не ответила"]
+        Full -->|да| Clean["Пропуски и выбросы:<br/>бин «нет данных», винзоризация"]
+        Clean --> WoE["Биннинг и WoE"] --> Score["Балл по скоркарте"]
+        Score --> Calibrate["Калибровка: балл → PD на 12 мес."]
+        Calibrate --> Grade["Грейд A–J по диапазонам PD"]
+        Grade --> Reasons["Коды причин: топ-3 признака"]
+        Reasons --> LogPD["Журнал: вход, выход, версия модели"]
+    end
 
-| Компонент | Ответственность | Подмодули | Что торчит наружу | Связь с брокером |
-|---|---|---|---|---|
-| FastAPI Web BFF | Единая точка входа для веб-клиента: собирает данные из сервисов под экраны кабинета | — | HTTP API для фронта (Vue) | Не связан (на схеме) |
-| Scoring | Оценка риска и кредитное решение: одобрить, отказать, предложить иные условия, запросить данные (стр. 14–15 кейса) | Не определены | Только API, внутренности — чёрный ящик | Стрелка в брокер |
-| Request | Заявка на кредит, кредитный продукт, этапы и шаги процесса | Credit, Request, Step | Не указано на схеме | Стрелка в брокер |
-| Identity | Аутентификация, учётные записи, профиль, доступ по ролям и атрибутам | Auth, ACL (RBAC, ABAC), Account, Profile | Не указано на схеме | Линия в брокер (через общую линию со Scoring) |
-| Message broker | Асинхронные события между сервисами | — | Внутренний, наружу не торчит | — |
+    subgraph Strategy["Стратегия решения — decision, policy_v4"]
+        Result["PD, грейд, причины"] --> StopF{"Стоп-фактор?"}
+        StopF -->|да| Reject["REJECT"]
+        StopF -->|нет| Complete{"Данные полные?"}
+        Complete -->|нет| Manual["MANUAL_REVIEW"]
+        Complete -->|да| Soft{"Мягкий триггер?<br/>налоги, смена руководителя,<br/>«разгон» оборотов"}
+        Soft -->|да| Manual
+        Soft -->|нет| Matrix{"Матрица грейд × сумма"}
+        Matrix -->|ручное| Manual
+        Matrix -->|отказ| Reject
+        Matrix -->|одобрить| Limit["Лимит: минимум из ограничений"]
+        Limit --> Min{"Лимит ≥ минимума продукта?"}
+        Min -->|нет| Reject
+        Min -->|да| Term["Срок и платёж: сначала удлинить срок,<br/>потом снизить сумму"]
+        Term --> Rate["Ставка: фондирование + PD × LGD<br/>+ капитал + маржа"]
+        Rate --> Fits{"Запрос ≤ лимита?"}
+        Fits -->|да| Approve["APPROVE на условиях клиента"]
+        Fits -->|нет| Counter["COUNTER_OFFER:<br/>макс. сумма, новый платёж"]
+        Approve & Counter --> Guarantee["Обеспечение: поручительство<br/>для F–G и крупных сумм"]
+        Guarantee --> LogDecision["Журнал: решение, причины, версия политики"]
+    end
 
-Трактовка подмодулей (наша, на схеме только названия):
+    LogPD --> Result
+    Degraded --> Result
+```
 
-| Подмодуль | Что внутри |
-|---|---|
-| Credit | Кредитный продукт и условия (сумма, срок, ставка, оффер) |
-| Request | Сама заявка: параметры, клиент, статус |
-| Step | Этапы/шаги заявки и история переходов статусов |
-| Auth | Вход, токены, сессии |
-| ACL (RBAC, ABAC) | Права: роль (клиент, сотрудник банка) и атрибуты (например, «заявка своей компании») |
-| Account | Учётная запись пользователя |
-| Profile | Данные пользователя и компании (ИНН, ОГРН, должность) |
+Всё, что на схеме, есть в коде; пороги — в YAML (`scoring/infrastructure/config/pd_model_v2.yaml`, `decision/infrastructure/config/policy_v4.yaml`). Порядок правил, таблицы порогов и разбор S-1…S-9 — в [`scoring.md`](../modules/scoring.md) и [`decision.md`](../modules/decision.md). Кроме исходов на схеме, `decision` умеет `REQUEST_INFO`: выручка не подтверждается — банк просит выписку (S-5).
 
----
+**Код и схема.**
+- Стоп-факторы из таблицы схемы — те, по которым есть данные: ликвидация и банкротство, дисквалификация руководителя, просрочка компании и руководителя, блокировки счетов и недоимка, сообщения о банкротстве, иски и исполнительные производства выше порогов, отрицательный капитал, массовый адрес, запрещённый ОКВЭД. Нет данных — нет правила: реорганизация и исключение из реестра, недостоверность сведений, массовый руководитель, экстремисты, стоп-лист банка и 115-ФЗ. Возраст бизнеса проверяет `products` при подаче.
+- Лимит — минимум из семи ограничений, а не шести: к оборотам, выручке, нагрузке, грейду, продукту и группе добавлен LTV для залоговых продуктов.
+- «Хранилище признаков» — это снимок обогащения на заявку и сама заявка: признаки строятся из фасадов `enrichment.get_snapshot` и `applications.get_scoring_input`, отдельного feature store нет.
+- «Ночной пакет» не сделан: предодобрение пересчитывается по событиям `clients`.
 
-## Связи
+## Модули
 
-Колонка «Тип» — везде допущение: на схеме только линии и стрелки, без подписей.
+```mermaid
+flowchart TB
+    BFFc["bff: кабинет клиента"]
+    BFFb["bff: бэк-офис"]
+    subgraph backend["backend — модульный монолит"]
+        Identity["identity<br/>Account, Profile, Role,<br/>Auth (JWT), Consent"]
+        Clients["clients<br/>Organization, Members,<br/>Financial reports, Verification"]
+        Products["products<br/>Credit products, Recommender,<br/>Payment calculator"]
+        Applications["applications<br/>CreditApplication, Documents,<br/>Info requests, Offer"]
+        Process["process<br/>Workflows (BPMN), Process instances,<br/>User tasks, Step registry"]
+        Enrichment["enrichment<br/>Snapshots, адаптеры источников"]
+        Scoring["scoring<br/>PD model, Scorecard,<br/>Scoring results, Prescreen"]
+        Decision["decision<br/>Credit policy, Decisions,<br/>Pre-approved offers"]
+        Notifications["notifications<br/>Feed, Personal news, SSE"]
+        Projector["projector<br/>модели чтения"]
+        Core["core (shared kernel)<br/>UoW, outbox relay, inbox, errors,<br/>access (RBAC + ABAC), settings, logging"]
+    end
+    Kafka[("Kafka")]
+    Postgres[("Postgres")]
+    MinIO[("MinIO")]
+    Mocks["external-mocks"]
 
-| Связь | Тип | На схеме или допущение |
+    BFFc & BFFb -->|фасады| backend
+    BFFc & BFFb -->|read API| Projector
+    Applications -->|S3 API| MinIO
+    Enrichment -->|HTTP| Mocks
+    Applications -->|HTTP: ЭДО, АБС| Mocks
+    Clients & Applications & Process & Enrichment & Scoring & Decision -->|outbox| Kafka
+    Kafka --> Process & Applications & Enrichment & Scoring & Decision & Clients & Notifications & Projector
+    backend --> Postgres
+```
+
+| Модуль | Отвечает за | Документ |
 |---|---|---|
-| BFF → периметр бэкенда (на уровне Scoring) | Синхронно, HTTP | **Нарисовано** |
-| Scoring → broker | Асинхронно, события | **Нарисовано** (стрелка в брокер) |
-| Request → broker | Асинхронно, события | **Нарисовано** (стрелка в брокер) |
-| Identity → broker | Асинхронно, события | **Нарисовано** (линия без своей стрелки, вливается в линию Scoring → broker) |
-| BFF → Identity, BFF → Request по HTTP | Синхронно | Допущение |
-| Request публикует «заявка отправлена», Scoring читает и публикует «решение готово», Request меняет статус | Асинхронно | Допущение |
-| Identity публикует события об учётках и правах (создан пользователь, сменилась роль) | Асинхронно | Допущение |
-| Прямые HTTP-вызовы между сервисами внутри периметра | — | Не нарисованы; по умолчанию не делаем |
+| `core` | Unit of Work, outbox/relay/inbox, DLQ, ошибки, доступ (пермишны и политики), настройки, `X-Request-ID` в логах | [`platform.md`](../platform.md) |
+| `identity` | вход по email или телефону, JWT RS256, роли, профиль, личные согласия | [`identity.md`](../identity.md) |
+| `clients` | компании, участники и их права (подаёт, подписывает), доверенности, финотчётность, сверка с ЕГРЮЛ | [`clients.md`](../modules/clients.md) |
+| `products` | каталог из 9 продуктов, подбор с причинами, калькулятор, eligibility | [`products.md`](../modules/products.md) |
+| `applications` | заявка и её статус (единственный владелец), документы в MinIO, дозапросы, оффер, договор, подпись, выдача | [`state-machine.md`](../state-machine.md) |
+| `process` | движок BPMN: маршрут продукта (`express_v1`, `standard_v1`, `secured_v1`, `mortgage_v1`, `startup_v1`), команды модулям, задачи андеррайтера | — |
+| `enrichment` | ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и руководителя, ГИР БО, Контур, прогноз кассового разрыва по выпискам; снимок на заявку | [`enrichment.md`](../modules/enrichment.md) |
+| `scoring` | PD-модель на скоркартах, грейд A–J, коды причин; предскрин учредителя | [`scoring.md`](../modules/scoring.md) |
+| `decision` | кредитная политика: стоп-факторы, триггеры, матрица, лимит, ставка, исход и объяснение; предодобрение | [`decision.md`](../modules/decision.md) |
+| `notifications` | лента событий и персональные новости, SSE | [`notifications.md`](../modules/notifications.md) |
+| `projector` | денормализованные таблицы под списки, очередь и метрики | [`projector.md`](../modules/projector.md) |
+| `bff` | ответы под экраны кабинета клиента и бэк-офиса | [`client-journey.md`](../api/client-journey.md) |
 
-Итого по схеме: снаружи вход один — через BFF, внутри периметра все три сервиса связаны только с брокером.
-Наше допущение: снаружи всё синхронно по HTTP, внутри — асинхронные события через брокер.
-Наружу на схеме явно торчит только API Scoring, остальное — допущение.
+Модули читают друг друга только через фасады (`facade.py`), а пишут друг другу только командами через Kafka; границы проверяет import-linter. Устройство модуля внутри — [`settings/04-module-structure.md`](../../settings/04-module-structure.md).
 
----
+**Код и схема.**
+- BFF на схеме — отдельный сервис перед бэкендом; в коде это модуль `bff` того же процесса: он ходит в соседей через фасады, а не по HTTP.
+- В Postgres у модулей не отдельные схемы, а свои таблицы с префиксом модуля в одной базе (у identity — `roles`, `accounts`, `profiles`, `identity_consents`).
+- В MinIO один бакет документов заявок (`MINIO_BUCKET_NAME`, по умолчанию `credit-documents`); аватаров профиля нет.
+- В identity нет сессий: только access-токен без хранения, refresh нет.
+- Ошибки — `{code, message, details}` с HTTP-статусом, а не RFC 9457.
+- К Kafka на схеме подключены все модули. Публикуют `clients`, `applications`, `process`, `enrichment`, `scoring` и `decision`; топик `identity.events` создаётся, но identity в него пока ничего не пишет; `notifications` и `projector` только читают.
 
-## Открытые вопросы по схеме
+## Модели чтения
 
-| # | Вопрос | Вариант по умолчанию |
+Projector строит по событиям таблицы под экраны, чтобы BFF не собирал списки из пяти модулей на каждый запрос.
+
+| Таблица | Что | Откуда |
 |---|---|---|
-| 1 | Стрелка BFF идёт только к периметру на уровне Scoring. Ходит ли BFF напрямую в Identity и Request? | Да, BFF — единственный вход, ходит по HTTP во все три сервиса |
-| 2 | Что означает вертикальный пунктирный разделитель? | Визуальная группировка, не граница развёртывания |
-| 3 | Все стрелки направлены **в** брокер. Кто читает события? | Scoring читает события заявки, Request — события решения |
-| 4 | Где моки внешних источников: бюро КИ, ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес»? | Отдельный контейнер-заглушка с HTTP API, его вызывает Scoring (или Request при обогащении) |
-| 5 | Где кабинет сотрудника банка? | Тот же Vue-фронт и BFF, доступ разделяет ACL (RBAC) |
-| 6 | Где БД: одна на сервис или общая? | Один контейнер Postgres, отдельная схема на сервис, чужие таблицы напрямую не читаем |
-| 7 | Какой брокер: RabbitMQ, Kafka, Redis Streams? | RabbitMQ: лёгкий, одна строка в docker compose |
-| 8 | Где LLM-ассистент, если будет? | Отдельный модуль за BFF, вызывает API сервисов как tools; кейс разрешает только модели с открытыми весами |
-| 9 | Где хранение документов? | Файлы в S3-совместимом хранилище (MinIO) или volume, метаданные в Request |
-| 10 | Где фронт (Vue)? На схеме его нет | Vue SPA ходит только в BFF |
-| 11 | Credit — это каталог продуктов или выданный кредит? | Продукт и условия оффера; выдача денег моделируется (стр. 11 кейса) |
-| 12 | Что внутри Scoring? | Балльная модель на правилах + отдельные правила кредитного решения (кейс разделяет скоринг и решение) |
-| 13 | Сервисы — отдельные процессы или модули одного приложения? | Отдельные FastAPI-сервисы в одном docker compose |
-| 14 | Брокер нарисован на границе периметра. Это общая инфраструктура или часть бэкенда? | Обычный контейнер в том же docker compose, наружу не открыт |
-| 15 | BFF стоит вне периметра. Это отдельный сервис или фронтовый слой? | Отдельный FastAPI-сервис, публичный порт есть только у него |
-| 16 | У Identity своя линия в брокер или это та же шина, что у Scoring? | Та же шина, Identity публикует свои события, как и остальные |
+| `projector_application_overview` | «Мои заявки»: номер, продукт, сумма, статус, этап, нужно ли действие клиента | applications, process, decision |
+| `projector_underwriting_queue` | очередь андеррайтера: компания, сумма, грейд, причины ручной проверки, SLA, исполнитель | process, scoring, decision, applications |
+| `projector_application_timeline` | этапы заявки со временем, клиенту — только клиентские | process, applications |
+| `projector_organization_dashboard` | дашборд компании: активные заявки, предодобренный лимит, «что сделать» | clients, decision, applications |
+| `projector_backoffice_metrics` | воронка статусов, доля автоодобрений, время до решения | все события |
+
+Карточку одной заявки BFF читает из `applications` напрямую: проекции — только для списков и дашбордов. Перестроить таблицы с нуля можно из Kafka (хранение бессрочное) — `scripts/projector_rebuild.py`.
+
+## Путь заявки через Kafka
+
+Успешный сценарий «подача → решение → выдача», как на схеме. Обработчики пишут изменения и исходящие сообщения в одной транзакции (outbox), ключ партиции — `application_id`, ответ на команду несёт `causation_id` = `event_id` команды.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Клиент (UI → BFF / API)
+    participant A as applications
+    participant K as Kafka
+    participant P as process
+    participant E as enrichment
+    participant M as external-mocks
+    participant S as scoring
+    participant D as decision
+    participant N as notifications
+
+    C->>A: POST /applications/{id}/submit
+    A-->>C: SUBMITTED
+    A->>K: ApplicationSubmitted · applications.events
+    K->>P: ApplicationSubmitted → старт маршрута по workflow_code продукта
+    P->>K: StartReview · applications.commands
+    K->>A: StartReview → IN_REVIEW
+    Note over P: проверка полноты — фасад applications.get_completeness
+    P->>K: FetchEnrichment · enrichment.commands
+    K->>E: FetchEnrichment
+    E->>M: HTTP: ЕГРЮЛ ‖ ФНС ‖ БКИ ‖ ГИР БО ‖ Контур ‖ БКИ руководителя
+    M-->>E: ответы (таймауты, ретраи)
+    E->>K: EnrichmentCompleted · enrichment.events
+    K->>P: EnrichmentCompleted
+    P->>K: CalculateScore · scoring.commands
+    K->>S: CalculateScore (фасады applications.get_scoring_input, enrichment.get_snapshot)
+    S->>K: ScoreCalculated · scoring.events
+    K->>P: ScoreCalculated
+    P->>K: MakeDecision · decision.commands
+    K->>D: MakeDecision: стоп-факторы → лимит → ставка → маршрутизация
+    D->>K: DecisionMade(APPROVE) · decision.events
+    K->>P: DecisionMade → шлюз по outcome
+    P->>K: PresentOffer · applications.commands
+    K->>A: PresentOffer → OFFER_READY
+    A->>K: ApplicationStatusChanged · applications.events
+    K->>N: ApplicationStatusChanged
+    N-->>C: SSE: «Решение готово»
+    C->>A: POST /applications/{id}/offer/accept → SIGNING
+    A->>K: OfferAccepted
+    K->>P: OfferAccepted
+    C->>A: POST /applications/{id}/sign {password, offer_hash} → SIGNED
+    A->>K: ApplicationSigned
+    K->>P: ApplicationSigned
+    P->>K: MarkDisbursed · applications.commands
+    K->>A: MarkDisbursed → DISBURSED (выдача через АБС-мок)
+    P->>K: ProcessCompleted · process.events
+    K->>N: ProcessCompleted
+    N-->>C: SSE: «Деньги отправлены»
+```
+
+Ручное рассмотрение, дозапрос и отказ идут по тем же топикам: `decision` отвечает `MANUAL_REVIEW` → `process` ставит задачу андеррайтеру (`UserTaskCreated`) → решение андеррайтера уходит командой `RecordManualDecision`; `REQUEST_INFO` → `RequestInfo` → клиент отвечает (`ApplicationInfoProvided`) → маршрут продолжается; `REJECT` → `RejectApplication`.
+
+| Топик | Публикует | Читают |
+|---|---|---|
+| `applications.events` | applications | process, notifications, projector |
+| `applications.commands` | process | applications |
+| `process.events` | process | applications (этап для клиента), notifications, projector |
+| `enrichment.commands` / `enrichment.events` | process / enrichment | enrichment / process, clients |
+| `scoring.commands` / `scoring.events` | process / scoring | scoring / process |
+| `decision.commands` / `decision.events` | process / decision | decision / process, notifications, projector |
+| `clients.events` | clients | decision (предодобрение), notifications, projector |
+| `identity.events` | — (создаётся на будущее) | — |
+
+У каждого топика есть `<topic>.dlq`. Контракты — `backend/src/core/messaging/contracts/`.
+
+**Код и схема.** Подача отвечает `200` со статусом `submitted`, а не `202`. Подпись, кроме пароля, несёт `offer_hash` договора: клиент подписывает ровно то, что видел.
