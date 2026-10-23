@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from src.modules.applications.application.ports import PresignedUpload, StoredObject
+from src.modules.applications.application.interfaces.storage import PresignedUpload, StoredObject
 
 
 class FakeDocumentStorage:

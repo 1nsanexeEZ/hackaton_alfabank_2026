@@ -3,9 +3,17 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.types import SafeString
+from src.modules.applications.application.dto.applications import CollateralDTO
+from src.modules.applications.application.dto.common import UNSET
+from src.modules.applications.application.dto.drafts import (
+    ConsentsChoiceDTO,
+    DraftChangesDTO,
+    DraftRequestDTO,
+)
+from src.modules.applications.presentation.schemas.documents import DocumentOut
 
 Amount = Annotated[Decimal, Field(gt=0, max_digits=15, decimal_places=2)]
 
@@ -24,12 +32,28 @@ class LoanRequestIn(BaseModel):
     purpose: str | None = Field(default=None, max_length=64)
     purpose_comment: Annotated[SafeString, Field(max_length=500)] | None = None
 
+    def to_dto(self) -> DraftRequestDTO:
+        return DraftRequestDTO(
+            amount=self.amount,
+            term_months=self.term_months,
+            purpose=self.purpose,
+            purpose_comment=self.purpose_comment,
+        )
+
 
 class CollateralIn(BaseModel):
     type: Literal["real_estate", "equipment", "vehicle", "goods"]
     description: Annotated[SafeString, Field(min_length=1, max_length=1000)]
     declared_value: Amount
     owner: Literal["self", "third_party"] = "self"
+
+    def to_dto(self) -> CollateralDTO:
+        return CollateralDTO(
+            type=self.type,
+            description=self.description,
+            declared_value=self.declared_value,
+            owner=self.owner,
+        )
 
 
 class ConsentsIn(BaseModel):
@@ -46,28 +70,35 @@ class ApplicationUpdate(BaseModel):
     collateral: CollateralIn | None = None
     consents: ConsentsIn | None = None
 
-
-class DocumentUploadIn(BaseModel):
-    type: str = Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z_]*$")
-    filename: str = Field(min_length=1, max_length=255)
-    content_type: str = Field(min_length=1, max_length=128)
-    size_bytes: int = Field(gt=0)
+    def to_dto(self) -> DraftChangesDTO:
+        """Fields that weren't sent are UNSET; null stays None."""
+        sent = self.model_fields_set
+        request = self.request.to_dto() if self.request else None
+        collateral = self.collateral.to_dto() if self.collateral else None
+        consents = (
+            ConsentsChoiceDTO(self.consents.personal_data, self.consents.credit_bureau)
+            if self.consents
+            else None
+        )
+        return DraftChangesDTO(
+            version=self.version,
+            request=request if "request" in sent else UNSET,
+            product_fields=self.product_fields if "product_fields" in sent else UNSET,
+            collateral=collateral if "collateral" in sent else UNSET,
+            consents=consents if "consents" in sent else UNSET,
+        )
 
 
 class ReasonIn(BaseModel):
     reason: Annotated[SafeString, Field(max_length=500)] | None = None
 
 
-class SignIn(BaseModel):
-    password: SecretStr = Field(min_length=1, max_length=128)
-    # `offer_hash` from GET /applications/{id}/contract: the client signs what it saw.
-    offer_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-
-
 # --- output -------------------------------------------------------------------
 
 
 class LoanRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     amount: Decimal | None
     term_months: int | None
     purpose: str | None
@@ -75,6 +106,8 @@ class LoanRequestOut(BaseModel):
 
 
 class CollateralOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     type: str
     description: str
     declared_value: Decimal
@@ -82,11 +115,15 @@ class CollateralOut(BaseModel):
 
 
 class ConsentsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     personal_data_at: datetime | None
     credit_bureau_at: datetime | None
 
 
 class RequiredDocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     type: str
     title: str
     required_from_amount: Decimal | None
@@ -94,6 +131,8 @@ class RequiredDocumentOut(BaseModel):
 
 
 class ProductTermsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     code: str
     version: int
     amount_min: Decimal
@@ -127,18 +166,9 @@ class OrganizationOut(BaseModel):
     verification_status: str
 
 
-class DocumentOut(BaseModel):
-    id: UUID
-    type: str
-    filename: str
-    content_type: str
-    size_bytes: int
-    status: str
-    uploaded_at: datetime | None
-    info_request_id: UUID | None
-
-
 class InfoRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     requested_fields: list[str]
     requested_documents: list[str]
@@ -150,6 +180,8 @@ class InfoRequestOut(BaseModel):
 
 
 class OfferOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     kind: str
     amount: Decimal
     term_months: int
@@ -161,6 +193,8 @@ class OfferOut(BaseModel):
 
 
 class DecisionSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     outcome: str
     client_explanation: str
     improvement_hints: list[str]
@@ -168,6 +202,8 @@ class DecisionSummaryOut(BaseModel):
 
 
 class DisbursementOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     reference: str
     disbursed_at: datetime
     # Paid out through the mock of the core banking system.
@@ -175,6 +211,8 @@ class DisbursementOut(BaseModel):
 
 
 class StatusChangeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     from_status: str | None
     to_status: str
     at: datetime
@@ -183,6 +221,8 @@ class StatusChangeOut(BaseModel):
 
 
 class ApplicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     number: str
     organization_id: UUID
@@ -212,6 +252,8 @@ class ApplicationOut(BaseModel):
 
 
 class ApplicationListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     number: str
     organization_id: UUID
@@ -224,22 +266,6 @@ class ApplicationListItem(BaseModel):
     submitted_at: datetime | None
 
 
-class PresignedUploadOut(BaseModel):
-    url: str
-    method: str
-    headers: dict[str, str]
-    expires_at: datetime
-
-
-class DocumentUploadOut(BaseModel):
-    document: DocumentOut
-    upload: PresignedUploadOut
-
-
-class DownloadOut(BaseModel):
-    url: str
-
-
 class ViolationOut(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -250,72 +276,3 @@ class ViolationOut(BaseModel):
 class CompletenessOut(BaseModel):
     complete: bool
     violations: list[ViolationOut]
-
-
-class SignatureOut(BaseModel):
-    signed_at: datetime
-    offer_hash: str
-    edo_document_id: str
-    # Signing goes through a mock of the document flow, not a real signature.
-    simulated: bool
-
-
-class SignOut(BaseModel):
-    application: ApplicationOut
-    signature: SignatureOut
-
-
-class ContractBorrowerOut(BaseModel):
-    name: str
-    inn: str
-    ogrn: str
-    kpp: str | None
-    legal_form: str
-    head_name: str | None
-
-
-class ContractSignerOut(BaseModel):
-    account_id: UUID
-    name: str
-    authority: Literal["registry", "power_of_attorney"]
-
-
-class ContractPaymentOut(BaseModel):
-    number: int
-    due_date: date | None
-    principal: Decimal
-    interest: Decimal
-    total: Decimal
-    balance_after: Decimal
-
-
-class ContractScheduleOut(BaseModel):
-    amount: Decimal
-    term_months: int
-    rate: Decimal
-    repayment: str
-    monthly_payment: Decimal
-    total_interest: Decimal
-    total_paid: Decimal
-    payments: list[ContractPaymentOut]
-
-
-class ContractSignatureOut(BaseModel):
-    signed_by: UUID
-    signed_at: datetime
-    edo_document_id: str | None
-    simulated: bool
-
-
-class ContractOut(BaseModel):
-    """The loan contract to show before signing. `number` is the application
-    number; `offer_hash` goes back in `POST /applications/{id}/sign`."""
-
-    number: str
-    offer_hash: str
-    status: Literal["unsigned", "signed"]
-    borrower: ContractBorrowerOut
-    signers: list[ContractSignerOut]
-    terms: OfferOut
-    schedule: ContractScheduleOut
-    signature: ContractSignatureOut | None

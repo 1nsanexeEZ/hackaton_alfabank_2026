@@ -30,7 +30,9 @@ from src.core.messaging.contracts.enrichment import FetchEnrichment
 from src.core.messaging.contracts.scoring import CalculateScore
 from src.core.messaging.outbox import OutboxRecord, SqlAlchemyOutboxWriter
 from src.modules.applications.facade import ApplicationsFacade, ScoringInputDTO
-from src.modules.applications.infrastructure.repository import SqlAlchemyApplicationRepository
+from src.modules.applications.infrastructure.repositories.applications import (
+    SqlAlchemyApplicationRepository,
+)
 from src.modules.clients.infrastructure.database.models import OrganizationModel
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO, DecisionFacade
 from src.modules.enrichment.application.interfaces.sources import Sources

@@ -7,10 +7,10 @@ from uuid import UUID
 import httpx
 
 from src.core.exceptions.exceptions import InfrastructureError
-from src.modules.applications.application.ports import EdoReceipt
+from src.modules.applications.application.interfaces.edo import EdoClient, EdoReceipt
 
 
-class SimulatedEdoClient:
+class SimulatedEdoClient(EdoClient):
     """Used while the external mocks service is not configured."""
 
     simulated = True
@@ -21,7 +21,7 @@ class SimulatedEdoClient:
         return EdoReceipt(document_id=f"SIM-{offer_hash[:16]}", simulated=True)
 
 
-class HttpEdoClient:
+class HttpEdoClient(EdoClient):
     """`POST /edo/sign` of external-mocks: `{document_hash, signer}` →
     `{signature_id, document_hash, signer, signed_at, simulated}`."""
 

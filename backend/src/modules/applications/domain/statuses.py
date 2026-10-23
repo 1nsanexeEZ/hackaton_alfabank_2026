@@ -1,24 +1,7 @@
-"""Business status of an application and the only allowed transitions."""
-
-from enum import StrEnum
+"""The only allowed transitions of the business status of an application."""
 
 from src.core.exceptions.exceptions import InvalidStatusTransitionError
-
-
-class ApplicationStatus(StrEnum):
-    DRAFT = "draft"
-    SUBMITTED = "submitted"
-    IN_REVIEW = "in_review"
-    INFO_REQUESTED = "info_requested"
-    OFFER_READY = "offer_ready"
-    SIGNING = "signing"
-    SIGNED = "signed"
-    DISBURSED = "disbursed"
-    REJECTED = "rejected"
-    OFFER_DECLINED = "offer_declined"
-    EXPIRED = "expired"
-    CANCELLED = "cancelled"
-
+from src.modules.applications.domain.enums import ApplicationStatus
 
 S = ApplicationStatus
 

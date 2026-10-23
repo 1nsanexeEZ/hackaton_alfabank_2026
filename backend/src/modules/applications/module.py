@@ -8,15 +8,24 @@ from fastapi import FastAPI
 from src.core.config import Settings
 from src.core.exceptions.exceptions import InfrastructureError
 from src.core.messaging.subscriber import Subscription
-from src.modules.applications.api.routes import router
-from src.modules.applications.application.ports import AbsClient
-from src.modules.applications.config import ApplicationsSettings
+from src.modules.applications.application.interfaces.abs import AbsClient
 from src.modules.applications.facade import ApplicationsFacade
-from src.modules.applications.infrastructure.abs import HttpAbsClient, SimulatedAbsClient
-from src.modules.applications.infrastructure.consumers import run_offer_expiry, subscriptions
-from src.modules.applications.infrastructure.edo import HttpEdoClient, SimulatedEdoClient
-from src.modules.applications.infrastructure.facade_impl import ApplicationsFacadeImpl
-from src.modules.applications.infrastructure.storage import MinioDocumentStorage
+from src.modules.applications.infrastructure.adapters.abs_client import (
+    HttpAbsClient,
+    SimulatedAbsClient,
+)
+from src.modules.applications.infrastructure.adapters.document_storage import (
+    MinioDocumentStorage,
+)
+from src.modules.applications.infrastructure.adapters.edo_client import (
+    HttpEdoClient,
+    SimulatedEdoClient,
+)
+from src.modules.applications.infrastructure.config import ApplicationsSettings
+from src.modules.applications.presentation.api.applications import router
+from src.modules.applications.presentation.consumers import subscriptions
+from src.modules.applications.presentation.dependencies import applications_facade
+from src.modules.applications.presentation.expiry import run_offer_expiry
 
 NAME = "applications"
 
@@ -53,9 +62,7 @@ def wire(app: FastAPI) -> None:
     app.state.facades.register(AbsClient, lambda _session: abs_client)
     app.state.facades.register(
         ApplicationsFacade,
-        lambda session: ApplicationsFacadeImpl(
-            session, app.state.document_storage, app.state.facades
-        ),
+        lambda session: applications_facade(session, app.state.document_storage, app.state.facades),
     )
 
 

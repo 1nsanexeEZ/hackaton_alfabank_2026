@@ -8,14 +8,13 @@ from uuid import UUID
 
 from src.core.domain import Money
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.entities import (
-    Document,
+from src.modules.applications.domain.entities import Document, InfoRequest
+from src.modules.applications.domain.enums import (
+    ApplicationStatus,
     DocumentStatus,
-    InfoRequest,
     InfoRequestStatus,
 )
 from src.modules.applications.domain.fields_schema import ProductFieldsSchema
-from src.modules.applications.domain.statuses import ApplicationStatus
 from src.modules.applications.domain.value_objects import (
     Actor,
     ApplicationNumber,
@@ -31,7 +30,7 @@ from src.modules.applications.domain.value_objects import (
     Signature,
     StatusChange,
 )
-from src.modules.applications.infrastructure.models import (
+from src.modules.applications.infrastructure.database.models import (
     ApplicationRecord,
     DocumentRecord,
     InfoRequestRecord,

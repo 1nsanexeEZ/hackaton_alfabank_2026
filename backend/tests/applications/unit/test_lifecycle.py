@@ -14,7 +14,7 @@ from src.core.exceptions.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.modules.applications.domain.entities import InfoRequestStatus
+from src.modules.applications.domain.enums import ApplicationStatus, InfoRequestStatus
 from src.modules.applications.domain.events import (
     ApplicationCancelled,
     ApplicationInfoProvided,
@@ -25,7 +25,6 @@ from src.modules.applications.domain.events import (
     OfferExpired,
 )
 from src.modules.applications.domain.fields_schema import ProductFieldsSchema
-from src.modules.applications.domain.statuses import ApplicationStatus
 from src.modules.applications.domain.value_objects import (
     PROCESS,
     SYSTEM,

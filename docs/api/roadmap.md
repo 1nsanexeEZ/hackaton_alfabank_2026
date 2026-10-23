@@ -386,9 +386,9 @@ sequenceDiagram
 
 | Где | Что |
 |---|---|
-| `applications/application/service.py` | `contract(access, application_id)`: заявка → оффер → `ProductsFacade.calculate_payment` по условиям оффера → подписанты: `ClientsFacade.list_members(org, "sign")` + `IdentityFacade.get_account` |
+| `applications/application/use_cases/contracts.py` | `GetContractUseCase`: заявка → оффер → `ProductsFacade.calculate_payment` по условиям оффера → подписанты: `ClientsFacade.list_members(org, "sign")` + `IdentityFacade.get_account` |
 | `applications/domain/application.py` | `sign(actor, now, expected_hash)`: сравнить с `offer.fingerprint()` до перехода |
-| `applications/api/` | маршрут, `ContractOut`, `SignIn.offer_hash` |
+| `applications/presentation/` | маршрут, `ContractOut`, `SignIn.offer_hash` |
 | `tests/applications` | 409 до `signing`, договор после подписи, `offer_changed`, неверный пароль |
 
 ```mermaid

@@ -26,7 +26,7 @@ from src.core.messaging.contracts.enrichment import EnrichmentCompleted, FetchEn
 from src.core.messaging.contracts.scoring import CalculateScore, ScoreCalculated
 from src.core.messaging.runtime import MessagingRuntime
 from src.core.messaging.subscriber import HandlerContext, Subscription
-from src.modules.applications.infrastructure.consumers import (
+from src.modules.applications.presentation.consumers import (
     subscriptions as application_subscriptions,
 )
 from src.modules.process.presentation.consumers import subscriptions as process_subscriptions

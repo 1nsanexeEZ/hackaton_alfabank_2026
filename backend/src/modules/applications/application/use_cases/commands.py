@@ -13,28 +13,30 @@ the process learns the real state from `applications.events`.
 import logging
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from src.core.domain import Money
 from src.core.domain.clock import Clock
 from src.core.exceptions.exceptions import InvalidStatusTransitionError, NotFoundError
 from src.core.messaging.contracts import applications as contracts
 from src.core.messaging.contracts.base import IntegrationMessage
-from src.core.messaging.outbox import OutboxWriter
-from src.modules.applications.application.ports import AbsClient, ApplicationRepository
-from src.modules.applications.application.translate import to_contract
+from src.modules.applications.application.interfaces.abs import AbsClient
+from src.modules.applications.application.interfaces.outbox import MessageOutbox
+from src.modules.applications.application.interfaces.repositories import ApplicationRepository
+from src.modules.applications.application.mappers.messages import decision_of, offer_of
+from src.modules.applications.application.use_cases.common import publish
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.statuses import ApplicationStatus, ensure_transition
-from src.modules.applications.domain.value_objects import DecisionSummary, Disbursement, Offer
+from src.modules.applications.domain.enums import ApplicationStatus
+from src.modules.applications.domain.statuses import ensure_transition
+from src.modules.applications.domain.value_objects import Disbursement
 
 logger = logging.getLogger(__name__)
 
 _INFO_REQUEST_NAMESPACE = uuid5(NAMESPACE_URL, "applications/info-request")
 
 
-class CommandService:
+class HandleCommandUseCase:
     def __init__(
         self,
         repository: ApplicationRepository,
-        outbox: OutboxWriter,
+        outbox: MessageOutbox,
         clock: Clock,
         abs_client: AbsClient | None = None,
     ) -> None:
@@ -43,7 +45,7 @@ class CommandService:
         self._clock = clock
         self._abs = abs_client
 
-    async def handle(self, command: IntegrationMessage, command_id: UUID) -> bool:
+    async def execute(self, command: IntegrationMessage, command_id: UUID) -> bool:
         """Apply a command; False — acknowledged without changes."""
         application_id: UUID = command.application_id  # type: ignore[attr-defined]
         try:
@@ -55,28 +57,9 @@ class CommandService:
             )
             return False
         if changed:
-            await self._store(application, causation_id=command_id)
+            await self._repository.save(application)
+            await publish(application, self._outbox, causation_id=command_id)
         return changed
-
-    async def set_client_stage(self, application_id: UUID, client_stage: str | None) -> bool:
-        """The label of the process stage for the client's screen. A step that
-        does not change what the client sees carries no label and is skipped.
-
-        Written past the aggregate on purpose: it is a display label, not the
-        business state, and must not fight for the version with the commands
-        and the client's own actions."""
-        if not client_stage:
-            return False
-        return await self._repository.set_client_stage(
-            application_id, client_stage, self._clock.now()
-        )
-
-    async def expire_offer(self, application_id: UUID) -> bool:
-        application = await self._repository.get(application_id)
-        if not application.expire_offer(self._clock.now()):
-            return False
-        await self._store(application, causation_id=None)
-        return True
 
     async def _apply(
         self, application: CreditApplication, command: IntegrationMessage, command_id: UUID
@@ -97,38 +80,11 @@ class CommandService:
                 )
                 return True
             case contracts.PresentOffer():
-                terms = command.offer
-                application.present_offer(
-                    Offer(
-                        kind=terms.kind,
-                        amount=Money.of(terms.amount),
-                        term_months=terms.term_months,
-                        rate=terms.rate,
-                        monthly_payment=Money.of(terms.monthly_payment),
-                        schedule_type=terms.schedule_type,
-                        conditions=tuple(terms.conditions),
-                        expires_at=terms.expires_at,
-                        decision_id=command.decision_id,
-                    ),
-                    DecisionSummary(
-                        outcome="APPROVE" if terms.kind == "as_requested" else "COUNTER_OFFER",
-                        client_explanation=command.client_explanation,
-                        improvement_hints=tuple(command.improvement_hints),
-                        alternative_product_code=command.alternative_product_code,
-                    ),
-                    now,
-                )
+                outcome = "APPROVE" if command.offer.kind == "as_requested" else "COUNTER_OFFER"
+                application.present_offer(offer_of(command), decision_of(command, outcome), now)
                 return True
             case contracts.RejectApplication():
-                application.reject(
-                    DecisionSummary(
-                        outcome="REJECT",
-                        client_explanation=command.client_explanation,
-                        improvement_hints=tuple(command.improvement_hints),
-                        alternative_product_code=command.alternative_product_code,
-                    ),
-                    now,
-                )
+                application.reject(decision_of(command, "REJECT"), now)
                 return True
             case contracts.MarkDisbursed():
                 return await self._disburse(application)
@@ -156,12 +112,39 @@ class CommandService:
             now, Disbursement(receipt.reference, now, receipt.simulated)
         )
 
-    async def _store(self, application: CreditApplication, causation_id: UUID | None) -> None:
+
+class SetClientStageUseCase:
+    """The label of the process stage for the client's screen. A step that
+    does not change what the client sees carries no label and is skipped.
+
+    Written past the aggregate on purpose: it is a display label, not the
+    business state, and must not fight for the version with the commands
+    and the client's own actions."""
+
+    def __init__(self, repository: ApplicationRepository, clock: Clock) -> None:
+        self._repository = repository
+        self._clock = clock
+
+    async def execute(self, application_id: UUID, client_stage: str | None) -> bool:
+        if not client_stage:
+            return False
+        return await self._repository.set_client_stage(
+            application_id, client_stage, self._clock.now()
+        )
+
+
+class ExpireOfferUseCase:
+    def __init__(
+        self, repository: ApplicationRepository, outbox: MessageOutbox, clock: Clock
+    ) -> None:
+        self._repository = repository
+        self._outbox = outbox
+        self._clock = clock
+
+    async def execute(self, application_id: UUID) -> bool:
+        application = await self._repository.get(application_id)
+        if not application.expire_offer(self._clock.now()):
+            return False
         await self._repository.save(application)
-        for event in application.pull_events():
-            await self._outbox.add(
-                to_contract(event),
-                key=application.id,
-                correlation_id=application.id,
-                causation_id=causation_id,
-            )
+        await publish(application, self._outbox)
+        return True

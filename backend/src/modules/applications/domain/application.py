@@ -15,8 +15,11 @@ from src.core.exceptions.exceptions import ConflictError, NotFoundError, Validat
 from src.modules.applications.domain.entities import (
     OPTIONAL_DOCUMENT_TYPES,
     Document,
-    DocumentStatus,
     InfoRequest,
+)
+from src.modules.applications.domain.enums import (
+    ApplicationStatus,
+    DocumentStatus,
     InfoRequestStatus,
 )
 from src.modules.applications.domain.events import (
@@ -30,11 +33,7 @@ from src.modules.applications.domain.events import (
     OfferDeclined,
     OfferExpired,
 )
-from src.modules.applications.domain.statuses import (
-    FINAL_STATUSES,
-    ApplicationStatus,
-    ensure_transition,
-)
+from src.modules.applications.domain.statuses import FINAL_STATUSES, ensure_transition
 from src.modules.applications.domain.value_objects import (
     PROCESS,
     SYSTEM,

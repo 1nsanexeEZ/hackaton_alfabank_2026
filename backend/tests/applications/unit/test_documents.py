@@ -4,8 +4,8 @@ from uuid import uuid4
 import pytest
 
 from src.core.exceptions.exceptions import ConflictError, NotFoundError, ValidationError
-from src.modules.applications.domain.entities import MAX_DOCUMENT_SIZE, DocumentStatus
-from src.modules.applications.domain.statuses import ApplicationStatus
+from src.modules.applications.domain.entities import MAX_DOCUMENT_SIZE
+from src.modules.applications.domain.enums import ApplicationStatus, DocumentStatus
 from tests.applications.unit.factories import APPLICANT_ID, NOW, draft, in_status
 
 S = ApplicationStatus
