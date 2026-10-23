@@ -15,7 +15,7 @@ import {
   requiredDocumentsFor,
   type ProductCatalog,
 } from '@/entities/credit-product'
-import { customer } from '@/entities/customer'
+import { customer, personalConsents } from '@/entities/customer'
 import {
   ApiError,
   clientApi,
@@ -72,6 +72,11 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   const collateral = reactive<CollateralForm>({ type: '', description: '', declaredValue: '', owner: 'self' })
   const productFields = ref<FieldValues>({})
   const consents = reactive({ personalData: false, creditBureau: false })
+  /**
+   * Личное согласие руководителя по реестру на запрос его кредитной истории (БКИ физлица). Не обязательно:
+   * без него банк оценит заявку по данным компании. Даёт только сам руководитель — бухгалтеру видно пояснение.
+   */
+  const headConsent = reactive({ isHead: false, alreadyGiven: false, validUntil: null as string | null, give: false })
 
   const application = shallowRef<ApplicationDto | null>(null)
   const busy = ref(false)
@@ -119,6 +124,19 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     { immediate: true },
   )
 
+  watch(
+    () => terms.organizationId,
+    async (organizationId) => {
+      Object.assign(headConsent, { isHead: false, alreadyGiven: false, validUntil: null, give: false })
+      if (!organizationId) return
+      const [isHead] = await Promise.all([personalConsents.isRegistryHead(organizationId), personalConsents.load()])
+      if (organizationId !== terms.organizationId) return
+      const current = personalConsents.active('credit_bureau_personal')
+      Object.assign(headConsent, { isHead, alreadyGiven: Boolean(current), validUntil: current?.valid_until ?? null })
+    },
+    { immediate: true },
+  )
+
   const documents = computed<DocumentSlot[]>(() =>
     requiredDocumentsFor(product.value, terms.amount, legalForm.value).map((required) => ({
       type: required.type,
@@ -157,6 +175,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     error.value = null
     consents.personalData = false
     consents.creditBureau = false
+    headConsent.give = false
     Object.assign(collateral, { description: '', declaredValue: '', owner: 'self' })
     terms.purposeComment = ''
     for (const key of Object.keys(uploads)) delete uploads[key]
@@ -399,6 +418,11 @@ export function useApplicationWizard(products: () => ProductCatalog) {
 
     await run(async () => {
       await patch({ consents: { personal_data: true, credit_bureau: true } })
+      // Согласие руководителя — до подачи: проверка данных банком начнётся сразу после неё
+      if (headConsent.isHead && !headConsent.alreadyGiven && headConsent.give) {
+        await personalConsents.give(['credit_bureau_personal'])
+        headConsent.alreadyGiven = true
+      }
       const id = application.value!.id
       const check = await clientApi.completeness(id)
       if (!check.complete) {
@@ -464,6 +488,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     collateral,
     productFields,
     consents,
+    headConsent,
     application,
     product,
     collateralNeeded,
