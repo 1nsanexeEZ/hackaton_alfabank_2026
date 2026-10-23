@@ -4,6 +4,7 @@ export { calcAnnuityPayment, calcLoanSummary, clamp, type LoanSummary } from './
 export {
   formatDate,
   formatDateTime,
+  formatDuration,
   formatMoney,
   formatMoneyShort,
   formatPercent,
@@ -11,6 +12,7 @@ export {
   formatRelativeTime,
   formatTerm,
   formatTermLimit,
+  formatTime,
   onlyDigits,
   pluralize,
 } from './format'

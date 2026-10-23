@@ -288,6 +288,43 @@ export interface UnderwriterCardDto {
   degraded: string[]
 }
 
+/** Состояние процесса: running — идёт, waiting — ждёт человека или внешний сервис, остальные — финал */
+export type ProcessStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
+
+/** Шаг процесса — один проход узла BPMN; узел, пройденный дважды, даёт два шага с iteration 1 и 2 */
+export interface ProcessStepDto {
+  node_id: string
+  step_code: string | null
+  /** immediate — выполнен сразу, async — ждёт внешний сервис, stoppable — ждёт человека */
+  kind: 'immediate' | 'async' | 'stoppable'
+  iteration: number
+  started_at: string
+  finished_at: string | null
+  /** completed | failed | cancelled; null — шаг ещё идёт */
+  outcome: string | null
+  client_stage: string | null
+  error: string | null
+}
+
+/** Где заявка на маршруте банка (GET /processes/{application_id}) */
+export interface ProcessDto {
+  process_id: string
+  application_id: string
+  /** Код маршрута: схема — GET /workflows/{code}/diagram */
+  workflow_code: string
+  workflow_version: number
+  status: ProcessStatus
+  /** Узел, на котором процесс сейчас; у завершённого — null */
+  current_node_id: string | null
+  client_stage: string | null
+  /** Пройденные узлы без повторов, в порядке первого прохода */
+  visited_node_ids: string[]
+  /** Шаги по времени, с повторами */
+  steps: ProcessStepDto[]
+  started_at: string
+  finished_at: string | null
+}
+
 export interface MetricsDto {
   date_from: string
   date_to: string
@@ -329,4 +366,8 @@ export interface BackofficeApi {
   complete(taskId: string, input: TaskResultInput): Promise<UnderwriterTaskDto>
   metrics(query?: { dateFrom?: string; dateTo?: string }): Promise<MetricsDto>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
+  /** Процесс заявки: текущий узел и пройденные шаги */
+  process(applicationId: string): Promise<ProcessDto>
+  /** Схема маршрута — BPMN 2.0 XML */
+  workflowDiagram(code: string): Promise<string>
 }

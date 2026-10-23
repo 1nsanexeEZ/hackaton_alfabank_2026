@@ -68,6 +68,8 @@ interface RequestOptions {
   query?: Query
   /** Чьим токеном подписать запрос; по умолчанию — сотрудника */
   realm?: AuthRealm
+  /** Ответ — текст как есть (BPMN XML схемы маршрута), а не JSON */
+  text?: boolean
 }
 
 /** Адрес ручки с префиксом API — для того, что ходит в бэк мимо http(): EventSource, ссылки */
@@ -85,7 +87,7 @@ function buildUrl(path: string, query?: Query): string {
 }
 
 export async function http<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: options.text ? '*/*' : 'application/json' }
   const provider = providers[options.realm ?? 'staff']
   const token = provider.getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -103,6 +105,7 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
   }
 
   if (response.status === 204) return undefined as T
+  if (response.ok && options.text) return (await response.text()) as T
 
   const data: unknown = await response.json().catch(() => null)
   if (response.ok) return data as T

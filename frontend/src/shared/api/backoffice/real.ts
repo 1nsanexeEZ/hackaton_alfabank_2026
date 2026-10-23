@@ -12,4 +12,6 @@ export const backofficeApi: BackofficeApi = {
   complete: (taskId, input) => http(`/tasks/${taskId}/complete`, { method: 'POST', body: input }),
   metrics: (query = {}) => http('/bff/backoffice/metrics', { query: { date_from: query.dateFrom, date_to: query.dateTo } }),
   downloadDocument: (applicationId, documentId) => http(`/applications/${applicationId}/documents/${documentId}/download`),
+  process: (applicationId) => http(`/processes/${applicationId}`),
+  workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
 }
