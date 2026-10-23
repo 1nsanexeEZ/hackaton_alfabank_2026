@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
 from src.modules.identity.domain.enums import (
+    COMPANY_CONSENT_TYPES,
     CONSENT_TEXT_VERSIONS,
     CONSENT_VALIDITY_MONTHS,
     ConsentType,
@@ -79,7 +80,7 @@ class Role:
         self.permissions, self.policies = normalize_role_rules(permissions, policies)
 
 
-# --- personal consents ---------------------------------------------------------------------
+# --- consents ------------------------------------------------------------------------------
 
 
 def add_months(moment: datetime, months: int) -> datetime:
@@ -97,10 +98,12 @@ def consent_valid_until(type: ConsentType, given_at: datetime) -> datetime | Non
 
 @dataclass(slots=True)
 class Consent:
-    """A personal consent of the account's owner (152-FZ, 218-FZ). Never rewritten:
-    a new consent is a new record, a revocation only sets `revoked_at`."""
+    """A consent given by the account's owner (152-FZ, 218-FZ): for themselves or, as a
+    representative, for a company (`organization_id`). Never rewritten: a new consent is
+    a new record, a revocation only sets `revoked_at`."""
 
     id: UUID
+    # Who gave it: the person themselves or the company's representative.
     account_id: UUID
     type: ConsentType
     given_at: datetime
@@ -111,6 +114,10 @@ class Consent:
     text_version: str
     ip: str | None = None
     user_agent: str | None = None
+    # The company a company consent is given for; None for a personal one.
+    organization_id: UUID | None = None
+    # Who revoked it: any representative may revoke a company consent.
+    revoked_by: UUID | None = None
 
     @classmethod
     def give(
@@ -121,7 +128,10 @@ class Consent:
         *,
         ip: str | None,
         user_agent: str | None,
+        organization_id: UUID | None = None,
     ) -> Self:
+        if (type in COMPANY_CONSENT_TYPES) != (organization_id is not None):
+            raise ValueError(f"{type} is given for a company only, other types for oneself")
         return cls(
             id=uuid4(),
             account_id=account_id,
@@ -132,6 +142,7 @@ class Consent:
             text_version=CONSENT_TEXT_VERSIONS[type],
             ip=ip,
             user_agent=user_agent[:512] if user_agent else None,
+            organization_id=organization_id,
         )
 
     def is_active(self, now: datetime) -> bool:
@@ -139,5 +150,6 @@ class Consent:
             return False
         return self.valid_until is None or self.valid_until > now
 
-    def revoke(self, now: datetime) -> None:
+    def revoke(self, now: datetime, by: UUID) -> None:
         self.revoked_at = now
+        self.revoked_by = by
