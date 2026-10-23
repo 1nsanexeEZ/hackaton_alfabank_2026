@@ -1,27 +1,37 @@
-"""Предодобрение по событиям clients: eligibility, оценка скоринга, политика, хранение."""
+"""Предодобрение по событиям clients и ночным пакетом: сверка с ЕГРЮЛ, eligibility, оценка
+скоринга, политика, хранение."""
 
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from functools import partial
+from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from seed.products import catalog
 from src.core.domain.clock import FrozenClock
+from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.decision import PreApprovedOffersUpdated
-from src.modules.clients.facade import OrganizationSnapshotDTO
+from src.core.messaging.outbox import OutboxRecord
+from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
+from src.modules.decision.application.refresh_pre_approved import (
+    RefreshExpiringPreApprovedUseCase,
+)
 from src.modules.decision.facade import PreApprovedOfferDTO
 from src.modules.decision.infrastructure.config_loader import default_policy
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
+from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
 from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
-from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
-from src.modules.scoring.facade import EstimateDTO
+from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO, ProductsFacade
+from src.modules.scoring.facade import EstimateDTO, ScoringFacade
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.messaging import FakeOutboxWriter
@@ -82,7 +92,7 @@ class _World:
             if check.eligible and self.products.products[code].status == "active"
         }
 
-    async def recalculate(self, sessions: Sessions) -> FakeOutboxWriter:
+    async def recalculate(self, sessions: Sessions, at: datetime = NOW) -> FakeOutboxWriter:
         outbox = FakeOutboxWriter()
         async with sessions() as session:
             use_case = RecalculatePreApprovedUseCase(
@@ -91,7 +101,7 @@ class _World:
                 self.clients,
                 self.products,
                 self.scoring,
-                FrozenClock(NOW),
+                FrozenClock(at),
                 KEY_RATE,
             )
             await use_case.on_event(self.company.id, event_id=EVENT, outbox=outbox)
@@ -104,6 +114,17 @@ class _World:
         async with sessions() as session:
             facade = DecisionFacadeImpl(session, clock or FrozenClock(NOW))
             return {o.product_code: o for o in await facade.get_pre_approved(self.company.id)}
+
+    async def valid_until(self, sessions: Sessions) -> set[date]:
+        """Сроки всех хранимых предложений, и истекших тоже."""
+        async with sessions() as session:
+            repository = SqlAlchemyPreApprovedOfferRepository(session)
+            return {o.valid_until for o in await repository.list_for_organization(self.company.id)}
+
+    def joins(self, other: _World) -> None:
+        """Соседи `other` отвечают и за эту компанию: ночной пакет видит обе через одни фасады."""
+        self.clients.add_organization(other.company)
+        self.products.eligibility.update(other.products.eligibility)
 
 
 EVENT = uuid4()
@@ -218,3 +239,85 @@ async def test_expired_offers_are_not_shown(session_factory: Sessions) -> None:
 
     assert await world.offers(session_factory, later) == {}
     assert await world.offers(session_factory, FrozenClock(NOW + timedelta(days=30)))
+
+
+# --- ночной пакет ---------------------------------------------------------------
+
+
+def _refresh(sessions: Sessions, world: _World) -> RefreshExpiringPreApprovedUseCase:
+    """Ночной пакет на настоящих транзакциях; соседи — фейки `world`."""
+    facades = FacadeRegistry()
+    facades.register(ClientsFacade, lambda _session: world.clients)
+    facades.register(ProductsFacade, lambda _session: world.products)
+    facades.register(ScoringFacade, lambda _session: world.scoring)
+    clock = FrozenClock(NOW)
+    transactions = partial(SqlAlchemyPreApprovalTransaction, sessions, facades, clock)
+    return RefreshExpiringPreApprovedUseCase(transactions, default_policy(), clock, KEY_RATE)
+
+
+async def _published(sessions: Sessions) -> list[dict[str, Any]]:
+    async with sessions() as session:
+        stmt = (
+            select(OutboxRecord.envelope)
+            .where(OutboxRecord.message_type == PreApprovedOffersUpdated.TYPE)
+            .order_by(OutboxRecord.id)
+        )
+        return list(await session.scalars(stmt))
+
+
+async def test_nightly_refresh_renews_expiring_offers(session_factory: Sessions) -> None:
+    """Истекают через 2 дня и уже истекли — пересчёт на 30 дней; через 20 дней — не трогаем."""
+    expiring = _World("romashka")
+    expired = _World("progress")
+    fresh = _World("sboy")
+    expiring.joins(expired)
+    expiring.joins(fresh)
+    await expiring.recalculate(session_factory, NOW - timedelta(days=28))
+    await expired.recalculate(session_factory, NOW - timedelta(days=40))
+    await fresh.recalculate(session_factory, NOW - timedelta(days=10))
+    renewed = (NOW + timedelta(days=30)).date()
+    assert await expiring.valid_until(session_factory) == {(NOW + timedelta(days=2)).date()}
+
+    refreshed = await _refresh(session_factory, expiring).execute(within_days=3)
+
+    assert refreshed == 2
+    assert await expiring.valid_until(session_factory) == {renewed}
+    assert await expired.valid_until(session_factory) == {renewed}
+    assert await fresh.valid_until(session_factory) == {(NOW + timedelta(days=20)).date()}
+    published = await _published(session_factory)
+    assert {e["payload"]["organization_id"] for e in published} == {
+        str(expiring.company.id),
+        str(expired.company.id),
+    }
+    assert all(e["producer"] == "decision" and e["causation_id"] is None for e in published)
+
+    # Следующей ночью продлевать нечего.
+    assert await _refresh(session_factory, expiring).execute(within_days=3) == 0
+
+
+async def test_nightly_refresh_checks_the_registry(session_factory: Sessions) -> None:
+    """Пакет идёт тем же пересчётом: компания разошлась с ЕГРЮЛ — предложения сняты."""
+    world = _World("romashka")
+    await world.recalculate(session_factory, NOW - timedelta(days=28))
+    world.verification("mismatch")
+
+    assert await _refresh(session_factory, world).execute(within_days=3) == 1
+
+    assert await world.valid_until(session_factory) == set()
+
+
+async def test_nightly_refresh_failure_does_not_stop_others(session_factory: Sessions) -> None:
+    """Компания пропала из clients — её предложения остаются как были, остальные продлены."""
+    lost = _World("progress")
+    world = _World("romashka")
+    await lost.recalculate(session_factory, NOW - timedelta(days=29))
+    await world.recalculate(session_factory, NOW - timedelta(days=28))
+    before = await lost.valid_until(session_factory)
+
+    assert await _refresh(session_factory, world).execute(within_days=3) == 1
+
+    assert await lost.valid_until(session_factory) == before
+    assert await world.valid_until(session_factory) == {(NOW + timedelta(days=30)).date()}
+    assert [e["payload"]["organization_id"] for e in await _published(session_factory)] == [
+        str(world.company.id)
+    ]
