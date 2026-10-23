@@ -1,6 +1,6 @@
 """Сервис external-mocks: ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес», ГИР БО, Контур.Фокус, БКИ
-компаний и физлиц, перечни Росфинмониторинга, база ПДЛ, платформа ЗСК Банка России, АБС (выдача),
-ЭДО (подписание).
+компаний и физлиц, перечни Росфинмониторинга, база ПДЛ, платформа ЗСК Банка России, АБС (выдача и
+внутренний стоп-лист банка), ЭДО (подписание).
 
 Настоящий HTTP-сервис с «чужим» форматом ответов — бэкенд ходит в него через адаптеры,
 а не перекладывает поля 1:1. Все операции АБС и ЭДО помечены `simulated: true`.
@@ -16,7 +16,14 @@ from fastapi import FastAPI, HTTPException
 from app import compliance
 from app.chaos import chaos_middleware
 from app.config import get_settings
-from app.data import Company, bki_response, egrul_response, fns_response, get_company
+from app.data import (
+    Company,
+    bank_stop_list_response,
+    bki_response,
+    egrul_response,
+    fns_response,
+    get_company,
+)
 from app.dossier import gir_bo_response, kontur_response, person_history, person_report_response
 from app.schemas import (
     AbsRequest,
@@ -120,6 +127,12 @@ async def zsk(inn: str) -> dict:
         "Уровень": compliance.zsk_level(company),
         "ДатаАктуальности": compliance.lists_date(),
     }
+
+
+@app.get("/abs/stop-list/{inn}")
+async def abs_stop_list(inn: str) -> dict:
+    """Внутренний стоп-лист банка: стоп-фактор решения, согласия клиента не требует."""
+    return bank_stop_list_response(_company(inn))
 
 
 @app.post("/abs/disbursements")
