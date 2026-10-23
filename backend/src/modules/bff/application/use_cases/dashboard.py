@@ -1,6 +1,7 @@
 """The main screen of the client: their companies and, for the chosen one, the
 counters, active applications, what waits for the client, the pre-approval or
-the founder's prescreen, the feed and the news."""
+the startup's way to it (the founder's prescreen, the business plan, the project
+assessment), the feed and the news."""
 
 from dataclasses import asdict
 from uuid import UUID
@@ -97,13 +98,10 @@ class DashboardUseCase:
         segment = segment_of(snapshot)
         startup = None
         if segment == "startup":
-            pre_approved: tuple[PreApprovedProductDTO, ...] = ()
-            prescreen = await self._n.optional(
-                "prescreen",
-                lambda: self._n(DecisionFacade).get_founder_prescreen(chosen),
-                None,
+            pre_approved: tuple[PreApprovedProductDTO, ...] = await self._n.optional(
+                "pre_approved", lambda: self._pre_approved(chosen, basis="project"), ()
             )
-            startup = StartupBlockDTO(prescreen=prescreen)
+            startup = await self._startup(chosen)
         else:
             pre_approved = await self._n.optional(
                 "pre_approved", lambda: self._pre_approved(chosen), ()
@@ -137,8 +135,34 @@ class DashboardUseCase:
             startup=startup,
         )
 
-    async def _pre_approved(self, organization_id: UUID) -> tuple[PreApprovedProductDTO, ...]:
-        offers = await self._n(DecisionFacade).get_pre_approved(organization_id)
+    async def _startup(self, organization_id: UUID) -> StartupBlockDTO:
+        """Prescreen → business plan → project assessment: where the startup is on its way."""
+        decision = self._n(DecisionFacade)
+        prescreen = await self._n.optional(
+            "prescreen", lambda: decision.get_founder_prescreen(organization_id), None
+        )
+        plan = await self._n.optional(
+            "business_plan",
+            lambda: self._n(ClientsFacade).get_business_plan(organization_id),
+            None,
+        )
+        project = await self._n.optional(
+            "project", lambda: decision.get_project_assessment(organization_id), None
+        )
+        return StartupBlockDTO(
+            prescreen=prescreen,
+            business_plan_revision=plan.revision if plan is not None else None,
+            project=project,
+        )
+
+    async def _pre_approved(
+        self, organization_id: UUID, basis: str | None = None
+    ) -> tuple[PreApprovedProductDTO, ...]:
+        offers = [
+            o
+            for o in await self._n(DecisionFacade).get_pre_approved(organization_id)
+            if basis is None or o.basis == basis
+        ]
         if not offers:
             return ()
         names = await self._product_names()

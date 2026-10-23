@@ -129,9 +129,36 @@ class FounderPrescreen(ClientModel):
     reasons: list[PrescreenReason]
 
 
+class ProjectReason(ClientModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class ProjectAssessment(ClientModel):
+    """passed — «вам предодобрен кредит» `product_code` до `max_amount`, it is also in
+    `pre_approved`; failed — the client reads `reasons[].message`. No figures of the model:
+    they would give the thresholds away."""
+
+    status: Literal["passed", "failed"]
+    product_code: str
+    max_amount: Decimal | None
+    # Below `startup.business_plan_revision` — the plan was changed after the assessment.
+    plan_revision: int
+    checked_at: datetime
+    valid_until: datetime
+    # False — expired: run a new one.
+    valid: bool
+    reasons: list[ProjectReason]
+
+
 class StartupBlock(ClientModel):
     # None — not run yet: POST /organizations/{id}/founder-prescreen.
     prescreen: FounderPrescreen | None
+    # None — not filled in yet: PUT /organizations/{id}/business-plan.
+    business_plan_revision: int | None = None
+    # None — not run yet: POST /organizations/{id}/project-assessment.
+    project: ProjectAssessment | None = None
 
 
 class Dashboard(ClientModel):
@@ -140,7 +167,7 @@ class Dashboard(ClientModel):
     organization: CurrentOrganization | None
     organizations: list[OrganizationBrief]
     counters: Counters | None
-    # Empty for a startup: there is no turnover to pre-approve on.
+    # A startup has no turnover to pre-approve on: only the offer by its project assessment.
     pre_approved: list[PreApprovedOffer]
     active_applications: list[ApplicationRow]
     todo: list[TodoItem]

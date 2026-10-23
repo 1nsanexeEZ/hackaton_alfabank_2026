@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from src.modules.applications.facade import ApplicationCardDTO
+from src.modules.bff.application.dto.backoffice import StartupProjectDTO
 from src.modules.bff.domain.enums import ClientStatus
 from src.modules.decision.facade import DecisionDTO
 from src.modules.enrichment.facade import EnrichmentSnapshotDTO
@@ -30,3 +31,6 @@ class UnderwriterCard(BaseModel):
     # The open underwriter task with its form.
     task: UserTaskDTO | None
     degraded: list[str]
+    # A startup: the project assessment before the application, the business plan, and the
+    # project assessment form filled in from them (`form`) — the underwriter confirms it.
+    startup: StartupProjectDTO | None = None
