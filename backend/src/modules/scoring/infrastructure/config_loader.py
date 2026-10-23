@@ -18,6 +18,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.modules.enrichment.facade import Source
+from src.modules.scoring.domain.client_features import FeatureStorePolicy
 from src.modules.scoring.domain.features import FEATURES
 from src.modules.scoring.domain.model import Grade, Segment
 from src.modules.scoring.domain.pd_model import (
@@ -39,6 +40,7 @@ _DEFAULT_MODEL = "pd_model_v2"
 _DEFAULT_PRESCREEN = "prescreen_v1"
 _DEFAULT_QUALITY = "quality_v1"
 _DEFAULT_PROJECT = "project_v1"
+_DEFAULT_FEATURE_STORE = "feature_store_v1"
 
 # Фактор → обязательные корзины (должны совпадать с логикой в domain/scorecard.py).
 _REQUIRED_BUCKETS: dict[str, frozenset[str]] = {
@@ -243,6 +245,36 @@ def load_quality_file(path: Path) -> QualityPolicy:
 @lru_cache(maxsize=4)
 def default_quality() -> QualityPolicy:
     return load_quality()
+
+
+# --- хранилище признаков клиента ---------------------------------------------------------------
+
+
+class _FeatureStoreSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    max_age_days: int = Field(ge=0)
+
+
+def load_feature_store(name: str = _DEFAULT_FEATURE_STORE) -> FeatureStorePolicy:
+    path = _CONFIG_DIR / f"{name}.yaml"
+    try:
+        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScorecardConfigError(
+            f"Не удалось прочитать хранилище признаков {path}: {exc}"
+        ) from exc
+    try:
+        schema = _FeatureStoreSchema.model_validate(raw)
+    except ValidationError as exc:
+        raise ScorecardConfigError(f"Хранилище признаков {path} не прошло схему: {exc}") from exc
+    return FeatureStorePolicy(version=schema.version, max_age_days=schema.max_age_days)
+
+
+@lru_cache(maxsize=4)
+def default_feature_store() -> FeatureStorePolicy:
+    return load_feature_store()
 
 
 # --- PD-модель ---------------------------------------------------------------------------------
