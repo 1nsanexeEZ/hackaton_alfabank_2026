@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, Integer, Numeric, String, Uuid
+from sqlalchemy import Date, DateTime, Index, Integer, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.infrastructure.database.base import Base, JSONType
@@ -40,3 +40,22 @@ class ScoringResultRecord(Base):
     # Качество данных (scoring_0004): ok / degraded и почему; до неё — пусто.
     quality: Mapped[str | None] = mapped_column(String(16), default=None)
     quality_reasons: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
+
+
+class FeatureSnapshotRecord(Base):
+    """Хранилище признаков клиента (scoring_0005): признаки клиента на дату снимка обогащения."""
+
+    __tablename__ = "scoring_feature_snapshots"
+    __table_args__ = (
+        Index("ix_scoring_feature_snapshots_organization", "organization_id", "as_of"),
+        Index("ix_scoring_feature_snapshots_enrichment", "enrichment_snapshot_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(Uuid)
+    as_of: Mapped[date] = mapped_column(Date)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    enrichment_snapshot_id: Mapped[UUID] = mapped_column(Uuid)
+    features: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    sources: Mapped[list[str]] = mapped_column(JSONType)
+    version: Mapped[str] = mapped_column(String(32))

@@ -5,6 +5,8 @@
 - идемпотентность по event_id команды: повтор возвращает тот же результат и повторно публикует
   ScoreCalculated (causation_id = event_id команды);
 - нет снимка обогащения → ScoringFailed (считать не на чем — решит процесс по on_failure);
+- признаки клиента — из хранилища на дату заявки (`client_features.py`), признаки заявки — из
+  заявки; в `input_snapshot` — оба набора и `feature_snapshot_id`;
 - «Данные полные?»: не ответил критичный источник или мало признаков с данными → `quality =
   degraded`; модели всё равно посчитаны (их видит андеррайтер), решение отдаёт заявку человеку;
 - scoring ничего не знает про ставки и лимиты и не меняет статусы;
@@ -20,6 +22,7 @@ from src.core.messaging.contracts.scoring import CalculateScore, ScoreCalculated
 from src.core.messaging.outbox import OutboxWriter
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.scoring.application.client_features import ClientFeatureStore
 from src.modules.scoring.application.input_builder import build_scoring_input
 from src.modules.scoring.application.ports import (
     DataQualityAssessor,
@@ -28,6 +31,7 @@ from src.modules.scoring.application.ports import (
     ScoringRepository,
 )
 from src.modules.scoring.application.serialization import dump_input, input_hash
+from src.modules.scoring.domain.client_features import FeatureSnapshot
 from src.modules.scoring.domain.model import ScoringResult
 
 
@@ -41,11 +45,13 @@ class CalculateScoreUseCase:
         clock: Clock,
         ml_model: MlScoringModel | None = None,
         quality: DataQualityAssessor | None = None,
+        features: ClientFeatureStore | None = None,
     ) -> None:
         self._repository = repository
         self._scorecard = scorecard
         self._ml_model = ml_model
         self._quality = quality
+        self._features = features
         self._applications = applications
         self._enrichment = enrichment
         self._clock = clock
@@ -71,7 +77,13 @@ class CalculateScoreUseCase:
             return
 
         application = await self._applications.get_scoring_input(command.application_id)
-        scoring_input = build_scoring_input(application, snapshot)
+        stored_features: FeatureSnapshot | None = None
+        if self._features is not None:
+            scoring_input, stored_features = await self._features.scoring_input(
+                application, snapshot
+            )
+        else:
+            scoring_input = build_scoring_input(application, snapshot)
         output = self._scorecard.calculate(scoring_input)
         quality = (
             self._quality.assess(scoring_input.sources_failed, output.data_completeness)
@@ -79,6 +91,9 @@ class CalculateScoreUseCase:
             else None
         )
         stored = dump_input(scoring_input)
+        if stored_features is not None:
+            # Откуда признаки клиента; только с хранилищем — старые снимки хешируются, как раньше.
+            stored["feature_snapshot_id"] = str(stored_features.id)
         result = ScoringResult(
             id=uuid4(),
             application_id=command.application_id,
