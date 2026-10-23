@@ -13,7 +13,12 @@ from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
+import pytest
+
 from src.modules.decision.domain.model import (
+    BankStopListInput,
+    BankTurnoverInput,
+    CashflowInput,
     DecisionInput,
     PolicyDecision,
     PreApprovalInput,
@@ -109,7 +114,14 @@ def test_with_a_score_the_trace_is_that_of_v6_plus_quality_and_matrix() -> None:
     quality = hit(v7_decision, "route.data_quality")
     assert not quality.matched and quality.detail == "данные полные"
     assert not hit(v7_decision, "strategy.risk_matrix").matched
-    added = {"route.data_quality", "strategy.risk_matrix"}
+    added = {
+        "route.data_quality",
+        "strategy.risk_matrix",
+        "stop.unreliable_data",
+        "stop.mass_head",
+        "stop.business_age",
+        "stop.bank_stop_list",
+    }
     assert tuple(h for h in v7_decision.rule_trace if h.rule not in added) == v6_decision.rule_trace
 
 
@@ -197,6 +209,127 @@ def test_pre_approval_is_capped_by_the_band() -> None:
     v6_offer = V6.pre_approve(inp, key_rate=KEY_RATE)
     assert v7_offer is not None and v7_offer.max_amount == Decimal("15000000")
     assert v6_offer is not None and v6_offer.max_amount == Decimal("30000000")
+
+
+# --- остальные стоп-факторы таблицы общей схемы ---------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        ({"company": company(registry_status="reorganizing")}, ReasonCode.STOP_REORGANIZATION),
+        ({"company": company(registry_status="excluded")}, ReasonCode.STOP_EXCLUDED_FROM_REGISTRY),
+        ({"company": company(unreliable=("address", "head"))}, ReasonCode.STOP_UNRELIABLE_DATA),
+        ({"company": company(mass_head=True)}, ReasonCode.STOP_MASS_HEAD),
+        (
+            {
+                "company": company(business_age_months=4),
+                "product": replace(WIDE, min_business_age_months=12),
+            },
+            ReasonCode.STOP_BUSINESS_TOO_YOUNG,
+        ),
+        (
+            {"bank_stop_list": BankStopListInput("ok", listed=True, reason="подлог")},
+            ReasonCode.STOP_BANK_STOP_LIST,
+        ),
+    ],
+)
+def test_new_stop_factor_rejects_before_the_model(
+    overrides: dict[str, Any], reason: ReasonCode
+) -> None:
+    decision = screen(v7(**overrides))
+    assert decision is not None and decision.outcome == "REJECT"
+    assert decision.reason_codes == (reason,)
+
+
+def test_new_stop_factors_trace_when_clean() -> None:
+    decision = decide(
+        v7(
+            company=company(mass_head=False, business_age_months=72),
+            bank_stop_list=BankStopListInput("ok"),
+        )
+    )
+    assert decision.outcome == "APPROVE"
+    details = {
+        rule: hit(decision, rule).detail
+        for rule in (
+            "stop.unreliable_data",
+            "stop.mass_head",
+            "stop.business_age",
+            "stop.bank_stop_list",
+        )
+    }
+    assert details == {
+        "stop.unreliable_data": "отметок о недостоверности сведений в ЕГРЮЛ нет",
+        "stop.mass_head": "руководитель не массовый",
+        "stop.business_age": "срок работы 72 мес., минимум продукта 0 мес.",
+        "stop.bank_stop_list": "во внутреннем стоп-листе банка компании нет",
+    }
+
+
+def test_stop_list_down_is_not_a_reject() -> None:
+    """Источник не ответил — проверка не выполнена; на ручную отправляет сбой источников."""
+    decision = decide(
+        v7(bank_stop_list=BankStopListInput("failed"), sources_failed=("bank_stop_list",))
+    )
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert ReasonCode.ROUTE_SOURCES_FAILED in decision.reason_codes
+    assert hit(decision, "stop.bank_stop_list").detail == (
+        "стоп-лист банка не ответил — проверка не выполнена"
+    )
+
+
+def test_listed_reason_stays_with_the_bank() -> None:
+    decision = screen(v7(bank_stop_list=BankStopListInput("ok", listed=True, reason="подлог")))
+    assert decision is not None
+    assert "подлог" in hit(decision, "stop.bank_stop_list").detail
+    assert "подлог" not in decision.client_explanation
+
+
+# --- обороты по счёту в банке (АБС), когда выписки нет -----------------------------------------
+
+FLAT = BankTurnoverInput(
+    monthly_inflows=(Decimal(1_000_000),) * 12, annual_inflow=Decimal(12_000_000)
+)
+SPIKE = BankTurnoverInput(
+    monthly_inflows=(Decimal(1_000_000),) * 9 + (Decimal(2_000_000),) * 3,
+    annual_inflow=Decimal(15_000_000),
+)
+
+
+def test_turnover_limit_from_the_bank_without_a_statement() -> None:
+    decision = decide(v7(cashflow=None, bank_turnover=FLAT, request=at("10000000")))
+    assert decision.limits.by_turnover == Decimal("6000000.00")
+    assert hit(decision, "limits.turnover").detail == (
+        "k 0.5 × обороты по счёту за год (АБС) 12 000 000 = 6 000 000"
+    )
+    # policy_v6 оборотов в банке не знает.
+    v6 = V6.decide(v7(cashflow=None, bank_turnover=FLAT, request=at("10000000")), key_rate=KEY_RATE)
+    assert v6.limits.by_turnover is None
+
+
+def test_statement_wins_over_the_bank() -> None:
+    statement = CashflowInput(
+        average_monthly_net=Decimal(500_000),
+        gap_detected=False,
+        gap_month=None,
+        revenue_confirmed=True,
+        monthly_inflows=(Decimal(2_000_000),) * 12,
+        annual_inflow=Decimal(24_000_000),
+    )
+    decision = decide(v7(cashflow=statement, bank_turnover=FLAT))
+    assert hit(decision, "limits.turnover").detail == (
+        "k 0.5 × обороты по счёту за год 24 000 000 = 12 000 000"
+    )
+
+
+def test_turnover_spike_from_the_bank() -> None:
+    decision = decide(v7(cashflow=None, bank_turnover=SPIKE))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert ReasonCode.ROUTE_SOFT_TRIGGER in decision.reason_codes
+    assert hit(decision, "trigger.turnover_spike").detail.startswith(
+        "поступления (АБС) за последние 3 мес."
+    )
 
 
 def test_result_before_quality_is_not_degraded() -> None:

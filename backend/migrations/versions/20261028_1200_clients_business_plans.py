@@ -1,8 +1,8 @@
 """clients: business plans of startups
 
 Revision ID: clients_0002
-Revises: scoring_0004
-Create Date: 2026-10-28 10:00:00
+Revises: identity_0003
+Create Date: 2026-10-28 12:00:00
 """
 
 from collections.abc import Sequence
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "clients_0002"
-down_revision: str | None = "scoring_0004"
+down_revision: str | None = "identity_0003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

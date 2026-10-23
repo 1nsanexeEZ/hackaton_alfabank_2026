@@ -92,6 +92,26 @@
       "detail": "основной ОКВЭД 62.01 — не в стоп-листе"
     },
     {
+      "rule": "stop.unreliable_data",
+      "matched": false,
+      "detail": "отметок о недостоверности сведений в ЕГРЮЛ нет"
+    },
+    {
+      "rule": "stop.mass_head",
+      "matched": false,
+      "detail": "руководитель не массовый"
+    },
+    {
+      "rule": "stop.business_age",
+      "matched": false,
+      "detail": "срок работы 8 мес., минимум продукта 6 мес."
+    },
+    {
+      "rule": "stop.bank_stop_list",
+      "matched": false,
+      "detail": "во внутреннем стоп-листе банка компании нет"
+    },
+    {
       "rule": "info.revenue_confirmation",
       "matched": false,
       "detail": "выручка не расходится с ФНС и выпиской"

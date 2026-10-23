@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,8 @@ from src.core.domain.clock import Clock
 from src.modules.identity.application.interfaces.password_hasher import PasswordHasher
 from src.modules.identity.application.use_cases.auth import find_active_by_login
 from src.modules.identity.domain.account import Account
-from src.modules.identity.domain.enums import ConsentType
+from src.modules.identity.domain.entities import Consent
+from src.modules.identity.domain.enums import CompanyConsentType, PersonalConsentType
 from src.modules.identity.facade import AccountRefDTO, ConsentDTO, IdentityFacade
 from src.modules.identity.infrastructure.repositories.account import SqlAlchemyAccountRepository
 from src.modules.identity.infrastructure.repositories.consent import SqlAlchemyConsentRepository
@@ -37,18 +39,33 @@ class IdentityFacadeImpl(IdentityFacade):
             return False
         return self._hasher.verify(account.password_hash, password)
 
-    async def get_active_consent(self, account_id: UUID, type: ConsentType) -> ConsentDTO | None:
+    async def get_active_consent(
+        self, account_id: UUID, type: PersonalConsentType
+    ) -> ConsentDTO | None:
         if await self._accounts.get_active_by_id(account_id) is None:
             return None
+        return self._first_active(await self._consents.list_not_revoked(account_id, type))
+
+    async def get_active_organization_consent(
+        self, organization_id: UUID, type: CompanyConsentType
+    ) -> ConsentDTO | None:
+        """A company consent stays in force after its representative leaves: it was given
+        with the right to act for the company."""
+        return self._first_active(
+            await self._consents.list_not_revoked_for_organization(organization_id, type)
+        )
+
+    def _first_active(self, consents: Sequence[Consent]) -> ConsentDTO | None:
         now = self._clock.now()
-        for consent in await self._consents.list_not_revoked(account_id, type):
+        for consent in consents:
             if consent.is_active(now):
                 return ConsentDTO(
                     account_id=consent.account_id,
-                    type=type,
+                    type=consent.type,
                     given_at=consent.given_at,
                     valid_until=consent.valid_until,
                     text_version=consent.text_version,
+                    organization_id=consent.organization_id,
                 )
         return None
 

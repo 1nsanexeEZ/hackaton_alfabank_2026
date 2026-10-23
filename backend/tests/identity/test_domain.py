@@ -127,8 +127,27 @@ def test_personal_data_consent_lasts_until_revoked() -> None:
     assert consent.user_agent == "x" * 512
     assert consent.is_active(NOW + timedelta(days=3650))
 
-    consent.revoke(NOW)
+    revoker = uuid4()
+    consent.revoke(NOW, by=revoker)
     assert not consent.is_active(NOW)
+    assert consent.revoked_by == revoker
+
+
+def test_company_consent_is_given_for_a_company_only() -> None:
+    company = uuid4()
+    consent = Consent.give(
+        uuid4(), "credit_bureau_company", NOW, ip=None, user_agent=None, organization_id=company
+    )
+
+    assert consent.organization_id == company
+    assert consent.valid_until == datetime(2027, 4, 21, 12, 0, tzinfo=UTC)
+    assert consent.text_version == "bki-ul-2026-10"
+    with pytest.raises(ValueError):
+        Consent.give(uuid4(), "credit_bureau_company", NOW, ip=None, user_agent=None)
+    with pytest.raises(ValueError):
+        Consent.give(
+            uuid4(), "personal_data", NOW, ip=None, user_agent=None, organization_id=company
+        )
 
 
 # --- errors --------------------------------------------------------------------------------

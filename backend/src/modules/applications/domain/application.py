@@ -7,6 +7,7 @@ actions (edit, submit, answer, accept, sign, cancel) and process commands
 """
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Self
 from uuid import UUID
@@ -47,6 +48,7 @@ from src.modules.applications.domain.value_objects import (
     Offer,
     OrganizationSnapshot,
     ProductTerms,
+    ProfileConsent,
     Signature,
     StatusChange,
     Violation,
@@ -230,7 +232,8 @@ class CreditApplication:
         now: datetime,
         automated_decision: bool = False,
     ) -> None:
-        """A consent already given keeps its original moment."""
+        """A consent already given keeps its original moment and, if it came from the
+        profile, the reference to it."""
         self._ensure_editable("consents")
         current = self.consents
         self.consents = Consents(
@@ -240,6 +243,36 @@ class CreditApplication:
             automated_decision_at=(
                 (current.automated_decision_at or now) if automated_decision else None
             ),
+            personal_data_profile=current.personal_data_profile if personal_data else None,
+            credit_bureau_profile=current.credit_bureau_profile if credit_bureau else None,
+        )
+        self.updated_at = now
+
+    def take_profile_consents(
+        self,
+        *,
+        personal_data: ProfileConsent | None,
+        credit_bureau: ProfileConsent | None,
+        account_id: UUID,
+        now: datetime,
+    ) -> None:
+        """Consents the draft lacks come from the profile (given before the application,
+        as on the bank's process map); a checkbox already ticked stays as it is. After
+        submission the consents are frozen: nothing is taken."""
+        if self.status is not S.DRAFT:
+            return
+        current = self.consents
+        personal = personal_data if current.personal_data_at is None else None
+        bureau = credit_bureau if current.credit_bureau_at is None else None
+        if personal is None and bureau is None:
+            return
+        self.consents = replace(
+            current,
+            given_by=current.given_by or account_id,
+            personal_data_at=personal.given_at if personal else current.personal_data_at,
+            personal_data_profile=personal or current.personal_data_profile,
+            credit_bureau_at=bureau.given_at if bureau else current.credit_bureau_at,
+            credit_bureau_profile=bureau or current.credit_bureau_profile,
         )
         self.updated_at = now
 

@@ -6,6 +6,7 @@ from uuid import UUID
 
 from src.modules.enrichment.application.dto.accounting import AccountingReportsDTO
 from src.modules.enrichment.application.dto.aml import AmlCheckDTO
+from src.modules.enrichment.application.dto.bank import BankStopListDTO, BankTurnoverDTO
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.counterparty import CounterpartyRiskDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO
@@ -45,6 +46,8 @@ def to_dto(snapshot: EnrichmentSnapshot) -> EnrichmentSnapshotDTO:
         bki_head=snapshot.data_of("bki_head", CreditHistoryDTO),
         sources_skipped=_errors(snapshot, snapshot.sources_skipped),
         aml=snapshot.data_of("aml", AmlCheckDTO),
+        bank_stop_list=snapshot.data_of("bank_stop_list", BankStopListDTO),
+        bank_turnover=snapshot.data_of("bank_turnover", BankTurnoverDTO),
     )
 
 

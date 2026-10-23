@@ -67,6 +67,11 @@ class _StopFactors(_Strict):
     okved_classes: list[str] = Field(default_factory=list)
     # policy_v7: стоп-факторы до модели и до проверки, есть ли результат скоринга.
     before_scoring: bool = False
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
+    unreliable_data: bool = False
+    mass_head: bool = False
+    business_age: bool = False
+    bank_stop_list: bool = False
 
 
 class _InfoRequest(_Strict):
@@ -83,6 +88,8 @@ class _Limits(_Strict):
     turnover_multiplier: Decimal | None = Field(default=None, gt=0)
     grade_max_amount: dict[str, Decimal] = Field(default_factory=dict)
     group_exposure_max: Decimal | None = Field(default=None, ge=0)
+    # policy_v7: выписки нет — обороты по счёту в банке (АБС) для лимита и «разгона».
+    bank_turnover: bool = False
 
 
 class _Components(_Strict):
@@ -465,6 +472,11 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         else frozenset(),
         screen_before_scoring=stops.before_scoring,
         route_degraded_quality=schema.routing.data_quality,
+        stop_unreliable_data=stops.unreliable_data,
+        stop_mass_head=stops.mass_head,
+        stop_business_age=stops.business_age,
+        stop_bank_stop_list=stops.bank_stop_list,
+        turnover_from_bank=schema.limits.bank_turnover,
     )
 
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from decimal import Decimal
+from functools import partial
 
 from fastapi import FastAPI
 
@@ -27,6 +29,9 @@ from src.modules.decision.application.input_builder import DecisionInputBuilder
 from src.modules.decision.application.make_decision import MakeDecisionUseCase
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
 from src.modules.decision.application.record_manual_decision import RecordManualDecisionUseCase
+from src.modules.decision.application.refresh_pre_approved import (
+    RefreshExpiringPreApprovedUseCase,
+)
 from src.modules.decision.config import DecisionSettings
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.facade import DecisionFacade
@@ -37,6 +42,8 @@ from src.modules.decision.infrastructure.repository import (
     SqlAlchemyFounderPrescreenRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
+from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
+from src.modules.decision.jobs import run_pre_approval_refresh
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
@@ -48,10 +55,11 @@ NAME = "decision"
 class _Runtime:
     policy: CreditPolicy
     key_rate: Decimal
+    settings: DecisionSettings
 
 
 # Политика грузится один раз на процесс (невалидный YAML → приложение не стартует),
-# ключевая ставка — из DECISION_KEY_RATE.
+# ключевая ставка и ночной пакет — из DECISION_*.
 _runtime: _Runtime | None = None
 
 
@@ -61,9 +69,44 @@ def register(app: FastAPI) -> None:
 
 def wire(app: FastAPI) -> None:
     global _runtime
-    _runtime = _Runtime(default_policy(), DecisionSettings().key_rate)
+    settings = DecisionSettings()
+    _runtime = _Runtime(default_policy(), settings.key_rate, settings)
     clock = app.state.clock
     app.state.facades.register(DecisionFacade, lambda session: DecisionFacadeImpl(session, clock))
+
+
+async def startup(app: FastAPI) -> None:
+    """Ночной пакет предодобрения — вместе с остальными фоновыми задачами."""
+    if not app.state.settings.run_background_jobs:
+        return
+    current = _current()
+    clock = app.state.clock
+    transactions = partial(
+        SqlAlchemyPreApprovalTransaction, app.state.session_factory, app.state.facades, clock
+    )
+    use_case = RefreshExpiringPreApprovedUseCase(
+        transactions, current.policy, clock, current.key_rate
+    )
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        run_pre_approval_refresh(
+            use_case,
+            stop,
+            interval_seconds=current.settings.pre_approval_refresh_interval_seconds,
+            within_days=current.settings.pre_approval_refresh_days,
+            first_run_after_seconds=current.settings.pre_approval_refresh_first_run_seconds,
+        ),
+        name="decision-pre-approval-refresh",
+    )
+    app.state.decision_jobs = (stop, task)
+
+
+async def shutdown(app: FastAPI) -> None:
+    jobs = getattr(app.state, "decision_jobs", None)
+    if jobs is not None:
+        stop, task = jobs
+        stop.set()
+        await task
 
 
 def _current() -> _Runtime:

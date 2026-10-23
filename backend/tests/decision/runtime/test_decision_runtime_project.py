@@ -276,3 +276,4 @@ async def test_unknown_company_has_no_assessment(session_factory: Sessions) -> N
     async with session_factory() as session:
         facade = DecisionFacadeImpl(session, FrozenClock(NOW))
         assert await facade.get_project_assessment(uuid4()) is None
+

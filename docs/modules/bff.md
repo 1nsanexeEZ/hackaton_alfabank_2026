@@ -13,9 +13,11 @@
 bff/
 ├── module.py                 # register: роутеры client и backoffice; фасада и подписок нет
 ├── domain/
-│   ├── enums.py              # ClientStatus, TodoKind, Segment, PreApprovalBasis (Literal)
+│   ├── enums.py              # ClientStatus, TodoKind, Segment, PreApprovalBasis,
+│   │                         # ConsentKind, ConsentScope (Literal)
 │   ├── client_status.py      # статус заявки в терминах фронтенда
 │   ├── actions.py            # действия клиента по статусу и правам, пункты «нужно сделать»
+│   ├── consents.py           # согласия до заявки: название, что даёт, нужно ли для подачи
 │   └── project_form.py       # с чем открывается форма проектной оценки стартапа у андеррайтера
 ├── application/
 │   ├── dto/                  # organizations, applications, dashboard, products, backoffice
@@ -57,6 +59,25 @@ bff/
   клиенту не уходят. Бэк-офис получает DTO фасадов целиком.
 - Список заявок и счётчики берутся из проектора, карточка и статус одной заявки — из applications:
   клиент сразу видит результат своего действия.
+
+## Согласия на дашборде
+
+`Dashboard.consents` — согласия, которые банк просит до заявки (по схеме — сразу после выбора
+условий, до предскоринга), и что даёт каждое. Данные — из `IdentityFacade`, тексты и порядок —
+`domain/consents.py`.
+
+| `type` | `scope` | Чьё | `required` |
+|---|---|---|---|
+| `personal_data` | `account` | того, кто открыл дашборд | да |
+| `credit_bureau_company` | `organization` | компании, дал любой представитель | да |
+| `credit_bureau_personal` | `account` | только руководителя по реестру | нет |
+
+- `given` — действует сейчас: дано, не отозвано, срок не истёк; `given_at`, `valid_until` — его.
+- `required` — без согласия заявку не подать. Черновик и подача берут такие согласия из профиля
+  ([applications.md](applications.md#согласия-из-профиля)).
+- Дать — `POST /me/consents` для `scope = account` и `POST /organizations/{id}/consents` для
+  `scope = organization` ([identity.md](../identity.md#согласия-компании)).
+- identity недоступен — блок пустой, в `degraded` — `consents`.
 
 ## Стартап
 

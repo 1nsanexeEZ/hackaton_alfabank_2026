@@ -148,7 +148,7 @@ class StepSpec:
 # What enrichment is asked for: registry, tax, company bureau, the bank statement forecast,
 # accounting reports (GIR BO), courts and bailiffs (Kontur), the head's own bureau report and
 # the 115-FZ check (beneficial owners, lists, PEP, KYC platform) — on every application, a
-# repeat borrower included.
+# repeat borrower included — and the bank's own stop list.
 ENRICHMENT_SOURCES = (
     "egrul",
     "fns",
@@ -158,6 +158,8 @@ ENRICHMENT_SOURCES = (
     "kontur",
     "bki_head",
     "aml",
+    "bank_stop_list",
+    "bank_turnover",
 )
 
 

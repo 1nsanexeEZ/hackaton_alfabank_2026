@@ -24,7 +24,9 @@ class FetchEnrichment(IntegrationMessage):
     organization_id: UUID
     inn: str
     # statement — прогноз по выпискам из statement_document_ids; bki_head — БКИ руководителя;
-    # aml — проверка по 115-FZ (beneficial owners, Rosfinmonitoring lists, PEP, the KYC platform).
+    # aml — проверка по 115-FZ (beneficial owners, Rosfinmonitoring lists, PEP, the KYC platform);
+    # bank_stop_list, bank_turnover — the bank's own stop list and account turnover (core banking
+    # system), no consent needed.
     sources: list[str] = [
         "egrul",
         "fns",
@@ -34,6 +36,8 @@ class FetchEnrichment(IntegrationMessage):
         "kontur",
         "bki_head",
         "aml",
+        "bank_stop_list",
+        "bank_turnover",
     ]
     # Without the consent the credit bureau is not requested at all (218-FZ).
     bki_consent_at: datetime | None = None

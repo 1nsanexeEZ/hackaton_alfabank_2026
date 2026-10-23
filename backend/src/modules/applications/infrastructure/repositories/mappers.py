@@ -27,6 +27,7 @@ from src.modules.applications.domain.value_objects import (
     Offer,
     OrganizationSnapshot,
     ProductTerms,
+    ProfileConsent,
     Signature,
     StatusChange,
 )
@@ -187,12 +188,36 @@ def collateral_in(data: dict[str, Any] | None) -> CollateralDeclaration | None:
     )
 
 
+def _profile_consent_out(consent: ProfileConsent | None) -> dict[str, Any] | None:
+    if consent is None:
+        return None
+    return {
+        "given_by": str(consent.given_by),
+        "given_at": dt_out(consent.given_at),
+        "text_version": consent.text_version,
+    }
+
+
+def _profile_consent_in(data: dict[str, Any] | None) -> ProfileConsent | None:
+    """Rows written before #152 have no such key."""
+    if not data:
+        return None
+    given_at = dt_in(data["given_at"])
+    if given_at is None:
+        raise ValueError("A profile consent has no moment")
+    return ProfileConsent(
+        given_by=UUID(data["given_by"]), given_at=given_at, text_version=data["text_version"]
+    )
+
+
 def consents_out(consents: Consents) -> dict[str, Any]:
     return {
         "personal_data_at": dt_out(consents.personal_data_at),
         "credit_bureau_at": dt_out(consents.credit_bureau_at),
         "given_by": str(consents.given_by) if consents.given_by else None,
         "automated_decision_at": dt_out(consents.automated_decision_at),
+        "personal_data_profile": _profile_consent_out(consents.personal_data_profile),
+        "credit_bureau_profile": _profile_consent_out(consents.credit_bureau_profile),
     }
 
 
@@ -202,6 +227,8 @@ def consents_in(data: dict[str, Any]) -> Consents:
         credit_bureau_at=dt_in(data.get("credit_bureau_at")),
         given_by=_uuid(data.get("given_by")),
         automated_decision_at=dt_in(data.get("automated_decision_at")),
+        personal_data_profile=_profile_consent_in(data.get("personal_data_profile")),
+        credit_bureau_profile=_profile_consent_in(data.get("credit_bureau_profile")),
     )
 
 

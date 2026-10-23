@@ -64,6 +64,8 @@ def dump_input(inp: ScoringInput) -> dict[str, Any]:
         "mass_address": inp.mass_address,
         "sources_failed": list(inp.sources_failed),
         "as_of": inp.as_of.isoformat(),
+        # Только если АБС ответила: снимки без оборотов в банке хешируются, как раньше.
+        **({"bank_months": inp.bank_months} if inp.bank_months is not None else {}),
     }
 
 
@@ -110,6 +112,7 @@ def load_input(raw: dict[str, Any]) -> ScoringInput:
         mass_address=raw["mass_address"],
         sources_failed=tuple(raw["sources_failed"]),
         as_of=date.fromisoformat(raw["as_of"]),
+        bank_months=raw.get("bank_months"),
     )
 
 

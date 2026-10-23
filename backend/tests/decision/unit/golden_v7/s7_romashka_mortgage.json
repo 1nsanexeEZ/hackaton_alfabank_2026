@@ -89,6 +89,26 @@
       "detail": "основной ОКВЭД 56.10 — не в стоп-листе"
     },
     {
+      "rule": "stop.unreliable_data",
+      "matched": false,
+      "detail": "отметок о недостоверности сведений в ЕГРЮЛ нет"
+    },
+    {
+      "rule": "stop.mass_head",
+      "matched": false,
+      "detail": "руководитель не массовый"
+    },
+    {
+      "rule": "stop.business_age",
+      "matched": false,
+      "detail": "срок работы 72 мес., минимум продукта 24 мес."
+    },
+    {
+      "rule": "stop.bank_stop_list",
+      "matched": false,
+      "detail": "во внутреннем стоп-листе банка компании нет"
+    },
+    {
       "rule": "info.revenue_confirmation",
       "matched": false,
       "detail": "выручка не расходится с ФНС и выпиской"
@@ -145,8 +165,8 @@
     },
     {
       "rule": "limits.turnover",
-      "matched": false,
-      "detail": "выписки нет — по оборотам не ограничиваем"
+      "matched": true,
+      "detail": "k 0.5 × обороты по счёту за год (АБС) 48 508 365,94 = 24 254 182,97"
     },
     {
       "rule": "limits.grade",
@@ -226,7 +246,7 @@
     {
       "rule": "trigger.turnover_spike",
       "matched": false,
-      "detail": "выписки нет или она короче двух периодов — проверка не выполнена"
+      "detail": "поступления (АБС) за последние 3 мес. в среднем 3 932 254,89 против 3 988 551,19 раньше: ×0.99, порог > ×1.5"
     },
     {
       "rule": "strategy.risk_matrix",
@@ -250,7 +270,7 @@
     "by_ltv": "35000000.00",
     "by_capacity": "7472732.90",
     "final": "7472732.90",
-    "by_turnover": null,
+    "by_turnover": "24254182.97",
     "by_grade": "40000000.00",
     "by_group": "97000000.00",
     "binding": "by_capacity"

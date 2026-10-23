@@ -13,7 +13,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.modules.bff.application.dto.products import CalculationDTO
-from src.modules.bff.domain.enums import ClientStatus, TodoKind
+from src.modules.bff.domain.enums import ClientStatus, ConsentKind, ConsentScope, TodoKind
 from src.modules.products.facade import Repayment
 
 
@@ -99,6 +99,22 @@ class TodoItem(ClientModel):
     title: str
 
 
+class ConsentState(ClientModel):
+    type: ConsentKind
+    # account — the person gives it for themselves (`POST /me/consents`); organization —
+    # a representative, for the company (`POST /organizations/{id}/consents`).
+    scope: ConsentScope
+    title: str
+    # What the consent lets the bank do.
+    purpose: str
+    # Without it an application cannot be submitted.
+    required: bool
+    # In force now: given, not revoked, not run out.
+    given: bool
+    given_at: datetime | None
+    valid_until: datetime | None
+
+
 class Feed(ClientModel):
     unread: int
     items: list[FeedItem]
@@ -171,6 +187,9 @@ class Dashboard(ClientModel):
     pre_approved: list[PreApprovedOffer]
     active_applications: list[ApplicationRow]
     todo: list[TodoItem]
+    # The consents asked for before an application, in the order to show: personal_data,
+    # credit_bureau_company and, for the head by the registry, credit_bureau_personal.
+    consents: list[ConsentState]
     feed: Feed
     news: list[NewsItem]
     degraded: list[str]

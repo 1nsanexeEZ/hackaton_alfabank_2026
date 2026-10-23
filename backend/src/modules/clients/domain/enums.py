@@ -46,6 +46,9 @@ class RegistryStatus(StrEnum):
     LIQUIDATING = "liquidating"
     LIQUIDATED = "liquidated"
     BANKRUPT = "bankrupt"
+    REORGANIZING = "reorganizing"
+    # Excluded from the register as inactive.
+    EXCLUDED = "excluded"
 
 
 class TaxRegime(StrEnum):

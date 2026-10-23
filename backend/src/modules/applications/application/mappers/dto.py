@@ -11,6 +11,7 @@ from src.modules.applications.application.dto.applications import (
     ApplicationSummaryDTO,
     CollateralDTO,
     ConsentsDTO,
+    ConsentSource,
     DecisionSummaryDTO,
     DocumentDTO,
     InfoRequestDTO,
@@ -40,8 +41,10 @@ from src.modules.applications.domain.value_objects import (
     Offer,
     OrganizationSnapshot,
     ProductTerms,
+    ProfileConsent,
 )
 from src.modules.clients.facade import OrganizationSnapshotDTO
+from src.modules.identity.facade import ConsentDTO
 from src.modules.products.facade import PaymentScheduleDTO, ProductTermsDTO, RequiredDocumentDTO
 
 
@@ -182,12 +185,30 @@ def collateral_dto(collateral: CollateralDeclaration | None) -> CollateralDTO | 
     )
 
 
+def profile_consent(consent: ConsentDTO | None) -> ProfileConsent | None:
+    if consent is None:
+        return None
+    return ProfileConsent(consent.account_id, consent.given_at, consent.text_version)
+
+
+def _consent_source(at: datetime | None, profile: ProfileConsent | None) -> ConsentSource | None:
+    if at is None:
+        return None
+    return "application" if profile is None else "profile"
+
+
 def consents_dto(consents: Consents) -> ConsentsDTO:
     return ConsentsDTO(
         consents.personal_data_at,
         consents.credit_bureau_at,
         consents.given_by,
         consents.automated_decision_at,
+        personal_data_source=_consent_source(
+            consents.personal_data_at, consents.personal_data_profile
+        ),
+        credit_bureau_source=_consent_source(
+            consents.credit_bureau_at, consents.credit_bureau_profile
+        ),
     )
 
 
