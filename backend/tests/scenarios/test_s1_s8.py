@@ -327,3 +327,97 @@ def test_s8_accountant_submits_but_only_the_director_signs(stand: Stand) -> None
     assert signed.status_code == 200, signed.text
     stand.settle()
     assert stand.card(application_id, ROMASHKA["email"])["status"] == "disbursed"
+
+
+START = {"email": "owner@start.test", "inn": "7706123455"}
+
+
+def test_s9_startup_founder_prescreen_project_assessment_and_offer(stand: Stand) -> None:
+    """A company without turnover: the founder's prescreen instead of pre-approval, a STARTUP
+    application, the underwriter's project assessment, an offer, signing and the money."""
+    founder = stand.login(START["email"])
+    organization_id = stand.organization_id(START["inn"])
+
+    dashboard = stand.client.get("/bff/dashboard", headers=founder).json()
+    assert dashboard["organization"]["segment"] == "startup"
+    assert dashboard["pre_approved"] == []
+    assert dashboard["startup"] == {"prescreen": None}
+
+    prescreen_url = f"/organizations/{organization_id}/founder-prescreen"
+    no_consent = stand.client.post(prescreen_url, headers=founder)
+    assert no_consent.status_code == 422, no_consent.text
+    assert no_consent.json()["details"]["code"] == "consent_required"
+    consents = stand.client.post(
+        "/me/consents", json={"types": ["personal_data", "credit_bureau_personal"]}, headers=founder
+    )
+    assert consents.status_code == 201, consents.text
+    passed = stand.client.post(prescreen_url, headers=founder)
+    assert passed.status_code == 201, passed.text
+    assert passed.json()["status"] == "passed"
+    assert stand.client.get(prescreen_url, headers=founder).json()["status"] == "passed"
+
+    matched = stand.client.get(
+        "/bff/products/recommend",
+        params={
+            "organization_id": str(organization_id),
+            "purpose": "working_capital",
+            "amount": "3000000",
+            "term_months": 36,
+        },
+        headers=founder,
+    ).json()["items"]
+    assert [item["product_code"] for item in matched] == ["STARTUP"]
+
+    application_id = submit(
+        stand,
+        **START,
+        product="STARTUP",
+        amount="3000000",
+        term=36,
+        documents=("business_plan", "financial_model"),
+    )
+    card = stand.card(application_id, START["email"])
+    assert card["status"] == "in_review"
+    assert card["client_stage"] == "Проектная оценка"
+    process = stand.process(application_id)
+    assert process["workflow_code"] == "startup_v1"
+    task = stand.task_for(application_id)
+    assert task["type"] == "project_assessment"
+    assert "business_plan" in task["form_schema"]["required"]
+
+    stand.underwriter_decides(
+        application_id,
+        {
+            "decision": "approve",
+            "amount": "3000000",
+            "term_months": 36,
+            "rate": "17",
+            "business_plan": "acceptable",
+            "collateral": "поручительство учредителя",
+            "support_program": True,
+            "comment": "Бизнес-план реалистичный, учредитель без просрочек, программа МСП",
+        },
+    )
+    card = stand.card(application_id, START["email"])
+    assert card["status"] == "offer_ready"
+    assert Decimal(card["offer"]["rate"]) == Decimal("17")
+
+    card = stand.accept_and_sign(application_id, START["email"])
+    assert card["status"] == "disbursed"
+    assert stand.stuck() == []
+
+
+def test_s9_startup_without_a_prescreen_is_turned_down(stand: Stand) -> None:
+    application_id = submit(
+        stand,
+        **START,
+        product="STARTUP",
+        amount="3000000",
+        term=36,
+        documents=("business_plan", "financial_model"),
+    )
+    card = stand.card(application_id, START["email"])
+    assert card["status"] == "rejected"
+    assert card["decision_summary"]["outcome"] == "REJECT"
+    assert "учредителя" in card["decision_summary"]["client_explanation"]
+    assert stand.stuck() == []

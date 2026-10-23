@@ -25,11 +25,13 @@ def reason(item: Recommendation, code: str) -> tuple[bool, str]:
 
 def test_ivanov_unavailable_products_go_last_with_reasons() -> None:
     items = recommend("working_capital", 3_000_000, 24, borrower("ivanov"))
-    assert codes(items) == ["UNSECURED", "GOV_SUPPORT", "SECURED", "CREDIT_LINE"]
-    assert [r.rank for r in items] == [1, 2, 3, 4]
-    assert [r.status for r in items] == ["available"] + ["unavailable"] * 3
-    for item in items[1:]:
+    assert codes(items) == ["UNSECURED", "GOV_SUPPORT", "SECURED", "CREDIT_LINE", "STARTUP"]
+    assert [r.rank for r in items] == [1, 2, 3, 4, 5]
+    assert [r.status for r in items] == ["available"] + ["unavailable"] * 4
+    for item in items[1:4]:
         assert reason(item, "business_age") == (False, "Нужно от 12 месяцев работы, у вас 8")
+    # The startup product is for a company without turnover, not for a working business.
+    assert reason(items[4], "startup")[0] is False
     # State support fits the industry: the bank sees that only the age stands in the way.
     passed, message = reason(items[1], "okved")
     assert passed and "ОКВЭД 62 входит в программу господдержки" in message
@@ -44,14 +46,21 @@ def test_cash_gap_purpose_for_ivanov_leads_to_the_overdraft() -> None:
 
 def test_cash_gap_forecast_lifts_the_credit_line_and_brings_the_overdraft() -> None:
     plain = recommend("working_capital", 3_000_000, 24, borrower("romashka"))
-    assert codes(plain) == ["GOV_SUPPORT", "SECURED", "CREDIT_LINE", "UNSECURED"]
+    assert codes(plain) == ["GOV_SUPPORT", "SECURED", "CREDIT_LINE", "UNSECURED", "STARTUP"]
 
     gap = recommend("working_capital", 3_000_000, 24, borrower("romashka", cash_gap_expected=True))
-    assert codes(gap) == ["CREDIT_LINE", "GOV_SUPPORT", "SECURED", "UNSECURED", "OVERDRAFT"]
+    assert codes(gap) == [
+        "CREDIT_LINE",
+        "GOV_SUPPORT",
+        "SECURED",
+        "UNSECURED",
+        "OVERDRAFT",
+        "STARTUP",
+    ]
     passed, message = reason(gap[0], "cash_gap")
     assert passed and message.startswith("По движению денег прогнозируется кассовый разрыв")
     # The overdraft is offered for the cash gap, but 24 months is beyond its term.
-    overdraft = gap[-1]
+    overdraft = gap[4]
     assert overdraft.status == "needs_adjustment"
     assert reason(overdraft, "cash_gap")[0]
     assert overdraft.adjustments == (
@@ -71,8 +80,9 @@ def test_no_forecast_no_lift() -> None:
 
 def test_amount_above_the_maximum_suggests_an_adjustment() -> None:
     items = recommend("working_capital", 40_000_000, 24)
-    assert codes(items) == ["GOV_SUPPORT", "SECURED", "CREDIT_LINE", "UNSECURED"]
-    unsecured = items[-1]
+    # Without a borrower the startup product is listed after the others.
+    assert codes(items) == ["GOV_SUPPORT", "SECURED", "CREDIT_LINE", "UNSECURED", "STARTUP"]
+    unsecured = items[3]
     assert unsecured.status == "needs_adjustment" and not unsecured.fits
     assert unsecured.adjustments == (
         "Максимум 30 млн ₽ — запросите 30 млн ₽ или выберите «Кредит с господдержкой» "
@@ -81,6 +91,24 @@ def test_amount_above_the_maximum_suggests_an_adjustment() -> None:
     assert reason(unsecured, "amount")[0] is False
     # The payment is estimated for what the product allows.
     assert unsecured.amount == Money.of(30_000_000) and unsecured.term_months == 24
+
+
+def test_a_startup_gets_the_startup_product_first() -> None:
+    start = borrower("ivanov")
+    young = BorrowerProfile(
+        legal_form="LLC",
+        business_age_months=3,
+        annual_revenue=None,
+        okved_main=start.okved_main,
+        verified=True,
+        registry_status="active",
+        in_msp_registry=None,
+        cash_gap_expected=None,
+    )
+    items = recommend("working_capital", 3_000_000, 24, young)
+    assert codes(items)[0] == "STARTUP" and items[0].status == "available"
+    assert reason(items[0], "startup")[0] is True
+    assert all(item.status == "unavailable" for item in items[1:])
 
 
 def test_amount_below_the_minimum() -> None:

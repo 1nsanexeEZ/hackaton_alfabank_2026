@@ -70,4 +70,5 @@ def test_accountant_sees_romashka_and_ivanov(probe: Demo) -> None:
 def test_underwriter_is_not_narrowed(probe: Demo) -> None:
     body = probe.client.get("/probe/rows", headers=probe.as_underwriter()).json()
     assert body["resolved"] is None
-    assert set(body["rows"]) == ids(probe, *probe.orgs)
+    # Rows are financial reports: the startup has none yet.
+    assert set(body["rows"]) == ids(probe, *(code for code in probe.orgs if code != "start"))

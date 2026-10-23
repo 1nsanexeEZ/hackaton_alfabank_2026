@@ -86,7 +86,9 @@ def test_catalog_is_public(api: TestClient) -> None:
         "AUTO",
         "MORTGAGE",
         "GOV_SUPPORT",
+        "STARTUP",
     ]
+    assert [p["startup_only"] for p in items] == [False] * 7 + [True]
     unsecured = items[0]
     assert unsecured["frontend_id"] == "unsecured" and unsecured["name"] == "Кредит без залога"
     assert Decimal(unsecured["rate_base"]) == Decimal("23.5")
@@ -98,7 +100,8 @@ def test_catalog_is_public(api: TestClient) -> None:
         "expansion",
     ]
     assert unsecured["required_documents"][0]["type"] == "financial_report"
-    assert items[-1]["support_program"]["code"] == "MSP_PRIORITY"
+    assert items[-2]["support_program"]["code"] == "MSP_PRIORITY"
+    assert items[-1]["support_program"]["code"] == "MSP_START"
 
 
 def test_catalog_by_purpose(api: TestClient) -> None:
@@ -184,10 +187,11 @@ def test_recommend_without_a_company(api: TestClient) -> None:
         "SECURED",
         "CREDIT_LINE",
         "UNSECURED",
+        "STARTUP",
     ]
     assert all(i["eligible"] is None for i in items)
-    assert items[-1]["status"] == "needs_adjustment"
-    assert items[-1]["adjustments"][0].startswith("Максимум 30 млн ₽ — запросите 30 млн ₽")
+    assert items[3]["status"] == "needs_adjustment"
+    assert items[3]["adjustments"][0].startswith("Максимум 30 млн ₽ — запросите 30 млн ₽")
     assert all(i["reasons"] for i in items)
 
 
@@ -236,6 +240,7 @@ def test_recommend_for_my_company(
         ("GOV_SUPPORT", "unavailable"),
         ("SECURED", "unavailable"),
         ("CREDIT_LINE", "unavailable"),
+        ("STARTUP", "unavailable"),
     ]
     gov = items[1]
     assert {

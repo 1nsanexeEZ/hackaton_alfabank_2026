@@ -33,8 +33,9 @@ async def test_seed_is_idempotent(session_factory: Sessions) -> None:
         count = await session.scalar(select(func.count()).select_from(CreditProductRecord))
         again = [product_dto(p) for p in await SqlAlchemyProductRepository(session).list_active()]
 
-    assert count == 8
+    assert count == 9
     assert again == first
+    assert [p.startup_only for p in again].count(True) == 1
 
 
 async def test_round_trip_keeps_every_field(session_factory: Sessions) -> None:

@@ -21,6 +21,7 @@ FRONTEND_IDS = {
     "MORTGAGE": "mortgage",
     "REFINANCE": "refinance",
     "GOV_SUPPORT": "gov-support",
+    "STARTUP": "startup",
 }
 
 
@@ -89,7 +90,17 @@ def test_fields_schema_is_understood_by_applications(code: str, values: dict) ->
 
 def test_other_products_ask_no_extra_fields() -> None:
     plain = {p.code.value for p in catalog() if not p.application_fields_schema}
-    assert plain == {"UNSECURED", "SECURED", "CREDIT_LINE", "OVERDRAFT", "GOV_SUPPORT"}
+    assert plain == {"UNSECURED", "SECURED", "CREDIT_LINE", "OVERDRAFT", "GOV_SUPPORT", "STARTUP"}
+
+
+def test_startup_is_only_for_a_company_without_turnover_and_never_automatic() -> None:
+    startup = next(p for p in catalog() if p.code.value == "STARTUP")
+    assert startup.eligibility.startup_only and startup.eligibility.min_business_age_months == 0
+    assert [d.type for d in startup.required_documents] == ["business_plan", "financial_model"]
+    assert startup.processing.workflow_code == "startup_v1"
+    assert startup.processing.auto_decision_limit.is_zero
+    assert startup.support_program is not None
+    assert not any(p.eligibility.startup_only for p in catalog() if p.code.value != "STARTUP")
 
 
 def test_mortgage_is_for_companies_only_and_never_automatic() -> None:
