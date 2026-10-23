@@ -1,22 +1,17 @@
 from dataclasses import replace
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError
 from src.modules.clients.facade import FinancialReportDTO
-from src.modules.products.application.borrowers import (
-    BorrowerProfiles,
-    borrower_profile,
-    company_profile,
-    has_cash_gap_flag,
-)
-from src.modules.scoring.facade import CompanyProfileDTO, EstimateDTO
+from src.modules.enrichment.facade import CashflowForecastDTO
+from src.modules.products.application.borrowers import BorrowerProfiles, borrower_profile
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
-from tests.fakes.scoring_facade import FakeScoringFacade
+from tests.fakes.enrichment_facade import FakeEnrichmentFacade
 
 
 def test_profile_from_the_clients_snapshot() -> None:
@@ -46,58 +41,52 @@ def test_verification_and_registry_status() -> None:
     )
 
 
-def test_company_profile_for_scoring() -> None:
-    profile = company_profile(builders.organization_snapshot("romashka"))
-    assert profile == CompanyProfileDTO(
-        legal_form="LLC",
-        business_age_months=72,
-        okved_main="56.10",
-        annual_revenue=Decimal("48000000"),
-        previous_annual_revenue=Decimal("40000000"),
-        verification_status="verified",
-        registry_status="active",
+def _forecast(gap: bool) -> CashflowForecastDTO:
+    return CashflowForecastDTO(
+        months_history=(),
+        forecast=(),
+        gap_detected=gap,
+        gap_month="2026-11" if gap else None,
+        gap_amount=Decimal("150000") if gap else None,
+        annual_inflow=Decimal("6000000"),
+        revenue_confirmed=True,
+        method="тест",
+        statement_document_ids=(),
     )
 
 
-@pytest.mark.parametrize(
-    "flags,expected",
-    [
-        ((), False),
-        (("cash_gap",), True),
-        (("cash_gap_in_2_months",), True),
-        (("low_revenue", "cash_gap"), True),
-        (("no_cash_gap_data",), False),
-    ],
-)
-def test_cash_gap_flag(flags: tuple[str, ...], expected: bool) -> None:
-    assert has_cash_gap_flag(flags) is expected
-
-
-async def test_cash_gap_comes_from_the_scoring_estimate() -> None:
+@pytest.mark.parametrize("gap", [True, False])
+async def test_cash_gap_comes_from_the_statement_forecast(gap: bool) -> None:
     clients = FakeClientsFacade()
     org = clients.add_organization(builders.organization_snapshot("ivanov"))
-    scoring = FakeScoringFacade(EstimateDTO(score=610, grade="C", flags=("cash_gap",), factors=()))
+    enrichment = FakeEnrichmentFacade()
+    enrichment.cashflows[org.id] = _forecast(gap)
 
-    profile = await BorrowerProfiles(clients, scoring).get(org.id, Decimal("1000000"))
+    profile = await BorrowerProfiles(clients, enrichment).get(org.id)
 
-    assert profile.cash_gap_expected is True
-    assert scoring.estimate_calls[0].okved_main == "62.01"
+    assert profile.cash_gap_expected is gap
+
+
+async def test_no_statement_means_the_gap_is_unknown() -> None:
+    """Без выписки разрыв неизвестен — None, а не «разрыва нет»."""
+    clients = FakeClientsFacade()
+    org = clients.add_organization(builders.organization_snapshot("romashka"))
     assert (
-        await BorrowerProfiles(clients, FakeScoringFacade()).get(org.id)
-    ).cash_gap_expected is False
+        await BorrowerProfiles(clients, FakeEnrichmentFacade()).get(org.id)
+    ).cash_gap_expected is None
     assert (await BorrowerProfiles(clients).get(org.id)).cash_gap_expected is None
 
 
-async def test_scoring_failure_leaves_the_forecast_unknown() -> None:
-    class BrokenScoring(FakeScoringFacade):
-        def estimate(
-            self, company: CompanyProfileDTO, amount: Decimal | None = None
-        ) -> EstimateDTO:
-            raise RuntimeError("model is not loaded")
+async def test_forecast_failure_leaves_the_gap_unknown() -> None:
+    class BrokenEnrichment(FakeEnrichmentFacade):
+        async def latest_cashflow(self, organization_id: UUID) -> CashflowForecastDTO | None:
+            raise RuntimeError("database is down")
 
     clients = FakeClientsFacade()
     org = clients.add_organization(builders.organization_snapshot("romashka"))
-    assert (await BorrowerProfiles(clients, BrokenScoring()).get(org.id)).cash_gap_expected is None
+    assert (
+        await BorrowerProfiles(clients, BrokenEnrichment()).get(org.id)
+    ).cash_gap_expected is None
 
 
 async def test_unknown_company() -> None:

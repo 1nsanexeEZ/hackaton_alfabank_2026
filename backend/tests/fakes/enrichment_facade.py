@@ -3,6 +3,7 @@ from uuid import UUID
 
 from src.core.exceptions.exceptions import InfrastructureError
 from src.modules.enrichment.facade import (
+    CashflowForecastDTO,
     CreditHistoryDTO,
     EnrichmentSnapshotDTO,
     PersonDTO,
@@ -18,6 +19,8 @@ class FakeEnrichmentFacade:
         self.people: dict[tuple[str, str], CreditHistoryDTO] = {}
         self.person_bureau_down = False
         self.person_requests: list[tuple[PersonDTO, datetime]] = []
+        # organization_id -> the latest cash flow forecast (by a bank statement).
+        self.cashflows: dict[UUID, CashflowForecastDTO] = {}
 
     def add_snapshot(self, snapshot: EnrichmentSnapshotDTO) -> EnrichmentSnapshotDTO:
         self.snapshots[snapshot.application_id] = snapshot
@@ -35,6 +38,9 @@ class FakeEnrichmentFacade:
 
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None:
         return self.snapshots.get(application_id)
+
+    async def latest_cashflow(self, organization_id: UUID) -> CashflowForecastDTO | None:
+        return self.cashflows.get(organization_id)
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         return self.registry.get(inn)

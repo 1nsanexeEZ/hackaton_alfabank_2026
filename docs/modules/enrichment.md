@@ -40,7 +40,7 @@ enrichment/
 │   ├── interfaces/           # sources (порты источников + Sources), repositories,
 │   │                         # statement_parser, registry_cache
 │   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
-│                             # lookup_registry, lookup_person_bureau
+│                             # latest_cashflow, lookup_registry, lookup_person_bureau
 ├── infrastructure/
 │   ├── config.py             # ENRICHMENT_* из окружения
 │   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
@@ -195,6 +195,9 @@ date;amount;counterparty_inn;counterparty_name;purpose
 
 - `get_snapshot(application_id)` — последний снимок для `scoring`, `decision`, карточки андеррайтера
   (bff).
+- `latest_cashflow(organization_id)` — последний прогноз движения денег по компании: самый свежий
+  снимок с выпиской среди её последних 10 заявок. Для подбора продуктов (products) вне заявки.
+  Выписки не было → `None`: разрыв неизвестен, а не «разрыва нет».
 - `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
   мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
   недоступен → `InfrastructureError` (503).

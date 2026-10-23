@@ -1,20 +1,17 @@
 """The borrower as products see it: built from the clients snapshot, with the
-cash gap forecast from scoring when the scoring module is there."""
+cash flow forecast from enrichment when the company has ever sent a bank
+statement."""
 
 import logging
-from collections.abc import Iterable
 from decimal import Decimal
 from uuid import UUID
 
 from src.core.domain import Money
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.products.domain.value_objects import BorrowerProfile
-from src.modules.scoring.facade import CompanyProfileDTO, ScoringFacade
 
 logger = logging.getLogger(__name__)
-
-# Scoring flags meaning a cash gap is expected (`cash_gap`, `cash_gap_<detail>`).
-CASH_GAP_FLAG = "cash_gap"
 
 
 def annual_revenues(snapshot: OrganizationSnapshotDTO) -> list[Decimal]:
@@ -22,23 +19,6 @@ def annual_revenues(snapshot: OrganizationSnapshotDTO) -> list[Decimal]:
     reports = [r for r in snapshot.financial_reports if r.period_quarter is None]
     reports.sort(key=lambda r: r.period_year, reverse=True)
     return [r.revenue for r in reports]
-
-
-def has_cash_gap_flag(flags: Iterable[str]) -> bool:
-    return any(f == CASH_GAP_FLAG or f.startswith(f"{CASH_GAP_FLAG}_") for f in flags)
-
-
-def company_profile(snapshot: OrganizationSnapshotDTO) -> CompanyProfileDTO:
-    revenues = annual_revenues(snapshot)
-    return CompanyProfileDTO(
-        legal_form=snapshot.legal_form,
-        business_age_months=snapshot.business_age_months,
-        okved_main=snapshot.okved_main,
-        annual_revenue=revenues[0] if revenues else None,
-        previous_annual_revenue=revenues[1] if len(revenues) > 1 else None,
-        verification_status=snapshot.verification_status,
-        registry_status=snapshot.registry_status,
-    )
 
 
 def borrower_profile(
@@ -58,22 +38,24 @@ def borrower_profile(
 
 
 class BorrowerProfiles:
-    def __init__(self, clients: ClientsFacade, scoring: ScoringFacade | None = None) -> None:
+    def __init__(self, clients: ClientsFacade, enrichment: EnrichmentFacade | None = None) -> None:
         self._clients = clients
-        self._scoring = scoring
+        self._enrichment = enrichment
 
-    async def get(self, organization_id: UUID, amount: Decimal | None = None) -> BorrowerProfile:
+    async def get(self, organization_id: UUID) -> BorrowerProfile:
         """NotFoundError from clients when there is no such company."""
         snapshot = await self._clients.get_snapshot(organization_id)
-        return borrower_profile(snapshot, self._cash_gap(snapshot, amount))
+        return borrower_profile(snapshot, await self._cash_gap(organization_id))
 
-    def _cash_gap(self, snapshot: OrganizationSnapshotDTO, amount: Decimal | None) -> bool | None:
-        if self._scoring is None:
+    async def _cash_gap(self, organization_id: UUID) -> bool | None:
+        """The gap from the latest statement forecast; None — no statement yet, so the
+        gap is unknown (not "no gap")."""
+        if self._enrichment is None:
             return None
         try:
-            estimate = self._scoring.estimate(company_profile(snapshot), amount)
+            forecast = await self._enrichment.latest_cashflow(organization_id)
         except Exception:
             # Matching must work without the forecast: the flag is just unknown.
-            logger.warning("Scoring estimate failed, cash gap is unknown", exc_info=True)
+            logger.warning("Cash flow forecast failed, cash gap is unknown", exc_info=True)
             return None
-        return has_cash_gap_flag(estimate.flags)
+        return forecast.gap_detected if forecast is not None else None

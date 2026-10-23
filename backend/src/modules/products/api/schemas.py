@@ -145,7 +145,8 @@ class RecommendationsRead(BaseModel):
     amount: Decimal
     term_months: int
     organization_id: UUID | None = None
-    # From the scoring forecast; None — unknown or no company given.
+    # From the latest bank statement forecast (enrichment); None — no statement yet or no
+    # company given, the gap is unknown.
     cash_gap_expected: bool | None = None
     items: list[RecommendationRead]
 

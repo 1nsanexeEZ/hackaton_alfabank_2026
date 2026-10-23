@@ -14,3 +14,9 @@ class EnrichmentRepository(Protocol):
     async def get_by_command(self, command_event_id: UUID) -> EnrichmentSnapshot | None: ...
 
     async def latest_for_application(self, application_id: UUID) -> EnrichmentSnapshot | None: ...
+
+    async def recent_for_organization(
+        self, organization_id: UUID, limit: int
+    ) -> list[EnrichmentSnapshot]:
+        """Последние снимки компании по всем её заявкам, новые первыми."""
+        ...
