@@ -16,7 +16,11 @@ from src.modules.scoring.application.ports import (
     ScoringModel,
 )
 from src.modules.scoring.facade import ScoringFacade
-from src.modules.scoring.infrastructure.config_loader import default_model, default_quality
+from src.modules.scoring.infrastructure.config_loader import (
+    default_model,
+    default_project,
+    default_quality,
+)
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.ml_loader import default_ml_model
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
@@ -39,10 +43,13 @@ def wire(app: FastAPI) -> None:
     _ml_model = default_ml_model()
     _quality = default_quality()
     scorecard = _scorecard
+    project = default_project()
     # Часы читаются на каждый вызов: тесты могут подменить app.state.clock.
     app.state.facades.register(
         ScoringFacade,
-        lambda session: ScoringFacadeImpl(session, scorecard, clock=app.state.clock),
+        lambda session: ScoringFacadeImpl(
+            session, scorecard, clock=app.state.clock, project=project
+        ),
     )
 
 

@@ -1,5 +1,5 @@
-"""Scoring contract: the explainable score of an application and a quick
-estimate for pre-approval."""
+"""Scoring contract: the explainable score of an application, a quick estimate
+for pre-approval and the checks of a startup before its application."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -100,6 +100,46 @@ class PersonPrescreenDTO:
     reasons: tuple[PrescreenReasonDTO, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectDTO:
+    """A startup's financial model and the loan it asks for, before an application."""
+
+    monthly_revenue: tuple[Decimal, ...]
+    # Operating expenses, without payments on this loan.
+    monthly_expenses: tuple[Decimal, ...]
+    own_funds: Decimal
+    collateral_value: Decimal  # 0 — no collateral
+    guarantee_share: Decimal  # share of the loan under a state support guarantee, 0 — none
+    amount: Decimal
+    term_months: int
+    rate: Decimal  # percent a year, for the payment
+    okved_main: str
+    prescreen_passed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectReasonDTO:
+    code: str  # founder_prescreen | industry | dscr | own_funds | coverage
+    passed: bool
+    message: str  # for the client, without thresholds
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectAssessmentDTO:
+    version: str
+    passed: bool
+    reasons: tuple[ProjectReasonDTO, ...]
+    # The largest loan the project carries; 0 — none. Product limits are not applied.
+    max_amount: Decimal
+    # For the underwriter, at the requested amount: the cash flow and the loan payments over
+    # the horizon of the model, their ratio, own funds in the financing, collateral coverage.
+    cash_flow: Decimal
+    debt_service: Decimal
+    dscr: Decimal | None
+    own_share: Decimal
+    coverage: Decimal
+
+
 class ScoringFacade(Protocol):
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None: ...
 
@@ -111,4 +151,9 @@ class ScoringFacade(Protocol):
     def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
         """A startup founder's own credit history instead of the turnover the
         company does not have yet. None — the bureau does not know the person."""
+        ...
+
+    def assess_project(self, project: ProjectDTO) -> ProjectAssessmentDTO:
+        """A startup's project by its financial model: DSCR, own funds, coverage, industry and
+        the founder's prescreen. No application, nothing stored."""
         ...

@@ -29,6 +29,7 @@ from src.modules.scoring.domain.pd_model import (
     ScorecardSpec,
 )
 from src.modules.scoring.domain.prescreen import FounderPrescreen, PrescreenConfig
+from src.modules.scoring.domain.project import ProjectAssessment, ProjectConfig
 from src.modules.scoring.domain.quality import QualityPolicy
 from src.modules.scoring.domain.scorecard import Scorecard, ScorecardConfig
 
@@ -37,6 +38,7 @@ _DEFAULT_CARD = "scorecard_v1"
 _DEFAULT_MODEL = "pd_model_v2"
 _DEFAULT_PRESCREEN = "prescreen_v1"
 _DEFAULT_QUALITY = "quality_v1"
+_DEFAULT_PROJECT = "project_v1"
 
 # Фактор → обязательные корзины (должны совпадать с логикой в domain/scorecard.py).
 _REQUIRED_BUCKETS: dict[str, frozenset[str]] = {
@@ -154,6 +156,54 @@ def load_prescreen_file(path: Path) -> FounderPrescreen:
 @lru_cache(maxsize=4)
 def default_prescreen() -> FounderPrescreen:
     return load_prescreen()
+
+
+# --- проектная оценка стартапа ----------------------------------------------------------------
+
+
+class _ProjectSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+    horizon_months: int = Field(ge=1)
+    min_dscr: Decimal = Field(gt=0)
+    min_own_share: Decimal = Field(ge=0, lt=1)
+    min_coverage: Decimal = Field(ge=0)
+    collateral_discount: Decimal = Field(gt=0, le=1)
+    max_guarantee_share: Decimal = Field(ge=0, le=1)
+    industry_high_sections: list[int]
+
+
+def load_project(name: str = _DEFAULT_PROJECT) -> ProjectAssessment:
+    return load_project_file(_CONFIG_DIR / f"{name}.yaml")
+
+
+def load_project_file(path: Path) -> ProjectAssessment:
+    try:
+        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScorecardConfigError(f"Не удалось прочитать проектную оценку {path}: {exc}") from exc
+    try:
+        schema = _ProjectSchema.model_validate(raw)
+    except ValidationError as exc:
+        raise ScorecardConfigError(f"Проектная оценка {path} не прошла схему: {exc}") from exc
+    return ProjectAssessment(
+        ProjectConfig(
+            version=schema.version,
+            horizon_months=schema.horizon_months,
+            min_dscr=schema.min_dscr,
+            min_own_share=schema.min_own_share,
+            collateral_discount=schema.collateral_discount,
+            max_guarantee_share=schema.max_guarantee_share,
+            min_coverage=schema.min_coverage,
+            industry_high=frozenset(schema.industry_high_sections),
+        )
+    )
+
+
+@lru_cache(maxsize=4)
+def default_project() -> ProjectAssessment:
+    return load_project()
 
 
 # --- качество данных ---------------------------------------------------------------------------
