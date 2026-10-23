@@ -98,7 +98,7 @@ def test_worst_factor_explains_zakat() -> None:
 
 
 def test_loader_knows_every_feature_of_the_function() -> None:
-    assert set(ml_features(SCENARIOS["romashka_s1"])) == _FEATURES
+    assert set(ml_features(SCENARIOS["romashka_s1"], _MODEL.config.industry)) == _FEATURES
 
 
 def _broken(tmp_path: Path, change: Any) -> Path:
@@ -138,3 +138,28 @@ def test_unordered_grade_bands_rejected(tmp_path: Path) -> None:
 def test_absent_file_rejected(tmp_path: Path) -> None:
     with pytest.raises(MlConfigError):
         load_ml_model_file(tmp_path / "nope.yaml")
+
+
+@pytest.mark.parametrize(
+    "sections",
+    [{"low": [], "high": [41]}, {"low": [62, 41], "high": [41]}],
+)
+def test_bad_industry_sections_rejected(tmp_path: Path, sections: dict[str, list[int]]) -> None:
+    def replace_sections(config: dict[str, Any]) -> None:
+        config["industry_sections"] = sections
+
+    with pytest.raises(MlConfigError, match="industry_sections"):
+        load_ml_model_file(_broken(tmp_path, replace_sections))
+
+
+def test_industry_comes_from_the_model_yaml(tmp_path: Path) -> None:
+    """Справочник отраслей — свой у ML-модели: Ромашка (56.10, общепит) в высоком риске, пока
+    секция 56 в `high` её YAML, и в среднем, если её оттуда убрать."""
+
+    def drop_56(config: dict[str, Any]) -> None:
+        config["industry_sections"]["high"].remove(56)
+
+    model = load_ml_model_file(_broken(tmp_path, drop_56))
+    before = {f.code: f.bin for f in _MODEL.predict(SCENARIOS["romashka_s1"]).factors}
+    after = {f.code: f.bin for f in model.predict(SCENARIOS["romashka_s1"]).factors}
+    assert (before["industry_risk"], after["industry_risk"]) == ("high", "mid")
