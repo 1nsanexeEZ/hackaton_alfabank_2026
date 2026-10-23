@@ -6,8 +6,18 @@ from fastapi import APIRouter, Depends, Query, status
 from src.core.access.access_context import AccessContext
 from src.core.access.dependencies import get_access_context_for, require_permissions
 from src.core.access.permissions import Permissions
-from src.modules.identity.dependencies import AccountServiceDep
-from src.modules.identity.schemas import AccountCreate, AccountRead, AccountUpdate
+from src.modules.identity.presentation.dependencies import (
+    CreateAccountDep,
+    DeleteAccountDep,
+    GetAccountDep,
+    ListAccountsDep,
+    UpdateAccountDep,
+)
+from src.modules.identity.presentation.schemas.accounts import (
+    AccountCreate,
+    AccountRead,
+    AccountUpdate,
+)
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -15,11 +25,11 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 @router.get("", response_model=list[AccountRead])
 async def list_accounts(
     access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_READ))],
-    service: AccountServiceDep,
+    use_case: ListAccountsDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[AccountRead]:
-    accounts = await service.list(access, limit, offset)
+    accounts = await use_case.execute(access, limit, offset)
     return [AccountRead.model_validate(account) for account in accounts]
 
 
@@ -27,9 +37,9 @@ async def list_accounts(
 async def get_account(
     account_id: UUID,
     access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_READ))],
-    service: AccountServiceDep,
+    use_case: GetAccountDep,
 ) -> AccountRead:
-    return AccountRead.model_validate(await service.get(access, account_id))
+    return AccountRead.model_validate(await use_case.execute(access, account_id))
 
 
 @router.post(
@@ -38,8 +48,8 @@ async def get_account(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_permissions(Permissions.ACCOUNTS_CREATE))],
 )
-async def create_account(data: AccountCreate, service: AccountServiceDep) -> AccountRead:
-    return AccountRead.model_validate(await service.create(data))
+async def create_account(data: AccountCreate, use_case: CreateAccountDep) -> AccountRead:
+    return AccountRead.model_validate(await use_case.execute(data.to_dto()))
 
 
 @router.patch("/{account_id}", response_model=AccountRead)
@@ -47,16 +57,16 @@ async def update_account(
     account_id: UUID,
     data: AccountUpdate,
     access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_UPDATE))],
-    service: AccountServiceDep,
+    use_case: UpdateAccountDep,
 ) -> AccountRead:
-    return AccountRead.model_validate(await service.update(access, account_id, data))
+    return AccountRead.model_validate(await use_case.execute(access, account_id, data.to_dto()))
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
     account_id: UUID,
     access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_DELETE))],
-    service: AccountServiceDep,
+    use_case: DeleteAccountDep,
 ) -> None:
     """Soft delete: the account can't log in and disappears for roles with `not_deleted`."""
-    await service.delete(access, account_id)
+    await use_case.execute(access, account_id)

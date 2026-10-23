@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.modules.identity.api import accounts, auth, me, roles
+from src.modules.identity.presentation.api import accounts, auth, me, roles
 
 router = APIRouter()
 router.include_router(auth.router)

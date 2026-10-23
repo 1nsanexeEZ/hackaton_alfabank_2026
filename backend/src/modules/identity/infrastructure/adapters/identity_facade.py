@@ -3,20 +3,22 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain.clock import Clock
-from src.modules.identity.facade import AccountRefDTO, ConsentDTO, ConsentType
-from src.modules.identity.models import Account
-from src.modules.identity.passwords import PasswordHasher
-from src.modules.identity.repositories import AccountRepository, ConsentRepository
-from src.modules.identity.services import aware, consent_is_active, find_active_by_login
+from src.modules.identity.application.interfaces.password_hasher import PasswordHasher
+from src.modules.identity.application.use_cases.auth import find_active_by_login
+from src.modules.identity.domain.account import Account
+from src.modules.identity.domain.enums import ConsentType
+from src.modules.identity.facade import AccountRefDTO, ConsentDTO, IdentityFacade
+from src.modules.identity.infrastructure.repositories.account import SqlAlchemyAccountRepository
+from src.modules.identity.infrastructure.repositories.consent import SqlAlchemyConsentRepository
 
 
-class IdentityFacadeImpl:
+class IdentityFacadeImpl(IdentityFacade):
     """IdentityFacade for other modules. Deleted accounts are invisible:
     lookups return None, a password check fails."""
 
     def __init__(self, session: AsyncSession, hasher: PasswordHasher, clock: Clock) -> None:
-        self._accounts = AccountRepository(session)
-        self._consents = ConsentRepository(session)
+        self._accounts = SqlAlchemyAccountRepository(session)
+        self._consents = SqlAlchemyConsentRepository(session)
         self._hasher = hasher
         self._clock = clock
 
@@ -40,12 +42,12 @@ class IdentityFacadeImpl:
             return None
         now = self._clock.now()
         for consent in await self._consents.list_not_revoked(account_id, type):
-            if consent_is_active(consent, now):
+            if consent.is_active(now):
                 return ConsentDTO(
                     account_id=consent.account_id,
                     type=type,
-                    given_at=aware(consent.given_at),
-                    valid_until=aware(consent.valid_until) if consent.valid_until else None,
+                    given_at=consent.given_at,
+                    valid_until=consent.valid_until,
                     text_version=consent.text_version,
                 )
         return None

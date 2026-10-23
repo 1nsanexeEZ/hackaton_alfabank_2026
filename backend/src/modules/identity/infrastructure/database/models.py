@@ -1,3 +1,6 @@
+"""Tables of identity; repositories map the rows to domain entities
+(repositories/mappers.py)."""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -12,7 +15,7 @@ from src.core.infrastructure.database.mixins import (
 )
 
 
-class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class RoleModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "roles"
 
     name: Mapped[str] = mapped_column(String(64), unique=True)
@@ -24,12 +27,12 @@ class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # passive_deletes: the DB's ON DELETE RESTRICT guards role removal, the ORM
     # must not try to load the collection on delete.
-    accounts: Mapped[list["Account"]] = relationship(
+    accounts: Mapped[list["AccountModel"]] = relationship(
         back_populates="role", lazy="raise", passive_deletes=True
     )
 
 
-class Account(UUIDPrimaryKeyMixin, TimestampMixin, DeletedMixin, Base):
+class AccountModel(UUIDPrimaryKeyMixin, TimestampMixin, DeletedMixin, Base):
     __tablename__ = "accounts"
     __table_args__ = (
         CheckConstraint("email IS NOT NULL OR phone IS NOT NULL", name="has_login"),
@@ -55,15 +58,15 @@ class Account(UUIDPrimaryKeyMixin, TimestampMixin, DeletedMixin, Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role_id: Mapped[UUID] = mapped_column(ForeignKey("roles.id", ondelete="RESTRICT"), index=True)
 
-    role: Mapped[Role] = relationship(back_populates="accounts", lazy="joined")
-    profile: Mapped["Profile"] = relationship(
+    role: Mapped[RoleModel] = relationship(back_populates="accounts", lazy="joined")
+    profile: Mapped["ProfileModel"] = relationship(
         back_populates="account",
         lazy="joined",
         cascade="all, delete-orphan",
     )
 
 
-class Profile(TimestampMixin, Base):
+class ProfileModel(TimestampMixin, Base):
     __tablename__ = "profiles"
 
     account_id: Mapped[UUID] = mapped_column(
@@ -74,10 +77,10 @@ class Profile(TimestampMixin, Base):
     middle_name: Mapped[str | None] = mapped_column(String(100))
     position: Mapped[str | None] = mapped_column(String(150))
 
-    account: Mapped[Account] = relationship(back_populates="profile", lazy="raise")
+    account: Mapped[AccountModel] = relationship(back_populates="profile", lazy="raise")
 
 
-class Consent(UUIDPrimaryKeyMixin, Base):
+class ConsentModel(UUIDPrimaryKeyMixin, Base):
     """A personal consent of the account's owner (152-FZ, 218-FZ). Rows are never
     rewritten: a new consent is a new row, a revocation only sets `revoked_at`."""
 
