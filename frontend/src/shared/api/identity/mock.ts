@@ -106,7 +106,7 @@ function seed(): Store {
   }
 }
 
-let store: Store = readStorage<Store>(STORAGE_KEY) ?? seed()
+const store: Store = readStorage<Store>(STORAGE_KEY) ?? seed()
 
 function save() {
   writeStorage(STORAGE_KEY, store)
