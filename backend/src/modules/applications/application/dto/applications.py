@@ -47,12 +47,20 @@ class CollateralDTO:
     owner: Literal["self", "third_party"]
 
 
+# application — a checkbox in the draft; profile — a consent in force in the profile
+# (the account's personal_data, the company's credit_bureau_company).
+ConsentSource = Literal["application", "profile"]
+
+
 @dataclass(frozen=True, slots=True)
 class ConsentsDTO:
     personal_data_at: datetime | None
     credit_bureau_at: datetime | None
     given_by: UUID | None
     automated_decision_at: datetime | None = None
+    # None — not given.
+    personal_data_source: ConsentSource | None = None
+    credit_bureau_source: ConsentSource | None = None
 
 
 @dataclass(frozen=True, slots=True)

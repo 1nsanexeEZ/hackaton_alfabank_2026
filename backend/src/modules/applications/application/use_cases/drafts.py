@@ -21,15 +21,18 @@ from src.modules.applications.application.use_cases.common import (
     get_writable,
     publish,
     save,
+    take_profile_consents,
     view,
 )
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade
 
 
 class CreateDraftUseCase:
-    """Draft for a company and a product; requisites come from the bank's data."""
+    """Draft for a company and a product; requisites come from the bank's data, the
+    consents already given — from the profile."""
 
     def __init__(
         self,
@@ -38,6 +41,7 @@ class CreateDraftUseCase:
         outbox: MessageOutbox,
         clients: ClientsFacade,
         products: ProductsFacade,
+        identity: IdentityFacade,
         clock: Clock,
     ) -> None:
         self._uow = uow
@@ -45,6 +49,7 @@ class CreateDraftUseCase:
         self._outbox = outbox
         self._clients = clients
         self._products = products
+        self._identity = identity
         self._clock = clock
 
     async def execute(
@@ -84,6 +89,7 @@ class CreateDraftUseCase:
             product_terms=terms,
             now=now,
         )
+        await take_profile_consents(self._identity, application, access.user_id, now)
         async with self._uow:
             await self._repository.add(application)
             await publish(application, self._outbox)

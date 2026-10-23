@@ -81,18 +81,27 @@ class ProfileModel(TimestampMixin, Base):
 
 
 class ConsentModel(UUIDPrimaryKeyMixin, Base):
-    """A personal consent of the account's owner (152-FZ, 218-FZ). Rows are never
-    rewritten: a new consent is a new row, a revocation only sets `revoked_at`."""
+    """A consent given by the account's owner for themselves or, as a representative, for
+    a company (152-FZ, 218-FZ). Rows are never rewritten: a new consent is a new row, a
+    revocation only sets `revoked_at` and `revoked_by`."""
 
     __tablename__ = "identity_consents"
-    __table_args__ = (Index("ix_identity_consents_account_type", "account_id", "type"),)
+    __table_args__ = (
+        Index("ix_identity_consents_account_type", "account_id", "type"),
+        Index("ix_identity_consents_organization_type", "organization_id", "type"),
+    )
 
+    # Who gave it: the person themselves or the company's representative.
     account_id: Mapped[UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    # The company of a company consent (clients owns the companies: no foreign key);
+    # NULL for a personal one.
+    organization_id: Mapped[UUID | None] = mapped_column()
     type: Mapped[str] = mapped_column(String(32))
     given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # None — valid until revoked.
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[UUID | None] = mapped_column()
     # Edition of the consent text the person was shown.
     text_version: Mapped[str] = mapped_column(String(32))
     ip: Mapped[str | None] = mapped_column(String(45))

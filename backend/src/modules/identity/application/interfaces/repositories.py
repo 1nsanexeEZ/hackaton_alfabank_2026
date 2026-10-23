@@ -61,11 +61,22 @@ class RoleRepository(Protocol):
 
 class ConsentRepository(Protocol):
     async def list_for(self, account_id: UUID) -> Sequence[Consent]:
-        """Every consent of the account, newest first."""
+        """Every personal consent of the account, newest first."""
         ...
 
     async def list_not_revoked(self, account_id: UUID, type: ConsentType) -> Sequence[Consent]:
-        """Consents of this type that were never revoked, newest first; some may have run out."""
+        """Personal consents of this type that were never revoked, newest first; some may
+        have run out."""
+        ...
+
+    async def list_for_organization(self, organization_id: UUID) -> Sequence[Consent]:
+        """Every consent given for the company, by any representative, newest first."""
+        ...
+
+    async def list_not_revoked_for_organization(
+        self, organization_id: UUID, type: ConsentType
+    ) -> Sequence[Consent]:
+        """Company consents of this type that were never revoked, newest first."""
         ...
 
     async def add(self, consent: Consent) -> None: ...

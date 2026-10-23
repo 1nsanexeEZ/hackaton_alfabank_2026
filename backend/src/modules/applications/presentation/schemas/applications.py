@@ -127,6 +127,11 @@ class ConsentsOut(BaseModel):
     personal_data_at: datetime | None
     credit_bureau_at: datetime | None
     automated_decision_at: datetime | None = None
+    # application — the checkbox in the draft; profile — taken from a consent in force in the
+    # profile (`/me/consents`, `/organizations/{id}/consents`), then `*_at` is when it was
+    # given there; null — not given.
+    personal_data_source: Literal["application", "profile"] | None = None
+    credit_bureau_source: Literal["application", "profile"] | None = None
 
 
 class RequiredDocumentOut(BaseModel):

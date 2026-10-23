@@ -28,3 +28,9 @@ Segment = Literal["established", "startup"]
 
 # estimate — a conservative estimate without the credit bureau; full — after a check.
 PreApprovalBasis = Literal["estimate", "full"]
+
+# Consents kept in identity, as it names them.
+ConsentKind = Literal["personal_data", "credit_bureau_company", "credit_bureau_personal"]
+# account — the person gives it for themselves; organization — a representative, for the
+# company.
+ConsentScope = Literal["account", "organization"]

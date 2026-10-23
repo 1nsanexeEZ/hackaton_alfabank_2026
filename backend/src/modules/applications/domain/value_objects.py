@@ -163,16 +163,33 @@ class CollateralDeclaration:
 
 
 @dataclass(frozen=True, slots=True)
+class ProfileConsent:
+    """A consent from the profile the application relies on instead of a checkbox: the
+    account's personal_data or the company's credit_bureau_company in force at that
+    moment. Kept as it was, for audit: who gave it, when and which text they were shown."""
+
+    given_by: UUID
+    given_at: datetime
+    text_version: str
+
+
+@dataclass(frozen=True, slots=True)
 class Consents:
     """Personal data processing and credit bureau request (218-FZ): without
     both the application cannot be submitted. A decision made solely by automated
     processing (152-FZ art. 16) is optional: without it an adverse decision on an
-    entrepreneur goes to a person."""
+    entrepreneur goes to a person.
+
+    A consent is a checkbox in the draft or, when the draft has none, a consent in force
+    in the profile (`*_profile`); then `*_at` is when it was given there."""
 
     personal_data_at: datetime | None = None
     credit_bureau_at: datetime | None = None
+    # Who ticked the checkboxes or whose action took the consents from the profile.
     given_by: UUID | None = None
     automated_decision_at: datetime | None = None
+    personal_data_profile: ProfileConsent | None = None
+    credit_bureau_profile: ProfileConsent | None = None
 
     @property
     def complete(self) -> bool:

@@ -145,6 +145,8 @@ def consent_to_entity(row: ConsentModel) -> Consent:
         text_version=row.text_version,
         ip=row.ip,
         user_agent=row.user_agent,
+        organization_id=row.organization_id,
+        revoked_by=row.revoked_by,
     )
 
 
@@ -152,10 +154,12 @@ def consent_to_row(consent: Consent) -> ConsentModel:
     return ConsentModel(
         id=consent.id,
         account_id=consent.account_id,
+        organization_id=consent.organization_id,
         type=consent.type,
         given_at=consent.given_at,
         valid_until=consent.valid_until,
         revoked_at=consent.revoked_at,
+        revoked_by=consent.revoked_by,
         text_version=consent.text_version,
         ip=consent.ip,
         user_agent=consent.user_agent,
