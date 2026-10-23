@@ -6,23 +6,8 @@ the process stage, `offer_ready` by the kind of the offer, and a signed and a
 disbursed loan read the same to the client."""
 
 from decimal import Decimal
-from typing import Literal
 
-ClientStatus = Literal[
-    "draft",
-    "submitted",
-    "checking",
-    "scoring",
-    "info_requested",
-    "approved",
-    "counter_offer",
-    "rejected",
-    "signing",
-    "issued",
-    "cancelled",
-    "declined",
-    "expired",
-]
+from src.modules.bff.domain.enums import ClientStatus
 
 _BY_STATUS: dict[str, ClientStatus] = {
     "draft": "draft",

@@ -2,12 +2,12 @@
 dashboard. The commands themselves live in the applications module; the names
 match its `available_actions`."""
 
-from typing import Literal
+from src.modules.bff.domain.enums import TodoKind
 
-from src.modules.clients.facade import OrgPermission
-
-SUBMIT = OrgPermission.SUBMIT_APPLICATION.value
-SIGN = OrgPermission.SIGN.value
+# Rights inside the company, as clients names them (OrgPermission): the domain
+# does not import the facade of clients.
+SUBMIT = "submit_application"
+SIGN = "sign"
 
 # status -> (action, right inside the company it needs)
 _ACTIONS: dict[str, list[tuple[str, str]]] = {
@@ -31,8 +31,6 @@ _ACTIONS: dict[str, list[tuple[str, str]]] = {
 def available_actions(status: str, permissions: frozenset[str]) -> list[str]:
     return [action for action, needs in _ACTIONS.get(status, []) if needs in permissions]
 
-
-TodoKind = Literal["info_requested", "offer_ready", "signing", "consent_required"]
 
 # projector's action_required -> (todo kind, title)
 _TODO: dict[str, tuple[TodoKind, str]] = {
