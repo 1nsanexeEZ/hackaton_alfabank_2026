@@ -29,6 +29,10 @@ Segment = Literal["established", "startup"]
 # estimate — a conservative estimate without the credit bureau; full — after a check.
 PreApprovalBasis = Literal["estimate", "full"]
 
+# What caps the amount the calculator offers: the pre-approved maximum, the monthly payment
+# the company can afford, or the startup's project offer.
+AffordableBy = Literal["pre_approved", "payment", "project"]
+
 # Consents kept in identity, as it names them.
 ConsentKind = Literal["personal_data", "credit_bureau_company", "credit_bureau_personal"]
 # account — the person gives it for themselves; organization — a representative, for the

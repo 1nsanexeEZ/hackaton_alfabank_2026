@@ -12191,6 +12191,37 @@
               }
             ]
           },
+          "max_affordable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Affordable"
+          },
+          "affordable_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pre_approved",
+                  "payment",
+                  "project"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affordable By"
+          },
+          "above_affordable": {
+            "type": "boolean",
+            "title": "Above Affordable"
+          },
           "degraded": {
             "items": {
               "type": "string"
@@ -12207,6 +12238,9 @@
           "eligible",
           "reasons",
           "suggestion",
+          "max_affordable",
+          "affordable_by",
+          "above_affordable",
           "degraded"
         ],
         "title": "PersonalSchedule"

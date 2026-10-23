@@ -442,4 +442,14 @@ class PersonalSchedule(ClientModel):
     reasons: list[EligibilityReason]
     # The request cut to the pre-approved terms; None when it fits or nothing is pre-approved.
     suggestion: Suggestion | None
+    # The largest amount for the requested term the bank offers: the lesser of the pre-approved
+    # maximum and what the payment allows by the company's report. None — nothing is
+    # pre-approved for this product.
+    max_affordable: Decimal | None
+    # What caps max_affordable: pre_approved — the pre-approved maximum; payment — the monthly
+    # payment the company can afford; project — a startup's project offer.
+    affordable_by: Literal["pre_approved", "payment", "project"] | None
+    # The request is above max_affordable. The application is still accepted: a specialist
+    # decides on it.
+    above_affordable: bool
     degraded: list[str]
