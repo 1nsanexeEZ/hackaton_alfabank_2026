@@ -6,26 +6,60 @@
 
 ```
 applications.events ─┐
-process.events ──────┤  событие = сигнал   ┌─ ApplicationsFacade.get_card
-decision.events ─────┼──► ReadModelProjector ┼─ ProcessFacade.get_task
-clients.events ──────┘   .apply()           ├─ ScoringFacade.get_result
-                                            ├─ DecisionFacade.get_decision / get_pre_approved
-                                            └─ ProductsFacade.get_product, ClientsFacade.get_snapshot
+process.events ──────┤  событие = сигнал      ┌─ ApplicationsFacade.get_card
+decision.events ─────┼──► ProjectEventUseCase ┼─ ProcessFacade.get_task
+clients.events ──────┘   .execute()           ├─ ScoringFacade.get_result
+                                              ├─ DecisionFacade.get_decision / get_pre_approved
+                                              └─ ProductsFacade.get_product, ClientsFacade.get_snapshot
                               │
                               ▼  upsert / пересчёт
               projector_* (5 таблиц) ──► ProjectorFacade ──► BFF
 ```
 
-| Слой | Что |
-|---|---|
-| `domain/` | записи моделей чтения и правила: версия карточки, «первое финальное решение», стадия задачи, ячейка метрик, тексты ленты |
-| `application/projection.py` | `ReadModelProjector.apply(envelope, message)` — единственный код проекции; его вызывают и живой консьюмер, и rebuild |
-| `application/timeline.py` | какое событие становится записью ленты и что в ней видит клиент |
-| `infrastructure/` | таблицы, `SqlAlchemyReadModelStore`, `ProjectorFacadeImpl`, подписки (`consumer.py`), прогон rebuild (`rebuild.py`) |
+`ProjectEventUseCase.execute(envelope, message)` — единственный код проекции: его вызывают и живой консьюмер, и rebuild.
 
 **Подписки.** Ядро разрешает одной consumer group читать один топик, поэтому групп четыре: `projector.read-models.applications`, `.process`, `.decision`, `.clients`. Обработчик у всех один. Инбокс ядра отсекает повтор доставки.
 
 **Событие — сигнал.** Текущее состояние projector дочитывает у модуля-владельца через фасад (в транзакции обработчика) и хранит вместе с версией. Историю (ленту, момент первого решения) берёт из самого события: `occurred_at` и payload. Соседа, чей фасад ещё не подключён (`FacadeNotRegisteredError`), projector пропускает и пишет предупреждение в лог: строки получаются беднее, но проекция не встаёт.
+
+## Структура
+
+Раскладка по слоям из [settings/04-module-structure.md](../../settings/04-module-structure.md).
+
+```
+projector/
+├── facade.py                 # ProjectorFacade + реэкспорт DTO для bff;
+│                             # реализация — infrastructure/adapters/projector_facade.py
+├── module.py                 # wire: фасад в реестре; subscribers: четыре подписки
+├── domain/
+│   ├── read_models.py        # ApplicationOverview, QueueItem, OrganizationDashboard и правила:
+│   │                         # версия карточки, «первое финальное решение», стадия задачи
+│   ├── timeline.py           # TimelineEntry, тексты ленты, id записи от id события
+│   ├── metrics.py            # ячейка метрик DailyMetrics и итог за период MetricsSummary
+│   └── enums.py              # ActionRequired, Audience, QueueSort, EntryKind
+├── application/
+│   ├── dto/                  # applications, queue, timeline, metrics, rebuild
+│   ├── interfaces/           # repositories: ReadModelStore (запись проекции),
+│   │                         #   ReadModelQueries (чтение для фасада);
+│   │                         # neighbours: FacadeLookup (фасады соседей в транзакции);
+│   │                         # transactions: ProjectionTransaction (UoW со своей сессией)
+│   ├── mappers/timeline.py   # какое событие становится записью ленты и что в ней видит клиент
+│   └── use_cases/            # project_event: ProjectEventUseCase;
+│                             # rebuild: очистка, повтор события, перестройка;
+│                             # applications, queue, timeline, metrics: чтение для фасада
+├── infrastructure/
+│   ├── adapters/             # projector_facade.py, projection_transaction.py
+│   ├── database/             # models: пять таблиц projector_*
+│   └── repositories/         # SqlAlchemyReadModelStore, SqlAlchemyReadModelQueries,
+│                             # mappers (строка таблицы ↔ запись домена)
+└── presentation/
+    ├── api/, schemas/        # пусто (.gitkeep): своих ручек нет, экраны читают через BFF
+    ├── consumers.py          # четыре подписки → ProjectEventUseCase
+    ├── rebuild.py            # вход rebuild для scripts/projector_rebuild.py: разбор тел из Kafka
+    └── dependencies.py       # сборка use case'ов и фасада
+```
+
+**Транзакции.** В живом пути проекция пишет в транзакции обработчика, её коммитит ядро вместе с инбоксом. Rebuild работает вне обработчика: каждый шаг (очистка, одно событие) — в своей `ProjectionTransaction` (сессия + `UnitOfWork` + фасады соседей на этой сессии).
 
 ## Таблицы и откуда поля
 
@@ -101,14 +135,14 @@ docker compose exec backend python -m scripts.projector_rebuild
 
 1. очищает все пять таблиц projector;
 2. читает четыре топика с начала новой consumer group `projector.read-models.rebuild-<UTC-время>` (`auto_offset_reset=earliest`); топики хранятся бессрочно;
-3. применяет каждое событие тем же `ReadModelProjector.apply()` в своей транзакции (без инбокса: таблицы пустые, проекция идемпотентна; на ошибке — три попытки);
+3. применяет каждое событие тем же `ProjectEventUseCase` в своей транзакции (без инбокса: таблицы пустые, проекция идемпотентна; на ошибке — три попытки);
 4. останавливается, дойдя до конечных офсетов, снятых при назначении партиций; дальше события обрабатывает живой консьюмер.
 
 Пишет в те же таблицы. Живой консьюмер можно не останавливать: оба только делают upsert и пересчёт, поэтому сходятся. Пока rebuild не догнал, списки неполные. Код возврата — 1, если хоть одно событие не применилось (детали в логе).
 
 ## Фасад
 
-`ProjectorFacadeImpl(session, clock)` регистрирует `module.wire`. Прав внутри нет.
+`ProjectorFacadeImpl` регистрирует `module.wire` (сборка — `presentation/dependencies.projector_facade(session, clock)`). Каждый метод — свой use case, прав внутри нет.
 
 | Метод | Что отдаёт |
 |---|---|
