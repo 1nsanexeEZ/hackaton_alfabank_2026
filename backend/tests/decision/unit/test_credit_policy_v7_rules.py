@@ -1,18 +1,22 @@
-"""Правила policy_v7: стоп-факторы до модели, как на общей схеме.
+"""Правила policy_v7: стоп-факторы до модели и «Данные полные?», как на общей схеме.
 
 - `screen` — отдельный шаг процесса до скоринга: стоп-фактор → решение без модели, иначе None;
 - в `decide` стоп-факторы идут раньше проверки, есть ли результат скоринга: без скоринга
-  стоп-фактор всё равно даёт отказ (в policy_v6 — ручная проверка).
+  стоп-фактор всё равно даёт отказ (в policy_v6 — ручная проверка);
+- скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from src.modules.decision.domain.model import DecisionInput, PolicyDecision, ReasonCode
+from src.modules.decision.facade import review_kind
 from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.unit.test_credit_policy_rules import company
 from tests.decision.unit.test_credit_policy_v3_rules import hit
+from tests.decision.unit.test_credit_policy_v5_rules import models
 from tests.decision.unit.test_credit_policy_v6_rules import LISTED, v6
 
 POLICY = load_policy("policy_v7")
@@ -89,9 +93,49 @@ def test_no_score_without_a_stop_factor_is_for_a_person() -> None:
     assert hit(decision, "stop.registry_status").matched is False
 
 
-def test_with_a_score_the_trace_is_that_of_v6() -> None:
-    inp = v7()
+def test_with_a_score_the_trace_is_that_of_v6_plus_data_quality() -> None:
+    inp = v7(score=replace(models(), quality="ok"))
     v6_decision = V6.decide(inp, key_rate=KEY_RATE)
     v7_decision = decide(inp)
     assert v7_decision.outcome == v6_decision.outcome == "APPROVE"
-    assert v7_decision.rule_trace == v6_decision.rule_trace
+    quality = hit(v7_decision, "route.data_quality")
+    assert not quality.matched and quality.detail == "данные полные"
+    assert tuple(h for h in v7_decision.rule_trace if h is not quality) == v6_decision.rule_trace
+
+
+# --- «Данные полные?» ------------------------------------------------------------------------
+
+DEGRADED = replace(
+    models(),
+    quality="degraded",
+    quality_reasons=("source_failed:bki", "completeness_below:0.583"),
+)
+
+
+def test_degraded_data_is_for_a_person() -> None:
+    decision = decide(v7(score=DEGRADED))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert decision.reason_codes == (ReasonCode.ROUTE_SOURCES_FAILED,)
+    assert review_kind(decision.outcome, decision.reason_codes) == "dispute"
+    detail = hit(decision, "route.data_quality").detail
+    assert detail == (
+        "данные неполные: не ответили источники: bki; данные есть по доле признаков 0.583 — "
+        "ниже порога — решает человек"
+    )
+    # Ставка и лимиты посчитаны — андеррайтер видит их рядом с моделями.
+    assert decision.rate is not None and decision.limits.by_revenue is not None
+
+
+def test_both_models_red_on_degraded_data_are_not_a_reject() -> None:
+    red = replace(models("red", "red"), quality="degraded", quality_reasons=("source_failed:fns",))
+    decision = decide(v7(score=red))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert ReasonCode.STOP_MODELS_HIGH_RISK not in decision.reason_codes
+
+
+def test_result_before_quality_is_not_degraded() -> None:
+    decision = decide(v7())
+    assert decision.outcome == "APPROVE"
+    assert hit(decision, "route.data_quality").detail == (
+        "качество данных скоринг не оценивал — проверка не выполнена"
+    )

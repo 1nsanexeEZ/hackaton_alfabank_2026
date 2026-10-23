@@ -224,6 +224,9 @@ class ScoreInput:
     # ML-модель рядом с PD-моделью (policy_v5); грейд всегда на шкале A–J. None — оценки нет.
     ml_grade: Grade | None = None
     ml_pd_12m: Decimal | None = None
+    # «Данные полные?» скоринга (policy_v7): degraded — решает человек. None — результат до неё.
+    quality: Literal["ok", "degraded"] | None = None
+    quality_reasons: tuple[str, ...] = ()
 
 
 # ok — проверка по 115-ФЗ выполнена на этой заявке; failed — не выполнена (не ответили
