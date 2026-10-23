@@ -1,6 +1,7 @@
-"""PaymentCalculator — the single payment formula of the system.
+"""PaymentCalculator — payment schedules for the client.
 
-Annuity, differentiated and interest-only schedules. Decimal only; every
+Annuity, differentiated and interest-only schedules. The annuity payment
+itself is the system-wide formula from `src.core.domain.annuity`. Decimal only; every
 payment is rounded to kopecks (ROUND_HALF_UP); the last payment takes what is
 left, so the principal always adds up to the loan amount exactly.
 
@@ -12,9 +13,10 @@ left, so the principal always adds up to the loan amount exactly.
 """
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal, localcontext
+from decimal import ROUND_HALF_UP, Decimal
 
 from src.core.domain import Money
+from src.core.domain.annuity import annuity_payment
 from src.modules.products.domain.value_objects import MAX_RATE, MAX_TERM_MONTHS, REPAYMENTS, invalid
 
 SUPPORTED_REPAYMENTS: tuple[str, ...] = ("annuity", "differentiated", "interest_only")
@@ -96,15 +98,7 @@ class PaymentCalculator:
 
     def annuity(self, amount: Money, term_months: int, rate: Decimal) -> Money:
         self._validate(amount, term_months, rate, "annuity")
-        loan = amount.amount
-        with localcontext() as context:
-            context.prec = 50
-            if rate == 0:
-                value = loan / term_months
-            else:
-                monthly = rate / _MONTHLY_DIVISOR
-                value = loan * monthly / (1 - (1 + monthly) ** -term_months)
-            return Money(_round(value), amount.currency)
+        return Money(annuity_payment(amount.amount, term_months, rate), amount.currency)
 
     @staticmethod
     def _validate(amount: Money, term_months: int, rate: Decimal, repayment: str) -> None:

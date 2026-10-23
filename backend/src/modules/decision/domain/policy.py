@@ -56,6 +56,7 @@ from dataclasses import dataclass, field, replace
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from typing import Literal
 
+from src.core.domain.annuity import annuity_payment, max_principal
 from src.modules.decision.domain.explanations import ExplanationCatalog, month_in, render, rub
 from src.modules.decision.domain.model import (
     LEGACY_SCALE,
@@ -81,7 +82,6 @@ from src.modules.decision.domain.model import (
 _ZERO = Decimal(0)
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal(100)
-_MONTHLY_DIVISOR = Decimal(1200)  # 12 месяцев × 100 %
 _TWELVE = Decimal(12)
 _MAX_HINTS = 4
 _HEAD_BUREAU_SKIPPED = {
@@ -228,27 +228,6 @@ class CreditPolicy:
 
 
 # --- расчётные функции (общие для решения и предодобрения) -----------------------------------
-
-
-def annuity_payment(amount: Decimal, term_months: int, rate: Decimal) -> Decimal:
-    """Аннуитетный платёж, округлён до копеек — та же формула, что в products."""
-    monthly = rate / _MONTHLY_DIVISOR
-    if monthly == 0:
-        return (amount / term_months).quantize(_CENT, rounding=ROUND_HALF_UP)
-    payment = amount * monthly / (1 - (1 + monthly) ** -term_months)
-    return payment.quantize(_CENT, rounding=ROUND_HALF_UP)
-
-
-def max_principal(payment: Decimal, term_months: int, rate: Decimal) -> Decimal:
-    """Обратный аннуитет: наибольшая сумма, при которой платёж не превышает `payment`."""
-    if payment <= 0:
-        return _ZERO
-    monthly = rate / _MONTHLY_DIVISOR
-    if monthly == 0:
-        principal = payment * term_months
-    else:
-        principal = payment * (1 - (1 + monthly) ** -term_months) / monthly
-    return principal.quantize(_CENT, rounding=ROUND_DOWN)
 
 
 def round_down(amount: Decimal, step: Decimal) -> Decimal:
