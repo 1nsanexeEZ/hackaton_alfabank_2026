@@ -1,7 +1,12 @@
 """ЕГРЮЛ/ЕГРИП for clients through the enrichment facade: the registry
 extract DTO becomes our value objects."""
 
+import logging
+from uuid import UUID
+
 from src.core.exceptions.exceptions import InfrastructureError, ValidationError
+from src.modules.clients.application.interfaces.registry import RegistryLookup
+from src.modules.clients.domain.enums import RegistryStatus
 from src.modules.clients.domain.value_objects import (
     Address,
     Inn,
@@ -10,10 +15,11 @@ from src.modules.clients.domain.value_objects import (
     OkvedCode,
     PersonName,
     RegistryExtract,
-    RegistryStatus,
     parse_enum,
 )
 from src.modules.enrichment.facade import EnrichmentFacade, RegistryExtractDTO
+
+logger = logging.getLogger(__name__)
 
 # The registry gives the full name, the card keeps the short one.
 _LEGAL_FORMS = (
@@ -56,8 +62,9 @@ def extract_of(dto: RegistryExtractDTO) -> RegistryExtract:
         ) from exc
 
 
-class EnrichmentRegistryLookup:
-    """RegistryLookup on `EnrichmentFacade.lookup_registry`, past its cache."""
+class EnrichmentRegistryLookup(RegistryLookup):
+    """RegistryLookup on `EnrichmentFacade`: `lookup_registry` past its cache,
+    the snapshot of an application for the extract it already has."""
 
     def __init__(self, enrichment: EnrichmentFacade) -> None:
         self._enrichment = enrichment
@@ -65,3 +72,14 @@ class EnrichmentRegistryLookup:
     async def lookup(self, inn: str) -> RegistryExtract | None:
         dto = await self._enrichment.lookup_registry(inn, fresh=True)
         return extract_of(dto) if dto is not None else None
+
+    async def of_application(self, application_id: UUID) -> tuple[UUID, RegistryExtract] | None:
+        snapshot = await self._enrichment.get_snapshot(application_id)
+        if snapshot is None or snapshot.egrul is None:
+            return None
+        try:
+            extract = extract_of(snapshot.egrul)
+        except InfrastructureError:
+            logger.warning("Unreadable registry extract, check skipped: %s", application_id)
+            return None
+        return snapshot.organization_id, extract

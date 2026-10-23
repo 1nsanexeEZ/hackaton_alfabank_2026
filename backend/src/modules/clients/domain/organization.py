@@ -30,6 +30,16 @@ from src.core.exceptions.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from src.modules.clients.domain.enums import (
+    Authority,
+    LegalForm,
+    MemberRole,
+    OrgPermission,
+    RegistryStatus,
+    ReportSource,
+    TaxRegime,
+    VerificationStatus,
+)
 from src.modules.clients.domain.events import (
     MemberAdded,
     MemberRemoved,
@@ -38,15 +48,9 @@ from src.modules.clients.domain.events import (
     OrganizationVerificationMismatch,
     OrganizationVerified,
 )
-from src.modules.clients.domain.financial_report import FinancialReport, ReportFigures, ReportSource
+from src.modules.clients.domain.financial_report import FinancialReport, ReportFigures
 from src.modules.clients.domain.member import Actor, Member
-from src.modules.clients.domain.rights import (
-    HEAD_ROLES,
-    Authority,
-    MemberRole,
-    OrgPermission,
-    PowerOfAttorney,
-)
+from src.modules.clients.domain.rights import HEAD_ROLES, PowerOfAttorney
 from src.modules.clients.domain.value_objects import (
     ENTREPRENEUR_ONLY_REGIMES,
     MAX_NAME_LENGTH,
@@ -54,16 +58,12 @@ from src.modules.clients.domain.value_objects import (
     Discrepancy,
     FieldChange,
     FiscalPeriod,
-    LegalForm,
     OkvedCode,
     PersonName,
     RegistryChanges,
     RegistryExtract,
-    RegistryStatus,
     Requisites,
-    TaxRegime,
     VerificationResult,
-    VerificationStatus,
 )
 
 MAX_EMPLOYEES = 1_000_000

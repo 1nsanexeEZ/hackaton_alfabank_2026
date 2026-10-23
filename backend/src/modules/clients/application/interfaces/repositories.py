@@ -1,13 +1,13 @@
-"""What the use cases need from storage; implemented in infrastructure."""
+"""What the use cases need from storage; implemented in infrastructure/repositories."""
 
 from typing import Protocol
 from uuid import UUID
 
 from src.core.access.access_context import AccessContext
-from src.core.messaging.contracts.base import IntegrationMessage
-from src.modules.clients.domain.financial_report import FinancialReport, ReportSource
+from src.modules.clients.domain.enums import ReportSource
+from src.modules.clients.domain.financial_report import FinancialReport
 from src.modules.clients.domain.organization import Organization
-from src.modules.clients.domain.value_objects import FiscalPeriod, RegistryExtract
+from src.modules.clients.domain.value_objects import FiscalPeriod
 
 
 class OrganizationRepository(Protocol):
@@ -42,25 +42,3 @@ class FinancialReportRepository(Protocol):
     async def add(self, report: FinancialReport) -> None: ...
 
     async def save(self, report: FinancialReport) -> None: ...
-
-
-class EventOutbox(Protocol):
-    """The outbox of the current transaction (core SqlAlchemyOutboxWriter)."""
-
-    async def add(
-        self,
-        message: IntegrationMessage,
-        *,
-        key: UUID | str,
-        correlation_id: UUID,
-        causation_id: UUID | None = None,
-    ) -> UUID: ...
-
-
-class RegistryLookup(Protocol):
-    """ЕГРЮЛ/ЕГРИП by INN, asked past any cache."""
-
-    async def lookup(self, inn: str) -> RegistryExtract | None:
-        """None — the registry does not know the INN; InfrastructureError — it
-        did not answer or answered with something we cannot read."""
-        ...

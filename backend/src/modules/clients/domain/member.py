@@ -5,13 +5,8 @@ from datetime import datetime
 from typing import Self
 from uuid import UUID
 
-from src.modules.clients.domain.rights import (
-    Authority,
-    MemberRole,
-    OrgPermission,
-    PowerOfAttorney,
-    permissions_of,
-)
+from src.modules.clients.domain.enums import Authority, MemberRole, OrgPermission
+from src.modules.clients.domain.rights import PowerOfAttorney, permissions_of
 
 
 @dataclass(frozen=True, slots=True)

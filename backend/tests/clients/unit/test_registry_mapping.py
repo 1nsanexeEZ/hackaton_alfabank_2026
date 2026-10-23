@@ -6,8 +6,9 @@ from datetime import date
 import pytest
 
 from src.core.exceptions.exceptions import InfrastructureError
-from src.modules.clients.domain.value_objects import Kpp, PersonName, RegistryStatus
-from src.modules.clients.infrastructure.registry import extract_of, short_name
+from src.modules.clients.domain.enums import RegistryStatus
+from src.modules.clients.domain.value_objects import Kpp, PersonName
+from src.modules.clients.infrastructure.adapters.enrichment_registry import extract_of, short_name
 from src.modules.enrichment.facade import RegistryExtractDTO
 
 DTO = RegistryExtractDTO(

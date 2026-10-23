@@ -16,7 +16,7 @@ from src.core.access.dependencies import get_access_context_for
 from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.infrastructure.database.session import DbSession
-from src.modules.clients.infrastructure.models import FinancialReportModel
+from src.modules.clients.infrastructure.database.models import FinancialReportModel
 from tests.clients.api.conftest import IVANOV, KUZNETSOVA, PETROV, SMIRNOVA, Demo, start_demo
 
 

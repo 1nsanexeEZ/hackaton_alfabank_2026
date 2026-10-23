@@ -6,7 +6,7 @@ from uuid import UUID
 
 from src.core.messaging.contracts import clients as contracts
 from src.core.messaging.contracts.base import IntegrationMessage
-from src.modules.clients.application.ports import EventOutbox
+from src.modules.clients.application.interfaces.outbox import EventOutbox
 from src.modules.clients.domain import events as domain
 
 PRODUCER = "clients"

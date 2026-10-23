@@ -8,6 +8,12 @@ from enum import StrEnum
 from typing import Self
 
 from src.core.exceptions.exceptions import ValidationError
+from src.modules.clients.domain.enums import (
+    LegalForm,
+    RegistryStatus,
+    TaxRegime,
+    VerificationStatus,
+)
 
 
 def _invalid(field_name: str, code: str, message: str) -> ValidationError:
@@ -17,34 +23,6 @@ def _invalid(field_name: str, code: str, message: str) -> ValidationError:
 def _require_aware(moment: datetime, name: str) -> None:
     if moment.tzinfo is None:
         raise ValueError(f"{name} must be timezone-aware")
-
-
-class LegalForm(StrEnum):
-    LLC = "LLC"  # ООО
-    IE = "IE"  # ИП
-    JSC = "JSC"  # АО
-
-    @property
-    def is_entrepreneur(self) -> bool:
-        return self is LegalForm.IE
-
-
-class RegistryStatus(StrEnum):
-    """Status in ЕГРЮЛ/ЕГРИП. Submission is not blocked by it here: the stop
-    factor belongs to decision."""
-
-    ACTIVE = "active"
-    LIQUIDATING = "liquidating"
-    LIQUIDATED = "liquidated"
-    BANKRUPT = "bankrupt"
-
-
-class TaxRegime(StrEnum):
-    OSN = "osn"
-    USN = "usn"
-    AUSN = "ausn"
-    ESHN = "eshn"
-    PATENT = "patent"
 
 
 # The patent system is open to entrepreneurs only.
@@ -319,12 +297,6 @@ class Discrepancy:
     field: str
     declared: str | None
     registry: str | None
-
-
-class VerificationStatus(StrEnum):
-    UNVERIFIED = "unverified"
-    VERIFIED = "verified"
-    MISMATCH = "mismatch"
 
 
 @dataclass(frozen=True, slots=True)

@@ -14,33 +14,9 @@ is valid at `now` and covers `sign`. An expired power of attorney gives nothing.
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import StrEnum
 
 from src.core.exceptions.exceptions import ValidationError
-
-
-class OrgPermission(StrEnum):
-    VIEW = "view"
-    SUBMIT_APPLICATION = "submit_application"
-    SIGN = "sign"
-    MANAGE_MEMBERS = "manage_members"
-    EDIT_FINANCIALS = "edit_financials"
-
-
-class MemberRole(StrEnum):
-    OWNER = "owner"
-    DIRECTOR = "director"
-    ACCOUNTANT = "accountant"
-    EMPLOYEE = "employee"
-
-
-class Authority(StrEnum):
-    """Why the member may act for the company."""
-
-    REGISTRY = "registry"
-    POWER_OF_ATTORNEY = "power_of_attorney"
-    UNCONFIRMED = "unconfirmed"
-
+from src.modules.clients.domain.enums import Authority, MemberRole, OrgPermission
 
 P = OrgPermission
 R = MemberRole

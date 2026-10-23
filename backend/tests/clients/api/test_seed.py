@@ -12,12 +12,14 @@ from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.outbox import OutboxRecord
-from src.modules.clients.infrastructure.models import (
+from src.modules.clients.infrastructure.database.models import (
     FinancialReportModel,
     MemberModel,
     OrganizationModel,
 )
-from src.modules.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
+from src.modules.clients.infrastructure.repositories.organization import (
+    SqlAlchemyOrganizationRepository,
+)
 from src.modules.identity.facade import IdentityFacade
 from tests.clients.api.conftest import NOW, add_demo_account
 from tests.fakes import builders
