@@ -192,6 +192,7 @@ def consents_out(consents: Consents) -> dict[str, Any]:
         "personal_data_at": dt_out(consents.personal_data_at),
         "credit_bureau_at": dt_out(consents.credit_bureau_at),
         "given_by": str(consents.given_by) if consents.given_by else None,
+        "automated_decision_at": dt_out(consents.automated_decision_at),
     }
 
 
@@ -200,6 +201,7 @@ def consents_in(data: dict[str, Any]) -> Consents:
         personal_data_at=dt_in(data.get("personal_data_at")),
         credit_bureau_at=dt_in(data.get("credit_bureau_at")),
         given_by=_uuid(data.get("given_by")),
+        automated_decision_at=dt_in(data.get("automated_decision_at")),
     )
 
 

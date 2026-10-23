@@ -1,5 +1,6 @@
 """Сервис external-mocks: ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес», ГИР БО, Контур.Фокус, БКИ
-компаний и физлиц, АБС (выдача), ЭДО (подписание).
+компаний и физлиц, перечни Росфинмониторинга, база ПДЛ, платформа ЗСК Банка России, АБС (выдача),
+ЭДО (подписание).
 
 Настоящий HTTP-сервис с «чужим» форматом ответов — бэкенд ходит в него через адаптеры,
 а не перекладывает поля 1:1. Все операции АБС и ЭДО помечены `simulated: true`.
@@ -12,11 +13,19 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException
 
+from app import compliance
 from app.chaos import chaos_middleware
 from app.config import get_settings
 from app.data import Company, bki_response, egrul_response, fns_response, get_company
 from app.dossier import gir_bo_response, kontur_response, person_history, person_report_response
-from app.schemas import AbsRequest, BkiRequest, EdoRequest, PersonBkiRequest
+from app.schemas import (
+    AbsRequest,
+    BkiRequest,
+    EdoRequest,
+    PepRequest,
+    PersonBkiRequest,
+    ScreeningRequest,
+)
 
 app = FastAPI(title="external-mocks", version="0.1.0")
 app.middleware("http")(chaos_middleware)
@@ -77,6 +86,40 @@ async def bki_person(req: PersonBkiRequest) -> dict:
     company = get_company(req.company_inn) if req.company_inn else None
     history = person_history(company, req.last_name, req.first_name, req.middle_name)
     return person_report_response(history, req.last_name, req.first_name, req.middle_name)
+
+
+@app.post("/rfm/screen")
+async def rfm_screen(req: ScreeningRequest) -> dict:
+    """Перечни Росфинмониторинга: экстремизм и терроризм, решения МВК, ФРОМУ."""
+    results = []
+    for subject in req.subjects:
+        if subject.type == "UL":
+            hits = compliance.screen_organization(subject.inn)
+        else:
+            hits = compliance.screen_person(subject.name)
+        results.append({"id": subject.id, "Совпадения": hits})
+    return {"ДатаАктуальности": compliance.lists_date(), "Результаты": results}
+
+
+@app.post("/pep/screen")
+async def pep_screen(req: PepRequest) -> dict:
+    """База публичных должностных лиц: категория и должность, если человек — ПДЛ."""
+    return {
+        "Результаты": [
+            {"id": person.id, "ПДЛ": compliance.pep_status(person.fio)} for person in req.persons
+        ]
+    }
+
+
+@app.get("/zsk/{inn}")
+async def zsk(inn: str) -> dict:
+    """Платформа «Знай своего клиента» Банка России: уровень риска юрлица или ИП."""
+    company = _company(inn)
+    return {
+        "ИНН": company.inn,
+        "Уровень": compliance.zsk_level(company),
+        "ДатаАктуальности": compliance.lists_date(),
+    }
 
 
 @app.post("/abs/disbursements")

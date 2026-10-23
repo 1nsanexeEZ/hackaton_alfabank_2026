@@ -45,13 +45,18 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
         head_first_name=parts[1] if len(parts) > 1 else "",
         head_middle_name=parts[2] if len(parts) > 2 else None,
         head_position=str(raw["Руководитель"]["Должность"]),
-        founders=tuple(
-            FounderDTO(name=str(f["ФИО"]), share_percent=Decimal(str(f["Доля"])))
-            for f in raw.get("Учредители", [])
-        ),
+        founders=tuple(_founder(f) for f in raw.get("Учредители", [])),
         address=str(raw["Адрес"]["Полный"]),
         region_code=str(raw["Адрес"]["КодРегиона"]),
         mass_address=bool(raw["МассовыйАдрес"]),
         kpp=str(raw["КПП"]) if raw.get("КПП") else None,
         head_since=date.fromisoformat(head_since) if head_since else None,
     )
+
+
+def _founder(raw: dict[str, Any]) -> FounderDTO:
+    """Физлицо — `ФИО`; юрлицо — `Наим` и `ИНН`."""
+    share = Decimal(str(raw["Доля"]))
+    if "ИНН" in raw:
+        return FounderDTO(name=str(raw["Наим"]), share_percent=share, inn=str(raw["ИНН"]))
+    return FounderDTO(name=str(raw["ФИО"]), share_percent=share)

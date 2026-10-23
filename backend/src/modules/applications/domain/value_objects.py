@@ -165,11 +165,14 @@ class CollateralDeclaration:
 @dataclass(frozen=True, slots=True)
 class Consents:
     """Personal data processing and credit bureau request (218-FZ): without
-    both the application cannot be submitted."""
+    both the application cannot be submitted. A decision made solely by automated
+    processing (152-FZ art. 16) is optional: without it an adverse decision on an
+    entrepreneur goes to a person."""
 
     personal_data_at: datetime | None = None
     credit_bureau_at: datetime | None = None
     given_by: UUID | None = None
+    automated_decision_at: datetime | None = None
 
     @property
     def complete(self) -> bool:

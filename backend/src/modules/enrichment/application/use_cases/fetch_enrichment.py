@@ -6,6 +6,9 @@
   при его личном согласии (`skipped`, `no_consent`) и если руководитель по реестру известен
   (`skipped`, `no_head`);
 - `statement` в `sources` — прогноз по выпискам, он строится из `statement_document_ids`;
+- `aml` — проверка по 115-ФЗ (бенефициары, перечни Росфинмониторинга, ПДЛ, ЗСК): после ЕГРЮЛ
+  этого же снимка, на каждой команде заново — прошлые заявки клиента и их проверки не
+  переиспользуются; не выполнилась — `aml` в `failed`;
 - не ответил ни один внешний источник (например, нет сети до моков) — считать не на чем:
   снимок сохраняется для аудита, но публикуется EnrichmentFailed, а не EnrichmentCompleted;
 - идемпотентность по event_id команды: повтор возвращает тот же снимок и повторно
@@ -29,10 +32,12 @@ from src.core.messaging.contracts.enrichment import (
 from src.core.messaging.outbox import OutboxWriter
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
+from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
 from src.modules.enrichment.application.dto.snapshot import SourceData
 from src.modules.enrichment.application.interfaces.repositories import EnrichmentRepository
 from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.application.use_cases.build_cashflow import CashflowBuilder
+from src.modules.enrichment.application.use_cases.check_aml import AmlCheck
 from src.modules.enrichment.domain.consent_policy import skip_reason
 from src.modules.enrichment.domain.enums import INTERNAL_SOURCES, Source
 from src.modules.enrichment.domain.exceptions import SourceFetchError, StatementParseError
@@ -72,7 +77,7 @@ class FetchEnrichmentUseCase:
 
         tasks = []
         for source in command.sources:
-            if source in INTERNAL_SOURCES:
+            if source in INTERNAL_SOURCES or source == "aml":
                 continue
             skip = skip_reason(
                 cast(Source, source),
@@ -88,6 +93,7 @@ class FetchEnrichmentUseCase:
             await asyncio.gather(*tasks)
 
         await self._add_cashflow(command, snapshot)
+        await self._add_aml(command, snapshot)
 
         snapshot.completed_at = self._clock.now()
         await self._repository.add(snapshot)
@@ -105,6 +111,31 @@ class FetchEnrichmentUseCase:
             return
         if forecast is not None:
             snapshot.record_cashflow(forecast, fetched_at=self._clock.now())
+
+    async def _add_aml(self, command: FetchEnrichment, snapshot: EnrichmentSnapshot) -> None:
+        if "aml" not in command.sources:
+            return
+        representatives = tuple(
+            _fio(person.last_name, person.first_name, person.middle_name)
+            for person in (command.representative,)
+            if person is not None
+        )
+        started = time.perf_counter()
+        try:
+            check = await AmlCheck(self._sources).run(
+                snapshot.data_of("egrul", RegistryExtractDTO), representatives=representatives
+            )
+        except SourceFetchError as exc:
+            snapshot.record_failure(
+                "aml",
+                SourceError(exc.kind, str(exc)),
+                attempts=exc.attempts,
+                latency_ms=_elapsed_ms(started),
+            )
+            return
+        snapshot.record_success(
+            "aml", check, fetched_at=self._clock.now(), latency_ms=_elapsed_ms(started)
+        )
 
     async def _fetch(
         self, source: Source, snapshot: EnrichmentSnapshot, command: FetchEnrichment
@@ -169,6 +200,10 @@ class FetchEnrichmentUseCase:
             correlation_id=snapshot.application_id,
             causation_id=command_event_id,
         )
+
+
+def _fio(last_name: str, first_name: str, middle_name: str | None) -> str:
+    return " ".join(part for part in (last_name, first_name, middle_name) if part)
 
 
 def _elapsed_ms(started: float) -> int:

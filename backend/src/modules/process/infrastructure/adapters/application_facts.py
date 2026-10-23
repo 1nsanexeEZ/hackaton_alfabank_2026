@@ -41,6 +41,7 @@ class ApplicationFacts(ProcessFacts):
             statement_document_ids=data.statement_document_ids,
             head=head,
             head_bki_consent_at=head_consent_at,
+            representative=await self._representative(data.applicant_account_id, head),
         )
 
     async def collateral(self, application_id: UUID) -> CollateralFact | None:
@@ -48,6 +49,17 @@ class ApplicationFacts(ProcessFacts):
         if card.collateral is None:
             return None
         return CollateralFact(card.collateral.type, card.collateral.declared_value)
+
+    async def _representative(
+        self, account_id: UUID | None, head: PersonFact | None
+    ) -> PersonFact | None:
+        """Who submitted the application acts for the client; the head is screened anyway."""
+        if account_id is None or (head is not None and head.account_id == account_id):
+            return None
+        account = await self._identity.get_account(account_id)
+        if account is None:
+            return None
+        return PersonFact(account.id, account.last_name, account.first_name, account.middle_name)
 
     async def _head(self, organization_id: UUID) -> tuple[PersonFact | None, datetime | None]:
         """Registry head → their account → their consent in force to request the bureau."""

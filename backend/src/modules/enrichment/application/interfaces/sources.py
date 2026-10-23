@@ -8,6 +8,12 @@ from datetime import datetime
 from typing import Protocol
 
 from src.modules.enrichment.application.dto.accounting import AccountingReportsDTO
+from src.modules.enrichment.application.dto.aml import (
+    AmlSubjectDTO,
+    ListScreeningDTO,
+    PepScreeningDTO,
+    ZskRiskDTO,
+)
 from src.modules.enrichment.application.dto.counterparty import CounterpartyRiskDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
@@ -44,6 +50,24 @@ class PersonBureauSource(Protocol):
     async def fetch(self, person: PersonDTO, consent_at: datetime) -> CreditHistoryDTO: ...
 
 
+class AmlListsSource(Protocol):
+    """Перечни Росфинмониторинга: экстремизм и терроризм, решения МВК, ФРОМУ (115-ФЗ)."""
+
+    async def screen(self, subjects: tuple[AmlSubjectDTO, ...]) -> ListScreeningDTO: ...
+
+
+class PepSource(Protocol):
+    """База публичных должностных лиц (ст. 7.3 115-ФЗ)."""
+
+    async def screen(self, names: tuple[str, ...]) -> PepScreeningDTO: ...
+
+
+class ZskSource(Protocol):
+    """Платформа «Знай своего клиента» Банка России (ст. 7.6 115-ФЗ)."""
+
+    async def fetch(self, inn: str) -> ZskRiskDTO: ...
+
+
 @dataclass(frozen=True)
 class Sources:
     registry: RegistrySource
@@ -52,3 +76,6 @@ class Sources:
     accounting: AccountingReportsSource
     counterparty: CounterpartyRiskSource
     person_bureau: PersonBureauSource
+    aml_lists: AmlListsSource
+    pep: PepSource
+    zsk: ZskSource

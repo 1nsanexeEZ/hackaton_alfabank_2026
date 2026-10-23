@@ -222,7 +222,13 @@ class CreditApplication:
         self.updated_at = now
 
     def set_consents(
-        self, *, personal_data: bool, credit_bureau: bool, account_id: UUID, now: datetime
+        self,
+        *,
+        personal_data: bool,
+        credit_bureau: bool,
+        account_id: UUID,
+        now: datetime,
+        automated_decision: bool = False,
     ) -> None:
         """A consent already given keeps its original moment."""
         self._ensure_editable("consents")
@@ -230,7 +236,10 @@ class CreditApplication:
         self.consents = Consents(
             personal_data_at=(current.personal_data_at or now) if personal_data else None,
             credit_bureau_at=(current.credit_bureau_at or now) if credit_bureau else None,
-            given_by=account_id if personal_data or credit_bureau else None,
+            given_by=account_id if personal_data or credit_bureau or automated_decision else None,
+            automated_decision_at=(
+                (current.automated_decision_at or now) if automated_decision else None
+            ),
         )
         self.updated_at = now
 

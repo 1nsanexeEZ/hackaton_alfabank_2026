@@ -28,6 +28,7 @@ from src.modules.enrichment.facade import (
     RegistryExtractDTO,
     TaxProfileDTO,
 )
+from tests.fakes.aml_sources import FakeAmlLists, FakePep, FakeZsk
 from tests.fakes.messaging import FakeOutboxWriter
 
 _CONSENT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
@@ -174,6 +175,9 @@ def sources(
     accounting: object | None = None,
     counterparty: object | None = None,
     person_bureau: object | None = None,
+    aml_lists: object | None = None,
+    pep: object | None = None,
+    zsk: object | None = None,
 ) -> Sources:
     """Все источники; не переданный — рабочий фейк."""
     return Sources(
@@ -183,6 +187,9 @@ def sources(
         accounting or FakeAccounting(),  # type: ignore[arg-type]
         counterparty or FakeCounterparty(),  # type: ignore[arg-type]
         person_bureau or FakePersonBureau(),  # type: ignore[arg-type]
+        aml_lists or FakeAmlLists(),  # type: ignore[arg-type]
+        pep or FakePep(),  # type: ignore[arg-type]
+        zsk or FakeZsk(),  # type: ignore[arg-type]
     )
 
 
@@ -326,7 +333,7 @@ async def test_one_source_alive_is_still_completed() -> None:
 _HEAD = PersonRef(
     account_id=UUID(int=1), last_name="Смирнова", first_name="Анна", middle_name="Сергеевна"
 )
-_ALL = ["egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head"]
+_ALL = ["egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head", "aml"]
 
 
 def _full_command(
@@ -348,14 +355,14 @@ async def test_default_command_asks_every_source() -> None:
     assert command.sources == _ALL
 
 
-async def test_all_seven_sources_without_statements() -> None:
+async def test_every_source_without_statements() -> None:
     repo, outbox, person = InMemoryRepo(), FakeOutboxWriter(), FakePersonBureau(overdue_days=45)
     use_case = FetchEnrichmentUseCase(repo, sources(person_bureau=person), FrozenClock())
 
     await use_case.execute(_full_command(), command_event_id=uuid4(), outbox=outbox)
 
     event = outbox.of_type(EnrichmentCompleted)[0]
-    assert event.sources_ok == ["egrul", "fns", "bki", "gir_bo", "kontur", "bki_head"]
+    assert event.sources_ok == ["egrul", "fns", "bki", "gir_bo", "kontur", "bki_head", "aml"]
     assert event.sources_failed == [] and event.cash_gap_detected is None
     snapshot = repo.added[0]
     assert "statement" not in snapshot.results  # выписок нет — прогноза нет, и это не сбой
@@ -427,7 +434,7 @@ async def test_new_sources_fail_partially() -> None:
 
     event = outbox.of_type(EnrichmentCompleted)[0]
     assert event.sources_failed == ["gir_bo", "kontur"]
-    assert event.sources_ok == ["egrul", "fns", "bki", "bki_head"]
+    assert event.sources_ok == ["egrul", "fns", "bki", "bki_head", "aml"]
     assert repo.added[0].results["gir_bo"].error.kind == "timeout"  # type: ignore[union-attr]
 
 
@@ -442,5 +449,5 @@ async def test_every_external_source_down_fails_without_statement() -> None:
 
     assert outbox.of_type(EnrichmentFailed)[0].reason == (
         "all_sources_failed: egrul=unavailable, fns=unavailable, bki=unavailable, "
-        "gir_bo=unavailable, kontur=unavailable, bki_head=unavailable"
+        "gir_bo=unavailable, kontur=unavailable, bki_head=unavailable, aml=incomplete"
     )

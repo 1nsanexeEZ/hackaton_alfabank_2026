@@ -327,3 +327,30 @@ def test_consents_keep_the_first_moment() -> None:
     )
     assert application.consents.credit_bureau_at is None
     assert not application.consents.complete
+
+
+def test_automated_decision_consent_is_optional_and_keeps_the_first_moment() -> None:
+    """ст. 16 152-ФЗ: согласие на автоматизированное решение — по желанию, без него заявку
+    тоже можно подать; данное однажды хранит первый момент, снятая галочка его отзывает."""
+    application = ready_draft()
+    assert application.consents.complete and application.consents.automated_decision_at is None
+    application.set_consents(
+        personal_data=True,
+        credit_bureau=True,
+        account_id=APPLICANT_ID,
+        now=NOW,
+        automated_decision=True,
+    )
+    later = NOW + timedelta(hours=1)
+    application.set_consents(
+        personal_data=True,
+        credit_bureau=True,
+        account_id=APPLICANT_ID,
+        now=later,
+        automated_decision=True,
+    )
+    assert application.consents.automated_decision_at == NOW
+    application.set_consents(
+        personal_data=True, credit_bureau=True, account_id=APPLICANT_ID, now=later
+    )
+    assert application.consents.automated_decision_at is None

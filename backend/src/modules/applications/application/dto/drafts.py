@@ -22,6 +22,7 @@ class DraftRequestDTO:
 class ConsentsChoiceDTO:
     personal_data: bool
     credit_bureau: bool
+    automated_decision: bool = False
 
 
 @dataclass(frozen=True, slots=True)

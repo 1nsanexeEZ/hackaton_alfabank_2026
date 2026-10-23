@@ -15,6 +15,14 @@ from src.modules.enrichment.application.dto.accounting import (
     AccountingPeriodDTO,
     AccountingReportsDTO,
 )
+from src.modules.enrichment.application.dto.aml import (
+    AmlCheckDTO,
+    AmlSubjectDTO,
+    BeneficialOwnerDTO,
+    ListHitDTO,
+    PepHitDTO,
+    ZskRiskDTO,
+)
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -50,6 +58,8 @@ def data_to_json(source: Source, data: object) -> dict[str, Any]:
         return _accounting_to_json(data)
     if isinstance(data, CounterpartyRiskDTO):
         return _counterparty_to_json(data)
+    if isinstance(data, AmlCheckDTO):
+        return _aml_to_json(data)
     raise TypeError(f"Нельзя сериализовать данные источника {source!r}")
 
 
@@ -66,6 +76,8 @@ def data_from_json(source: Source, raw: dict[str, Any]) -> SourceData:
         return _accounting_from_json(raw)
     if source == "kontur":
         return _counterparty_from_json(raw)
+    if source == "aml":
+        return _aml_from_json(raw)
     raise ValueError(f"Нельзя разобрать данные источника {source!r}")
 
 
@@ -87,7 +99,10 @@ def _registry_to_json(dto: RegistryExtractDTO) -> dict[str, Any]:
         "head_first_name": dto.head_first_name,
         "head_middle_name": dto.head_middle_name,
         "head_position": dto.head_position,
-        "founders": [{"name": f.name, "share_percent": str(f.share_percent)} for f in dto.founders],
+        "founders": [
+            {"name": f.name, "share_percent": str(f.share_percent), "inn": f.inn}
+            for f in dto.founders
+        ],
         "address": dto.address,
         "region_code": dto.region_code,
         "mass_address": dto.mass_address,
@@ -111,7 +126,7 @@ def _registry_from_json(raw: dict[str, Any]) -> RegistryExtractDTO:
         head_middle_name=raw["head_middle_name"],
         head_position=raw["head_position"],
         founders=tuple(
-            FounderDTO(name=f["name"], share_percent=Decimal(f["share_percent"]))
+            FounderDTO(name=f["name"], share_percent=Decimal(f["share_percent"]), inn=f.get("inn"))
             for f in raw["founders"]
         ),
         address=raw["address"],
@@ -330,4 +345,68 @@ def _cashflow_from_json(raw: dict[str, Any]) -> CashflowForecastDTO:
         revenue_confirmed=raw["revenue_confirmed"],
         method=raw["method"],
         statement_document_ids=tuple(UUID(x) for x in raw["statement_document_ids"]),
+    )
+
+
+def _subject_to_json(dto: AmlSubjectDTO) -> dict[str, Any]:
+    return {"role": dto.role, "name": dto.name, "inn": dto.inn}
+
+
+def _subject_from_json(raw: dict[str, Any]) -> AmlSubjectDTO:
+    return AmlSubjectDTO(role=raw["role"], name=raw["name"], inn=raw.get("inn"))
+
+
+def _aml_to_json(dto: AmlCheckDTO) -> dict[str, Any]:
+    return {
+        "lists_date": dto.lists_date.isoformat(),
+        "zsk": {"level": dto.zsk.level, "as_of": dto.zsk.as_of.isoformat()},
+        "beneficial_owners": [
+            {
+                "name": owner.name,
+                "basis": owner.basis,
+                "share_percent": str(owner.share_percent)
+                if owner.share_percent is not None
+                else None,
+            }
+            for owner in dto.beneficial_owners
+        ],
+        "subjects": [_subject_to_json(subject) for subject in dto.subjects],
+        "list_hits": [
+            {"subject": _subject_to_json(hit.subject), "list": hit.list, "record": hit.record}
+            for hit in dto.list_hits
+        ],
+        "pep_hits": [
+            {"subject": _subject_to_json(hit.subject), "kind": hit.kind, "position": hit.position}
+            for hit in dto.pep_hits
+        ],
+    }
+
+
+def _aml_from_json(raw: dict[str, Any]) -> AmlCheckDTO:
+    return AmlCheckDTO(
+        lists_date=date.fromisoformat(raw["lists_date"]),
+        zsk=ZskRiskDTO(level=raw["zsk"]["level"], as_of=date.fromisoformat(raw["zsk"]["as_of"])),
+        beneficial_owners=tuple(
+            BeneficialOwnerDTO(
+                name=owner["name"],
+                basis=owner["basis"],
+                share_percent=_dec(owner["share_percent"]),
+            )
+            for owner in raw["beneficial_owners"]
+        ),
+        subjects=tuple(_subject_from_json(subject) for subject in raw["subjects"]),
+        list_hits=tuple(
+            ListHitDTO(
+                subject=_subject_from_json(hit["subject"]), list=hit["list"], record=hit["record"]
+            )
+            for hit in raw["list_hits"]
+        ),
+        pep_hits=tuple(
+            PepHitDTO(
+                subject=_subject_from_json(hit["subject"]),
+                kind=hit["kind"],
+                position=hit["position"],
+            )
+            for hit in raw["pep_hits"]
+        ),
     )

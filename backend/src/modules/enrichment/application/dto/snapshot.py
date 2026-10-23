@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from src.modules.enrichment.application.dto.accounting import AccountingReportsDTO
+from src.modules.enrichment.application.dto.aml import AmlCheckDTO
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.counterparty import CounterpartyRiskDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO
@@ -20,6 +21,7 @@ SourceData = (
     | CashflowForecastDTO
     | AccountingReportsDTO
     | CounterpartyRiskDTO
+    | AmlCheckDTO
 )
 
 
@@ -48,3 +50,6 @@ class EnrichmentSnapshotDTO:
     bki_head: CreditHistoryDTO | None = None
     # Не запрошенные источники и почему: no_consent, no_head.
     sources_skipped: tuple[SourceErrorDTO, ...] = ()
+    # Проверка по 115-ФЗ на этой заявке; None — не ответили перечни, ПДЛ или ЗСК, или не
+    # установить бенефициаров (тогда `aml` — в `sources_failed`).
+    aml: AmlCheckDTO | None = None
