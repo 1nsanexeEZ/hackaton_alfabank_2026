@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import { CircleCheck, CircleX, Download, Waves } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import {
   FACTOR_LABEL,
   FLAG_LABEL,
-  GRADE_TONE,
+  GRADE_ZONE,
+  gradeTone,
   label,
   LIMIT_LABEL,
   OUTCOME_LABEL,
   REASON_LABEL,
   RELIABILITY,
+  REVIEW_LABEL,
   SEGMENT_LABEL,
   SOURCE_LABEL,
+  ZONE_LABEL,
+  type GradeZone,
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
-import { backofficeApi, type LoanPurpose } from '@/shared/api'
-import { formatDate, formatDateTime, formatMoney, formatPercent, formatTerm, useAsyncData } from '@/shared/lib'
-import { AsyncState, BaseBadge, PanelCard } from '@/shared/ui'
+import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
+import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
+import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
 
 /**
  * Карточка заявки для андеррайтера (GET /bff/backoffice/applications/{id}): что просит клиент,
@@ -53,7 +57,60 @@ async function download(documentId: string) {
   window.open(url, '_blank', 'noopener')
 }
 
-const sortedFactors = computed(() => [...(data.value?.scoring?.factors ?? [])].sort((a, b) => Math.abs(b.points) - Math.abs(a.points)))
+/**
+ * Две оценки риска (policy_v5): экспертная PD-модель и обученная ML-модель на одной шкале A–J.
+ * Совпали зоны — решает автоматика, разошлись — человек; поэтому итог «согласны / расходятся» сверху.
+ */
+type ScoringModel = 'pd' | 'ml'
+const MODEL_TABS: readonly { value: ScoringModel; label: string }[] = [
+  { value: 'pd', label: 'PD-модель' },
+  { value: 'ml', label: 'ML-модель' },
+]
+const factorsOf = ref<ScoringModel>('pd')
+
+const models = computed(() => {
+  const scoring = data.value?.scoring
+  if (!scoring) return []
+  const list: { key: ScoringModel; title: string; version: string; score: number; grade: Grade; pd: string | null }[] = [
+    { key: 'pd', title: 'PD-модель', version: scoring.model_version, score: scoring.score, grade: scoring.grade, pd: scoring.pd_12m ?? null },
+  ]
+  if (scoring.ml) {
+    list.push({ key: 'ml', title: 'ML-модель', version: scoring.ml.model_version, score: scoring.ml.score, grade: scoring.ml.grade, pd: scoring.ml.pd_12m })
+  }
+  return list
+})
+const modelsAgree = computed(() => {
+  const [pd, ml] = models.value
+  return Boolean(pd && ml && GRADE_ZONE[pd.grade] === GRADE_ZONE[ml.grade])
+})
+/** «Модели согласны — обе в жёлтой зоне» / «Модели расходятся: PD — зелёная, ML — красная» */
+const ZONE_WORD: Record<GradeZone, { one: string; both: string }> = {
+  green: { one: 'зелёная', both: 'зелёной' },
+  yellow: { one: 'жёлтая', both: 'жёлтой' },
+  red: { one: 'красная', both: 'красной' },
+}
+const modelsVerdict = computed(() => {
+  const [pd, ml] = models.value
+  if (!pd || !ml) return null
+  const pdZone = GRADE_ZONE[pd.grade]
+  const mlZone = GRADE_ZONE[ml.grade]
+  return pdZone === mlZone
+    ? `Модели согласны — обе в ${ZONE_WORD[pdZone].both} зоне`
+    : `Модели расходятся: PD — ${ZONE_WORD[pdZone].one}, ML — ${ZONE_WORD[mlZone].one}`
+})
+
+const shownFactors = computed(() => {
+  const scoring = data.value?.scoring
+  const factors = factorsOf.value === 'ml' && scoring?.ml ? scoring.ml.factors : (scoring?.factors ?? [])
+  return [...factors].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+})
+/** Значение и корзина признака; у категорий ML-модели они совпадают — тогда одно, без значения — только корзина */
+const factorDetail = (factor: FactorDto) => [...new Set([factor.value, factor.bin].filter(Boolean))].join(' · ')
+
+const shownReasons = computed(() => {
+  const scoring = data.value?.scoring
+  return (factorsOf.value === 'ml' && scoring?.ml ? scoring.ml.reason_codes : scoring?.reason_codes) ?? []
+})
 
 /** Кредитные истории: компании и руководителя (вторая — только с его личным согласием) */
 const bureaus = computed(() => {
@@ -436,32 +493,51 @@ const RATE_PARTS = [
           v-if="data.scoring"
           title="Скоринг"
           :description="[
-            `Модель ${data.scoring.model_version}`,
-            data.scoring.scorecard && `скоркарта ${data.scoring.scorecard}`,
+            data.scoring.scorecard && `Скоркарта ${data.scoring.scorecard}`,
             data.scoring.segment && (SEGMENT_LABEL[data.scoring.segment] ?? data.scoring.segment),
-            `полнота данных ${data.scoring.data_completeness}`,
+            `полнота данных ${formatPercent(Number(data.scoring.data_completeness) * 100)}`,
           ]
             .filter(Boolean)
             .join(' · ')"
         >
-          <div class="flex flex-wrap items-center gap-3">
-            <span class="text-3xl font-bold text-ink tabular-nums">{{ data.scoring.score }}</span>
-            <BaseBadge :tone="GRADE_TONE[data.scoring.grade] ?? 'neutral'">Грейд {{ data.scoring.grade }}</BaseBadge>
-            <span v-if="data.scoring.pd_12m" class="text-sm text-ink-secondary">
-              PD 12 мес.: {{ formatPercent(Number(data.scoring.pd_12m) * 100) }}
-            </span>
-          </div>
-          <p v-if="data.scoring.reason_codes?.length" class="mt-2 text-xs text-ink-secondary">
-            Сильнее всего снизили балл: {{ data.scoring.reason_codes.map((code) => label(FACTOR_LABEL, code)).join(', ') }}
+          <p v-if="modelsVerdict" class="mb-3 text-sm font-semibold" :class="modelsAgree ? 'text-ink' : 'text-warning'">
+            {{ modelsVerdict }}
           </p>
+          <p v-else class="mb-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div v-for="model in models" :key="model.key" class="min-w-0 rounded-lg bg-surface-soft p-3">
+              <p class="text-xs text-ink-secondary">{{ model.title }}</p>
+              <p class="mt-1 flex flex-wrap items-center gap-2">
+                <span class="text-2xl font-bold text-ink tabular-nums">{{ model.score }}</span>
+                <BaseBadge :tone="gradeTone(model.grade)">{{ model.grade }}</BaseBadge>
+              </p>
+              <p v-if="model.pd" class="mt-1 text-xs text-ink-secondary">PD 12 мес.: {{ formatProbability(Number(model.pd)) }}</p>
+              <p class="mt-1 flex items-center gap-1.5 text-xs text-ink">
+                <span
+                  class="size-2 shrink-0 rounded-full"
+                  :class="{ 'bg-success': GRADE_ZONE[model.grade] === 'green', 'bg-warning': GRADE_ZONE[model.grade] === 'yellow', 'bg-brand': GRADE_ZONE[model.grade] === 'red' }"
+                  aria-hidden="true"
+                />
+                {{ ZONE_LABEL[GRADE_ZONE[model.grade]]?.label ?? '—' }}
+              </p>
+              <p class="mt-1 truncate text-[11px] text-ink-muted" :title="model.version">{{ model.version }}</p>
+            </div>
+          </div>
+
           <div v-if="data.scoring.flags.length" class="mt-3 flex flex-wrap gap-1.5">
             <BaseBadge v-for="flag in data.scoring.flags" :key="flag" tone="warning">{{ label(FLAG_LABEL, flag) }}</BaseBadge>
           </div>
-          <ul class="mt-4 space-y-2 text-sm">
-            <li v-for="factor in sortedFactors" :key="factor.code" class="flex items-start justify-between gap-3">
+
+          <SegmentedControl v-if="models.length === 2" v-model="factorsOf" class="mt-4" :options="MODEL_TABS" label="Признаки какой модели показать" />
+          <p v-if="shownReasons.length" class="mt-3 text-xs text-ink-secondary">
+            Сильнее всего снизили балл: {{ shownReasons.map((code) => label(FACTOR_LABEL, code)).join(', ') }}
+          </p>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li v-for="factor in shownFactors" :key="factor.code" class="flex items-start justify-between gap-3">
               <span class="min-w-0">
                 <span class="text-ink">{{ label(FACTOR_LABEL, factor.code) }}</span>
-                <span v-if="factor.value" class="block text-xs text-ink-secondary">{{ factor.value }} · {{ factor.bin }}</span>
+                <span v-if="factorDetail(factor)" class="block text-xs text-ink-secondary">{{ factorDetail(factor) }}</span>
               </span>
               <span
                 class="shrink-0 font-semibold tabular-nums"
@@ -477,6 +553,9 @@ const RATE_PARTS = [
           <div class="flex flex-wrap items-center gap-2">
             <BaseBadge :tone="OUTCOME_LABEL[data.decision.outcome]?.tone ?? 'neutral'">
               {{ OUTCOME_LABEL[data.decision.outcome]?.label ?? data.decision.outcome }}
+            </BaseBadge>
+            <BaseBadge v-if="data.decision.review" :tone="REVIEW_LABEL[data.decision.review].tone">
+              {{ REVIEW_LABEL[data.decision.review].label }}
             </BaseBadge>
             <span class="text-xs text-ink-secondary">
               {{ data.decision.decided_by_type === 'auto' ? 'автоматически' : 'андеррайтер' }} ·

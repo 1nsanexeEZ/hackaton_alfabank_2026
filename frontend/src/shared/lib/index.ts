@@ -7,6 +7,7 @@ export {
   formatMoney,
   formatMoneyShort,
   formatPercent,
+  formatProbability,
   formatRelativeTime,
   formatTerm,
   formatTermLimit,
