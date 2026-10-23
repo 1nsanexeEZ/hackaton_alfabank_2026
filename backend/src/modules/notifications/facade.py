@@ -1,44 +1,16 @@
-"""Notifications contract: feed counters and latest items for the dashboard."""
+"""Notifications contract: feed counters and latest items for the dashboard.
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Literal, Protocol
+The only entry point for other modules: the protocol below and the DTO it returns
+(defined in `application/dto`, re-exported here)."""
+
+from typing import Protocol
 from uuid import UUID
 
-FeedItemType = Literal[
-    "status_changed",
-    "stage_changed",
-    "info_requested",
-    "offer_ready",
-    "task_assigned",
-    "advice",
-    "news",
-]
+from src.modules.notifications.application.dto.feed import FeedItemDTO
+from src.modules.notifications.application.dto.news import NewsItemDTO
+from src.modules.notifications.domain.enums import FeedItemType
 
-
-@dataclass(frozen=True, slots=True)
-class FeedItemDTO:
-    id: UUID
-    type: FeedItemType
-    title: str
-    body: str
-    link: str | None
-    priority: Literal["low", "normal", "high"]
-    action_required: bool
-    organization_id: UUID | None
-    application_id: UUID | None
-    created_at: datetime
-    read_at: datetime | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class NewsItemDTO:
-    id: UUID
-    title: str
-    body: str
-    published_at: datetime
-    # Why the item was picked for this company ("ОКВЭД 56", "продукт OVERDRAFT").
-    relevance: tuple[str, ...]
+__all__ = ["FeedItemDTO", "FeedItemType", "NewsItemDTO", "NotificationsFacade"]
 
 
 class NotificationsFacade(Protocol):

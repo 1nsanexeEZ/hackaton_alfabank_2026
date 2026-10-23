@@ -17,8 +17,8 @@ from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFaca
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO
 from src.modules.identity.facade import IdentityFacade
-from src.modules.notifications.infrastructure.consumer import feed_subscriptions
-from src.modules.notifications.infrastructure.models import FeedItem
+from src.modules.notifications.infrastructure.database.models import FeedItem
+from src.modules.notifications.presentation.consumers import feed_subscriptions
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 from tests.fakes import builders

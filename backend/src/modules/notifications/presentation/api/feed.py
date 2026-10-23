@@ -1,20 +1,26 @@
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Header, Query
 from sse_starlette import EventSourceResponse, ServerSentEvent
 
-from src.core.infrastructure.database.session import DbSession
-from src.modules.notifications.api.dependencies import (
+from src.modules.notifications.application.dto.feed import FeedFilter
+from src.modules.notifications.application.dto.stream import StreamEvent
+from src.modules.notifications.application.use_cases.stream import parse_last_event_id
+from src.modules.notifications.presentation.dependencies import (
     AppClock,
+    CountUnreadDep,
     CurrentViewer,
-    FeedServiceDep,
-    StreamTicketsDep,
-    ensure_organization_visible,
+    IssueStreamTicketDep,
+    ListFeedDep,
+    MarkAllFeedReadDep,
+    MarkFeedItemReadDep,
+    OrganizationVisibilityDep,
+    RedeemStreamTicketDep,
+    StreamFeedDep,
 )
-from src.modules.notifications.api.schemas import (
+from src.modules.notifications.presentation.schemas.feed import (
     ApplicationUpdated,
     FeedItemRead,
     FeedPage,
@@ -23,14 +29,6 @@ from src.modules.notifications.api.schemas import (
     StreamTicketRead,
     UnreadCount,
 )
-from src.modules.notifications.application import stream
-from src.modules.notifications.application.ports import FeedFilter, FeedStore
-from src.modules.notifications.application.stream import (
-    StreamEvent,
-    feed_events,
-    parse_last_event_id,
-)
-from src.modules.notifications.infrastructure.repositories import SqlAlchemyFeedStore
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
@@ -40,10 +38,9 @@ ApplicationFilter = Annotated[UUID | None, Query()]
 
 @router.get("", response_model=FeedPage)
 async def list_feed(
-    request: Request,
-    session: DbSession,
     viewer: CurrentViewer,
-    service: FeedServiceDep,
+    visibility: OrganizationVisibilityDep,
+    feed: ListFeedDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
     unread_only: bool = False,
@@ -52,9 +49,9 @@ async def list_feed(
 ) -> FeedPage:
     """The viewer's feed, newest first: own records and, for bank staff, the
     back office records (`role:underwriter`)."""
-    await ensure_organization_visible(request, session, viewer, organization_id)
+    await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
     flt = FeedFilter(organization_id, application_id, unread_only)
-    records, total = await service.page(viewer.recipients, flt, limit, offset)
+    records, total = await feed.execute(viewer.recipients, flt, limit, offset)
     return FeedPage(
         items=[FeedItemRead.from_record(r) for r in records],
         total=total,
@@ -65,15 +62,14 @@ async def list_feed(
 
 @router.get("/unread-count", response_model=UnreadCount)
 async def unread_count(
-    request: Request,
-    session: DbSession,
     viewer: CurrentViewer,
-    service: FeedServiceDep,
+    visibility: OrganizationVisibilityDep,
+    count_unread: CountUnreadDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
 ) -> UnreadCount:
-    await ensure_organization_visible(request, session, viewer, organization_id)
-    count = await service.unread_count(
+    await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
+    count = await count_unread.execute(
         viewer.recipients, FeedFilter(organization_id, application_id)
     )
     return UnreadCount(count=count)
@@ -81,15 +77,14 @@ async def unread_count(
 
 @router.post("/read-all", response_model=ReadAllResult)
 async def read_all(
-    request: Request,
-    session: DbSession,
     viewer: CurrentViewer,
-    service: FeedServiceDep,
+    visibility: OrganizationVisibilityDep,
+    mark_all_read: MarkAllFeedReadDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
 ) -> ReadAllResult:
-    await ensure_organization_visible(request, session, viewer, organization_id)
-    updated = await service.mark_all_read(
+    await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
+    updated = await mark_all_read.execute(
         viewer.recipients, FeedFilter(organization_id, application_id)
     )
     return ReadAllResult(updated=updated)
@@ -97,10 +92,10 @@ async def read_all(
 
 @router.post("/stream-ticket", response_model=StreamTicketRead)
 async def stream_ticket(
-    viewer: CurrentViewer, tickets: StreamTicketsDep, clock: AppClock
+    viewer: CurrentViewer, issue_ticket: IssueStreamTicketDep, clock: AppClock
 ) -> StreamTicketRead:
     """One-time ticket for GET /feed/stream (EventSource can't send the token)."""
-    issued = await tickets.issue(viewer.account_id, viewer.roles)
+    issued = await issue_ticket.execute(viewer.account_id, viewer.roles)
     return StreamTicketRead(
         ticket=issued.ticket,
         expires_at=issued.expires_at,
@@ -129,9 +124,8 @@ def _encode(event: StreamEvent) -> ServerSentEvent:
 
 @router.get("/stream", response_class=EventSourceResponse)
 async def feed_stream(
-    request: Request,
-    tickets: StreamTicketsDep,
-    clock: AppClock,
+    redeem_ticket: RedeemStreamTicketDep,
+    stream_feed: StreamFeedDep,
     ticket: Annotated[str, Query(min_length=1, max_length=128)],
     last_event_id: Annotated[str | None, Query(max_length=32)] = None,
     last_event_id_header: Annotated[
@@ -141,26 +135,11 @@ async def feed_stream(
     """SSE: `feed_item` (id = stream position), `application_updated`, `heartbeat`.
     The ticket is spent on connect: to reconnect, take a new ticket and pass the
     last received id as `last_event_id` (or the Last-Event-ID header)."""
-    grant = await tickets.redeem(ticket)
+    grant = await redeem_ticket.execute(ticket)
     cursor = parse_last_event_id(last_event_id_header or last_event_id)
-    session_factory = request.app.state.session_factory
-
-    @asynccontextmanager
-    async def open_store() -> AsyncIterator[FeedStore]:
-        async with session_factory() as session:
-            yield SqlAlchemyFeedStore(session)
 
     async def body() -> AsyncIterator[ServerSentEvent]:
-        events = feed_events(
-            open_store,
-            grant.recipients,
-            cursor,
-            clock,
-            poll_seconds=stream.POLL_INTERVAL_SECONDS,
-            heartbeat_seconds=stream.HEARTBEAT_SECONDS,
-            max_seconds=stream.MAX_STREAM_SECONDS,
-        )
-        async for event in events:
+        async for event in stream_feed.execute(grant.recipients, cursor):
             yield _encode(event)
 
     # Heartbeats come from the generator as named events, so the library ping is off.
@@ -168,6 +147,8 @@ async def feed_stream(
 
 
 @router.post("/{item_id}/read", response_model=FeedItemRead)
-async def read_item(item_id: UUID, viewer: CurrentViewer, service: FeedServiceDep) -> FeedItemRead:
+async def read_item(
+    item_id: UUID, viewer: CurrentViewer, mark_read: MarkFeedItemReadDep
+) -> FeedItemRead:
     """Someone else's record is 404, as if it did not exist."""
-    return FeedItemRead.from_record(await service.mark_read(viewer.recipients, item_id))
+    return FeedItemRead.from_record(await mark_read.execute(viewer.recipients, item_id))

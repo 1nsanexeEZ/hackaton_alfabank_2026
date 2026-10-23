@@ -11,6 +11,47 @@
 
 Обе части строятся из данных клиента, поэтому лента «меняется под клиента».
 
+## Структура
+
+Раскладка по слоям из [settings/04-module-structure.md](../../settings/04-module-structure.md).
+
+```
+notifications/
+├── facade.py                 # NotificationsFacade + реэкспорт DTO и FeedItemType;
+│                             # реализация — infrastructure/adapters/notifications_facade.py
+├── module.py                 # register: роутеры; wire: фасад; subscribers: четыре подписки
+├── domain/
+│   ├── feed.py               # Recipient, FeedEntry, Delivery, FeedRecord, ключи групп
+│   ├── viewers.py            # кто банк, чьи записи читает зритель, StreamGrant
+│   ├── templates.py          # тексты ленты с HTML-экранированием подстановок
+│   ├── advice.py             # советы из флагов скоринга и кодов решения
+│   ├── news.py               # ранжирование новостей под профиль компании
+│   └── enums.py              # FeedItemType, Audience, Priority, RecipientType, StreamEventName
+├── application/
+│   ├── dto/                  # feed (FeedItemDTO, FeedRecordDTO, FeedFilter), news, stream
+│   ├── interfaces/           # repositories: FeedStore, NewsStore, TicketStore;
+│   │                         # neighbours: Neighbours (чтение соседей), FacadeLookup;
+│   │                         # access: OrganizationAccess (видна ли компания)
+│   ├── deliveries/           # правила «событие → записи»: по файлу на топик-источник
+│   │                         # (applications, process, decision, clients) + общий context
+│   ├── mappers/feed.py       # запись домена → DTO
+│   └── use_cases/            # project_event: ProjectEventUseCase (проекция в ленту);
+│                             # feed, news, stream, organizations: HTTP;
+│                             # account_feed + news: чтение для фасада
+├── infrastructure/
+│   ├── adapters/             # notifications_facade, neighbours (фасады соседей с деградацией),
+│   │                         # organization_access (ClientsFacade.ensure_can), session_facades
+│   ├── database/             # models: четыре таблицы notifications_*
+│   └── repositories/         # feed, news, tickets + mappers (строка таблицы → запись домена)
+└── presentation/
+    ├── api/                  # /feed (лента, SSE), /news
+    ├── schemas/              # feed, news
+    ├── consumers.py          # четыре подписки → ProjectEventUseCase
+    └── dependencies.py       # сборка use case'ов и фасада
+```
+
+**Транзакции.** Проекция событий пишет в транзакции Kafka-обработчика и сама не коммитит: записи ленты коммитит ядро вместе с инбоксом. Отметки о прочтении и тикеты SSE коммитятся через `UnitOfWork` в use case'е. Каждый опрос SSE-потока открывает свою короткую сессию.
+
 ## Источники событий
 
 Консьюмер подписан на четыре топика, по одной подписке на топик (у платформы `group_id` уникален на подписку): `notifications.feed.applications`, `notifications.feed.process`, `notifications.feed.decision`, `notifications.feed.clients`. Фильтр `message_types` — только события ниже, остальные пропускаются.
@@ -126,7 +167,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 5. Без `last_event_id` поток начинается «с сейчас». Переподключение: новый тикет и `last_event_id` = последний полученный `id` (или заголовок `Last-Event-ID`); `seq` есть и у записей `GET /feed`, чтобы продолжить поток ровно после загруженной страницы.
 6. Поток закрывается через 10 минут — клиент берёт новый тикет (токен за это время мог истечь).
 
-Интервалы и TTL — константы `src/modules/notifications/application/stream.py`.
+Интервалы и TTL — константы `src/modules/notifications/application/use_cases/stream.py`.
 
 ## API
 
@@ -146,7 +187,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 
 ## Фасад
 
-`NotificationsFacade` (`src/modules/notifications/facade.py`, реализация — `infrastructure/facade_impl.py`, регистрирует `module.wire`):
+`NotificationsFacade` (`src/modules/notifications/facade.py`, реализация — `infrastructure/adapters/notifications_facade.py`, регистрирует `module.wire`):
 
 - `unread_count(account_id, organization_id?)`, `latest(account_id, organization_id?, application_id?, limit)` — записи аккаунта; если `IdentityFacade` говорит, что роль аккаунта `underwriter`/`admin`, — и записи бэк-офиса. Прав внутри нет: доступ к компании проверяет вызывающий (BFF).
 - `personal_news(organization_id, limit)` — как `GET /news`.

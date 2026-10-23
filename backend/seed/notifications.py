@@ -13,7 +13,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from seed.demo_data import PRODUCT_CODES
 from src.modules.notifications.domain.news import NewsArticle
-from src.modules.notifications.infrastructure.repositories import SqlAlchemyNewsStore
+from src.modules.notifications.infrastructure.repositories.news import SqlAlchemyNewsStore
 
 if TYPE_CHECKING:
     from seed.run import SeedContext

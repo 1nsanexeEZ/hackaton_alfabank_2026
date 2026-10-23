@@ -6,7 +6,7 @@ failing the event and sending it to the dead letter queue."""
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import TypeVar
 from uuid import UUID
 
 from src.core.exceptions.exceptions import NotFoundError
@@ -14,6 +14,7 @@ from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFaca
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.facade import DecisionDTO, DecisionFacade, PreApprovedOfferDTO
 from src.modules.identity.facade import IdentityFacade
+from src.modules.notifications.application.interfaces.neighbours import FacadeLookup, Neighbours
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 
@@ -22,12 +23,10 @@ logger = logging.getLogger(__name__)
 F = TypeVar("F")
 R = TypeVar("R")
 
-FacadeGetter = Callable[[type[Any]], Any]
 
-
-class Neighbours:
-    def __init__(self, get_facade: FacadeGetter) -> None:
-        self._get = get_facade
+class FacadeNeighbours(Neighbours):
+    def __init__(self, facades: FacadeLookup) -> None:
+        self._get = facades
         self._cards: dict[UUID, ApplicationCardDTO | None] = {}
         self._organizations: dict[UUID, OrganizationSnapshotDTO | None] = {}
         self._product_names: dict[str, str | None] = {}
@@ -46,51 +45,64 @@ class Neighbours:
     async def card(self, application_id: UUID) -> ApplicationCardDTO | None:
         if application_id not in self._cards:
             self._cards[application_id] = await self._safe(
-                ApplicationsFacade, lambda f: f.get_card(application_id)
+                ApplicationsFacade,  # type: ignore[type-abstract]
+                lambda f: f.get_card(application_id),
             )
         return self._cards[application_id]
 
     async def organization(self, organization_id: UUID) -> OrganizationSnapshotDTO | None:
         if organization_id not in self._organizations:
             self._organizations[organization_id] = await self._safe(
-                ClientsFacade, lambda f: f.get_snapshot(organization_id)
+                ClientsFacade,  # type: ignore[type-abstract]
+                lambda f: f.get_snapshot(organization_id),
             )
         return self._organizations[organization_id]
 
-    async def organization_name(
-        self, organization_id: UUID | None, card: ApplicationCardDTO | None = None
-    ) -> str | None:
-        if card is not None and card.org_snapshot is not None:
-            return card.org_snapshot.name
-        if organization_id is None:
-            return None
-        snapshot = await self.organization(organization_id)
-        return snapshot.name if snapshot else None
-
     async def members(self, organization_id: UUID) -> list[UUID]:
-        return await self._safe(ClientsFacade, lambda f: f.list_members(organization_id)) or []
+        members = await self._safe(
+            ClientsFacade,  # type: ignore[type-abstract]
+            lambda f: f.list_members(organization_id),
+        )
+        return members or []
 
     async def product_name(self, code: str) -> str | None:
         if code not in self._product_names:
-            product = await self._safe(ProductsFacade, lambda f: f.get_product(code))
+            product = await self._safe(
+                ProductsFacade,  # type: ignore[type-abstract]
+                lambda f: f.get_product(code),
+            )
             self._product_names[code] = product.name if product else None
         return self._product_names[code]
 
     async def scoring(self, application_id: UUID) -> ScoringResultDTO | None:
-        return await self._safe(ScoringFacade, lambda f: f.get_result(application_id))
+        return await self._safe(
+            ScoringFacade,  # type: ignore[type-abstract]
+            lambda f: f.get_result(application_id),
+        )
 
     async def decision(self, application_id: UUID) -> DecisionDTO | None:
-        return await self._safe(DecisionFacade, lambda f: f.get_decision(application_id))
+        return await self._safe(
+            DecisionFacade,  # type: ignore[type-abstract]
+            lambda f: f.get_decision(application_id),
+        )
 
     async def pre_approved(self, organization_id: UUID) -> list[PreApprovedOfferDTO]:
-        return await self._safe(DecisionFacade, lambda f: f.get_pre_approved(organization_id)) or []
+        offers = await self._safe(
+            DecisionFacade,  # type: ignore[type-abstract]
+            lambda f: f.get_pre_approved(organization_id),
+        )
+        return offers or []
 
     async def application_products(self, organization_id: UUID) -> list[str]:
         applications = await self._safe(
-            ApplicationsFacade, lambda f: f.list_for_organization(organization_id)
+            ApplicationsFacade,  # type: ignore[type-abstract]
+            lambda f: f.list_for_organization(organization_id),
         )
         return [a.product_code for a in applications or []]
 
     async def account_role(self, account_id: UUID) -> str | None:
-        account = await self._safe(IdentityFacade, lambda f: f.get_account(account_id))
+        account = await self._safe(
+            IdentityFacade,  # type: ignore[type-abstract]
+            lambda f: f.get_account(account_id),
+        )
         return account.role_name if account else None
