@@ -3,19 +3,27 @@
 - `screen` — отдельный шаг процесса до скоринга: стоп-фактор → решение без модели, иначе None;
 - в `decide` стоп-факторы идут раньше проверки, есть ли результат скоринга: без скоринга
   стоп-фактор всё равно даёт отказ (в policy_v6 — ручная проверка);
-- скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная.
+- скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная;
+- две модели и матрица грейд × сумма вместе: решает строже из двух.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
 from typing import Any
 
-from src.modules.decision.domain.model import DecisionInput, PolicyDecision, ReasonCode
+from src.modules.decision.domain.model import (
+    DecisionInput,
+    PolicyDecision,
+    PreApprovalInput,
+    ReasonCode,
+    RequestInput,
+)
 from src.modules.decision.facade import review_kind
 from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.unit.test_credit_policy_rules import company
-from tests.decision.unit.test_credit_policy_v3_rules import hit
+from tests.decision.unit.test_credit_policy_v3_rules import WIDE, hit
 from tests.decision.unit.test_credit_policy_v5_rules import models
 from tests.decision.unit.test_credit_policy_v6_rules import LISTED, v6
 
@@ -93,14 +101,16 @@ def test_no_score_without_a_stop_factor_is_for_a_person() -> None:
     assert hit(decision, "stop.registry_status").matched is False
 
 
-def test_with_a_score_the_trace_is_that_of_v6_plus_data_quality() -> None:
+def test_with_a_score_the_trace_is_that_of_v6_plus_quality_and_matrix() -> None:
     inp = v7(score=replace(models(), quality="ok"))
     v6_decision = V6.decide(inp, key_rate=KEY_RATE)
     v7_decision = decide(inp)
     assert v7_decision.outcome == v6_decision.outcome == "APPROVE"
     quality = hit(v7_decision, "route.data_quality")
     assert not quality.matched and quality.detail == "данные полные"
-    assert tuple(h for h in v7_decision.rule_trace if h is not quality) == v6_decision.rule_trace
+    assert not hit(v7_decision, "strategy.risk_matrix").matched
+    added = {"route.data_quality", "strategy.risk_matrix"}
+    assert tuple(h for h in v7_decision.rule_trace if h.rule not in added) == v6_decision.rule_trace
 
 
 # --- «Данные полные?» ------------------------------------------------------------------------
@@ -131,6 +141,62 @@ def test_both_models_red_on_degraded_data_are_not_a_reject() -> None:
     decision = decide(v7(score=red))
     assert decision.outcome == "MANUAL_REVIEW"
     assert ReasonCode.STOP_MODELS_HIGH_RISK not in decision.reason_codes
+
+
+# --- две модели и матрица грейд × сумма -------------------------------------------------------
+
+GRADE_D = replace(models(), grade="D", pd_12m=Decimal("0.0250"), quality="ok")
+
+
+def at(amount: str) -> RequestInput:
+    return RequestInput(amount=Decimal(amount), term_months=36)
+
+
+def test_both_models_green_but_above_the_band_is_for_a_person() -> None:
+    """Грейд D: обе модели в зелёной зоне, но автоматика корзины D–E — до 15 млн."""
+    decision = decide(v7(score=GRADE_D, request=at("20000000")))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert decision.reason_codes == (ReasonCode.ROUTE_RISK_MATRIX,)
+    assert review_kind(decision.outcome, decision.reason_codes) == "check"
+    matrix = hit(decision, "strategy.risk_matrix")
+    assert matrix.matched and "корзина D–E" in matrix.detail
+    assert not hit(decision, "strategy.two_models").matched
+    # policy_v6 знала только зоны моделей и решила бы сама.
+    assert V6.decide(v7(score=GRADE_D, request=at("20000000")), key_rate=KEY_RATE).outcome in (
+        "APPROVE",
+        "COUNTER_OFFER",
+    )
+
+
+def test_above_the_manual_band_is_a_reject() -> None:
+    decision = decide(v7(score=GRADE_D, request=at("60000000")))
+    assert decision.outcome == "REJECT"
+    assert decision.reason_codes == (ReasonCode.STOP_RISK_MATRIX,)
+
+
+def test_within_the_band_the_models_decide() -> None:
+    decision = decide(v7(score=replace(GRADE_D, ml_grade="E"), request=at("10000000")))
+    assert decision.outcome == "MANUAL_REVIEW"
+    assert decision.reason_codes == (ReasonCode.ROUTE_MODELS_CHECK,)
+    assert not hit(decision, "strategy.risk_matrix").matched
+
+
+def test_pre_approval_is_capped_by_the_band() -> None:
+    """Оценка C → осторожный грейд D: не выше автоматики корзины D–E (15 млн), хотя по выручке
+    и потолку грейда вышло бы 30 млн."""
+    inp = PreApprovalInput(
+        product=replace(WIDE, amount_max=Decimal("100000000")),
+        grade="C",
+        score=720,
+        registry_status="active",
+        annual_revenue=Decimal("200000000"),
+        okved_main="56.10",
+        pd_12m=Decimal("0.0150"),
+    )
+    v7_offer = POLICY.pre_approve(inp, key_rate=KEY_RATE)
+    v6_offer = V6.pre_approve(inp, key_rate=KEY_RATE)
+    assert v7_offer is not None and v7_offer.max_amount == Decimal("15000000")
+    assert v6_offer is not None and v6_offer.max_amount == Decimal("30000000")
 
 
 def test_result_before_quality_is_not_degraded() -> None:
