@@ -4,7 +4,7 @@ import type { ApplicationStatus } from './types'
 
 /**
  * Статус заявки бэкенда (ApplicationOut.status) → статус для клиента, как client_status в BFF
- * (backend/src/modules/bff/application/client_status.py, docs/api/client-journey.md §3.6).
+ * (backend/src/modules/bff/domain/client_status.py, docs/api/client-journey.md §3.6).
  * Клиенту показываем только клиентские статусы — их список в status.ts сверяет тест бэкенда.
  */
 const BY_STATUS: Partial<Record<ApplicationStatusCode, ApplicationStatus>> = {
