@@ -19,7 +19,7 @@ services:
       - alfa_network
 
   minio:
-    image: soldevelo/minio:latest
+    image: soldevelo/minio:2026.7.17
     container_name: alfa_credit_minio
     user: "root"
     restart: unless-stopped
@@ -145,7 +145,7 @@ services:
       - alfa_network
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.31.7-alpine
     container_name: alfa_credit_nginx
     restart: unless-stopped
     ports:
