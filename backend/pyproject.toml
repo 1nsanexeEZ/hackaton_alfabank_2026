@@ -118,7 +118,7 @@ forbidden_modules = ["src.modules.*.presentation", "src.modules.*.api", "src.mod
 [[tool.importlinter.contracts]]
 name = "Layered modules: presentation -> infrastructure -> application -> domain"
 type = "layers"
-containers = ["src.modules.identity", "src.modules.enrichment"]
+containers = ["src.modules.identity", "src.modules.enrichment", "src.modules.projector"]
 layers = ["module", "presentation", "infrastructure", "(facade)", "application", "domain"]
 
 [[tool.importlinter.contracts]]

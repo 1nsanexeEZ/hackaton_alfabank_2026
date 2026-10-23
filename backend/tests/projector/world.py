@@ -24,8 +24,11 @@ from src.modules.decision.facade import DecisionDTO, DecisionFacade, LimitsDTO, 
 from src.modules.process.facade import ProcessFacade, UserTaskDTO
 from src.modules.products.facade import ProductsFacade
 from src.modules.projector import module as projector_module
-from src.modules.projector.infrastructure.facade_impl import ProjectorFacadeImpl
-from src.modules.projector.infrastructure.repositories import ALL_ROWS, SqlAlchemyReadModelStore
+from src.modules.projector.infrastructure.adapters.projector_facade import ProjectorFacadeImpl
+from src.modules.projector.infrastructure.repositories.read_model_store import (
+    ALL_ROWS,
+    SqlAlchemyReadModelStore,
+)
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
