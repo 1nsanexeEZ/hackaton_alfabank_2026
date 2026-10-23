@@ -5,9 +5,16 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.modules.decision.facade import FounderPrescreenDTO, PreApprovedOfferDTO
+from src.modules.decision.facade import (
+    FounderPrescreenDTO,
+    PreApprovedOfferDTO,
+    ProjectAssessmentDTO,
+)
 
 PRE_APPROVAL_NOTE = "Предварительно: окончательное решение — после проверки заявки."
+
+Basis = Literal["estimate", "full", "project"]
+_BASES: dict[str, Basis] = {"full": "full", "project": "project"}
 
 
 class PreApprovedOfferRead(BaseModel):
@@ -16,7 +23,8 @@ class PreApprovedOfferRead(BaseModel):
     rate_from: Decimal
     term_max_months: int
     valid_until: date
-    basis: Literal["estimate", "full"]
+    # project — by a startup's project assessment (business plan and financial model).
+    basis: Basis
     note: str = PRE_APPROVAL_NOTE
 
     @classmethod
@@ -27,7 +35,7 @@ class PreApprovedOfferRead(BaseModel):
             rate_from=offer.rate_from,
             term_max_months=offer.term_max_months,
             valid_until=offer.valid_until,
-            basis="full" if offer.basis == "full" else "estimate",
+            basis=_BASES.get(offer.basis, "estimate"),
         )
 
 
@@ -66,5 +74,42 @@ class FounderPrescreenRead(BaseModel):
             reasons=[
                 PrescreenReasonRead(code=r.code, passed=r.passed, message=r.message)
                 for r in prescreen.reasons
+            ],
+        )
+
+
+class ProjectReasonRead(BaseModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class ProjectAssessmentRead(BaseModel):
+    """`passed` — «вам предодобрен кредит»: `product_code` до `max_amount`, заявка — в пределах.
+    `failed` — клиенту `reasons[].message`, без порогов. Действует 30 дней; бизнес-план
+    поменяли (`plan_revision` отстал) — оценку запускают заново."""
+
+    status: Literal["passed", "failed"]
+    product_code: str
+    max_amount: Decimal | None
+    plan_revision: int
+    checked_at: datetime
+    valid_until: datetime
+    valid: bool
+    reasons: list[ProjectReasonRead]
+
+    @classmethod
+    def of(cls, assessment: ProjectAssessmentDTO) -> "ProjectAssessmentRead":
+        return cls(
+            status=assessment.status,
+            product_code=assessment.product_code,
+            max_amount=assessment.max_amount,
+            plan_revision=assessment.plan_revision,
+            checked_at=assessment.checked_at,
+            valid_until=assessment.valid_until,
+            valid=assessment.valid,
+            reasons=[
+                ProjectReasonRead(code=r.code, passed=r.passed, message=r.message)
+                for r in assessment.reasons
             ],
         )

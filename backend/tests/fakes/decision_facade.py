@@ -5,6 +5,7 @@ from src.modules.decision.facade import (
     DecisionDTO,
     FounderPrescreenDTO,
     PreApprovedOfferDTO,
+    ProjectAssessmentDTO,
 )
 
 
@@ -13,6 +14,13 @@ class FakeDecisionFacade:
         self.decisions: dict[UUID, DecisionDTO] = {}
         self.pre_approved: dict[UUID, list[PreApprovedOfferDTO]] = {}
         self.prescreens: dict[UUID, FounderPrescreenDTO] = {}
+        self.projects: dict[UUID, ProjectAssessmentDTO] = {}
+
+    def set_project(self, organization_id: UUID, assessment: ProjectAssessmentDTO) -> None:
+        self.projects[organization_id] = assessment
+
+    async def get_project_assessment(self, organization_id: UUID) -> ProjectAssessmentDTO | None:
+        return self.projects.get(organization_id)
 
     def set_prescreen(self, organization_id: UUID, prescreen: FounderPrescreenDTO) -> None:
         self.prescreens[organization_id] = prescreen
