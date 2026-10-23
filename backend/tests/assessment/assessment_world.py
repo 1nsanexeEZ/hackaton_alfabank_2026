@@ -40,7 +40,7 @@ from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpS
 from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
 from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
 from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
-from src.modules.identity.models import Account
+from src.modules.identity.infrastructure.database.models import AccountModel
 from src.modules.process.domain.steps import ENRICHMENT_SOURCES
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, token_for
@@ -128,7 +128,9 @@ class Assessment:
 
     def account_id(self, email: str) -> UUID:
         async def find(session: AsyncSession) -> UUID:
-            return (await session.scalars(select(Account.id).where(Account.email == email))).one()
+            return (
+                await session.scalars(select(AccountModel.id).where(AccountModel.email == email))
+            ).one()
 
         return self.with_session(find)
 

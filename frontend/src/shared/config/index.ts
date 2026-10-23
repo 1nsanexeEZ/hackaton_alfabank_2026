@@ -1,5 +1,6 @@
 /** Якоря секций лендинга: на них ссылаются шапка, футер и кнопки внутри страницы */
 export const SECTION_ID = {
+  picker: 'picker',
   products: 'products',
   calculator: 'calculator',
   process: 'process',

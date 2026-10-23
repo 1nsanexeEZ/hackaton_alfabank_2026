@@ -22,8 +22,19 @@ const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ switchAccount: [] }>()
 
 const wizard = useApplicationWizard(() => props.products)
-const { step, steps, organizations, organizationsLoading, organizationsError, application, product, busy, error, violations } =
-  wizard
+const {
+  step,
+  steps,
+  organizations,
+  organizationsLoading,
+  organizationsError,
+  application,
+  product,
+  busy,
+  error,
+  violations,
+  ineligibleReason,
+} = wizard
 
 watch(open, (isOpen) => isOpen && wizard.prepare(), { immediate: true })
 
@@ -119,7 +130,7 @@ function close() {
           <ArrowLeft class="size-4" aria-hidden="true" />
           Назад
         </BaseButton>
-        <BaseButton v-if="step === 'terms'" :loading="busy" @click="wizard.submitTerms">
+        <BaseButton v-if="step === 'terms'" :loading="busy" :disabled="Boolean(ineligibleReason)" @click="wizard.submitTerms">
           Далее
           <ArrowRight class="size-4" aria-hidden="true" />
         </BaseButton>

@@ -1,6 +1,6 @@
 import { computed, reactive, readonly } from 'vue'
 
-import { ApiError, clientApi, configureAuth, type MeDto, type TokenResponse } from '@/shared/api'
+import { ApiError, clientApi, configureAuth, type MeDto, type ProfileInput, type TokenResponse } from '@/shared/api'
 import { readStorage, writeStorage } from '@/shared/lib'
 
 /**
@@ -95,12 +95,19 @@ async function restore(): Promise<MeDto | null> {
   return state.me
 }
 
+/** ФИО и должность в профиле: имя в шапке и в заявках обновляется сразу */
+async function updateProfile(input: ProfileInput): Promise<MeDto> {
+  state.me = await clientApi.updateProfile(input)
+  return state.me
+}
+
 export const customer = {
   state: readonly(state),
   login,
   loginWithDemo,
   logout: clear,
   restore,
+  updateProfile,
 }
 
 export function useCustomer() {

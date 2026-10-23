@@ -7,7 +7,7 @@ import { ScoringConfigEditor } from '@/features/edit-scoring'
 import { creditApi, type ScoringConfig } from '@/shared/api'
 import { errorMessage, useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseButton, BaseModal } from '@/shared/ui'
-import { AdminPageHeader } from '@/widgets/admin-layout'
+import { AdminPageHeader, DemoSectionNote } from '@/widgets/admin-layout'
 
 const { can } = useSession()
 
@@ -48,6 +48,7 @@ async function resetDemo() {
       </BaseButton>
     </template>
   </AdminPageHeader>
+  <DemoSectionNote text="Политика скоринга на бэкенде задана конфигом (scorecard_v1.yaml, policy_v1.yaml) и через API не меняется — настройки здесь работают только на синтетических заявках в браузере." />
 
   <AsyncState :loading="config.loading.value" :error="config.error.value" @retry="config.reload">
     <ScoringConfigEditor v-if="config.data.value" :config="config.data.value" :readonly="!can('admin')" @saved="onSaved" />

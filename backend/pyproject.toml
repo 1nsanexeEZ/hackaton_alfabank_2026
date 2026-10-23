@@ -76,10 +76,10 @@ forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "pydantic", "httpx", 
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Domain and application do not depend on infrastructure and api"
+name = "Domain and application do not depend on infrastructure, presentation, api and seed data"
 type = "forbidden"
 source_modules = ["src.modules.*.domain", "src.modules.*.application"]
-forbidden_modules = ["src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module", "seed"]
 # Direct imports only: core helpers (outbox writer) may use core infrastructure inside.
 allow_indirect_imports = true
 
@@ -113,7 +113,7 @@ forbidden_modules = ["src.modules.identity", "src.modules.applications", "src.mo
 name = "identity reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.identity"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.identity.** -> src.modules.identity.**", "src.modules.identity.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -123,7 +123,7 @@ allow_indirect_imports = true
 name = "applications reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.applications"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.applications.** -> src.modules.applications.**", "src.modules.applications.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -133,7 +133,7 @@ allow_indirect_imports = true
 name = "process reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.process"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.process.** -> src.modules.process.**", "src.modules.process.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -143,7 +143,7 @@ allow_indirect_imports = true
 name = "products reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.products"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.products.** -> src.modules.products.**", "src.modules.products.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -153,7 +153,7 @@ allow_indirect_imports = true
 name = "clients reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.clients"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.clients.** -> src.modules.clients.**", "src.modules.clients.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -163,7 +163,7 @@ allow_indirect_imports = true
 name = "enrichment reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.enrichment"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.enrichment.** -> src.modules.enrichment.**", "src.modules.enrichment.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -173,7 +173,7 @@ allow_indirect_imports = true
 name = "scoring reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.scoring"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.scoring.** -> src.modules.scoring.**", "src.modules.scoring.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -183,7 +183,7 @@ allow_indirect_imports = true
 name = "decision reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.decision"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.decision.** -> src.modules.decision.**", "src.modules.decision.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -193,7 +193,7 @@ allow_indirect_imports = true
 name = "notifications reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.notifications"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.notifications.** -> src.modules.notifications.**", "src.modules.notifications.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -203,7 +203,7 @@ allow_indirect_imports = true
 name = "projector reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.projector"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.projector.** -> src.modules.projector.**", "src.modules.projector.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
@@ -213,7 +213,7 @@ allow_indirect_imports = true
 name = "bff reads other modules only through their facade"
 type = "forbidden"
 source_modules = ["src.modules.bff"]
-forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.api", "src.modules.*.presentation", "src.modules.*.module"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.bff.** -> src.modules.bff.**", "src.modules.bff.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"

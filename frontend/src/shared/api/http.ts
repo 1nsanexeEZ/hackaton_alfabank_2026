@@ -1,3 +1,5 @@
+import { humanMessage } from './errorMessages'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 /**
@@ -67,6 +69,11 @@ interface RequestOptions {
   realm?: AuthRealm
 }
 
+/** Адрес ручки с префиксом API — для того, что ходит в бэк мимо http(): EventSource, ссылки */
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`
+}
+
 function buildUrl(path: string, query?: Query): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -100,7 +107,7 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
   if (response.ok) return data as T
 
   if (response.status === 401 && token) provider.onUnauthorized()
-  throw toApiError(response.status, data)
+  throw toApiError(response.status, data, Boolean(token))
 }
 
 interface FastApiIssue {
@@ -109,7 +116,7 @@ interface FastApiIssue {
   type?: string
 }
 
-function toApiError(status: number, data: unknown): ApiError {
+function toApiError(status: number, data: unknown, authorized: boolean): ApiError {
   if (data && typeof data === 'object') {
     const { code, message, details, detail } = data as {
       code?: string
@@ -117,19 +124,20 @@ function toApiError(status: number, data: unknown): ApiError {
       details?: ApiErrorDetails
       detail?: unknown
     }
-    if (message) return new ApiError(status, code ?? 'error', message, details ?? {})
-    // Ошибки валидации FastAPI: { detail: [{ loc, msg, type }] }
+    if (code || message) {
+      return new ApiError(status, code ?? 'error', humanMessage(status, message, details ?? {}, authorized), details ?? {})
+    }
+    // Ошибки валидации FastAPI: { detail: [{ loc, msg, type }] } — msg у них по-английски, нужны только поля
     if (Array.isArray(detail)) {
       const issues = detail as FastApiIssue[]
-      const text = issues.map((item) => item.msg).filter(Boolean).join('; ')
       const violations = issues.map((item) => ({
         code: item.type ?? 'invalid',
         field: (item.loc ?? []).filter((part) => part !== 'body').join('.'),
       }))
-      return new ApiError(status, 'validation_error', text || 'Проверьте введённые данные', { violations })
+      return new ApiError(status, 'validation_error', 'Проверьте введённые данные', { violations })
     }
   }
-  return new ApiError(status, 'error', status >= 500 ? 'Ошибка сервера, попробуйте позже' : 'Запрос не выполнен')
+  return new ApiError(status, 'error', humanMessage(status, undefined, {}, authorized))
 }
 
 /** Имитация сетевой задержки для моков, чтобы были видны состояния загрузки */
