@@ -119,8 +119,8 @@ class MlScore:
 @dataclass(frozen=True, slots=True)
 class ScoringResult:
     id: UUID
-    application_id: UUID | None  # None для estimate (не сохраняется)
-    requested_by_command: UUID | None
+    application_id: UUID
+    requested_by_command: UUID  # команда CalculateScore — ключ идемпотентности
     model_version: str
     score: int
     grade: Grade

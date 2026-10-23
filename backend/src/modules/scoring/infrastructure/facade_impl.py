@@ -72,7 +72,7 @@ class ScoringFacadeImpl:
 
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None:
         result = await self._repo.latest_for_application(application_id)
-        if result is None or result.application_id is None:
+        if result is None:
             return None
         return ScoringResultDTO(
             id=result.id,
