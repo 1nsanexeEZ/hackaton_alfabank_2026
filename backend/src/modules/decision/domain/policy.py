@@ -382,7 +382,9 @@ def _pre_approve(
 ) -> PreApproval | None:
     """Предодобрение по облегчённым данным (без БКИ и выписок): лимит на грейд осторожнее.
     В policy_v3 лимит не выше и того, что по этому грейду одобряет автоматика (матрица и
-    ограничение по грейду): клиенту не предлагают сумму, которую потом не дадут."""
+    ограничение по грейду): клиенту не предлагают сумму, которую потом не дадут. В policy_v5
+    по той же причине предодобрения нет, если в зоне осторожного грейда автоматика не одобряет
+    ни при какой оценке ML-модели."""
     if inp.registry_status in config.stop_registry_statuses or inp.grade in config.stop_grades:
         return None
     scale = config.grade_scale
@@ -395,6 +397,8 @@ def _pre_approve(
     cautious = scale[position]
     k = config.revenue_multiplier.get(cautious)
     if revenue is None or revenue <= 0 or k is None or cautious in config.stop_grades:
+        return None
+    if config.model_matrix and not _models_may_approve(config, cautious):
         return None
     product = inp.product
     ceilings = [product.amount_max]
@@ -430,6 +434,16 @@ def _pre_approve(
             f"ставка от {_pct(rate)}: база {_pct(product.rate_base)}, грейд {inp.grade}, "
             f"ключевая {_pct(key_rate)}",
         ),
+    )
+
+
+def _models_may_approve(config: PolicyConfig, grade: str) -> bool:
+    """policy_v5: есть ли в строке матрицы для зоны PD-модели хоть одно одобрение."""
+    zone = config.model_zones.get(grade)
+    return any(
+        verdict == "approve"
+        for (pd_zone, _), verdict in config.model_matrix.items()
+        if pd_zone == zone
     )
 
 

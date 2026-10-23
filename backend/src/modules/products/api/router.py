@@ -67,7 +67,7 @@ async def recommend_for_organization(
 ) -> RecommendationsRead:
     """Matching for a company: eligibility reasons and the cash gap forecast."""
     await ensure_can_view(token, organization_id, clients)
-    borrower = await borrowers.get(organization_id, data.amount)
+    borrower = await borrowers.get(organization_id)
     need = LoanNeed(data.purpose, Money(data.amount), data.term_months)
     items = await service.recommend(need, borrower)
     return RecommendationsRead(

@@ -22,7 +22,7 @@ from src.modules.decision.domain.model import (
 from src.modules.decision.facade import review_kind
 from src.modules.decision.infrastructure.config_loader import load_policy
 from tests.decision.unit.test_credit_policy_rules import company
-from tests.decision.unit.test_credit_policy_v3_rules import WIDE, hit, v3
+from tests.decision.unit.test_credit_policy_v3_rules import WIDE, hit, pre, v3
 from tests.decision.unit.test_credit_policy_v4_rules import startup
 
 POLICY = load_policy("policy_v5")
@@ -247,3 +247,22 @@ def test_review_kind_by_reason_codes(
     outcome: str, codes: tuple[str, ...], kind: str | None
 ) -> None:
     assert review_kind(outcome, codes) == kind
+
+
+# --- предодобрение ---
+
+
+@pytest.mark.parametrize("grade", list("ABCDEFGHI"))
+def test_pre_approval_only_where_automation_may_approve(grade: str) -> None:
+    """Клиенту не предлагают сумму, которую потом не дадут: предодобрение — на грейд осторожнее,
+    и в v5 только если этот грейд в зоне, где автоматика одобряет (зелёная, A–D)."""
+    offer = POLICY.pre_approve(pre(grade, "0.01"), key_rate=KEY_RATE)
+    scale = POLICY.config.grade_scale
+    cautious = scale[scale.index(grade) + 1]  # type: ignore[arg-type]
+    green = POLICY.config.model_zones[cautious] == "green"
+    assert (offer is not None) is green, (grade, cautious)
+
+
+def test_v4_pre_approval_keeps_the_grade_amount_matrix() -> None:
+    offer = load_policy("policy_v4").pre_approve(pre("E", "0.03"), key_rate=KEY_RATE)
+    assert offer is not None and offer.max_amount == Decimal("5000000.00")

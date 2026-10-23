@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.domain import Money
 from src.core.facades import FacadeRegistry
 from src.modules.clients.facade import ClientsFacade
+from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.products.application import mappers
 from src.modules.products.application.borrowers import BorrowerProfiles
 from src.modules.products.application.services import ProductService
@@ -20,13 +21,12 @@ from src.modules.products.facade import (
     Repayment,
 )
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
-from src.modules.scoring.facade import ScoringFacade
 
 
 def borrower_profiles(facades: FacadeRegistry, session: AsyncSession) -> BorrowerProfiles:
-    """Scoring is optional: without it the cash gap forecast is unknown."""
-    scoring = facades.get(ScoringFacade, session) if facades.has(ScoringFacade) else None
-    return BorrowerProfiles(facades.get(ClientsFacade, session), scoring)
+    """Enrichment is optional: without it the cash gap forecast is unknown."""
+    enrichment = facades.get(EnrichmentFacade, session) if facades.has(EnrichmentFacade) else None
+    return BorrowerProfiles(facades.get(ClientsFacade, session), enrichment)
 
 
 class ProductsFacadeImpl:
@@ -62,7 +62,7 @@ class ProductsFacadeImpl:
         borrower = None
         if organization_id is not None:
             borrowers = borrower_profiles(self._facades, self._session)
-            borrower = await borrowers.get(organization_id, amount)
+            borrower = await borrowers.get(organization_id)
         return [
             mappers.recommendation_dto(r) for r in await self._service.recommend(need, borrower)
         ]
