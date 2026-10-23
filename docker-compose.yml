@@ -128,6 +128,12 @@ services:
       external-mocks:
         condition: service_healthy
     mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       - alfa_network
 
@@ -150,9 +156,12 @@ services:
       - ./docker/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - backend
-      - minio
-      - frontend
+      backend:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      frontend:
+        condition: service_started
     networks:
       - alfa_network
 
