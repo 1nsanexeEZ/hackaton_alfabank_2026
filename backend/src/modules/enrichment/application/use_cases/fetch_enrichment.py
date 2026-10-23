@@ -172,6 +172,8 @@ class FetchEnrichmentUseCase:
             assert head is not None and command.head_bki_consent_at is not None
             person = PersonDTO(head.last_name, head.first_name, head.middle_name, command.inn)
             return await self._sources.person_bureau.fetch(person, command.head_bki_consent_at)
+        if source == "bank_stop_list":
+            return await self._sources.bank_stop_list.fetch(command.inn)
         raise SourceFetchError("bad_response", f"Неизвестный источник {source!r}")
 
     async def _publish(

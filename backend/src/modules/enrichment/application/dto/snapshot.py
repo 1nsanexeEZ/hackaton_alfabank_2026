@@ -6,6 +6,7 @@ from uuid import UUID
 
 from src.modules.enrichment.application.dto.accounting import AccountingReportsDTO
 from src.modules.enrichment.application.dto.aml import AmlCheckDTO
+from src.modules.enrichment.application.dto.bank import BankStopListDTO
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.counterparty import CounterpartyRiskDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO
@@ -22,6 +23,7 @@ SourceData = (
     | AccountingReportsDTO
     | CounterpartyRiskDTO
     | AmlCheckDTO
+    | BankStopListDTO
 )
 
 
@@ -53,3 +55,5 @@ class EnrichmentSnapshotDTO:
     # Проверка по 115-ФЗ на этой заявке; None — не ответили перечни, ПДЛ или ЗСК, или не
     # установить бенефициаров (тогда `aml` — в `sources_failed`).
     aml: AmlCheckDTO | None = None
+    # Внутренний стоп-лист банка (АБС); None — не ответил или не запрашивался.
+    bank_stop_list: BankStopListDTO | None = None

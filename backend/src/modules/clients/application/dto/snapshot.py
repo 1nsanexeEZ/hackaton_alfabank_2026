@@ -9,7 +9,9 @@ from uuid import UUID
 
 LegalForm = Literal["LLC", "IE", "JSC"]
 VerificationStatus = Literal["unverified", "verified", "mismatch"]
-RegistryStatus = Literal["active", "liquidating", "liquidated", "bankrupt"]
+RegistryStatus = Literal[
+    "active", "liquidating", "liquidated", "bankrupt", "reorganizing", "excluded"
+]
 ReportSource = Literal["declared", "fns", "bank_statement"]
 
 

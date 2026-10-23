@@ -127,6 +127,7 @@ async def test_command_asks_every_source(world: World) -> None:
         "kontur",
         "bki_head",
         "aml",
+        "bank_stop_list",
     ]
 
 

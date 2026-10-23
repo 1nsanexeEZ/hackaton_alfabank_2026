@@ -8,6 +8,9 @@ from src.modules.enrichment.infrastructure.adapters.aml_http import (
     RfmHttpSource,
     ZskHttpSource,
 )
+from src.modules.enrichment.infrastructure.adapters.bank_stop_list_http import (
+    BankStopListHttpSource,
+)
 from src.modules.enrichment.infrastructure.adapters.bki_http import BkiHttpSource
 from src.modules.enrichment.infrastructure.adapters.bki_person_http import BkiPersonHttpSource
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
@@ -32,4 +35,5 @@ def build_http_sources(config: EnrichmentSettings) -> Sources:
         aml_lists=RfmHttpSource(client, backoff=backoff),
         pep=PepHttpSource(client, backoff=backoff),
         zsk=ZskHttpSource(client, backoff=backoff),
+        bank_stop_list=BankStopListHttpSource(client, backoff=backoff),
     )

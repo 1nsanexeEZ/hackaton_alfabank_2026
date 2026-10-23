@@ -19,6 +19,7 @@ from src.modules.enrichment.facade import (
     AccountingPeriodDTO,
     AccountingReportsDTO,
     ArbitrationDTO,
+    BankStopListDTO,
     CounterpartyRiskDTO,
     CreditHistoryDTO,
     EnforcementDTO,
@@ -168,6 +169,19 @@ class FakePersonBureau:
         )
 
 
+class FakeBankStopList:
+    def __init__(self, *, reason: str | None = None, fail: bool = False) -> None:
+        self.reason = reason
+        self.fail = fail
+
+    async def fetch(self, inn: str) -> BankStopListDTO:
+        if self.fail:
+            raise SourceUnavailable("unavailable", "HTTP 503")
+        if self.reason is None:
+            return BankStopListDTO(listed=False)
+        return BankStopListDTO(listed=True, reason=self.reason, listed_at=date(2025, 6, 1))
+
+
 def sources(
     registry: object | None = None,
     tax: object | None = None,
@@ -178,6 +192,7 @@ def sources(
     aml_lists: object | None = None,
     pep: object | None = None,
     zsk: object | None = None,
+    bank_stop_list: object | None = None,
 ) -> Sources:
     """Все источники; не переданный — рабочий фейк."""
     return Sources(
@@ -190,7 +205,47 @@ def sources(
         aml_lists or FakeAmlLists(),  # type: ignore[arg-type]
         pep or FakePep(),  # type: ignore[arg-type]
         zsk or FakeZsk(),  # type: ignore[arg-type]
+        bank_stop_list or FakeBankStopList(),  # type: ignore[arg-type]
     )
+
+
+async def test_bank_stop_list_is_requested_without_consent() -> None:
+    """Стоп-лист — собственные данные банка: запрашивается и без согласия на БКИ."""
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo, sources(bank_stop_list=FakeBankStopList(reason="Подложные документы")), FrozenClock()
+    )
+    command = FetchEnrichment(
+        application_id=uuid4(),
+        organization_id=uuid4(),
+        inn="7701158817",
+        sources=["egrul", "bki", "bank_stop_list"],
+    )
+
+    await use_case.execute(command, command_event_id=uuid4(), outbox=outbox)
+
+    [snapshot] = repo.by_command.values()
+    stop = snapshot.data_of("bank_stop_list", BankStopListDTO)
+    assert stop is not None and stop.listed and stop.reason == "Подложные документы"
+    assert "bank_stop_list" in snapshot.sources_ok and "bki" in snapshot.sources_skipped
+
+
+async def test_bank_stop_list_down_is_a_failed_source() -> None:
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo, sources(bank_stop_list=FakeBankStopList(fail=True)), FrozenClock()
+    )
+    command = FetchEnrichment(
+        application_id=uuid4(),
+        organization_id=uuid4(),
+        inn="7701158817",
+        sources=["egrul", "bank_stop_list"],
+    )
+
+    await use_case.execute(command, command_event_id=uuid4(), outbox=outbox)
+
+    [snapshot] = repo.by_command.values()
+    assert "bank_stop_list" in snapshot.sources_failed and "egrul" in snapshot.sources_ok
 
 
 def _command(consent: datetime | None = _CONSENT) -> FetchEnrichment:
@@ -333,7 +388,17 @@ async def test_one_source_alive_is_still_completed() -> None:
 _HEAD = PersonRef(
     account_id=UUID(int=1), last_name="Смирнова", first_name="Анна", middle_name="Сергеевна"
 )
-_ALL = ["egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head", "aml"]
+_ALL = [
+    "egrul",
+    "fns",
+    "bki",
+    "statement",
+    "gir_bo",
+    "kontur",
+    "bki_head",
+    "aml",
+    "bank_stop_list",
+]
 
 
 def _full_command(
@@ -362,7 +427,16 @@ async def test_every_source_without_statements() -> None:
     await use_case.execute(_full_command(), command_event_id=uuid4(), outbox=outbox)
 
     event = outbox.of_type(EnrichmentCompleted)[0]
-    assert event.sources_ok == ["egrul", "fns", "bki", "gir_bo", "kontur", "bki_head", "aml"]
+    assert event.sources_ok == [
+        "egrul",
+        "fns",
+        "bki",
+        "gir_bo",
+        "kontur",
+        "bki_head",
+        "aml",
+        "bank_stop_list",
+    ]
     assert event.sources_failed == [] and event.cash_gap_detected is None
     snapshot = repo.added[0]
     assert "statement" not in snapshot.results  # выписок нет — прогноза нет, и это не сбой
@@ -434,7 +508,7 @@ async def test_new_sources_fail_partially() -> None:
 
     event = outbox.of_type(EnrichmentCompleted)[0]
     assert event.sources_failed == ["gir_bo", "kontur"]
-    assert event.sources_ok == ["egrul", "fns", "bki", "bki_head", "aml"]
+    assert event.sources_ok == ["egrul", "fns", "bki", "bki_head", "aml", "bank_stop_list"]
     assert repo.added[0].results["gir_bo"].error.kind == "timeout"  # type: ignore[union-attr]
 
 
@@ -442,12 +516,13 @@ async def test_every_external_source_down_fails_without_statement() -> None:
     repo, outbox = InMemoryRepo(), FakeOutboxWriter()
     down = DownSource()
     use_case = FetchEnrichmentUseCase(
-        repo, sources(down, down, down, down, down, down), FrozenClock()
+        repo, sources(down, down, down, down, down, down, bank_stop_list=down), FrozenClock()
     )
 
     await use_case.execute(_full_command(), command_event_id=uuid4(), outbox=outbox)
 
     assert outbox.of_type(EnrichmentFailed)[0].reason == (
         "all_sources_failed: egrul=unavailable, fns=unavailable, bki=unavailable, "
-        "gir_bo=unavailable, kontur=unavailable, bki_head=unavailable, aml=incomplete"
+        "gir_bo=unavailable, kontur=unavailable, bki_head=unavailable, aml=incomplete, "
+        "bank_stop_list=unavailable"
     )
