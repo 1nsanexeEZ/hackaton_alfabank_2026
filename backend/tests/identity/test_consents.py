@@ -13,9 +13,9 @@ from sqlalchemy import select
 from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.main import create_app
+from src.modules.identity.domain.entities import add_months
 from src.modules.identity.facade import ConsentDTO, ConsentType, IdentityFacade
-from src.modules.identity.models import Consent
-from src.modules.identity.services import add_months
+from src.modules.identity.infrastructure.database.models import ConsentModel
 from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, auth
 from tests.helpers import create_schema
 
@@ -58,12 +58,12 @@ class World:
 
         return self.client.portal.call(load)  # type: ignore[union-attr]
 
-    def rows(self) -> list[Consent]:
+    def rows(self) -> list[ConsentModel]:
         app = self.client.app
 
-        async def load() -> list[Consent]:
+        async def load() -> list[ConsentModel]:
             async with app.state.session_factory() as session:  # type: ignore[attr-defined]
-                return list((await session.scalars(select(Consent))).all())
+                return list((await session.scalars(select(ConsentModel))).all())
 
         return self.client.portal.call(load)  # type: ignore[union-attr]
 
