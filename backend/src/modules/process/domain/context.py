@@ -22,6 +22,8 @@ class ProcessContext:
     enrichment_snapshot_id: UUID | None = None
     sources_failed: tuple[str, ...] = ()
     cash_gap_flag: bool | None = None
+    # check_stop_factors: a stop factor matched — the decision is made without scoring
+    stopped: bool | None = None
     # assess_collateral
     collateral_value: Decimal | None = None
     # calculate_score

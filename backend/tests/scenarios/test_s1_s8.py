@@ -218,7 +218,11 @@ def test_s4_zakat_is_rejected(stand: Stand) -> None:
     assert card["status"] == "rejected"
     assert card["decision_summary"]["outcome"] == "REJECT"
     assert card["decision_summary"]["client_explanation"]
-    assert stand.process(application_id)["status"] == "completed"
+    process = stand.process(application_id)
+    assert process["status"] == "completed"
+    # Ликвидация, просрочки, недоимка — отказ на шаге «Стоп-факторы», модель не вызывается.
+    assert process["visited_node_ids"][-2:] == ["check_stop_factors", "reject"]
+    assert "calculate_score" not in process["visited_node_ids"]
     assert stand.stuck() == []
 
 
@@ -287,7 +291,7 @@ def test_s7_mortgage_is_always_decided_by_a_person(stand: Stand) -> None:
     )
     assert stand.card(application_id, ROMASHKA["email"])["status"] == "in_review"
     process = stand.process(application_id)
-    assert process["workflow_code"] == "mortgage_v1"
+    assert process["workflow_code"] == "mortgage_v2"
     assert "assess_collateral" in process["visited_node_ids"]
 
     approval = {
@@ -394,7 +398,7 @@ def test_s9_startup_founder_prescreen_project_assessment_and_offer(stand: Stand)
     assert card["status"] == "in_review"
     assert card["client_stage"] == "Проектная оценка"
     process = stand.process(application_id)
-    assert process["workflow_code"] == "startup_v1"
+    assert process["workflow_code"] == "startup_v2"
     task = stand.task_for(application_id)
     assert task["type"] == "project_assessment"
     assert "business_plan" in task["form_schema"]["required"]

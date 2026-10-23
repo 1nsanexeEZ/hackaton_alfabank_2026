@@ -32,7 +32,9 @@ CLIENT_EVENTS = frozenset(
 REPLIES = {
     topics.ENRICHMENT_EVENTS: frozenset({"EnrichmentCompleted", "EnrichmentFailed"}),
     topics.SCORING_EVENTS: frozenset({"ScoreCalculated", "ScoringFailed"}),
-    topics.DECISION_EVENTS: frozenset({"DecisionMade", "ManualDecisionRejected"}),
+    topics.DECISION_EVENTS: frozenset(
+        {"DecisionMade", "ManualDecisionRejected", "StopFactorsPassed"}
+    ),
 }
 
 

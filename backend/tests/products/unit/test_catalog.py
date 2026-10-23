@@ -97,7 +97,7 @@ def test_startup_is_only_for_a_company_without_turnover_and_never_automatic() ->
     startup = next(p for p in catalog() if p.code.value == "STARTUP")
     assert startup.eligibility.startup_only and startup.eligibility.min_business_age_months == 0
     assert [d.type for d in startup.required_documents] == ["business_plan", "financial_model"]
-    assert startup.processing.workflow_code == "startup_v1"
+    assert startup.processing.workflow_code == "startup_v2"
     assert startup.processing.auto_decision_limit.is_zero
     assert startup.support_program is not None
     assert not any(p.eligibility.startup_only for p in catalog() if p.code.value != "STARTUP")
