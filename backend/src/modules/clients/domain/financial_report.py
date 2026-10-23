@@ -6,23 +6,14 @@ for the same period revises the figures instead of adding a second one.
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
 from typing import Self
 from uuid import UUID
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import ValidationError
+from src.modules.clients.domain.enums import ReportSource
 from src.modules.clients.domain.events import FinancialReportSubmitted, OrganizationEvent
 from src.modules.clients.domain.value_objects import FiscalPeriod
-
-
-class ReportSource(StrEnum):
-    # Typed in by the client.
-    DECLARED = "declared"
-    # From the tax service (enrichment).
-    FNS = "fns"
-    # Computed from a bank statement.
-    BANK_STATEMENT = "bank_statement"
 
 
 def _invalid(field_name: str, code: str, message: str) -> ValidationError:

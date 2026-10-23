@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING
 
 from seed.demo_data import COMPANIES
 from src.modules.clients.facade import ClientsFacade
-from src.modules.clients.infrastructure.repositories import SqlAlchemyOrganizationRepository
+from src.modules.clients.infrastructure.repositories.organization import (
+    SqlAlchemyOrganizationRepository,
+)
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
 from src.modules.decision.config import DecisionSettings
 from src.modules.decision.infrastructure.config_loader import default_policy

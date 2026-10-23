@@ -182,10 +182,10 @@ sequenceDiagram
 | Где | Что |
 |---|---|
 | `clients/domain/organization.py` | `Organization.apply_registry(extract, now) -> RegistryChanges`: сравнить, обновить реквизиты, собрать `discrepancies`, вызвать `record_verification` |
-| `clients/application/` | `VerifyOrganizationUseCase`; порт `RegistryLookup` |
-| `clients/infrastructure/` | адаптер порта на `EnrichmentFacade.lookup_registry` |
+| `clients/application/` | `VerifyOrganizationUseCase` (`use_cases/verification.py`); порт `RegistryLookup` (`interfaces/registry.py`) |
+| `clients/infrastructure/` | адаптер порта на `EnrichmentFacade.lookup_registry` (`adapters/enrichment_registry.py`) |
 | `enrichment/facade.py` | `lookup_registry(inn, *, fresh: bool = False)` — ручная сверка идёт мимо кэша |
-| `clients/api/` | маршрут и схема `VerificationResultRead` |
+| `clients/presentation/` | маршрут (`api/organizations.py`) и схема `VerificationResultRead` (`schemas/organizations.py`) |
 | `decision/module.py` | пересчёт предодобрения подписать ещё и на `OrganizationVerificationMismatch` (сейчас — только `FinancialReportSubmitted` и `OrganizationVerified`) |
 | автосверка | `clients` слушает `EnrichmentCompleted` и сверяет компанию по выписке ЕГРЮЛ из снимка заявки (`EnrichmentFacade.get_snapshot`) — так данные обновляются при каждой подаче без лишнего запроса в реестр |
 | `tests/clients` | домен: каждое поле таблицы; API: 200, 404, 422, 503; consumer: снимок без `egrul` пропускается |

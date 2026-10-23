@@ -4,10 +4,10 @@ import pytest
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError, ValidationError
+from src.modules.clients.domain.enums import MemberRole, ReportSource
 from src.modules.clients.domain.events import FinancialReportSubmitted
-from src.modules.clients.domain.financial_report import ReportFigures, ReportSource
+from src.modules.clients.domain.financial_report import ReportFigures
 from src.modules.clients.domain.member import Actor
-from src.modules.clients.domain.rights import MemberRole
 from src.modules.clients.domain.value_objects import FiscalPeriod
 from tests.clients.unit.factories import BANK, NOW, add, with_head
 

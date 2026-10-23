@@ -4,7 +4,7 @@ A new module adds its ORM models (`infrastructure.database.models`) here."""
 import src.core.messaging.inbox  # noqa: F401
 import src.core.messaging.outbox  # noqa: F401
 import src.modules.applications.infrastructure.models  # noqa: F401
-import src.modules.clients.infrastructure.models  # noqa: F401
+import src.modules.clients.infrastructure.database.models  # noqa: F401
 import src.modules.decision.infrastructure.models  # noqa: F401
 import src.modules.enrichment.infrastructure.database.models  # noqa: F401
 import src.modules.identity.infrastructure.database.models  # noqa: F401

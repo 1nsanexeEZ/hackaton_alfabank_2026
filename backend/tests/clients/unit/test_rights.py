@@ -3,14 +3,8 @@ from datetime import timedelta
 import pytest
 
 from src.core.exceptions.exceptions import ValidationError
-from src.modules.clients.domain.rights import (
-    Authority,
-    MemberRole,
-    OrgPermission,
-    PowerOfAttorney,
-    ordered,
-    permissions_of,
-)
+from src.modules.clients.domain.enums import Authority, MemberRole, OrgPermission
+from src.modules.clients.domain.rights import PowerOfAttorney, ordered, permissions_of
 from tests.clients.unit.factories import NOW, poa
 
 P = OrgPermission

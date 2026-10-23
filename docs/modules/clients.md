@@ -2,6 +2,46 @@
 
 Кто заёмщик и кто имеет право действовать от его имени. Предприниматель уже клиент банка (ответ организаторов, `docs/case.md` §5): регистрации и онбординга компании нет, компании, участники и реквизиты — в сидах, заявка предзаполняется снимком компании. Код — `backend/src/modules/clients`.
 
+## Структура
+
+Раскладка по слоям из [settings/04-module-structure.md](../../settings/04-module-structure.md).
+
+```
+clients/
+├── facade.py                 # ClientsFacade, OrgPermission + реэкспорт DTO для соседей;
+│                             # реализация — infrastructure/adapters/clients_facade.py
+├── module.py                 # register: роутер; wire: фасад под ClientsFacade и
+│                             # MemberOrganizationsResolver; подписка на enrichment.events
+├── domain/
+│   ├── organization.py       # агрегат Organization: участники, права, сверка с реестром
+│   ├── member.py             # Member, Actor
+│   ├── financial_report.py   # агрегат FinancialReport, ReportFigures
+│   ├── rights.py             # таблица прав, PowerOfAttorney
+│   ├── value_objects.py      # Inn, Ogrn, Requisites, FiscalPeriod, PersonName, RegistryExtract…
+│   ├── enums.py              # OrgPermission, MemberRole, Authority, LegalForm, RegistryStatus,
+│   │                         # TaxRegime, VerificationStatus, ReportSource
+│   └── events.py             # доменные события
+├── application/
+│   ├── dto/                  # snapshot, membership (фасад); organizations, members, reports (API)
+│   ├── interfaces/           # repositories, outbox (EventOutbox), registry (RegistryLookup)
+│   ├── mappers/events.py     # доменные события → контракты clients.events
+│   └── use_cases/            # organizations, members, reports, verification (API и Kafka);
+│                             # membership, snapshot (фасад); common — общие проверки доступа
+├── infrastructure/
+│   ├── adapters/             # clients_facade.py, enrichment_registry.py (ЕГРЮЛ через enrichment)
+│   ├── database/             # models
+│   └── repositories/         # organization, financial_report, mappers
+└── presentation/
+    ├── api/                  # organizations, members, financial_reports
+    ├── schemas/              # pydantic-схемы по тем же темам
+    ├── consumers.py          # EnrichmentCompleted → ApplyRegistryExtractUseCase
+    └── dependencies.py       # сборка use case'ов, фасада и use case'а для обработчика
+```
+
+Своих исключений у модуля нет: домен бросает исключения core (`ValidationError`, `ConflictError`,
+`PermissionDeniedError`, `NotFoundError`) с `details.code`, их переводит в ответ общий обработчик,
+поэтому `domain/exceptions.py` и `infrastructure/exception_handler.py` не заведены.
+
 ## Модель
 
 | Что | Где | Суть |
@@ -9,7 +49,7 @@
 | `Organization` (агрегат) | `domain/organization.py` | Реквизиты, наименование, дата регистрации, адрес, ОКВЭД, налоговый режим, численность, статус в реестре, руководитель по реестру, результат сверки, участники |
 | `Member` | `domain/member.py` | `account_id`, роль, полномочие, доверенность, кто и когда добавил. Меняется только через агрегат |
 | `FinancialReport` (агрегат) | `domain/financial_report.py` | Показатели за период (год или квартал) из одного источника: `declared`, `fns`, `bank_statement` |
-| Права | `domain/rights.py` | `OrgPermission`, роли, полномочия, `PowerOfAttorney`, таблица прав |
+| Права | `domain/rights.py`, `domain/enums.py` | `OrgPermission`, роли, полномочия (`enums.py`); `PowerOfAttorney`, таблица прав (`rights.py`) |
 | VO | `domain/value_objects.py` | `Inn`, `Ogrn`, `Kpp`, `Requisites`, `OkvedCode`, `Address`, `FiscalPeriod`, `PersonName`, `VerificationResult`, `RegistryExtract`, `FieldChange`, `RegistryChanges` |
 
 Все VO проверяют себя в конструкторе и бросают `ValidationError` с `details = {field, code}`:
@@ -99,7 +139,7 @@
 
 ## События
 
-Топик `clients.events`, ключ — `organization_id`, контракты — `core/messaging/contracts/clients.py`. Доменные события превращаются в контракты в `application/events.py` и пишутся в outbox (`SqlAlchemyOutboxWriter`, producer `clients`) в той же транзакции, что и изменение.
+Топик `clients.events`, ключ — `organization_id`, контракты — `core/messaging/contracts/clients.py`. Доменные события превращаются в контракты в `application/mappers/events.py` и пишутся в outbox (`SqlAlchemyOutboxWriter`, producer `clients`) в той же транзакции, что и изменение.
 
 | Событие | Когда |
 |---|---|
@@ -133,17 +173,17 @@
 
 ФИО сравниваются через `PersonName.matches`, в расхождении — краткая форма (`Петров П. П.`).
 
-`VerifyOrganizationUseCase` (`application/verification.py`), два входа:
-- `execute(access, organization_id)` — ручка `POST /organizations/{id}/verification`. Своя транзакция; реестр через порт `RegistryLookup` мимо кэша. Нет компании или чужая — 404; реестр не знает ИНН — 422 `registry_not_found`; реестр не ответил — 503, ничего не меняется.
-- `apply_extract(organization_id, extract, …)` — автосверка в транзакции обработчика: `infrastructure/consumers.py` слушает `enrichment.events` → `EnrichmentCompleted` (group `clients.enrichment-events`), берёт выписку из снимка заявки (`EnrichmentFacade.get_snapshot`). Снимка или выписки нет (ЕГРЮЛ не ответил), выписка нечитаемая или с чужим ИНН — пропуск. Идемпотентность — inbox платформы.
+Два входа, оба в `application/use_cases/verification.py`, общая часть — `_RegistryCheck`:
+- `VerifyOrganizationUseCase.execute(access, organization_id)` — ручка `POST /organizations/{id}/verification`. Своя транзакция; реестр через порт `RegistryLookup.lookup` мимо кэша. Нет компании или чужая — 404; реестр не знает ИНН — 422 `registry_not_found`; реестр не ответил — 503, ничего не меняется.
+- `ApplyRegistryExtractUseCase.execute(application_id, …)` — автосверка в транзакции обработчика: `presentation/consumers.py` слушает `enrichment.events` → `EnrichmentCompleted` (group `clients.enrichment-events`), выписку из снимка заявки отдаёт `RegistryLookup.of_application` (`EnrichmentFacade.get_snapshot`). Снимка или выписки нет (ЕГРЮЛ не ответил), выписка нечитаемая или с чужим ИНН — пропуск. Идемпотентность — inbox платформы.
 
-Адаптер `EnrichmentRegistryLookup` (`infrastructure/registry.py`) зовёт `EnrichmentFacade.lookup_registry(inn, fresh=True)` и переводит выписку в `RegistryExtract`. Полное наименование из реестра сокращается до формы карточки: «Общество с ограниченной ответственностью «Ромашка»» → «ООО «Ромашка»» (также АО, ПАО, ИП). Выписку, которую VO не принимают, считаем ошибкой реестра: 503 `bad_registry_data`.
+Адаптер `EnrichmentRegistryLookup` (`infrastructure/adapters/enrichment_registry.py`) зовёт `EnrichmentFacade.lookup_registry(inn, fresh=True)` и переводит выписку в `RegistryExtract`. Полное наименование из реестра сокращается до формы карточки: «Общество с ограниченной ответственностью «Ромашка»» → «ООО «Ромашка»» (также АО, ПАО, ИП). Выписку, которую VO не принимают, считаем ошибкой реестра: 503 `bad_registry_data`; в автосверке такая выписка пропускается с предупреждением в логе.
 
 Сохранение — та же оптимистическая блокировка: сверка увеличивает `version`, параллельное изменение — `409 version_conflict` (в автосверке — повтор обработчика).
 
 ## Фасад и порт `org_member`
 
-`ClientsFacadeImpl` (`infrastructure/facade_impl.py`) регистрируется в `module.wire` под двумя ключами — `ClientsFacade` и `MemberOrganizationsResolver`. Права считаются по `app.state.clock`.
+`ClientsFacadeImpl` (`infrastructure/adapters/clients_facade.py`) регистрируется в `module.wire` под двумя ключами — `ClientsFacade` и `MemberOrganizationsResolver`. Своей логики у него нет: каждый метод зовёт use case из `application/use_cases/membership.py` или `snapshot.py`, собирает их `presentation/dependencies.clients_facade`. Права считаются по `app.state.clock`.
 
 | Метод | Поведение |
 |---|---|

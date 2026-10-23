@@ -5,17 +5,11 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from seed.demo_data import COMPANIES_BY_CODE, DemoPerson
+from src.modules.clients.domain.enums import MemberRole, OrgPermission, RegistryStatus, TaxRegime
 from src.modules.clients.domain.member import Actor
 from src.modules.clients.domain.organization import Organization
-from src.modules.clients.domain.rights import MemberRole, OrgPermission, PowerOfAttorney
-from src.modules.clients.domain.value_objects import (
-    Address,
-    OkvedCode,
-    PersonName,
-    RegistryStatus,
-    Requisites,
-    TaxRegime,
-)
+from src.modules.clients.domain.rights import PowerOfAttorney
+from src.modules.clients.domain.value_objects import Address, OkvedCode, PersonName, Requisites
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 BANK = Actor.bank()
