@@ -48,6 +48,7 @@ UNDERWRITER_PERMISSIONS = [
     "backoffice.read",
     "feed.read",
     "profile.update",
+    "profile.update_name",
     "support.manage",
 ]
 
