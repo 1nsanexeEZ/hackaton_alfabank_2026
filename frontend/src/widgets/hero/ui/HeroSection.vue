@@ -4,13 +4,11 @@ import { computed } from 'vue'
 
 import type { ApplicationDraft } from '@/entities/application'
 import type { CreditProduct } from '@/entities/credit-product'
-import { customer } from '@/entities/customer'
 import { SECTION_ID, sectionHref } from '@/shared/config'
 import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
 import { heroStats } from '../model/content'
 import HeroApplication from './HeroApplication.vue'
-import HeroConsents from './HeroConsents.vue'
 
 const props = defineProps<{ products: readonly CreditProduct[] | null }>()
 
@@ -61,7 +59,6 @@ const stats = computed(() => heroStats(props.products))
             @continue="(draft) => emit('continue', draft)"
             @open="(id) => emit('open', id)"
           />
-          <HeroConsents v-if="customer.state.token" />
         </div>
       </div>
 
