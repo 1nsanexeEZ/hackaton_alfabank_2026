@@ -77,7 +77,7 @@
 | `organizations.update` | ✓ `org_member` | ✓ только сверка с реестром | clients |
 | `tasks.read`, `tasks.update` | — | ✓ | process |
 | `decisions.read` | — | ✓ | decision |
-| `backoffice.read` | — | ✓ | bff |
+| `backoffice.read` | — | ✓ | bff; проверка по ИНН до заявки — clients |
 | `feed.read` | ✓ | ✓ | notifications |
 | `profile.update` | ✓ | ✓ | identity |
 | `support.read`, `support.create` | ✓ `own_only` | — | support |

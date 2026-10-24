@@ -7778,6 +7778,36 @@
       },
       {
         "model": "http_request",
+        "id": "rq_OESQFHKviI",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4r4NbfqXel",
+        "name": "Проверить компанию по ИНН",
+        "description": "Check of a company by INN before an application — bank staff only (`backoffice.read`).\nThe company need not be a client. ЕГРЮЛ/ЕГРИП past the cache, the tax service, Kontur and\nthe bank stop list; `ogrn`, `kpp`, `name` from the client's documents are matched against\nthe registry. A typo in the INN — `fail`, an unknown INN — `not_found`, both with 200;\nthe registry did not answer — 503. Nothing is stored.\n\nПод андеррайтером: клиенту проверка недоступна. В теле — ИНН Ромашки с ОГРН Вектора: итог `fail`, ИНН и ОГРН от разных компаний. Уберите `ogrn` — будет `ok`. Демо-ИНН для всех исходов — в `docs/modules/clients.md`, раздел «Проверка по ИНН до заявки».\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/organizations/inn-check",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"inn\": \"7701158817\",\n  \"ogrn\": \"1037702309116\"\n}"
+        },
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_ULNS7QTnsE",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4r4NbfqXel",
@@ -7789,7 +7819,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 3000.0,
+        "sortPriority": 4000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_underwriter ]}",
@@ -7817,7 +7847,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 4000.0,
+        "sortPriority": 5000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7845,7 +7875,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 5000.0,
+        "sortPriority": 6000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7873,7 +7903,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 6000.0,
+        "sortPriority": 7000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7909,7 +7939,7 @@
         "body": {
           "text": "{\n  \"login\": \"ivanov@ip.test\",\n  \"role\": \"employee\"\n}"
         },
-        "sortPriority": 7000.0,
+        "sortPriority": 8000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7950,7 +7980,7 @@
         "body": {
           "text": "{\n  \"role\": \"accountant\"\n}"
         },
-        "sortPriority": 8000.0,
+        "sortPriority": 9000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7991,7 +8021,7 @@
         "body": {
           "text": "{\n  \"number\": \"77 АА 0000001\",\n  \"issued_at\": \"2026-10-01\",\n  \"valid_until\": \"2027-10-01\",\n  \"scope\": [\n    \"submit_application\"\n  ]\n}"
         },
-        "sortPriority": 9000.0,
+        "sortPriority": 10000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -8019,7 +8049,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 10000.0,
+        "sortPriority": 11000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -8055,7 +8085,7 @@
         "body": {
           "text": "{\n  \"period_year\": 2025,\n  \"revenue\": \"48000000\",\n  \"expenses\": \"41000000\",\n  \"net_profit\": \"5600000\",\n  \"total_liabilities\": \"12000000\",\n  \"monthly_debt_payments\": \"350000\"\n}"
         },
-        "sortPriority": 11000.0,
+        "sortPriority": 12000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -8083,7 +8113,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 12000.0,
+        "sortPriority": 13000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -8119,7 +8149,7 @@
         "body": {
           "text": "{\n  \"summary\": \"Кофейня у метро: зерно от обжарщика, завтраки, доставка по району\",\n  \"financial_model\": {\n    \"months\": [\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      },\n      {\n        \"revenue\": \"1000000\",\n        \"expenses\": \"800000\"\n      }\n    ],\n    \"own_funds\": \"1000000\",\n    \"collateral_description\": \"Поручительство учредителя\",\n    \"guarantee\": \"msp_corporation\",\n    \"guarantee_share\": \"0.5\",\n    \"loan_amount\": \"3000000\",\n    \"loan_term_months\": 36\n  }\n}"
         },
-        "sortPriority": 13000.0,
+        "sortPriority": 14000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -10112,7 +10142,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 14000.0,
+        "sortPriority": 15000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -10229,7 +10259,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 15000.0,
+        "sortPriority": 16000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",

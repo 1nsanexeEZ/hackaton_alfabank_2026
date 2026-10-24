@@ -69,6 +69,7 @@ NAMES: dict[str, str] = {
     "POST /products/{code}/calculate": "Калькулятор платежей",
     "GET /products/{code}/eligibility": "Подходит ли продукт компании",
     "GET /organizations": "Компании",
+    "POST /organizations/inn-check": "Проверить компанию по ИНН",
     "GET /organizations/{organization_id}": "Карточка компании",
     "POST /organizations/{organization_id}/verification": "Сверить с реестрами",
     "GET /organizations/{organization_id}/members": "Участники компании",
@@ -191,6 +192,11 @@ NOTES: dict[str, str] = {
     "DELETE /products/{code}": (
         f"Опубликованный `{YAAK_PRODUCT}` уходит в архив, черновик удаляется."
     ),
+    "POST /organizations/inn-check": (
+        "Под андеррайтером: клиенту проверка недоступна. В теле — ИНН Ромашки с ОГРН Вектора: "
+        "итог `fail`, ИНН и ОГРН от разных компаний. Уберите `ogrn` — будет `ok`. Демо-ИНН "
+        "для всех исходов — в `docs/modules/clients.md`, раздел «Проверка по ИНН до заявки»."
+    ),
     "POST /organizations/{organization_id}/members": (
         "Добавляет ИП Иванова в Ромашку сотрудником: смена роли, доверенность и удаление — "
         "над ним, бухгалтер Ромашки остаётся на месте."
@@ -307,6 +313,8 @@ def _bodies() -> dict[str, Any]:
         "POST /auth/login": {"login": ACCOUNTS["romashka"][0], "password": var("demo_password")},
         "POST /auth/demo-login": {"login": ACCOUNTS["romashka"][0]},
         "PATCH /me/profile": {"position": "Генеральный директор"},
+        # The INN of «Ромашка» with the OGRN of «Вектор»: a mismatch.
+        "POST /organizations/inn-check": {"inn": INN["romashka"], "ogrn": "1037702309116"},
         "POST /me/consents": {"types": ["personal_data", "credit_bureau_personal"]},
         "POST /organizations/{organization_id}/consents": {"types": ["credit_bureau_company"]},
         "POST /accounts": {
@@ -435,7 +443,7 @@ def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
         return "admin"
     if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice", "/support/queue")):
         return "underwriter"
-    if (method, path) == ("get", "/organizations"):
+    if (method, path) in {("get", "/organizations"), ("post", "/organizations/inn-check")}:
         return "underwriter"
     if path.endswith(_STARTUP_PATHS):
         return "start"

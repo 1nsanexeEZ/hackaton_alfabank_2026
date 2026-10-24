@@ -31,7 +31,8 @@ class Permissions(StrEnum):
     TASKS_UPDATE = "tasks.update"
     # Full credit decision with rule trace (module `decision`).
     DECISIONS_READ = "decisions.read"
-    # Back office screens: queue, metrics (module `bff`).
+    # Back office screens: queue, metrics (module `bff`); the check of a company by INN
+    # before an application (module `clients`).
     BACKOFFICE_READ = "backoffice.read"
     # Feed and notifications (module `notifications`).
     FEED_READ = "feed.read"

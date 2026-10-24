@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_OESQFHKviI
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Проверить компанию по ИНН
+description: |-
+  Check of a company by INN before an application — bank staff only (`backoffice.read`).
+  The company need not be a client. ЕГРЮЛ/ЕГРИП past the cache, the tax service, Kontur and
+  the bank stop list; `ogrn`, `kpp`, `name` from the client's documents are matched against
+  the registry. A typo in the INN — `fail`, an unknown INN — `not_found`, both with 200;
+  the registry did not answer — 503. Nothing is stored.
+
+  Под андеррайтером: клиенту проверка недоступна. В теле — ИНН Ромашки с ОГРН Вектора: итог `fail`, ИНН и ОГРН от разных компаний. Уберите `ogrn` — будет `ok`. Демо-ИНН для всех исходов — в `docs/modules/clients.md`, раздел «Проверка по ИНН до заявки».
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/organizations/inn-check
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "inn": "7701158817",
+      "ogrn": "1037702309116"
+    }
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

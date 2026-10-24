@@ -12,6 +12,7 @@ from src.modules.enrichment.application.use_cases.build_cashflow import Cashflow
 from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
 from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.application.use_cases.latest_cashflow import GetLatestCashflowUseCase
+from src.modules.enrichment.application.use_cases.lookup_company import LookupCompanyUseCase
 from src.modules.enrichment.application.use_cases.lookup_person_bureau import (
     LookupPersonBureauUseCase,
 )
@@ -27,11 +28,13 @@ def enrichment_facade(
     session: AsyncSession, sources: Sources, registry_cache: RegistryCache
 ) -> EnrichmentFacadeImpl:
     repository = SqlAlchemyEnrichmentRepository(session)
+    lookup_registry = LookupRegistryUseCase(sources.registry, registry_cache)
     return EnrichmentFacadeImpl(
         GetSnapshotUseCase(repository),
-        LookupRegistryUseCase(sources.registry, registry_cache),
+        lookup_registry,
         LookupPersonBureauUseCase(sources.person_bureau),
         GetLatestCashflowUseCase(repository),
+        LookupCompanyUseCase(lookup_registry, sources),
     )
 
 
