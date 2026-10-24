@@ -39,6 +39,24 @@ export interface CollateralForm {
   owner: 'self' | 'third_party'
 }
 
+export interface MissingItem {
+  /** Путь поля, как в fieldErrors и data-field у обёртки поля */
+  key: string
+  label: string
+}
+
+/** Короткие подписи пропущенного для нижней строки модалки */
+const MISSING_LABEL: Record<string, string> = {
+  organization: 'Компания',
+  'request.product': 'Продукт',
+  'request.purpose': 'Цель кредита',
+  'collateral.type': 'Вид залога',
+  'collateral.description': 'Описание залога',
+  'collateral.declared_value': 'Стоимость залога',
+  'consents.personal_data': 'Согласие на обработку данных',
+  'consents.credit_bureau': 'Согласие на запрос в БКИ',
+}
+
 export interface DocumentSlot {
   type: string
   title: string
@@ -385,13 +403,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     }
   }
 
-  function validateStartup(): boolean {
-    if (!startupBlock.value) return true
-    fieldErrors.value = { ...fieldErrors.value, 'request.product': startupBlock.value }
-    return false
-  }
-
-  function validateTerms(): boolean {
+  function termsProblems(): Record<string, string> {
     const errors: Record<string, string> = {}
     if (!organization.value) errors.organization = 'Выберите компанию'
     else if (!organization.value.my_permissions.includes('submit_application')) {
@@ -400,17 +412,22 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       errors['request.product'] = ineligibleReason.value
     } else if (!isAvailableFor(product.value, organization.value.legal_form)) {
       errors['request.product'] = 'Продукт недоступен для этой формы бизнеса'
+    } else if (startupBlock.value) {
+      errors['request.product'] = startupBlock.value
     }
     if (!terms.purpose) errors['request.purpose'] = 'Выберите цель кредита'
     else if (!product.value.purposes.includes(terms.purpose)) {
       errors['request.purpose'] = 'Этот продукт не для такой цели — выберите один из подходящих выше'
     }
-    fieldErrors.value = errors
-    return Object.keys(errors).length === 0
+    return errors
+  }
+
+  function validateTerms(): boolean {
+    return accept(termsProblems())
   }
 
   async function submitTerms() {
-    if (!validateTerms() || !validateStartup()) return
+    if (!validateTerms()) return
     await run(async () => {
       await ensureDraft()
       await patch({
@@ -426,7 +443,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     })
   }
 
-  function validateDetails(): boolean {
+  function detailsProblems(): Record<string, string> {
     const errors: Record<string, string> = {}
     if (collateralNeeded.value) {
       if (!collateral.type) errors['collateral.type'] = 'Выберите, что даёте в залог'
@@ -438,8 +455,54 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     for (const slot of documents.value) {
       if (!slot.files.length) errors[`documents.${slot.type}`] = 'Загрузите документ'
     }
+    return errors
+  }
+
+  function validateDetails(): boolean {
+    return accept(detailsProblems())
+  }
+
+  function consentsProblems(): Record<string, string> {
+    const errors: Record<string, string> = {}
+    if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
+    if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'
+    return errors
+  }
+
+  /**
+   * Что ещё не заполнено на текущем шаге — живой список для нижней строки модалки рядом с «Далее»:
+   * клиент видит пропущенное сразу, а не только после нажатия, и может перейти к полю в один клик.
+   */
+  const missing = computed<MissingItem[]>(() =>
+    Object.keys(problemsOf(step.value)).map((key) => ({ key, label: missingLabel(key) })),
+  )
+
+  function problemsOf(current: WizardStep): Record<string, string> {
+    if (current === 'terms') return termsProblems()
+    if (current === 'details') return detailsProblems()
+    if (current === 'consents') return consentsProblems()
+    return {}
+  }
+
+  // После неудачной попытки подсказки у полей обновляются на ходу: исправил — красный текст пропал
+  watch(missing, () => {
+    if (Object.keys(fieldErrors.value).length) fieldErrors.value = problemsOf(step.value)
+  })
+
+  function missingLabel(key: string): string {
+    if (key.startsWith('documents.')) return documentTitle(key.slice('documents.'.length))
+    if (key.startsWith('product_fields.')) return fieldTitle(product.value.fieldsSchema, key.slice('product_fields.'.length))
+    return MISSING_LABEL[key] ?? key
+  }
+
+  /** Растёт при каждой попытке пройти дальше с пропусками: модалка подсвечивает список и ведёт к первому полю */
+  const nudge = ref(0)
+
+  function accept(errors: Record<string, string>): boolean {
     fieldErrors.value = errors
-    return Object.keys(errors).length === 0
+    const ok = Object.keys(errors).length === 0
+    if (!ok) nudge.value++
+    return ok
   }
 
   async function submitDetails() {
@@ -463,11 +526,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   }
 
   async function submit() {
-    const errors: Record<string, string> = {}
-    if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
-    if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'
-    fieldErrors.value = errors
-    if (Object.keys(errors).length) return
+    if (!accept(consentsProblems())) return
 
     await run(async () => {
       // Уже данные согласия бэкенд не перезаписывает: момент и ссылка на профиль сохраняются
@@ -560,6 +619,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     error,
     violations,
     fieldErrors,
+    missing,
+    nudge,
     prepare,
     loadOrganizations,
     submitTerms,

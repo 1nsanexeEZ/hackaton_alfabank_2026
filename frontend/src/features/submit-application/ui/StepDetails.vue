@@ -33,7 +33,7 @@ const OWNER_OPTIONS: { value: CollateralForm['owner']; label: string }[] = [
         </p>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
-        <div>
+        <div data-field="collateral.type">
           <SelectField v-model="collateral.type" label="Что даёте в залог" :options="collateralOptions" />
           <p v-if="fieldErrors['collateral.type']" class="mt-1.5 text-sm text-brand">{{ fieldErrors['collateral.type'] }}</p>
         </div>
@@ -41,6 +41,7 @@ const OWNER_OPTIONS: { value: CollateralForm['owner']; label: string }[] = [
       </div>
       <TextField
         v-model="collateral.description"
+        data-field="collateral.description"
         label="Описание"
         placeholder="Например: склад 1 200 м², Подольск, ул. Заводская, 5"
         :maxlength="1000"
@@ -48,6 +49,7 @@ const OWNER_OPTIONS: { value: CollateralForm['owner']; label: string }[] = [
       />
       <TextField
         v-model="collateral.declaredValue"
+        data-field="collateral.declared_value"
         label="Оценочная стоимость, ₽"
         inputmode="numeric"
         placeholder="0"

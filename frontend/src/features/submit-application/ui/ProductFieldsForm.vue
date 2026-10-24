@@ -55,7 +55,7 @@ function label(field: FieldSchema, key: string, required: boolean) {
   <div class="space-y-4">
     <template v-for="(field, key) in schema.properties" :key="key">
       <!-- Список записей, например кредиты для рефинансирования -->
-      <fieldset v-if="field.type === 'array' && field.items" class="space-y-3">
+      <fieldset v-if="field.type === 'array' && field.items" :data-field="`product_fields.${key}`" class="space-y-3">
         <legend class="mb-2 text-sm font-medium text-ink">{{ field.title ?? key }}</legend>
         <div
           v-for="(row, index) in rows(String(key))"
@@ -109,6 +109,7 @@ function label(field: FieldSchema, key: string, required: boolean) {
 
       <SelectField
         v-else-if="field.enum"
+        :data-field="`product_fields.${key}`"
         :model-value="scalar(String(key))"
         :label="label(field, String(key), isRequired(schema, String(key)))"
         :options="enumOptions(field)"
@@ -116,6 +117,7 @@ function label(field: FieldSchema, key: string, required: boolean) {
       />
       <TextField
         v-else
+        :data-field="`product_fields.${key}`"
         :model-value="scalar(String(key))"
         @update:model-value="setScalar(String(key), $event)"
         :label="label(field, String(key), isRequired(schema, String(key)))"

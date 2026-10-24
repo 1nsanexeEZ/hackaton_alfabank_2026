@@ -143,7 +143,7 @@ const suggestProject = computed(
 
 <template>
   <div class="space-y-6">
-    <div>
+    <div data-field="organization">
       <SelectField
         v-if="organizationOptions.length > 1"
         v-model="terms.organizationId"
@@ -170,7 +170,7 @@ const suggestProject = computed(
       </p>
     </div>
 
-    <div>
+    <div data-field="request.purpose">
       <SelectField v-model="purpose" label="Для чего нужны деньги" :options="purposeOptions" />
       <p v-if="fieldErrors['request.purpose']" class="mt-1.5 text-sm text-brand">
         {{ fieldErrors['request.purpose'] }}
@@ -209,7 +209,7 @@ const suggestProject = computed(
       </ul>
     </div>
 
-    <div>
+    <div data-field="request.product">
       <SelectField v-model="terms.productId" label="Продукт" :options="productOptions" />
       <p v-if="ineligibleReason || fieldErrors['request.product']" class="mt-1.5 text-sm text-brand" role="alert">
         {{ ineligibleReason ?? fieldErrors['request.product'] }}

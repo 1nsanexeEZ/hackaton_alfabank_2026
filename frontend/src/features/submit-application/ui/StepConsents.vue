@@ -55,7 +55,7 @@ const summary = computed(() => [
 
     <!-- Тексты согласий — по docs/personal-data.md: что обрабатываем, зачем, как отозвать -->
     <div class="space-y-4">
-      <div>
+      <div data-field="consents.personal_data">
         <CheckboxField v-model="consents.personalData" :error="fieldErrors['consents.personal_data']">
           Согласен на обработку персональных данных
         </CheckboxField>
@@ -73,7 +73,7 @@ const summary = computed(() => [
           </p>
         </details>
       </div>
-      <div>
+      <div data-field="consents.credit_bureau">
         <CheckboxField v-model="consents.creditBureau" :error="fieldErrors['consents.credit_bureau']">
           Согласен на запрос кредитной истории компании в бюро кредитных историй
         </CheckboxField>
