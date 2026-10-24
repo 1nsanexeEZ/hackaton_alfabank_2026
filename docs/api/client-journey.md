@@ -1,13 +1,13 @@
 # Клиентский путь: ручки API и контракт для фронта
 
 Путь взят из верхней части общей схемы (BPMN): пул «Пользак», пул «Банк», внутри банка — «Запросы» и «Сервис скоринга» («Модель оценки PD» → «Стратегия решения»).
-Ручки — из [`openapi.json`](openapi.json). Он совпадает с кодом `develop` на 23.10.2026: `uv run python -m scripts.export_openapi --check` из `backend/`.
+Ручки — из [`openapi.json`](openapi.json). Он выгружается из кода; свежий ли он, скажет `uv run python -m scripts.export_openapi --check` из `backend/`.
 Полные схемы DTO — там же или в Swagger `/docs` запущенного бэка. Здесь — поля, которые нужны экранам.
 
 Статусы в таблицах:
 - ✅ есть и совпадает со схемой;
 - 🟡 есть, но расходится со схемой;
-- ❌ нет — остались только ручки админки из раздела 5.
+- ❌ нет — осталось только `rescore` админки из раздела 5.
 
 ---
 
@@ -17,7 +17,7 @@
 |---|---|
 | Пути | Бэк без префикса. Фронт ходит в `/api/*` (`VITE_API_BASE_URL`), vite-прокси срезает префикс: `/api/auth/login` → `/auth/login` |
 | Авторизация | `Authorization: Bearer <access_token>` из `POST /auth/login` или `POST /auth/demo-login`. `expires_in` — в секундах. Refresh-ручки нет: на 401 — снова вход |
-| Без токена | `GET /products`, `GET /products/{code}`, `POST /products/recommend`, `POST /products/{code}/calculate`, `POST /auth/login`, `POST /auth/demo-login`, `GET /auth/demo-accounts`, `GET /health`, `GET /ready` |
+| Без токена | `GET /products`, `GET /products/{code}`, `POST /products/recommend`, `POST /products/{code}/calculate`, `POST /auth/login`, `POST /auth/demo-login`, `GET /auth/demo-accounts`, `GET /.well-known/jwks.json`, `GET /esign/rules`, `GET /contracts/verify/{document_id}`, `POST /contracts/verify`, `GET /health`, `GET /ready`. `GET /feed/stream` — тоже без `Authorization`, но по одноразовому билету в `?ticket=` |
 | Ошибки | `{code, message, details?}`: 401 `unauthorized`, 403 `permission_denied`, 404 `not_found`, 409 `conflict` / `invalid_transition`, 422 `validation_error`, 503 `unavailable`. Уточнение — в `details.code`, нарушения полей — в `details.violations: [{code, field}]` |
 | Ошибка формы запроса | 422 от FastAPI: `{detail: [{loc, msg, type}]}` — другой формат, `http.ts` уже разбирает оба |
 | Чужое | Чужая компания или заявка — **404**, не 403. Нет права внутри своей компании — 403, `details.code = org_permission_required`, `details.permission` |
@@ -40,7 +40,7 @@
 | 3 | Есть ли бизнес? | банк | `GET /bff/dashboard`: `organizations`, `onboarding`, `organization.segment` (`established` / `startup`) | ✅ ветка «нет (стартап)» — [4.6](#46-ветка-стартапа) |
 | 4 | Подтянули данные из базы банка | банк | `GET /organizations/{id}`, `GET /organizations/{id}/financial-reports` | ✅ |
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | `POST /organizations/{id}/verification`, результат — в `OrganizationRead.verification` | ✅ бэк сверяет и сам — по выписке из каждой заявки, [4.2](#42-сверка-с-егрюл) |
-| 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена); ночного пакета нет |
+| 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена) и ночным пакетом: истекающие предложения пересчитываются заранее ([decision.md](../modules/decision.md#runtime-команды-события-api)) |
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `POST /bff/products/{code}/calculate`, `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility` | ✅ график по ставке предодобрения; сверх предодобренного — причина и подсказка, не ошибка — [3.4](#34-выбор-условий-шаг-7) |
 | 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `GET/POST /organizations/{id}/consents`, `DELETE /organizations/{id}/consents/{type}` — согласие на БКИ компании до заявки; `PATCH /applications/{id}` → `consents` — галочки в черновике (недостающие черновик берёт из профиля, `consents.*_source`); `Dashboard.consents` — что дано и чего нет; `ClientApplicationCard.consents.head_credit_bureau`, `Dashboard.todo` → `consent_required` | ✅ |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
@@ -141,6 +141,8 @@ Dashboard {
   pre_approved: [{ product_code, product_name, max_amount, rate_from, term_max_months, valid_until }]
   active_applications: ApplicationRow[]
   todo: [{ application_id, number, kind: info_requested | offer_ready | signing | consent_required, title }]
+  consents: [{ type: personal_data | credit_bureau_company | credit_bureau_personal, scope: account | organization,
+               title, purpose, required, given, given_at, valid_until }]   // согласия до заявки — bff.md
   feed: { unread, items: FeedItem[] }
   news: [{ id, title, body, published_at, relevance[] }]
   degraded: string[]             // какие блоки не загрузились — показать заглушку, а не ошибку
@@ -157,9 +159,9 @@ Dashboard {
 | `POST /organizations/{id}/verification` | сверить с ЕГРЮЛ/ЕГРИП и подкачать изменения | `VerificationResultRead {organization, updated_fields, discrepancies}`, подробно — [4.2](#42-сверка-с-егрюл) |
 | `GET /organizations/{id}/financial-reports` | отчётность | `[{id, period_year, period_quarter, source: declared \| fns \| bank_statement, revenue, expenses, net_profit, total_liabilities, monthly_debt_payments, submitted_by, submitted_at}]` |
 | `POST /organizations/{id}/financial-reports` | подать отчёт | тело `{period_year, period_quarter?, revenue, expenses?, net_profit?, total_liabilities?, monthly_debt_payments?}` → 201 новый / 200 уточнён. Запускает пересчёт предодобрения |
-| `GET /organizations/{id}/pre-approved-offers` | предодобрение | `[{product_code, max_amount, rate_from, term_max_months, valid_until, basis: estimate \| full, note}]` |
+| `GET /organizations/{id}/pre-approved-offers` | предодобрение | `[{product_code, max_amount, rate_from, term_max_months, valid_until, basis: estimate \| full \| project, note}]`; `project` — по проектной оценке стартапа ([4.6](#46-ветка-стартапа)) |
 
-Предодобрение действует 30 дней. Пересчёт перезаписывает все предложения компании: продукт, который больше не подходит, пропадает. Оценка консервативная, без БКИ и выписок.
+Предодобрение действует 30 дней; ночной пакет заранее пересчитывает компании, у которых срок подходит к концу. Пересчёт перезаписывает все предложения компании: продукт, который больше не подходит, пропадает. Оценка консервативная, без БКИ и выписок.
 
 ### 3.4. Выбор условий (шаг 7)
 
@@ -238,11 +240,15 @@ Dashboard {
      "request": { "amount": 3000000, "term_months": 24, "purpose": "working_capital", "purpose_comment": null },
      "product_fields": {},
      "collateral": { "type": "real_estate", "description": "…", "declared_value": 50000000, "owner": "self" },
-     "consents": { "personal_data": true, "credit_bureau": true }
+     "consents": { "personal_data": true, "credit_bureau": true },
+     "beneficiary": { "acts_for_third_party": false },
+     "beneficial_owners": { "owners": [] }
    }
    ```
 
    `product_fields` сливается с сохранённым, `null` удаляет ключ. Схема полей — `product_terms.application_fields_schema`. Ответ — `ApplicationOut` с `version + 1`.
+
+   `beneficiary` — действует ли клиент к выгоде третьего лица, `beneficial_owners` — бенефициары со слов клиента (115-ФЗ); `null` снимает ответ. Подачу они не блокируют, но без ответа о выгодоприобретателе (или без владельца у залога третьего лица) заявку решает человек (`policy_v10`), а «действую за третье лицо» требует документ `beneficiary_contract`. Формат и примеры — [compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
 3. **`GET /applications/{id}/completeness`** → `{complete, violations: [{code, field}]}`. Пример нарушения: `{"code": "missing", "field": "consents.credit_bureau"}`. Для документов `field` — `documents.<type>`.
 4. Документы (типы — `product_terms.required_documents[].type`):
    - `POST /applications/{id}/documents` `{type, filename, content_type, size_bytes}` → 201 `{document (status pending_upload), upload: {url, method, headers, expires_at}}`;
@@ -318,6 +324,7 @@ Dashboard {
 | `POST /feed/{item_id}/read`, `POST /feed/read-all` | отметить прочитанным |
 | `POST /feed/stream-ticket` | `{ticket, expires_at, expires_in, stream_url}` → `GET stream_url` через `EventSource` |
 | `GET /news?organization_id=&limit=`, `POST /news/{news_id}/read` | персональные новости |
+| `POST /support/tickets`, `GET /support/tickets`, `GET /support/tickets/{ticket_id}`, `POST …/messages`, `POST …/close` | чат с техподдержкой — [support.md](../modules/support.md) |
 
 **Дозапрос** (банк вернул `REQUEST_INFO`, `client_status = info_requested`):
 1. Загрузить документы из `info_request.requested_documents`. Документ сам привязывается к открытому дозапросу; тип, которого банк не просил, — 422 `unexpected_document`.
@@ -331,27 +338,34 @@ Dashboard {
 | `POST /applications/{id}/offer/accept` | — | `offer_ready` → `signing`. Нужно и для `as_requested`, и для `counter` |
 | `POST /applications/{id}/offer/decline` | `{reason?}` или пусто | → `offer_declined` |
 | `GET /applications/{id}/contract` | — | Договор для экрана подписи, с `signing` и дальше; раньше — 409 `contract_not_ready`. Право — чтение заявки. Ответ ниже |
-| `POST /applications/{id}/sign` | `{password, offer_hash}` | Пароль аккаунта ещё раз (step-up), неверный — 422 `invalid_password`. `offer_hash` — из договора: если оффер изменился после открытия договора — 409 `offer_changed`, договор открыть заново. Нужно право `sign`. Ответ `{application, signature: {signed_at, offer_hash, edo_document_id, simulated}}` |
+| `GET /applications/{id}/contract/document?kind=draft\|signed` | — | Сам PDF: проект до подписи, после — итоговый с подписью банка; без `kind` — последний. 409 `contract_not_ready` до принятия оффера, `document_pending` — PDF ещё делается |
+| `GET /esign/rules` | — | Правила электронного взаимодействия (соглашение о простой ЭП), без входа: `{version, title, effective_from, paragraphs}`. Их `version` клиент принимает при подписании |
+| `POST /applications/{id}/sign` | `{password, offer_hash, document_hash, rules_version}` | Пароль аккаунта ещё раз (step-up), неверный — 422 `invalid_password`. `offer_hash` — из договора: если оффер изменился после открытия договора — 409 `offer_changed`, договор открыть заново. `document_hash` — `document.sha256` проекта, который клиент видел: другой — 422 `document_changed`, проекта ещё нет — 409 `document_pending`. `rules_version` — `version` из `GET /esign/rules`: устарела — 422 `rules_outdated`. Бэк принимает подпись и без этих двух полей (совместимость), тогда она не привязана к PDF и правилам — фронт шлёт оба. Нужно право `sign`. Сразу после подписи клиента банк подписывает итоговый PDF (PAdES с меткой времени). Ответ `{application, signature: {signed_at, offer_hash, edo_document_id, simulated}}` |
 | `POST /applications/{id}/cancel` | `{reason?}` или пусто | Отмена в `draft`, `submitted`, `info_requested`, `offer_ready` |
 
-Договор `ContractOut` рендерит фронт из полей, PDF нет:
+Договор `ContractOut` — поля для экрана подписи и PDF договора в `document`:
 
 ```json
 {
   "number": "2026-000123",
+  "uid": "1f0c2a4e-8d3b-4c1a-9e7f-2b6d5a4c3e21-f",
   "offer_hash": "9f2c…64 hex",
   "status": "unsigned",
   "borrower": { "name": "ООО «Ромашка»", "inn": "7701158817", "ogrn": "…", "kpp": "…", "legal_form": "ooo", "head_name": "Смирнова Анна Андреевна" },
   "signers": [{ "account_id": "…", "name": "Смирнова Анна Андреевна", "authority": "registry" }],
   "terms": { "kind": "as_requested", "amount": "3000000.00", "term_months": 24, "rate": "23.50", "monthly_payment": "…", "schedule_type": "annuity", "conditions": [], "expires_at": "…" },
   "schedule": { "amount": "3000000.00", "term_months": 24, "rate": "23.50", "repayment": "annuity", "monthly_payment": "…", "total_interest": "…", "total_paid": "…", "payments": [{ "number": 1, "due_date": null, "principal": "…", "interest": "…", "total": "…", "balance_after": "…" }] },
-  "signature": null
+  "signature": null,
+  "document": { "id": "…", "kind": "draft", "status": "ready", "sha256": "…64 hex", "created_at": "…", "filename": "Договор 2026-000123 (проект).pdf", "verify_url": "http://localhost:8080/verify/…" }
 }
 ```
 
 - `number` — номер заявки, отдельной нумерации договоров нет.
+- `uid` — УИд сделки для кредитной истории (218-ФЗ, 758-П): UUID и контрольный символ. На PDF — строкой и QR-кодом.
 - `signers` — кто вправе подписать сейчас: руководитель по реестру (`registry`) и участники с доверенностью со scope `sign` (`power_of_attorney`). Бухгалтер без доверенности сюда не попадает: ему договор виден, но подписать он не может.
-- После подписи `status = signed`, `signature = {signed_by, signed_at, edo_document_id, simulated}`.
+- `document` — текущий PDF: `kind: draft` до подписи, `signed` после. `sha256` уходит в `sign` как `document_hash`; `status: pending` — PDF ещё делается, `failed` — не получился. `verify_url` — страница сайта, куда ведёт QR-код; она читает `GET /contracts/verify/{document_id}` без входа: кто и когда подписал, сертификат и метка времени банка, цел ли журнал подписания.
+- После подписи `status = signed`, `signature = {signed_by, signed_at, edo_document_id, simulated}`, в `document` — итоговый PDF (`kind: signed`).
+- `POST /contracts/verify` — проверка файла договора без входа (multipart, поле `file`, до 10 МБ): цела ли подпись банка и совпадает ли файл с экземпляром в архиве.
 
 После подписи процесс сам выдаёт кредит через мок АБС: `status = disbursed`, в заявке `disbursement {reference, disbursed_at, simulated}`, у клиента `client_status = issued`. Оффер, не принятый до `offer.expires_at`, уходит в `expired`.
 
@@ -379,7 +393,7 @@ Dashboard {
 | 4.2 | Сверка с ЕГРЮЛ | 5 | `POST /organizations/{organization_id}/verification`, автосверка по каждой заявке | clients, enrichment, decision |
 | 4.3 | Личные согласия: ПДн и БКИ физлица | 8 | `GET/POST /me/consents`, `DELETE /me/consents/{type}` | identity, clients, process |
 | 4.4 | Источники ГИР БО, Контур, БКИ ФЛ | 10–11 | новых ручек нет: поля в `UnderwriterCard.enrichment` | enrichment, decision, process, external-mocks |
-| 4.5 | Договор перед подписью | 17 | `GET /applications/{id}/contract`, `offer_hash` в `sign` | applications |
+| 4.5 | Договор перед подписью | 17 | `GET /applications/{id}/contract`, `GET …/contract/document`, `GET /esign/rules`, `offer_hash`, `document_hash` и `rules_version` в `sign`, `/contracts/verify` | applications |
 | 4.6 | Ветка стартапа | 3, ветка «нет» | `POST/GET /organizations/{id}/founder-prescreen`, `segment` и `startup` на дашборде | decision, scoring, enrichment, products, process, bff |
 | 4.7 | Скоринг и стратегия как на схеме | 12–13 | новых ручек нет: поля в DTO андеррайтера | scoring, decision |
 
@@ -500,7 +514,7 @@ bki_head: CreditHistoryDTO | null              // та же схема, что �
 fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 ```
 
-Стоп-факторы появились в `policy_v2` и действуют в текущей `policy_v4` (номер версии — в `decision.policy_version` карточки андеррайтера). Пороги стартовые и живут в YAML:
+Стоп-факторы появились в `policy_v2` и действуют во всех следующих версиях, в том числе во встроенной `policy_v10` (номер версии, которой решено, — в `decision.policy_version` карточки андеррайтера). Пороги стартовые: во встроенной версии — в YAML, в версиях админа — в документе версии (`/decision/policies`). С `policy_v7` к ним добавились стоп-лист банка, возраст бизнеса, массовый руководитель и недостоверные сведения ЕГРЮЛ — [decision.md](../modules/decision.md#стоп-факторы-до-модели-policy_v7). Стоп-факторы `policy_v2`:
 
 | Условие | Источник | Причина |
 |---|---|---|
@@ -524,10 +538,10 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 Контракт — в [3.7](#37-решение-оффер-подпись-выдача-шаги-1518).
 
-- `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей и подпись.
-- `POST /applications/{id}/sign` принимает `{password, offer_hash}`; изменившийся оффер — 409 `offer_changed`.
+- `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей, подпись, УИд сделки и PDF в `document`.
+- `POST /applications/{id}/sign` принимает `{password, offer_hash, document_hash, rules_version}`; изменившийся оффер — 409 `offer_changed`, проект — 422 `document_changed`, правила — 422 `rules_outdated`.
+- PDF делает бэк: проект при первом открытии договора, итоговый — сразу после подписи клиента, с подписью банка. Хранение, архив и проверка — [applications.md](../modules/applications.md).
 - Адреса заёмщика в договоре нет: его нет в снимке компании, который заявка фиксирует при подаче.
-- PDF не генерируем, фронт рендерит договор из полей.
 
 ### 4.6. Ветка стартапа
 
@@ -608,7 +622,7 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 ### 4.7. Скоринг и стратегия как на схеме
 
-PD-модель `pd_model_v2` ([scoring.md](../modules/scoring.md)) и «Стратегия решения» с `policy_v3`; действует `policy_v4` — v3 плюс ветка стартапа ([decision.md](../modules/decision.md)). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Новые поля — в DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`:
+PD-модель `pd_model_v2` ([scoring.md](../modules/scoring.md)) и «Стратегия решения» с `policy_v3`; встроенная сейчас — `policy_v10`, история версий — в [decision.md](../modules/decision.md#версии-политики). Админ может активировать свою версию модели или политики (`/scoring/models`, `/decision/policies`, раздел 5). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Новые поля — в DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`:
 
 ```text
 scoring: {
@@ -630,7 +644,7 @@ decision: {
 - Матрица грейд × сумма и мягкие триггеры видны в `rule_trace` (`strategy.risk_matrix`, `trigger.*`), причины — `ROUTE_RISK_MATRIX`, `STOP_RISK_MATRIX`, `ROUTE_SOFT_TRIGGER`, `LIMIT_BY_TURNOVER`, `LIMIT_BY_GRADE`, `LIMIT_BY_GROUP`.
 - `QueueItemDTO.risk_grade` в очереди андеррайтера — тоже A–J.
 - Встречное предложение: сначала удлиняем срок в рамках продукта, потом снижаем сумму — контракт тот же. Поручительство для F–G и сумм больше 20 млн — в `offer.conditions`.
-- Ночной пакетный пересчёт предодобрения не сделан: пересчёт по событиям clients, контракт тот же.
+- Предодобрение пересчитывается по событиям clients и ночным пакетом (истекающие предложения), контракт тот же.
 
 В моке админки третья шкала: `RiskClass` A–D и балл 0–100. Её надо привести к A–J и PD бэка.
 
@@ -638,7 +652,7 @@ decision: {
 
 ## 5. Админка фронта на моках и бэк
 
-Это вне клиентского пути, но тоже контракт для фронта. `creditApi` (`frontend/src/shared/api/credit/types.ts`) целиком на моке, и его методы не совпадают с ручками бэка:
+Это вне клиентского пути, но тоже контракт для фронта. С `VITE_API_MODE=real` обзор, очередь и карточка андеррайтера уже ходят в бэк (`frontend/src/shared/api/backoffice`). `creditApi` (`frontend/src/shared/api/credit/types.ts`) — на моке в любом режиме: на нём редакторы продуктов и скоринга, проверка по ИНН и страницы мок-режима. Его методы и ручки бэка:
 
 | Метод мока | Ручка бэка | Расхождение |
 |---|---|---|
@@ -649,9 +663,9 @@ decision: {
 | `transition(id, to_signing \| issue)` | — | переходы делают клиент (`accept`, `sign`) и процесс (выдача); у банка таких ручек нет |
 | `getDashboard()` | `GET /bff/backoffice/metrics` | у бэка нет `overdue`, `inProgress`, `approvedVolume`, `averageAmount`, `byStatus`, `byRisk`, `funnel` |
 | `rescore(id)` | — | ❌ |
-| `lookupInn(inn, amount)` | — | ❌ проверка компании по ИНН с предскорингом |
-| `listProducts()` / `updateProduct()` | `GET /products` / — | ❌ каталог не редактируется |
-| `getScoringConfig()` / `updateScoringConfig()` / `previewScoring()` | — | ❌ политика — YAML (`backend/src/modules/decision/infrastructure/config/policy_v1.yaml`), ручек нет |
+| `lookupInn(inn, amount)` | `POST /organizations/inn-check` | `{inn, ogrn?, kpp?, name?}` → `verdict` (`ok` / `warning` / `fail` / `not_found`), `checks`, данные ЕГРЮЛ, ФНС и Контура; суммы и предскоринга нет. Право `backoffice.read` — [clients.md](../modules/clients.md#проверка-по-инн-до-заявки) |
+| `listProducts()` / `updateProduct()` | `GET /products/all`, `POST /products`, `PUT /products/{code}`, `POST /products/{code}/activate`, `DELETE /products/{code}` | версии продукта: черновик → публикация → архив; права `credits.create` / `credits.update` / `credits.delete` (у админа). Поля — карточка продукта бэка, не `ProductSettings` мока — [products.md](../modules/products.md#ведение-каталога) |
+| `getScoringConfig()` / `updateScoringConfig()` / `previewScoring()` | `/scoring/models*` — версии PD-модели, `/decision/policies*` — версии кредитной политики | один `ScoringConfig` мока на бэке — два документа: модель и политика. Черновик-копия, правка документа целиком, примерка на прошлых заявках, активация и откат; читать и примерять — `scoring.read` (андеррайтер), менять — `scoring.update` (админ) — [scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа) |
 | `resetDemoData()` | — | только для мока |
 
-Что из ❌ делать на бэке, а что оставить моком, — отдельное решение. Там, где ручки есть, мок стоит перевести на них.
+`rescore` на бэке нет: делать ли его, — отдельное решение. Там, где ручки есть, мок стоит перевести на них.
