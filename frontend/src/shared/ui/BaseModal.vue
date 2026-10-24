@@ -1,8 +1,20 @@
+<script lang="ts">
+/**
+ * Сколько окон держат страницу сейчас — общее на все экземпляры. Из одного окна часто открывают
+ * другое («Мои заявки» → карточка): закрытие первого не должно снимать блокировку со второго.
+ */
+let lockedBy = 0
+</script>
+
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
-/** Модальное окно: закрывается по Esc и клику по фону, фокус уходит внутрь окна */
+/**
+ * Модальное окно: закрывается по Esc и клику по фону, фокус уходит внутрь окна.
+ * Пока окно открыто, у <html> класс `has-modal`: анимации страницы под затемнением встают на паузу
+ * (правило в app/styles), иначе их перерисовка мешает плавно прокручивать окно.
+ */
 withDefaults(defineProps<{ title: string; description?: string; wide?: boolean }>(), {
   description: undefined,
   wide: false,
@@ -22,23 +34,34 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') close()
 }
 
+let locking = false
+
+function lockPage(locked: boolean) {
+  if (locked === locking) return
+  locking = locked
+  lockedBy += locked ? 1 : -1
+  const anyOpen = lockedBy > 0
+  document.body.style.overflow = anyOpen ? 'hidden' : ''
+  document.documentElement.classList.toggle('has-modal', anyOpen)
+}
+
 watch(open, async (isOpen) => {
   if (isOpen) {
     returnFocusTo = document.activeElement as HTMLElement | null
     document.addEventListener('keydown', onKeydown)
-    document.body.style.overflow = 'hidden'
+    lockPage(true)
     await nextTick()
     panel.value?.querySelector<HTMLElement>('input, select, textarea, button:not([data-close])')?.focus()
   } else {
     document.removeEventListener('keydown', onKeydown)
-    document.body.style.overflow = ''
+    lockPage(false)
     returnFocusTo?.focus()
   }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
+  lockPage(false)
 })
 </script>
 
@@ -61,7 +84,7 @@ onBeforeUnmount(() => {
           aria-modal="true"
           :aria-labelledby="`${id}-title`"
           :class="[
-            'flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
+            'modal__panel flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
             wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
           ]"
         >
@@ -80,7 +103,7 @@ onBeforeUnmount(() => {
               <X class="size-5" aria-hidden="true" />
             </button>
           </header>
-          <div class="overflow-y-auto px-5 py-5 sm:px-6">
+          <div class="overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
             <slot />
           </div>
           <footer v-if="$slots.footer" class="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-4 sm:px-6">
@@ -91,3 +114,11 @@ onBeforeUnmount(() => {
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* Окно перерисовывается и раскладывается само по себе: изменения внутри не трогают страницу под ним */
+.modal__panel {
+  contain: layout paint;
+  isolation: isolate;
+}
+</style>
