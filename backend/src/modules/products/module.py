@@ -21,5 +21,5 @@ def wire(app: FastAPI) -> None:
 
 
 def subscribers() -> list[Subscription]:
-    """Products react to no events: the catalog changes only through seeds."""
+    """Products react to no events: the catalog changes through its API and seeds."""
     return []

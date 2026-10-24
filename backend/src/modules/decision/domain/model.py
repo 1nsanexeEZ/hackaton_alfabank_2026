@@ -98,6 +98,16 @@ class ReasonCode(StrEnum):
     ROUTE_ZSK_MEDIUM_RISK = "ROUTE_ZSK_MEDIUM_RISK"
     ROUTE_PEP = "ROUTE_PEP"
     ROUTE_AUTOMATED_DECISION_CONSENT = "ROUTE_AUTOMATED_DECISION_CONSENT"
+    # policy_v8: выгодоприобретатель и залогодатель — третье лицо (115-ФЗ).
+    ROUTE_THIRD_PARTY_BENEFICIARY = "ROUTE_THIRD_PARTY_BENEFICIARY"
+    ROUTE_THIRD_PARTIES_UNKNOWN = "ROUTE_THIRD_PARTIES_UNKNOWN"
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
+    STOP_REORGANIZATION = "STOP_REORGANIZATION"
+    STOP_EXCLUDED_FROM_REGISTRY = "STOP_EXCLUDED_FROM_REGISTRY"
+    STOP_UNRELIABLE_DATA = "STOP_UNRELIABLE_DATA"
+    STOP_MASS_HEAD = "STOP_MASS_HEAD"
+    STOP_BUSINESS_TOO_YOUNG = "STOP_BUSINESS_TOO_YOUNG"
+    STOP_BANK_STOP_LIST = "STOP_BANK_STOP_LIST"
 
 
 # --- вход политики -----------------------------------------------------------
@@ -128,6 +138,7 @@ class ProductInput:
     support_program: SupportProgramInput | None = None
     guarantee: str = "none"  # none | owner | msp_corporation
     target_use_confirmation: bool = False
+    min_business_age_months: int = 0  # требование продукта к сроку работы бизнеса
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +165,10 @@ class CompanyInput:
     head_tenure_months: int | None = None
     # Запись о руководителе — от регистрации: руководитель не менялся.
     head_since_registration: bool = False
+    # Отметки ЕГРЮЛ о недостоверности сведений: address | head | founder.
+    unreliable: tuple[str, ...] = ()
+    mass_head: bool | None = None  # ФНС: массовый руководитель; None — ФНС не ответила
+    business_age_months: int | None = None  # полных месяцев с регистрации до подачи
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +239,9 @@ class ScoreInput:
     # ML-модель рядом с PD-моделью (policy_v5); грейд всегда на шкале A–J. None — оценки нет.
     ml_grade: Grade | None = None
     ml_pd_12m: Decimal | None = None
+    # «Данные полные?» скоринга (policy_v7): degraded — решает человек. None — результат до неё.
+    quality: Literal["ok", "degraded"] | None = None
+    quality_reasons: tuple[str, ...] = ()
 
 
 # ok — проверка по 115-ФЗ выполнена на этой заявке; failed — не выполнена (не ответили
@@ -251,6 +269,46 @@ class AmlInput:
     zsk_level: ZskLevel | None = None
     beneficial_owners: tuple[str, ...] = ()  # для трассы: «Цепочкин Ц. Ц. — 80%»
     lists_date: str | None = None  # версия перечней, ISO-дата
+
+
+# none — клиент ответил, что действует к своей выгоде; declared — указал выгодоприобретателя;
+# not_answered — ответа нет.
+BeneficiaryStatus = Literal["none", "declared", "not_answered"]
+# not_applicable — залога третьего лица нет; declared — владелец указан; unknown — не указан.
+PledgorStatus = Literal["not_applicable", "declared", "unknown"]
+
+
+@dataclass(frozen=True, slots=True)
+class ThirdPartiesInput:
+    """Выгодоприобретатель и залогодатель-третье лицо со слов клиента (115-ФЗ, policy_v8).
+    Их проверку по перечням и базе ПДЛ делает enrichment, совпадения — в `AmlInput`."""
+
+    beneficiary: BeneficiaryStatus = "not_answered"
+    beneficiary_name: str | None = None
+    basis: str | None = None  # agency | commission | mandate | trust_management
+    pledgor: PledgorStatus = "not_applicable"
+    pledgor_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BankTurnoverInput:
+    """Обороты по счёту в банке (АБС): поступления по месяцам от старых к новым и за год."""
+
+    monthly_inflows: tuple[Decimal, ...]
+    annual_inflow: Decimal | None  # меньше года оборотов — None
+
+
+# ok — стоп-лист банка ответил; failed — не ответил; not_requested — не запрашивали.
+BankStopListStatus = Literal["ok", "failed", "not_requested"]
+
+
+@dataclass(frozen=True, slots=True)
+class BankStopListInput:
+    """Внутренний стоп-лист банка (АБС); причина — для трассы банка, клиенту не показывается."""
+
+    status: BankStopListStatus
+    listed: bool = False
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -284,6 +342,12 @@ class DecisionInput:
     aml: AmlInput | None = None
     # Согласие на решение только на основании автоматизированной обработки (ст. 16 152-ФЗ).
     automated_decision_consent: bool = False
+    # Выгодоприобретатель и залогодатель — третье лицо (policy_v8); None — не собирались.
+    third_parties: ThirdPartiesInput | None = None
+    # Внутренний стоп-лист банка (policy_v7); None — не собирался.
+    bank_stop_list: BankStopListInput | None = None
+    # Обороты по счёту в банке (policy_v7) — когда выписки нет; None — АБС не ответила.
+    bank_turnover: BankTurnoverInput | None = None
 
 
 @dataclass(frozen=True, slots=True)

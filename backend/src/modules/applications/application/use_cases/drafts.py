@@ -8,7 +8,11 @@ from src.core.exceptions.exceptions import ConflictError, NotFoundError, Validat
 from src.core.uow import UnitOfWork
 from src.modules.applications.application.dto.applications import CollateralDTO
 from src.modules.applications.application.dto.common import UNSET
-from src.modules.applications.application.dto.drafts import DraftChangesDTO, DraftRequestDTO
+from src.modules.applications.application.dto.drafts import (
+    BeneficiaryChoiceDTO,
+    DraftChangesDTO,
+    DraftRequestDTO,
+)
 from src.modules.applications.application.dto.views import ApplicationViewDTO
 from src.modules.applications.application.interfaces.outbox import MessageOutbox
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
@@ -16,20 +20,25 @@ from src.modules.applications.application.mappers.dto import (
     collateral_declaration,
     loan_request,
     terms_from_dto,
+    third_party,
 )
 from src.modules.applications.application.use_cases.common import (
     get_writable,
     publish,
     save,
+    take_profile_consents,
     view,
 )
 from src.modules.applications.domain.application import CreditApplication
+from src.modules.applications.domain.value_objects import BeneficiaryDeclaration
 from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade
 
 
 class CreateDraftUseCase:
-    """Draft for a company and a product; requisites come from the bank's data."""
+    """Draft for a company and a product; requisites come from the bank's data, the
+    consents already given — from the profile."""
 
     def __init__(
         self,
@@ -38,6 +47,7 @@ class CreateDraftUseCase:
         outbox: MessageOutbox,
         clients: ClientsFacade,
         products: ProductsFacade,
+        identity: IdentityFacade,
         clock: Clock,
     ) -> None:
         self._uow = uow
@@ -45,6 +55,7 @@ class CreateDraftUseCase:
         self._outbox = outbox
         self._clients = clients
         self._products = products
+        self._identity = identity
         self._clock = clock
 
     async def execute(
@@ -84,6 +95,7 @@ class CreateDraftUseCase:
             product_terms=terms,
             now=now,
         )
+        await take_profile_consents(self._identity, application, access.user_id, now)
         async with self._uow:
             await self._repository.add(application)
             await publish(application, self._outbox)
@@ -121,6 +133,18 @@ class UpdateDraftUseCase:
             if isinstance(changes.collateral, CollateralDTO)
             else None
         )
+        choice = changes.beneficiary
+        beneficiary = (
+            third_party(choice.beneficiary) if isinstance(choice, BeneficiaryChoiceDTO) else None
+        )
+        if isinstance(choice, BeneficiaryChoiceDTO):
+            BeneficiaryDeclaration(  # the same checks the aggregate makes, before the read
+                acts_for_third_party=choice.acts_for_third_party,
+                declared_by=access.user_id,
+                declared_at=self._clock.now(),
+                beneficiary=beneficiary,
+                basis=choice.basis,
+            )
         application = await get_writable(
             self._repository,
             self._clients,
@@ -136,6 +160,16 @@ class UpdateDraftUseCase:
             application.change_product_fields(changes.product_fields, now)
         if changes.collateral is not UNSET:
             application.change_collateral(collateral, now)
+        if isinstance(choice, BeneficiaryChoiceDTO):
+            application.declare_beneficiary(
+                acts_for_third_party=choice.acts_for_third_party,
+                beneficiary=beneficiary,
+                basis=choice.basis,
+                account_id=access.user_id,
+                now=now,
+            )
+        elif choice is None:
+            application.withdraw_beneficiary(now)
         if changes.consents is not UNSET:
             consents = changes.consents
             application.set_consents(

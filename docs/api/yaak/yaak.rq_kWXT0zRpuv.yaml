@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_kWXT0zRpuv
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Подбор для компании
+description: |-
+  Matching for a company: eligibility reasons and the cash gap forecast.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/products/recommend/:organization_id
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "purpose": "working_capital",
+      "amount": "3000000",
+      "term_months": 24
+    }
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

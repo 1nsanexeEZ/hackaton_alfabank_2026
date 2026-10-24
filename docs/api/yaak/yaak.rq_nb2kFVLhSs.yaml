@@ -1,0 +1,62 @@
+type: http_request
+model: http_request
+id: rq_nb2kFVLhSs
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Добавить продукт
+description: |-
+  Version 1 at the end of the catalog, a draft unless `status: active`. 409 — the code
+  is taken; 422 `workflow_code` `unknown` — no such route (GET /workflows), `frontend_id`
+  `taken` — another product has this card.
+
+  Создаёт черновик `YAAK_DEMO`: правка, публикация и снятие с продажи работают с ним, демо-каталог не меняется. Повторный запуск — 409: код уже занят.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/products
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "code": "YAAK_DEMO",
+      "frontend_id": "yaak-demo",
+      "name": "Факторинг (Yaak)",
+      "short_description": "Продукт из коллекции Yaak: деньги под отсрочку платежа покупателей",
+      "purposes": [
+        "working_capital",
+        "cash_gap"
+      ],
+      "facility": "credit_line_revolving",
+      "repayment_options": [
+        "interest_only",
+        "annuity"
+      ],
+      "amount_min": "500000",
+      "amount_max": "20000000",
+      "term_min_months": 3,
+      "term_max_months": 12,
+      "rate_base": "21",
+      "rate_max": "27",
+      "min_business_age_months": 6,
+      "min_annual_revenue": "5000000",
+      "required_documents": [
+        {
+          "type": "receivables_register",
+          "title": "Реестр дебиторской задолженности"
+        }
+      ],
+      "workflow_code": "standard_v2",
+      "auto_decision_limit": "5000000"
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

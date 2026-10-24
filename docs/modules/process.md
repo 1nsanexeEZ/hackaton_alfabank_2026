@@ -2,12 +2,19 @@
 
 ## Зачем
 
-Движок маршрутов заявки. Маршрут продукта описан в BPMN (`express_v1`, `standard_v1`, `secured_v1`,
-`mortgage_v1`, `startup_v1`): какие шаги идут друг за другом, какие ветки у шлюзов, где ждать
+Движок маршрутов заявки. Маршрут продукта описан в BPMN (`express_v2`, `standard_v2`, `secured_v2`,
+`mortgage_v2`, `startup_v2`): какие шаги идут друг за другом, какие ветки у шлюзов, где ждать
 человека. На каждую поданную заявку движок заводит один экземпляр процесса, шлёт команды модулям
 (`enrichment`, `scoring`, `decision`), ждёт ответа именно на свою команду, ставит задачи
 андеррайтеру и публикует события `process.events`. Статусы самой заявки — в
 [state-machine.md](../state-machine.md). Код — `backend/src/modules/process`.
+
+Маршруты `*_v2` (#143) — это `*_v1` с шагом «Стоп-факторы» как на общей схеме: после обогащения
+`check_stop_factors` шлёт `CheckStopFactors` в decision и ждёт `StopFactorsPassed` или
+`DecisionMade`. Шлюз `gw_stop`: стоп-фактор сработал (`stopped == true`) — сразу на шлюз исхода
+`gw_outcome` (отказ или, у ИП без согласия на авторешение, андеррайтер), скоринг не вызывается;
+нет — дальше по маршруту v1. Продукты переведены на `*_v2`; `*_v1` остаются, чтобы уже идущие
+процессы дошли по своему маршруту.
 
 ## Структура
 
@@ -97,11 +104,11 @@ process/
 | Топик | Группа | Что делает |
 |---|---|---|
 | `applications.events` | `process.applications-events` | `ApplicationSubmitted` — старт, `ApplicationCancelled` — отмена, события клиента (`ApplicationInfoProvided`, `OfferAccepted`, `OfferDeclined`, `OfferExpired`, `ApplicationSigned`) — ход процесса |
-| `enrichment.events`, `scoring.events`, `decision.events` | `process.<topic>` | ответы на команды; принимается только ответ с `causation_id` = id отправленной команды |
+| `enrichment.events`, `scoring.events`, `decision.events` | `process.<topic>` | ответы на команды (`StopFactorsPassed` — тоже); принимается только ответ с `causation_id` = id отправленной команды |
 
 Команды и события `process.events` уходят через outbox той же транзакции.
 
 ## Фасад
 
 `ProcessFacade`: `get_process_view(application_id)`, `list_open_tasks(role, limit, offset)`,
-`get_task(task_id)`. Читают `bff` и `projector`.
+`get_task(task_id)`, `workflow_codes()`. Читают `bff` и `projector`; `workflow_codes` — `products`: маршрут нового или изменённого продукта должен быть среди загруженных BPMN.

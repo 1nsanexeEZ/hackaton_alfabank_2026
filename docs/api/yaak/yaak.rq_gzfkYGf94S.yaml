@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_gzfkYGf94S
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_WpoGHiYheT
+name: '04. Документ financial_report: заявить файл'
+description: '201: документ `pending_upload` и presigned URL для загрузки (`upload`).'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/documents
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "type": "financial_report",
+      "filename": "financial_report.pdf",
+      "content_type": "application/pdf",
+      "size_bytes": 13
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_vector ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

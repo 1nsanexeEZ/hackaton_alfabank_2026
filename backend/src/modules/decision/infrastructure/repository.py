@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -15,6 +15,10 @@ from src.modules.decision.application.ports import (
     PreApprovedOffer,
     PrescreenCheck,
     PrescreenStatus,
+    ProjectAssessment,
+    ProjectCheck,
+    ProjectFigures,
+    ProjectStatus,
 )
 from src.modules.decision.domain.model import Outcome
 from src.modules.decision.domain.result import DecidedByType, DecisionResult
@@ -22,6 +26,7 @@ from src.modules.decision.infrastructure.models import (
     DecisionResultRecord,
     FounderPrescreenRecord,
     PreApprovedOfferRecord,
+    ProjectAssessmentRecord,
 )
 from src.modules.decision.infrastructure.serialization import (
     dump_info,
@@ -88,13 +93,32 @@ class SqlAlchemyPreApprovedOfferRepository:
     async def replace_for_organization(
         self, organization_id: UUID, offers: Sequence[PreApprovedOffer]
     ) -> None:
+        await self._replace(organization_id, offers, project=False)
+
+    async def replace_project_offers(
+        self, organization_id: UUID, offers: Sequence[PreApprovedOffer]
+    ) -> None:
+        await self._replace(organization_id, offers, project=True)
+
+    async def _replace(
+        self, organization_id: UUID, offers: Sequence[PreApprovedOffer], *, project: bool
+    ) -> None:
+        """Предложения по оценке без заявки и проектные приходят из разных оценок: каждая
+        перезаписывает только свои."""
+        is_project = PreApprovedOfferRecord.basis == "project"
         await self._session.execute(
             delete(PreApprovedOfferRecord).where(
-                PreApprovedOfferRecord.organization_id == organization_id
+                PreApprovedOfferRecord.organization_id == organization_id,
+                is_project if project else ~is_project,
             )
         )
         self._session.add_all(
-            [_offer_record(offer) for offer in offers if offer.organization_id == organization_id]
+            [
+                _offer_record(offer)
+                for offer in offers
+                if offer.organization_id == organization_id
+                and (offer.basis == "project") == project
+            ]
         )
         await self._session.flush()
 
@@ -105,6 +129,19 @@ class SqlAlchemyPreApprovedOfferRepository:
             .order_by(PreApprovedOfferRecord.max_amount.desc(), PreApprovedOfferRecord.product_code)
         )
         return [_offer(record) for record in await self._session.scalars(stmt)]
+
+    async def organizations_expiring_by(self, day: date, limit: int) -> list[UUID]:
+        soonest = func.min(PreApprovedOfferRecord.valid_until)
+        stmt = (
+            select(PreApprovedOfferRecord.organization_id)
+            # Проектное предложение пересчёт по оценке не продлевает: его даёт новая оценка.
+            .where(PreApprovedOfferRecord.basis != "project")
+            .group_by(PreApprovedOfferRecord.organization_id)
+            .having(soonest <= day)
+            .order_by(soonest, PreApprovedOfferRecord.organization_id)
+            .limit(limit)
+        )
+        return list(await self._session.scalars(stmt))
 
 
 class SqlAlchemyFounderPrescreenRepository:
@@ -149,6 +186,80 @@ class SqlAlchemyFounderPrescreenRepository:
             reasons=tuple(
                 PrescreenCheck(r["code"], r["passed"], r["message"]) for r in record.reasons
             ),
+            version=record.version,
+            checked_at=_aware(record.checked_at),
+            valid_until=_aware(record.valid_until),
+        )
+
+
+class SqlAlchemyProjectAssessmentRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, assessment: ProjectAssessment) -> None:
+        figures = assessment.figures
+        self._session.add(
+            ProjectAssessmentRecord(
+                id=assessment.id,
+                organization_id=assessment.organization_id,
+                product_code=assessment.product_code,
+                plan_revision=assessment.plan_revision,
+                status=assessment.status,
+                reasons=[
+                    {"code": r.code, "passed": r.passed, "message": r.message}
+                    for r in assessment.reasons
+                ],
+                figures={
+                    "requested_amount": str(figures.requested_amount),
+                    "term_months": figures.term_months,
+                    "rate": str(figures.rate),
+                    "cash_flow": str(figures.cash_flow),
+                    "debt_service": str(figures.debt_service),
+                    "dscr": str(figures.dscr) if figures.dscr is not None else None,
+                    "own_share": str(figures.own_share),
+                    "coverage": str(figures.coverage),
+                    "capacity": str(figures.capacity),
+                },
+                max_amount=assessment.max_amount,
+                version=assessment.version,
+                checked_at=assessment.checked_at,
+                valid_until=assessment.valid_until,
+            )
+        )
+        await self._session.flush()
+
+    async def latest_for_organization(self, organization_id: UUID) -> ProjectAssessment | None:
+        stmt = (
+            select(ProjectAssessmentRecord)
+            .where(ProjectAssessmentRecord.organization_id == organization_id)
+            .order_by(ProjectAssessmentRecord.checked_at.desc(), ProjectAssessmentRecord.id)
+            .limit(1)
+        )
+        record = (await self._session.scalars(stmt)).first()
+        if record is None:
+            return None
+        figures = record.figures
+        return ProjectAssessment(
+            id=record.id,
+            organization_id=record.organization_id,
+            product_code=record.product_code,
+            plan_revision=record.plan_revision,
+            status=cast(ProjectStatus, record.status),
+            reasons=tuple(
+                ProjectCheck(r["code"], r["passed"], r["message"]) for r in record.reasons
+            ),
+            figures=ProjectFigures(
+                requested_amount=Decimal(figures["requested_amount"]),
+                term_months=int(figures["term_months"]),
+                rate=Decimal(figures["rate"]),
+                cash_flow=Decimal(figures["cash_flow"]),
+                debt_service=Decimal(figures["debt_service"]),
+                dscr=Decimal(figures["dscr"]) if figures["dscr"] is not None else None,
+                own_share=Decimal(figures["own_share"]),
+                coverage=Decimal(figures["coverage"]),
+                capacity=Decimal(figures["capacity"]),
+            ),
+            max_amount=Decimal(str(record.max_amount)) if record.max_amount is not None else None,
             version=record.version,
             checked_at=_aware(record.checked_at),
             valid_until=_aware(record.valid_until),

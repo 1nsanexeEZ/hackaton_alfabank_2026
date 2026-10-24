@@ -12,6 +12,7 @@ export type KnownStage =
   | 'completeness'
   | 'info_request'
   | 'enrichment'
+  | 'stop_factors'
   | 'collateral'
   | 'scoring'
   | 'decision'
@@ -22,13 +23,14 @@ export type KnownStage =
   | 'rejected'
   | 'closed'
 
-export type StageKey = KnownStage | `node:${string}`
+export type StageKey = KnownStage | `node:${string}` | `pre:${string}`
 
 export const STAGE_TITLE: Record<KnownStage, string> = {
   submitted: 'Подача',
   completeness: 'Полнота',
   info_request: 'Дозапрос',
   enrichment: 'Данные',
+  stop_factors: 'Стоп-факторы',
   collateral: 'Залог',
   scoring: 'Скоринг',
   decision: 'Решение',
@@ -47,6 +49,7 @@ const STAGE_OF_NODE: Record<string, KnownStage> = {
   request_info: 'info_request',
   wait_client_info: 'info_request',
   fetch_enrichment: 'enrichment',
+  check_stop_factors: 'stop_factors',
   assess_collateral: 'collateral',
   calculate_score: 'scoring',
   make_decision: 'decision',
@@ -60,6 +63,15 @@ const STAGE_OF_NODE: Record<string, KnownStage> = {
   reject: 'rejected',
   end_rejected: 'rejected',
   end_closed: 'closed',
+}
+
+/**
+ * Куда этап ведёт на самом деле, если шлюзы дают больше. Сработавший стоп-фактор (маршруты *_v2) идёт
+ * через «Стоп-фактор?» на общий шлюз исхода, но оттуда — только отказ или, у ИП без согласия на
+ * авторешение, андеррайтер: предложения и дозапроса после стоп-фактора не бывает.
+ */
+const STAGE_EXITS: Partial<Record<KnownStage, readonly StageKey[]>> = {
+  stop_factors: ['collateral', 'scoring', 'rejected', 'underwriter'],
 }
 
 export interface Stage {
@@ -137,6 +149,8 @@ export function buildStageGraph(workflow: Workflow): StageGraph {
     for (const next of nextNodes(nodeId)) {
       const to = stageOfNode.get(next.id)
       if (!to || to === from || edgeKeys.has(`${from}>${to}`)) continue
+      const exits = STAGE_EXITS[from as KnownStage]
+      if (exits && !exits.includes(to)) continue
       edgeKeys.add(`${from}>${to}`)
       edges.push({ from, to })
     }

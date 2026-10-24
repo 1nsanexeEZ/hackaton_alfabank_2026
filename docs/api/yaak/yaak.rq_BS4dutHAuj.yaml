@@ -1,0 +1,31 @@
+type: http_request
+model: http_request
+id: rq_BS4dutHAuj
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Ответить на запрос информации
+description: |-
+  Answer Info Request
+
+  Работает, когда у заявки открыт запрос информации (`info_requested`), как в S-5.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/applications/:application_id/info-requests/:info_request_id/answer
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: :info_request_id
+  value: ${[ info_request_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

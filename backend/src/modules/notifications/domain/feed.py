@@ -63,6 +63,9 @@ class Delivery:
     recipients: tuple[Recipient, ...]
     # True: replace the recipient's entry with the same group_key.
     replace_group: bool = False
+    # True (with replace_group): a correction of an earlier entry. Nothing is written
+    # for a recipient who has no entry of the group, or whose entry already says this.
+    only_existing: bool = False
 
 
 @dataclass(frozen=True, slots=True)

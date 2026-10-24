@@ -229,3 +229,61 @@ def test_consent_to_an_automated_decision(world: World) -> None:
         headers=world.headers(world.director),
     ).json()
     assert body["consents"]["automated_decision_at"] is not None
+
+
+def test_beneficiary_answer(world: World) -> None:
+    """115-ФЗ: действует ли клиент к выгоде третьего лица; ответ хранится, null его снимает."""
+    application = world.create()
+    url = f"/applications/{application['id']}"
+    headers = world.headers(world.director)
+    assert application["beneficiary"] is None
+
+    body = world.client.patch(
+        url,
+        json={
+            "version": 1,
+            "beneficiary": {
+                "acts_for_third_party": True,
+                "beneficiary": {
+                    "kind": "organization",
+                    "name": "ООО «Транзитный агент»",
+                    "inn": "7707115094",
+                },
+                "basis": "agency",
+            },
+            "collateral": {
+                "type": "equipment",
+                "description": "Станок",
+                "declared_value": "2000000",
+                "owner": "third_party",
+                "owner_party": {"kind": "person", "name": "Залогов Иван Иванович"},
+            },
+        },
+        headers=headers,
+    ).json()
+    assert body["beneficiary"]["acts_for_third_party"] is True
+    assert body["beneficiary"]["beneficiary"]["inn"] == "7707115094"
+    assert body["beneficiary"]["basis"] == "agency"
+    assert body["collateral"]["owner_party"]["name"] == "Залогов Иван Иванович"
+
+    stored = world.client.get(url, headers=headers).json()
+    assert stored["beneficiary"] == body["beneficiary"]
+
+    withdrawn = world.client.patch(url, json={"version": 2, "beneficiary": None}, headers=headers)
+    assert withdrawn.json()["beneficiary"] is None
+
+
+def test_beneficiary_without_the_basis_is_rejected(world: World) -> None:
+    application = world.create()
+    response = world.client.patch(
+        f"/applications/{application['id']}",
+        json={
+            "version": 1,
+            "beneficiary": {
+                "acts_for_third_party": True,
+                "beneficiary": {"kind": "person", "name": "Посредников Павел Павлович"},
+            },
+        },
+        headers=world.headers(world.director),
+    )
+    assert response.status_code == 422

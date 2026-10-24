@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_n8R0F9VSj7
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_jSuhpwkwE4
+name: Мои согласия
+description: |-
+  Personal consents in force and the history, newest first.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/me/consents
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

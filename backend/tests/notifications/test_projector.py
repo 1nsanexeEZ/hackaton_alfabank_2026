@@ -400,6 +400,89 @@ async def test_no_pre_approved_offers_no_record(feed: FeedHarness, world: World)
     assert await feed.rows() == []
 
 
+def pre_approved_offer(basis: str = "оборот") -> PreApprovedOfferDTO:
+    return PreApprovedOfferDTO(
+        "UNSECURED", Decimal("5000000"), Decimal("23.5"), 36, builders.today(), basis
+    )
+
+
+def lose_verification(world: World, status: str = "mismatch") -> None:
+    """The registry check of the company failed: decision withdraws the offers."""
+    world.clients.add_organization(replace(world.romashka, verification_status=status))
+    world.decision.set_pre_approved(world.romashka.id, [])
+
+
+async def test_pre_approval_withdrawn_replaces_the_old_record(
+    feed: FeedHarness, world: World
+) -> None:
+    world.decision.set_pre_approved(world.romashka.id, [pre_approved_offer()])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    [first, _] = await feed.rows()
+    lose_verification(world)
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+
+    rows = await feed.rows()
+    assert accounts(rows) == members(world) and len(rows) == 2
+    for row in rows:
+        assert row.title == "Уточните данные компании"
+        assert row.type == "advice" and row.audience == "client"
+        assert row.link == f"/organizations/{world.romashka.id}"
+        assert row.group_key == f"pre-approved:{world.romashka.id}"
+        assert row.read_at is None
+        assert "предодобрен" not in row.title.lower()
+    assert min(r.seq for r in rows) > first.seq
+
+
+async def test_pre_approval_withdrawn_is_said_once(feed: FeedHarness, world: World) -> None:
+    world.decision.set_pre_approved(world.romashka.id, [pre_approved_offer()])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    lose_verification(world, "unverified")
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    before = {r.id: r.seq for r in await feed.rows()}
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+
+    assert {r.id: r.seq for r in await feed.rows()} == before
+
+
+async def test_pre_approval_withdrawn_without_a_record_stays_silent(
+    feed: FeedHarness, world: World
+) -> None:
+    lose_verification(world)
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    assert await feed.rows() == []
+
+
+async def test_no_offers_of_a_verified_company_keep_the_record(
+    feed: FeedHarness, world: World
+) -> None:
+    world.decision.set_pre_approved(world.romashka.id, [pre_approved_offer()])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    world.decision.set_pre_approved(world.romashka.id, [])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+
+    rows = await feed.rows()
+    assert len(rows) == 2 and all(
+        r.title == "Для вас есть предодобренные предложения" for r in rows
+    )
+
+
+async def test_startup_project_offer_survives_the_registry_mismatch(
+    feed: FeedHarness, world: World
+) -> None:
+    """Estimate offers are withdrawn, the project offer of a startup stays: the
+    facade returns it, so the record is the usual list of offers."""
+    world.decision.set_pre_approved(world.romashka.id, [pre_approved_offer()])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+    lose_verification(world)
+    world.decision.set_pre_approved(world.romashka.id, [pre_approved_offer("project")])
+    await feed.deliver(PreApprovedOffersUpdated(organization_id=world.romashka.id))
+
+    rows = await feed.rows()
+    assert accounts(rows) == members(world) and len(rows) == 2
+    assert all(r.title == "Для вас есть предодобренные предложения" for r in rows)
+    assert all(r.body.startswith("• Кредит без залога: до 5 000 000 ₽") for r in rows)
+
+
 # --- clients.events ------------------------------------------------------------
 
 

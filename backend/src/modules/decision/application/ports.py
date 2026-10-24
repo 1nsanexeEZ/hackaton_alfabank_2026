@@ -1,19 +1,26 @@
-"""Порты decision: хранилища решений, предодобрений и предскринов учредителей. Соседние модули
-(applications, enrichment, scoring, products, clients, identity) decision читает через их
-фасады прямо в use case."""
+"""Порты decision: хранилища решений, предодобрений, предскринов учредителей и проектных оценок
+стартапов, транзакция ночного пакета. Соседние модули (applications, enrichment, scoring,
+products, clients, identity) decision читает через их фасады прямо в use case."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Protocol
 from uuid import UUID
 
+from src.core.messaging.outbox import OutboxWriter
+from src.core.uow import UnitOfWork
+from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.domain.result import DecisionResult
+from src.modules.products.facade import ProductsFacade
+from src.modules.scoring.facade import ScoringFacade
 
-PreApprovalBasis = Literal["estimate", "full"]
+# estimate — оценка компании без заявки (RecalculatePreApproved); project — проектная оценка
+# стартапа по бизнес-плану и финмодели (AssessProject).
+PreApprovalBasis = Literal["estimate", "full", "project"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,10 +54,48 @@ class PreApprovedOfferRepository(Protocol):
     async def replace_for_organization(
         self, organization_id: UUID, offers: Sequence[PreApprovedOffer]
     ) -> None:
-        """Пересчёт перезаписывает все предложения компании: чего нет в `offers` — удаляется."""
+        """Пересчёт перезаписывает предложения компании, кроме проектных: чего нет в `offers` —
+        удаляется. Проектное предложение стартапа живёт по своей оценке."""
+        ...
+
+    async def replace_project_offers(
+        self, organization_id: UUID, offers: Sequence[PreApprovedOffer]
+    ) -> None:
+        """Проектная оценка перезаписывает только предложения с `basis = project`."""
         ...
 
     async def list_for_organization(self, organization_id: UUID) -> list[PreApprovedOffer]: ...
+
+    async def organizations_expiring_by(self, day: date, limit: int) -> list[UUID]:
+        """Компании, у которых хоть одно предложение по оценке без заявки действует не дольше
+        `day` (и уже истекшие); раньше истекающие — первыми. Проектные не считаются: их не
+        продлить пересчётом, только новой проектной оценкой."""
+        ...
+
+
+class PreApprovalTransaction(UnitOfWork, Protocol):
+    """Транзакция на своей сессии — вне запроса и обработчика Kafka (ночной пакет): вход
+    открывает сессию, выход откатывает незакоммиченное и закрывает её. Хранилище, фасады
+    соседей и outbox привязаны к этой сессии."""
+
+    @property
+    def offers(self) -> PreApprovedOfferRepository: ...
+
+    @property
+    def clients(self) -> ClientsFacade: ...
+
+    @property
+    def products(self) -> ProductsFacade: ...
+
+    @property
+    def scoring(self) -> ScoringFacade: ...
+
+    @property
+    def outbox(self) -> OutboxWriter: ...
+
+
+# Новая транзакция на каждый вызов: пакет пересчитывает каждую компанию в своей.
+PreApprovalTransactions = Callable[[], PreApprovalTransaction]
 
 
 PrescreenStatus = Literal["passed", "failed"]
@@ -86,3 +131,57 @@ class FounderPrescreenRepository(Protocol):
     async def add(self, prescreen: FounderPrescreen) -> None: ...
 
     async def latest_for_organization(self, organization_id: UUID) -> FounderPrescreen | None: ...
+
+
+ProjectStatus = Literal["passed", "failed"]
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectCheck:
+    code: str  # founder_prescreen | industry | dscr | own_funds | coverage | product_amount
+    passed: bool
+    message: str  # для клиента, без порогов
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectFigures:
+    """Цифры проектной оценки для андеррайтера: что просили, на каких условиях считали платёж и
+    что получилось на запрошенной сумме."""
+
+    requested_amount: Decimal
+    term_months: int
+    rate: Decimal  # % годовых, по которой считали платёж: верх коридора продукта
+    cash_flow: Decimal  # выручка − расходы за горизонт финмодели
+    debt_service: Decimal  # платежи по кредиту за тот же горизонт
+    dscr: Decimal | None
+    own_share: Decimal
+    coverage: Decimal
+    capacity: Decimal  # сколько проект выдерживает по scoring, без рамок продукта
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectAssessment:
+    """Проектная оценка стартапа по бизнес-плану и финмодели. Неизменяемая: повторная оценка —
+    новая запись, действует последняя. `passed` — предложение STARTUP с `basis = project`."""
+
+    id: UUID
+    organization_id: UUID
+    product_code: str
+    plan_revision: int  # ревизия бизнес-плана, по которой оценивали
+    status: ProjectStatus
+    reasons: tuple[ProjectCheck, ...]
+    figures: ProjectFigures
+    # Предодобрено: в рамках продукта и шага суммы; None — предложить нечего.
+    max_amount: Decimal | None
+    version: str  # версия правил проектной оценки (scoring)
+    checked_at: datetime
+    valid_until: datetime
+
+    def valid_at(self, moment: datetime) -> bool:
+        return self.checked_at <= moment <= self.valid_until
+
+
+class ProjectAssessmentRepository(Protocol):
+    async def add(self, assessment: ProjectAssessment) -> None: ...
+
+    async def latest_for_organization(self, organization_id: UUID) -> ProjectAssessment | None: ...

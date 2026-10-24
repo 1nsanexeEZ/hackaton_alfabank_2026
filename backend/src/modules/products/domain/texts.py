@@ -22,6 +22,8 @@ REGISTRY_STATUS_TITLES: dict[str, str] = {
     "liquidating": "ликвидируется",
     "liquidated": "ликвидирована",
     "bankrupt": "банкротство",
+    "reorganizing": "реорганизуется",
+    "excluded": "исключена из реестра",
 }
 COLLATERAL_TYPE_TITLES: dict[str, str] = {
     "real_estate": "недвижимость",

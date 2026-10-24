@@ -13,7 +13,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.modules.bff.application.dto.products import CalculationDTO
-from src.modules.bff.domain.enums import ClientStatus, TodoKind
+from src.modules.bff.domain.enums import ClientStatus, ConsentKind, ConsentScope, TodoKind
 from src.modules.products.facade import Repayment
 
 
@@ -99,6 +99,22 @@ class TodoItem(ClientModel):
     title: str
 
 
+class ConsentState(ClientModel):
+    type: ConsentKind
+    # account — the person gives it for themselves (`POST /me/consents`); organization —
+    # a representative, for the company (`POST /organizations/{id}/consents`).
+    scope: ConsentScope
+    title: str
+    # What the consent lets the bank do.
+    purpose: str
+    # Without it an application cannot be submitted.
+    required: bool
+    # In force now: given, not revoked, not run out.
+    given: bool
+    given_at: datetime | None
+    valid_until: datetime | None
+
+
 class Feed(ClientModel):
     unread: int
     items: list[FeedItem]
@@ -129,9 +145,36 @@ class FounderPrescreen(ClientModel):
     reasons: list[PrescreenReason]
 
 
+class ProjectReason(ClientModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class ProjectAssessment(ClientModel):
+    """passed — «вам предодобрен кредит» `product_code` до `max_amount`, it is also in
+    `pre_approved`; failed — the client reads `reasons[].message`. No figures of the model:
+    they would give the thresholds away."""
+
+    status: Literal["passed", "failed"]
+    product_code: str
+    max_amount: Decimal | None
+    # Below `startup.business_plan_revision` — the plan was changed after the assessment.
+    plan_revision: int
+    checked_at: datetime
+    valid_until: datetime
+    # False — expired: run a new one.
+    valid: bool
+    reasons: list[ProjectReason]
+
+
 class StartupBlock(ClientModel):
     # None — not run yet: POST /organizations/{id}/founder-prescreen.
     prescreen: FounderPrescreen | None
+    # None — not filled in yet: PUT /organizations/{id}/business-plan.
+    business_plan_revision: int | None = None
+    # None — not run yet: POST /organizations/{id}/project-assessment.
+    project: ProjectAssessment | None = None
 
 
 class Dashboard(ClientModel):
@@ -140,10 +183,13 @@ class Dashboard(ClientModel):
     organization: CurrentOrganization | None
     organizations: list[OrganizationBrief]
     counters: Counters | None
-    # Empty for a startup: there is no turnover to pre-approve on.
+    # A startup has no turnover to pre-approve on: only the offer by its project assessment.
     pre_approved: list[PreApprovedOffer]
     active_applications: list[ApplicationRow]
     todo: list[TodoItem]
+    # The consents asked for before an application, in the order to show: personal_data,
+    # credit_bureau_company and, for the head by the registry, credit_bureau_personal.
+    consents: list[ConsentState]
     feed: Feed
     news: list[NewsItem]
     degraded: list[str]
@@ -396,4 +442,14 @@ class PersonalSchedule(ClientModel):
     reasons: list[EligibilityReason]
     # The request cut to the pre-approved terms; None when it fits or nothing is pre-approved.
     suggestion: Suggestion | None
+    # The largest amount for the requested term the bank offers: the lesser of the pre-approved
+    # maximum and what the payment allows by the company's report. None — nothing is
+    # pre-approved for this product.
+    max_affordable: Decimal | None
+    # What caps max_affordable: pre_approved — the pre-approved maximum; payment — the monthly
+    # payment the company can afford; project — a startup's project offer.
+    affordable_by: Literal["pre_approved", "payment", "project"] | None
+    # The request is above max_affordable. The application is still accepted: a specialist
+    # decides on it.
+    above_affordable: bool
     degraded: list[str]

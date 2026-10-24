@@ -5,8 +5,8 @@ import { computed, watch } from 'vue'
 import { loanDraft, myApplications } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
-import { CustomerLoginModal } from '@/features/customer-login'
-import { ClientProfileForm, PersonalConsents } from '@/features/edit-client-profile'
+import { CustomerLoginDrawer } from '@/features/customer-login'
+import { ClientProfileForm, CompanyConsents, PersonalConsents } from '@/features/edit-client-profile'
 import { CompanyPanel } from '@/features/manage-company'
 import { NotificationsPanel } from '@/features/read-notifications'
 import { ApplicationModal } from '@/features/submit-application'
@@ -74,7 +74,7 @@ function applyWith(
 </script>
 
 <template>
-  <CustomerLoginModal v-model:open="loginOpen" :description="loginDescription" @success="onLoggedIn" />
+  <CustomerLoginDrawer v-model:open="loginOpen" :description="loginDescription" @success="onLoggedIn" />
 
   <ApplicationModal v-if="products" v-model:open="applicationOpen" :products="products" @switch-account="switchAccount" />
   <!-- Нажали «Оформить», пока каталог ещё грузится или не загрузился -->
@@ -121,6 +121,7 @@ function applyWith(
     <template v-if="profileOpen">
       <ClientProfileForm />
       <PersonalConsents class="mt-6" />
+      <CompanyConsents class="mt-6" />
     </template>
   </BaseModal>
 </template>

@@ -204,9 +204,10 @@ def get_create_draft(
     outbox: Outbox,
     clients: Clients,
     products: Products,
+    identity: Identity,
     clock: ClockDep,
 ) -> CreateDraftUseCase:
-    return CreateDraftUseCase(uow, repository, outbox, clients, products, clock)
+    return CreateDraftUseCase(uow, repository, outbox, clients, products, identity, clock)
 
 
 def get_update_draft(
@@ -255,9 +256,14 @@ def get_delete_document(
 
 
 def get_submit(
-    uow: Uow, repository: Repository, outbox: Outbox, clients: Clients, clock: ClockDep
+    uow: Uow,
+    repository: Repository,
+    outbox: Outbox,
+    clients: Clients,
+    identity: Identity,
+    clock: ClockDep,
 ) -> SubmitApplicationUseCase:
-    return SubmitApplicationUseCase(uow, repository, outbox, clients, clock)
+    return SubmitApplicationUseCase(uow, repository, outbox, clients, identity, clock)
 
 
 def get_answer_info_request(

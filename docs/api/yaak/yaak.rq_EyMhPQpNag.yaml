@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_EyMhPQpNag
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_P85dkFhpWD
+name: Удалить аккаунт
+description: |-
+  Soft delete: the account can't log in and disappears for roles with `not_deleted`.
+
+  Токен: администратор.
+method: DELETE
+url: ${[ base_url ]}/accounts/:account_id
+urlParameters:
+- enabled: true
+  name: :account_id
+  value: ${[ new_account_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 9000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

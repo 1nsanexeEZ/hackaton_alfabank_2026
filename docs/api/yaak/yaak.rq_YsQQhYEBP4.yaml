@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_YsQQhYEBP4
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_P85dkFhpWD
+name: Создать аккаунт
+description: |-
+  Create Account
+
+  Создаёт свой аккаунт: следующие запросы папки работают с ним.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/accounts
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "email": "yaak-${[ uuid.v4() ]}@example.com",
+      "password": "Yaak-2026!",
+      "role_id": "${[ response.body.path(request='rq_yCBBcoFUT1', behavior='smart', path='$[?(@.name==\"client\")].id') ]}",
+      "profile": {
+        "last_name": "Проверкин",
+        "first_name": "Яков",
+        "position": "Менеджер"
+      }
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

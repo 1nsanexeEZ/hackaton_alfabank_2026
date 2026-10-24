@@ -104,7 +104,7 @@ class DecisionDeliveries:
     async def _pre_approved(self, event: PreApprovedOffersUpdated) -> list[Delivery]:
         offers = await self._ctx.neighbours.pre_approved(event.organization_id)
         if not offers:
-            return []
+            return await self._pre_approved_withdrawn(event.organization_id)
         lines = []
         for offer in offers:
             name = await self._ctx.neighbours.product_name(offer.product_code) or offer.product_code
@@ -123,3 +123,31 @@ class DecisionDeliveries:
             group_key=pre_approved_group(event.organization_id),
         )
         return [Delivery(entry, await self._ctx.members(event.organization_id), replace_group=True)]
+
+    async def _pre_approved_withdrawn(self, organization_id: UUID) -> list[Delivery]:
+        """Offers are gone because the company is not verified against the registry:
+        the old «pre-approved» record is replaced with advice to check the company data.
+        Members who never had the record get nothing."""
+        company = await self._ctx.neighbours.organization(organization_id)
+        if company is None or company.verification_status == "verified":
+            return []
+        title, body = t.PRE_APPROVED_WITHDRAWN.render(
+            organization=await self._ctx.client_name(organization_id)
+        )
+        entry = FeedEntry(
+            type="advice",
+            audience="client",
+            title=title,
+            body=body,
+            link=f"/organizations/{organization_id}",
+            organization_id=organization_id,
+            group_key=pre_approved_group(organization_id),
+        )
+        return [
+            Delivery(
+                entry,
+                await self._ctx.members(organization_id),
+                replace_group=True,
+                only_existing=True,
+            )
+        ]

@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_PADiIF0Op7
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4MO7X92vcV
+name: 12. Ответить на запрос
+description: '200: запрос закрыт, заявка возвращается в процесс.'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/info-requests/:info_request_id/answer
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: :info_request_id
+  value: ${[ response.body.path(request='rq_YJR75ID730', behavior='smart', path='$.info_requests[?(@.status=="open")].id') ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 12000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_progress ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

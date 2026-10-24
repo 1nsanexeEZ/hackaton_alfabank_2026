@@ -3,11 +3,13 @@ the company's consent in the application does not cover a person's credit histor
 submitted the application, when not the head, goes as a representative for the 115-FZ check."""
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
 
 from src.core.messaging.contracts.enrichment import FetchEnrichment, PersonRef
+from src.modules.applications.facade import BeneficiaryDTO, CollateralDTO, ThirdPartyDTO
 from src.modules.process.application.mappers.messages import command_contract
 from src.modules.process.domain.enums import NodeType
 from src.modules.process.domain.steps import STEPS, PersonFact, StepInput
@@ -127,6 +129,8 @@ async def test_command_asks_every_source(world: World) -> None:
         "kontur",
         "bki_head",
         "aml",
+        "bank_stop_list",
+        "bank_turnover",
     ]
 
 
@@ -162,3 +166,35 @@ async def test_the_head_applying_is_not_a_representative(world: World) -> None:
     command = await _command(world)
 
     assert command.head is not None and command.representative is None
+
+
+async def test_third_parties_go_to_the_check(world: World) -> None:
+    """115-FZ: the beneficiary and the owner of the collateral are screened with the rest."""
+    world.applications.scoring_inputs[world.application_id] = builders.scoring_input(
+        world.applications.cards[world.application_id],
+        beneficiary=BeneficiaryDTO(
+            acts_for_third_party=True,
+            declared_by=uuid4(),
+            declared_at=NOW,
+            beneficiary=ThirdPartyDTO("organization", "ООО «Транзитный агент»", "7707115094"),
+            basis="agency",
+        ),
+        collateral=CollateralDTO(
+            "equipment",
+            "Станок",
+            Decimal("2000000"),
+            "third_party",
+            ThirdPartyDTO("person", "Залогов Иван Иванович"),
+        ),
+    )
+
+    command = await _command(world)
+
+    assert [(p.role, p.kind, p.name, p.inn) for p in command.third_parties] == [
+        ("beneficiary", "organization", "ООО «Транзитный агент»", "7707115094"),
+        ("pledgor", "person", "Залогов Иван Иванович", None),
+    ]
+
+
+async def test_no_third_parties_by_default(world: World) -> None:
+    assert (await _command(world)).third_parties == []

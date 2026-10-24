@@ -14,12 +14,14 @@ import {
   label,
   LIMIT_LABEL,
   OUTCOME_LABEL,
+  qualityReasonLabel,
   REASON_LABEL,
   RELIABILITY,
   REVIEW_LABEL,
   SEGMENT_LABEL,
   SOURCE_LABEL,
   TASK_TYPE_LABEL,
+  UNRELIABLE_LABEL,
   ZONE_LABEL,
   type GradeZone,
 } from '@/entities/underwriting'
@@ -28,7 +30,11 @@ import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/s
 import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
 
+import { usePrelude } from '../model/usePrelude'
+import AmlCheckSection from './AmlCheckSection.vue'
+import BankDataSection from './BankDataSection.vue'
 import ProcessStageDetails from './ProcessStageDetails.vue'
+import StartupProjectPanel from './StartupProjectPanel.vue'
 
 /**
  * Карточка заявки для андеррайтера (GET /bff/backoffice/applications/{id}): что просит клиент,
@@ -44,10 +50,43 @@ const processMap = ref<{ refresh: () => Promise<void> } | null>(null)
 
 const { products } = useProductCatalog()
 const productTitle = (code: string) => products.value?.find((product) => product.code === code)?.title ?? code
+
+/** Этапы до подачи на схеме маршрута: согласия и предскоринг, у стартапа — проверка учредителя и проектная оценка */
+const isStartup = computed(() => Boolean(products.value?.find((product) => product.code === data.value?.application.product_code)?.startupOnly))
+const prelude = usePrelude(data, isStartup)
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 
-const REGISTRY_STATUS: Record<string, string> = { active: 'Действует', liquidating: 'Ликвидируется', liquidated: 'Ликвидирована', bankrupt: 'Банкротство' }
+const REGISTRY_STATUS: Record<string, string> = {
+  active: 'Действует',
+  liquidating: 'Ликвидируется',
+  liquidated: 'Ликвидирована',
+  bankrupt: 'Банкротство',
+  reorganizing: 'Реорганизуется',
+  excluded: 'Исключена из реестра',
+}
 const REPORT_SOURCE: Record<string, string> = { declared: 'Заявлено', fns: 'ФНС', bank_statement: 'Выписки' }
+
+/**
+ * Согласия заявки: когда даны и откуда — галочка в черновике или из профиля. Согласие на решение только
+ * автоматикой (ст. 16 152-ФЗ) важно у ИП: без него отказ и встречное предложение принимает человек.
+ */
+const consents = computed(() => {
+  const value = data.value?.application.consents
+  if (!value) return []
+  const given = (at: string | null | undefined, source: string | null | undefined) =>
+    at ? `${source === 'profile' ? 'из профиля' : 'в заявке'}, ${formatDate(at)}` : 'нет'
+  const list = [
+    { title: 'Обработка ПДн', value: given(value.personal_data_at, value.personal_data_source) },
+    { title: 'БКИ компании', value: given(value.credit_bureau_at, value.credit_bureau_source) },
+  ]
+  if (data.value?.application.org_snapshot?.legal_form === 'IE') {
+    list.push({
+      title: 'Решение автоматикой',
+      value: value.automated_decision_at ? `дано, ${formatDate(value.automated_decision_at)}` : 'нет — неблагоприятное решение примет специалист',
+    })
+  }
+  return list
+})
 
 /** Решение по задаче процесс применяет асинхронно — перечитываем, пока задача не закроется */
 async function refreshAfterDecision() {
@@ -121,6 +160,10 @@ const shownReasons = computed(() => {
   return (factorsOf.value === 'ml' && scoring?.ml ? scoring.ml.reason_codes : scoring?.reason_codes) ?? []
 })
 
+/** Учредитель по реестру: у юрлица — с ИНН */
+const founderLine = (founder: { name: string; share_percent: string; inn?: string | null }) =>
+  `${founder.name}${founder.inn ? `, ИНН ${founder.inn}` : ''} (${Number(founder.share_percent)}%)`
+
 /** Кредитные истории: компании и руководителя (вторая — только с его личным согласием) */
 const bureaus = computed(() => {
   const enrichment = data.value?.enrichment
@@ -153,9 +196,15 @@ const RATE_PARTS = [
 <template>
   <AsyncState :loading="card.loading.value && !data" :error="data ? null : card.error.value" @retry="card.reload">
     <div v-if="data" class="space-y-4">
-      <ProcessMap ref="processMap" :application-id="applicationId" @advance="card.reload">
+      <ProcessMap
+        ref="processMap"
+        :application-id="applicationId"
+        :prelude="prelude.stages.value"
+        :fallback-workflow="data.application.product_terms.workflow_code ?? null"
+        @advance="card.reload"
+      >
         <template #details="stage">
-          <ProcessStageDetails v-bind="stage" :card="data" />
+          <ProcessStageDetails v-bind="stage" :card="data" :pre="prelude.data.value" />
         </template>
         <template v-if="data.timeline.length" #footer>
           <details class="mt-4 text-sm">
@@ -216,6 +265,14 @@ const RATE_PARTS = [
               <div v-if="data.application.submitted_at">
                 <dt class="text-ink-secondary">Подана</dt>
                 <dd class="font-medium text-ink">{{ formatDateTime(data.application.submitted_at) }}</dd>
+              </div>
+              <div v-if="consents.length" class="sm:col-span-2">
+                <dt class="text-ink-secondary">Согласия</dt>
+                <dd class="text-ink">
+                  <span v-for="(item, index) in consents" :key="item.title">
+                    {{ item.title }} — {{ item.value }}<template v-if="index < consents.length - 1">; </template>
+                  </span>
+                </dd>
               </div>
             </dl>
 
@@ -334,8 +391,9 @@ const RATE_PARTS = [
                     {{ data.enrichment.egrul.head_middle_name ?? '' }}, {{ data.enrichment.egrul.head_position
                     }}{{ data.enrichment.egrul.head_since ? `, с ${formatDate(data.enrichment.egrul.head_since)}` : '' }}
                   </li>
-                  <li v-if="data.enrichment.egrul.founders.length">
-                    Учредители: {{ data.enrichment.egrul.founders.map((item) => `${item.name} (${Number(item.share_percent)}%)`).join(', ') }}
+                  <li v-if="data.enrichment.egrul.founders.length">Учредители: {{ data.enrichment.egrul.founders.map(founderLine).join('; ') }}</li>
+                  <li v-if="data.enrichment.egrul.unreliable?.length" class="text-brand">
+                    Отметка о недостоверности: {{ data.enrichment.egrul.unreliable.map((item) => label(UNRELIABLE_LABEL, item)).join(', ') }}
                   </li>
                   <li :class="data.enrichment.egrul.mass_address && 'text-warning'">
                     Адрес: {{ data.enrichment.egrul.address }}{{ data.enrichment.egrul.mass_address ? ' — массовый' : '' }}
@@ -353,6 +411,9 @@ const RATE_PARTS = [
                   <li>Среднесписочная численность: {{ data.enrichment.fns.avg_headcount }}</li>
                   <li :class="data.enrichment.fns.disqualified_head && 'text-brand'">
                     Дисквалификация руководителя: {{ data.enrichment.fns.disqualified_head ? 'есть' : 'нет' }}
+                  </li>
+                  <li v-if="typeof data.enrichment.fns.mass_head === 'boolean'" :class="data.enrichment.fns.mass_head && 'text-brand'">
+                    Массовый руководитель: {{ data.enrichment.fns.mass_head ? 'да' : 'нет' }}
                   </li>
                   <li>Реестр МСП: {{ data.enrichment.fns.in_msp_registry ? 'есть' : 'нет' }}</li>
                   <li :class="data.enrichment.fns.account_blocks?.length ? 'text-brand' : ''">
@@ -492,9 +553,15 @@ const RATE_PARTS = [
                   </table>
                 </div>
               </section>
+
+              <AmlCheckSection v-if="data.enrichment.aml" :aml="data.enrichment.aml" />
+              <BankDataSection
+                v-if="data.enrichment.bank_stop_list || data.enrichment.bank_turnover"
+                :stop-list="data.enrichment.bank_stop_list"
+                :turnover="data.enrichment.bank_turnover"
+              />
             </div>
           </PanelCard>
-
         </div>
 
         <div class="space-y-4">
@@ -505,6 +572,8 @@ const RATE_PARTS = [
           >
             <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
           </PanelCard>
+
+          <StartupProjectPanel v-if="data.startup" :project="data.startup" />
 
           <PanelCard
             v-if="data.scoring"
@@ -517,6 +586,10 @@ const RATE_PARTS = [
               .filter(Boolean)
               .join(' · ')"
           >
+            <p v-if="data.scoring.quality === 'degraded'" class="mb-3 rounded-lg bg-warning-soft p-2.5 text-sm text-ink">
+              <span class="font-semibold">Данные неполные — решает специалист</span
+              ><template v-if="data.scoring.quality_reasons?.length">: {{ data.scoring.quality_reasons.map(qualityReasonLabel).join(', ') }}</template>
+            </p>
             <p v-if="modelsVerdict" class="mb-3 text-sm font-semibold" :class="modelsAgree ? 'text-ink' : 'text-warning'">
               {{ modelsVerdict }}
             </p>

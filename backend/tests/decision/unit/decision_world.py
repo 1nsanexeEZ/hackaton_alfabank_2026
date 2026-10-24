@@ -40,7 +40,7 @@ from src.modules.products.application.mappers import check_dto, product_dto
 from src.modules.scoring.application.input_builder import build_scoring_input
 from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.facade import FactorDTO, MlScoreDTO, ScoringResultDTO
-from src.modules.scoring.infrastructure.config_loader import default_model
+from src.modules.scoring.infrastructure.config_loader import default_model, default_quality
 from src.modules.scoring.infrastructure.ml_loader import default_ml_model
 from tests.assessment.assessment_world import mock_sources
 from tests.fakes import builders
@@ -56,6 +56,8 @@ _STATEMENTS = _BACKEND / "seed" / "statements"
 _CONSENT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
 V1_SOURCES = ("egrul", "fns", "bki")
 ALL_SOURCES = ("egrul", "fns", "bki", "statement", "gir_bo", "kontur", "bki_head")
+# policy_v7: ещё внутренний стоп-лист банка и обороты по счёту в банке (АБС).
+V7_SOURCES = (*ALL_SOURCES, "bank_stop_list", "bank_turnover")
 _CATALOG = {product.code.value: product for product in catalog()}
 
 
@@ -188,6 +190,12 @@ async def build_world(
     scoring_input = build_scoring_input(source, snapshot)
     output = model.calculate(scoring_input)
     ml = default_ml_model().predict(scoring_input) if scoring_model is None else None
+    # Качество данных — у действующей модели, как в CalculateScore; у старых его нет.
+    quality = (
+        default_quality().assess(scoring_input.sources_failed, output.data_completeness)
+        if scoring_model is None
+        else None
+    )
     scoring.add_result(
         ScoringResultDTO(
             id=uuid4(),
@@ -218,6 +226,8 @@ async def build_world(
             )
             if ml is not None
             else None,
+            quality=quality.level if quality is not None else None,
+            quality_reasons=quality.reasons if quality is not None else (),
         )
     )
     return DecisionWorld(card.id, organization.id, applications, enrichment, scoring, products)

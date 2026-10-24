@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_XLYoOA8dUn
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Договор перед подписанием
+description: |-
+  The loan contract to show before signing: borrower, terms, schedule
+  and who may sign. From `signing` on; before that 409 `contract_not_ready`.
+
+  Появляется, когда предложение принято.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/applications/:application_id/contract
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 14000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { AlertCircle, ArrowLeft, ArrowRight, Building2 } from 'lucide-vue-next'
-import { computed, watch } from 'vue'
+import { AlertCircle, ArrowLeft, ArrowRight, Building2, CircleCheck } from 'lucide-vue-next'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import type { ProductCatalog } from '@/entities/credit-product'
 import { AsyncState, BaseButton, BaseModal } from '@/shared/ui'
@@ -35,6 +35,8 @@ const {
   violations,
   ineligibleReason,
   startupBlock,
+  missing,
+  nudge,
 } = wizard
 
 watch(open, (isOpen) => isOpen && wizard.prepare(), { immediate: true })
@@ -52,6 +54,45 @@ const description = computed(() =>
 function close() {
   open.value = false
 }
+
+/** В строке у кнопок помещается пара пунктов, остальное — «ещё N»; полный список — в подсказке */
+const MISSING_SHOWN = 2
+const missingShown = computed(() => missing.value.slice(0, MISSING_SHOWN))
+const missingRest = computed(() => missing.value.length - missingShown.value.length)
+const missingTitle = computed(() => missing.value.map((item) => item.label).join(', '))
+
+const body = ref<HTMLElement>()
+const shaking = ref(false)
+
+/** Поле по пути: точное совпадение data-field или ближайший родитель (product_fields.loans.0.amount → product_fields.loans) */
+function fieldElement(key: string): HTMLElement | null {
+  const parts = key.split('.')
+  while (parts.length) {
+    const element = body.value?.querySelector<HTMLElement>(`[data-field="${parts.join('.')}"]`)
+    if (element) return element
+    parts.pop()
+  }
+  return null
+}
+
+function goToField(key: string) {
+  const element = fieldElement(key)
+  if (!element) return
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  element.querySelector<HTMLElement>('input:not([type=file]), textarea, button')?.focus({ preventScroll: true })
+  element.classList.remove('is-flagged')
+  void element.offsetWidth
+  element.classList.add('is-flagged')
+}
+
+// Нажали «Далее» с пропусками: список у кнопок вздрагивает, форма прокручивается к первому пропуску
+watch(nudge, async () => {
+  shaking.value = false
+  await nextTick()
+  shaking.value = true
+  const first = missing.value[0]
+  if (first) goToField(first.key)
+})
 </script>
 
 <template>
@@ -86,11 +127,13 @@ function close() {
           </li>
         </ol>
 
-        <StepTerms v-if="step === 'terms'" :wizard="wizard" :products="products" />
-        <StepDetails v-else-if="step === 'details'" :wizard="wizard" />
-        <StepConsents v-else-if="step === 'consents'" :wizard="wizard" />
+        <div ref="body">
+          <StepTerms v-if="step === 'terms'" :wizard="wizard" :products="products" />
+          <StepDetails v-else-if="step === 'details'" :wizard="wizard" />
+          <StepConsents v-else-if="step === 'consents'" :wizard="wizard" />
+        </div>
         <ApplicationSubmitted
-          v-else-if="step === 'done' && application"
+          v-if="step === 'done' && application"
           :application="application"
           :product-title="product.title"
         />
@@ -126,6 +169,33 @@ function close() {
         <BaseButton @click="close">{{ step === 'done' ? 'Готово' : 'Закрыть' }}</BaseButton>
       </template>
       <template v-else>
+        <!-- Что ещё не заполнено на этом шаге — в одной строке с кнопками, клик ведёт к полю -->
+        <div
+          class="missing mr-auto flex min-w-0 basis-full flex-wrap items-center gap-1.5 text-sm sm:basis-auto sm:flex-1"
+          :class="{ 'is-shaking': shaking }"
+          aria-live="polite"
+          @animationend="shaking = false"
+        >
+          <template v-if="missing.length">
+            <span class="font-medium text-brand" :title="missingTitle">Не заполнено:</span>
+            <button
+              v-for="item in missingShown"
+              :key="item.key"
+              type="button"
+              class="missing__chip max-w-[12rem] truncate rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand hover:text-white"
+              :title="`Перейти к полю «${item.label}»`"
+              @click="goToField(item.key)"
+            >
+              {{ item.label }}
+            </button>
+            <span v-if="missingRest > 0" class="text-xs text-ink-secondary" :title="missingTitle">ещё {{ missingRest }}</span>
+          </template>
+          <span v-else class="flex items-center gap-1.5 font-medium text-success">
+            <CircleCheck class="size-4" aria-hidden="true" />
+            Всё заполнено
+          </span>
+        </div>
+
         <BaseButton v-if="step === 'terms'" variant="ghost" @click="close">Отмена</BaseButton>
         <BaseButton v-else variant="ghost" :disabled="busy" @click="wizard.back">
           <ArrowLeft class="size-4" aria-hidden="true" />
@@ -144,3 +214,50 @@ function close() {
     </template>
   </BaseModal>
 </template>
+
+<style scoped>
+.missing__chip {
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+/* Попытка пройти дальше с пропусками: список у кнопок вздрагивает */
+.missing.is-shaking {
+  animation: missing-shake 0.45s ease-in-out;
+}
+
+@keyframes missing-shake {
+  20%,
+  60% {
+    translate: -4px 0;
+  }
+  40%,
+  80% {
+    translate: 4px 0;
+  }
+}
+
+/* Поле, к которому перешли из списка: мягкая красная подсветка */
+:deep(.is-flagged) {
+  border-radius: 0.875rem;
+  animation: missing-flag 1.6s ease-out;
+}
+
+@keyframes missing-flag {
+  0%,
+  30% {
+    box-shadow: 0 0 0 4px rgb(239 49 36 / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgb(239 49 36 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .missing.is-shaking,
+  :deep(.is-flagged) {
+    animation: none;
+  }
+}
+</style>

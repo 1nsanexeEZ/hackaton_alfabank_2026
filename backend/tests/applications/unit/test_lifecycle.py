@@ -31,11 +31,13 @@ from src.modules.applications.domain.value_objects import (
     Actor,
     CollateralDeclaration,
     LoanRequest,
+    ProfileConsent,
 )
 from tests.applications.unit.factories import (
     APPLICANT_ID,
     AUTO_FIELDS,
     NOW,
+    draft,
     in_status,
     offer,
     ready_draft,
@@ -327,6 +329,61 @@ def test_consents_keep_the_first_moment() -> None:
     )
     assert application.consents.credit_bureau_at is None
     assert not application.consents.complete
+
+
+def test_missing_consents_come_from_the_profile() -> None:
+    application = draft()
+    representative = uuid4()
+    personal = ProfileConsent(APPLICANT_ID, NOW - timedelta(days=30), "pd-2026-10")
+    company = ProfileConsent(representative, NOW - timedelta(days=2), "bki-ul-2026-10")
+
+    application.take_profile_consents(
+        personal_data=personal, credit_bureau=company, account_id=APPLICANT_ID, now=NOW
+    )
+
+    consents = application.consents
+    assert consents.complete
+    assert consents.personal_data_at == NOW - timedelta(days=30)
+    assert consents.credit_bureau_at == NOW - timedelta(days=2)
+    assert consents.personal_data_profile == personal
+    assert consents.credit_bureau_profile == company
+    assert consents.given_by == APPLICANT_ID
+
+
+def test_a_ticked_checkbox_is_not_replaced_by_the_profile() -> None:
+    application = draft()
+    application.set_consents(
+        personal_data=False, credit_bureau=True, account_id=APPLICANT_ID, now=NOW
+    )
+    company = ProfileConsent(uuid4(), NOW - timedelta(days=2), "bki-ul-2026-10")
+    personal = ProfileConsent(APPLICANT_ID, NOW - timedelta(days=1), "pd-2026-10")
+
+    application.take_profile_consents(
+        personal_data=personal, credit_bureau=company, account_id=uuid4(), now=NOW
+    )
+
+    consents = application.consents
+    assert consents.credit_bureau_at == NOW and consents.credit_bureau_profile is None
+    assert consents.personal_data_profile == personal
+    assert consents.given_by == APPLICANT_ID
+    # Unticking a consent taken from the profile drops the reference too.
+    application.set_consents(
+        personal_data=False, credit_bureau=True, account_id=APPLICANT_ID, now=NOW
+    )
+    assert application.consents.personal_data_at is None
+    assert application.consents.personal_data_profile is None
+
+
+def test_profile_consents_are_not_taken_after_submission() -> None:
+    application = in_status(S.SUBMITTED)
+    before = application.consents
+    company = ProfileConsent(uuid4(), NOW, "bki-ul-2026-10")
+
+    application.take_profile_consents(
+        personal_data=None, credit_bureau=company, account_id=APPLICANT_ID, now=NOW
+    )
+
+    assert application.consents == before
 
 
 def test_automated_decision_consent_is_optional_and_keeps_the_first_moment() -> None:

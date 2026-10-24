@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_MgYS8Wp0JX
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_rgp4VZHY1e
+name: '06. Документ financial_report: подтвердить загрузку'
+description: '200, документ `uploaded`: backend проверил, что файл лежит в хранилище.'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/documents/:document_id/confirm
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: :document_id
+  value: ${[ response.body.path(request='rq_0lFs9TL7PB', behavior='smart', path='$.document.id') ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

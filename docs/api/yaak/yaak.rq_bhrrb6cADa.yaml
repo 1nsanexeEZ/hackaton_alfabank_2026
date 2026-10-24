@@ -1,0 +1,31 @@
+type: http_request
+model: http_request
+id: rq_bhrrb6cADa
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 08. Создать черновик
+description: |-
+  201, статус `draft`; реквизиты компании банк подставляет сам. id — переменная `application_id`.
+
+  409 `duplicate_active` — у компании осталась активная заявка на этот продукт с прошлого прогона: её id в `details.application_id`, доведите её до конца или отмените («Справочник API → Заявки → Отменить заявку»).
+method: POST
+url: ${[ base_url ]}/applications
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "organization_id": "${[ organization_id ]}",
+      "product_code": "STARTUP"
+    }
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

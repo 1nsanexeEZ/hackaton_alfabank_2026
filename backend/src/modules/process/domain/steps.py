@@ -99,6 +99,16 @@ class PersonFact:
 
 
 @dataclass(frozen=True, slots=True)
+class ThirdPartyFact:
+    """The beneficiary or the pledgor from the application, screened under 115-FZ."""
+
+    role: str  # beneficiary | pledgor
+    kind: str  # person | organization
+    name: str
+    inn: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class EnrichmentRequestFact:
     inn: str
     bki_consent_at: datetime | None
@@ -108,6 +118,7 @@ class EnrichmentRequestFact:
     head_bki_consent_at: datetime | None = None
     # Who submitted the application, when not the head: a representative for the 115-FZ check.
     representative: PersonFact | None = None
+    third_parties: tuple[ThirdPartyFact, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,7 +159,7 @@ class StepSpec:
 # What enrichment is asked for: registry, tax, company bureau, the bank statement forecast,
 # accounting reports (GIR BO), courts and bailiffs (Kontur), the head's own bureau report and
 # the 115-FZ check (beneficial owners, lists, PEP, KYC platform) — on every application, a
-# repeat borrower included.
+# repeat borrower included — and the bank's own stop list.
 ENRICHMENT_SOURCES = (
     "egrul",
     "fns",
@@ -158,6 +169,8 @@ ENRICHMENT_SOURCES = (
     "kontur",
     "bki_head",
     "aml",
+    "bank_stop_list",
+    "bank_turnover",
 )
 
 
@@ -206,6 +219,10 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 "head": _person(fact.head),
                 "head_bki_consent_at": fact.head_bki_consent_at,
                 "representative": _person(fact.representative),
+                "third_parties": [
+                    {"role": p.role, "kind": p.kind, "name": p.name, "inn": p.inn}
+                    for p in fact.third_parties
+                ],
             },
         ),
         {"EnrichmentCompleted", "EnrichmentFailed"},
@@ -251,6 +268,22 @@ async def _assess_collateral(step: StepInput) -> StepResult:
     discount = COLLATERAL_DISCOUNT.get(fact.type, Decimal("0"))
     value = (fact.declared_value * discount).quantize(Decimal("0.01"))
     return StepResult.done({"collateral_value": value})
+
+
+async def _check_stop_factors(step: StepInput) -> StepResult:
+    return StepResult.send_and_wait(
+        CommandRequest("CheckStopFactors", _ids(step.context)),
+        {"StopFactorsPassed", "DecisionMade"},
+    )
+
+
+def _stop_reply(step: StepInput, trigger: Trigger) -> StepResult:
+    """No stop factor — on to scoring; a stop factor — the decision is already made and the
+    route goes to the outcome gateway without the scoring model."""
+    if trigger.type == "StopFactorsPassed":
+        return StepResult.done({"stopped": False})
+    decided = _decision_reply(step, trigger)
+    return StepResult.done({**decided.updates, "stopped": True})
 
 
 async def _calculate_score(step: StepInput) -> StepResult:
@@ -508,6 +541,13 @@ _SPECS = [
         "Проверяем данные о компании",
         _fetch_enrichment,
         _enrichment_reply,
+    ),
+    StepSpec(
+        "check_stop_factors",
+        StepKind.ASYNC,
+        "Проверяем данные о компании",
+        _check_stop_factors,
+        _stop_reply,
     ),
     StepSpec("assess_collateral", StepKind.IMMEDIATE, "Оцениваем залог", _assess_collateral),
     StepSpec("calculate_score", StepKind.ASYNC, "Оцениваем заявку", _calculate_score, _score_reply),

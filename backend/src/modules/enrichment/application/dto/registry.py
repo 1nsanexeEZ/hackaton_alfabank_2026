@@ -36,3 +36,5 @@ class RegistryExtractDTO:
     kpp: str | None = None
     # Дата записи о нынешнем руководителе; None — реестр её не сообщил (снимки до неё).
     head_since: date | None = None
+    # Отметки о недостоверности сведений: address | head | founder.
+    unreliable: tuple[str, ...] = ()

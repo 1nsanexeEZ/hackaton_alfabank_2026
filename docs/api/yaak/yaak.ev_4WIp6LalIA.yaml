@@ -1,0 +1,52 @@
+type: environment
+model: environment
+id: ev_4WIp6LalIA
+workspaceId: wk_6MYZUPM7tf
+name: Общие
+public: true
+parentModel: workspace
+parentId: null
+variables:
+- enabled: true
+  name: demo_password
+  value: Demo-2026!
+- enabled: true
+  name: admin_login
+  value: admin@example.com
+- enabled: true
+  name: admin_password
+  value: Admin-2026!
+- enabled: true
+  name: token_romashka
+  value: ${[ response.body.path(request='rq_3L49GMNcqW', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_accountant
+  value: ${[ response.body.path(request='rq_ZCpCDysTf5', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_ivanov
+  value: ${[ response.body.path(request='rq_8e2G8vY18W', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_vector
+  value: ${[ response.body.path(request='rq_fCcnLEvuQu', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_zakat
+  value: ${[ response.body.path(request='rq_KQcI5X7jIz', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_progress
+  value: ${[ response.body.path(request='rq_0yPZqtKAtp', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_sboy
+  value: ${[ response.body.path(request='rq_NetkqzeIga', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_start
+  value: ${[ response.body.path(request='rq_sElII3NE7a', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_underwriter
+  value: ${[ response.body.path(request='rq_4KYpdswf5o', behavior='ttl', ttl='1500', path='$.access_token') ]}
+- enabled: true
+  name: token_admin
+  value: ${[ response.body.path(request='rq_wAwuPMZcu1', behavior='ttl', ttl='1500', path='$.access_token') ]}
+color: null
+sortPriority: 1000.0
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

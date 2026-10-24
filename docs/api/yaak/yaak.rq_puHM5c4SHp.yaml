@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_puHM5c4SHp
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_D4y4bxXgkd
+name: Карточка заявки для клиента
+description: |-
+  The card and its status come from applications, not from the projection.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/bff/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

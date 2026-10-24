@@ -1,15 +1,29 @@
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
+from src.core.domain import Money
 from src.modules.products.application import mappers
 from src.modules.products.domain.calculator import PaymentSchedule
 from src.modules.products.domain.product import CreditProduct
+from src.modules.products.domain.product import ProductStatus as Status
 from src.modules.products.domain.recommender import Recommendation, RecommendationStatus
-from src.modules.products.domain.value_objects import MAX_TERM_MONTHS, EligibilityCheck
+from src.modules.products.domain.value_objects import (
+    MAX_TERM_MONTHS,
+    AmountRange,
+    DocumentRequirement,
+    Eligibility,
+    EligibilityCheck,
+    ProcessingProfile,
+    ProductCode,
+    RateRange,
+    SecurityRequirement,
+    SupportProgram,
+    TermRange,
+)
 from src.modules.products.facade import (
     CollateralKind,
     Facility,
@@ -19,8 +33,24 @@ from src.modules.products.facade import (
     Repayment,
 )
 
+
+def _cents(value: Decimal) -> Decimal:
+    """As the database keeps it: the answer to a write is the same as a read, `22.00`."""
+    return value.quantize(Decimal("0.01"))
+
+
 Amount = Annotated[Decimal, Field(gt=0, max_digits=18, decimal_places=2)]
+# Terms of a product.
+ProductAmount = Annotated[Amount, AfterValidator(_cents)]
+# Limits that may be zero: the auto decision limit, the minimum revenue.
+Limit = Annotated[Decimal, Field(ge=0, max_digits=18, decimal_places=2), AfterValidator(_cents)]
+Rate = Annotated[
+    Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2), AfterValidator(_cents)
+]
 TermMonths = Annotated[int, Field(ge=1, le=MAX_TERM_MONTHS)]
+LegalForm = Literal["LLC", "IE", "JSC"]
+# The same values the application accepts in its collateral declaration.
+CollateralType = Literal["real_estate", "equipment", "vehicle", "goods"]
 
 
 class _Read(BaseModel):
@@ -78,6 +108,136 @@ class ProductRead(_Read):
     @classmethod
     def of(cls, product: CreditProduct) -> "ProductRead":
         return cls.model_validate(mappers.product_dto(product))
+
+
+class RequiredDocumentBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # `financial_report`: the application expects a document of this type.
+    type: Annotated[str, Field(max_length=64)]
+    title: Annotated[str, Field(max_length=200)]
+    # Required only from this amount; none — at any amount.
+    required_from_amount: ProductAmount | None = None
+    # Required only for these legal forms; empty — for every form.
+    legal_forms: list[LegalForm] = []
+
+    def requirement(self) -> DocumentRequirement:
+        return DocumentRequirement(
+            type=self.type,
+            title=self.title,
+            required_from=_money(self.required_from_amount),
+            legal_forms=frozenset(self.legal_forms),
+        )
+
+
+class SupportProgramBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: Annotated[str, Field(max_length=32)]
+    name: Annotated[str, Field(max_length=200)]
+    # The client is offered no more than this rate.
+    rate_cap: Rate
+    msp_registry_required: bool = True
+    # Two-digit OKVED classes; empty — any industry.
+    okved_whitelist: list[str] = []
+
+    def program(self) -> SupportProgram:
+        return SupportProgram(
+            code=self.code,
+            name=self.name,
+            rate_cap=self.rate_cap,
+            msp_registry_required=self.msp_registry_required,
+            okved_whitelist=frozenset(self.okved_whitelist),
+        )
+
+
+class ProductBody(BaseModel):
+    """Terms of a product, as in `ProductRead`: the code is in the path, the
+    version and the status are set by the catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    frontend_id: Annotated[str, Field(max_length=32)]
+    name: Annotated[str, Field(max_length=200)]
+    short_description: Annotated[str, Field(max_length=500)]
+    description_plain: str = ""
+    purposes: list[Purpose]
+    facility: Facility
+    # The first one is the default schedule.
+    repayment_options: list[Repayment]
+    amount_min: ProductAmount
+    amount_max: ProductAmount
+    term_min_months: TermMonths
+    term_max_months: TermMonths
+    rate_base: Rate
+    rate_max: Rate
+    collateral_kind: CollateralKind = "none"
+    collateral_types: list[CollateralType] = []
+    # Optional collateral becomes required from this amount.
+    collateral_required_from: ProductAmount | None = None
+    guarantee: Guarantee = "none"
+    # Money goes to a stated target (a vehicle, a property, other loans).
+    target_use_confirmation: bool = False
+    support_program: SupportProgramBody | None = None
+    min_business_age_months: Annotated[int, Field(ge=0)] = 0
+    allowed_legal_forms: list[LegalForm] = ["LLC", "IE", "JSC"]
+    min_annual_revenue: Limit | None = None
+    # Only for a company without turnover: younger than 6 months or without an annual report.
+    startup_only: bool = False
+    required_documents: list[RequiredDocumentBody] = []
+    # JSON Schema of the extra application fields: the subset applications understand.
+    application_fields_schema: dict[str, Any] = {}
+    # A route of the process module (GET /workflows).
+    workflow_code: Annotated[str, Field(max_length=64)]
+    # Up to this amount the decision may be taken without an underwriter.
+    auto_decision_limit: Limit
+
+    def product(self, code: str) -> CreditProduct:
+        """A draft of version 1 until the catalog says otherwise."""
+        program = self.support_program
+        return CreditProduct(
+            code=ProductCode(code),
+            version=1,
+            status=Status.DRAFT,
+            name=self.name,
+            short_description=self.short_description,
+            description_plain=self.description_plain,
+            frontend_id=self.frontend_id,
+            purposes=frozenset(self.purposes),
+            facility=self.facility,
+            repayment_options=tuple(self.repayment_options),
+            amount=AmountRange(Money(self.amount_min), Money(self.amount_max)),
+            term=TermRange(self.term_min_months, self.term_max_months),
+            rate=RateRange(self.rate_base, self.rate_max),
+            security=SecurityRequirement(
+                collateral=self.collateral_kind,
+                collateral_types=tuple(self.collateral_types),
+                guarantee=self.guarantee,
+                required_from=_money(self.collateral_required_from),
+            ),
+            eligibility=Eligibility(
+                min_business_age_months=self.min_business_age_months,
+                allowed_legal_forms=frozenset(self.allowed_legal_forms),
+                min_annual_revenue=_money(self.min_annual_revenue),
+                startup_only=self.startup_only,
+            ),
+            processing=ProcessingProfile(self.workflow_code, Money(self.auto_decision_limit)),
+            required_documents=tuple(d.requirement() for d in self.required_documents),
+            support_program=None if program is None else program.program(),
+            target_use_confirmation=self.target_use_confirmation,
+            application_fields_schema=self.application_fields_schema,
+        )
+
+
+class ProductCreate(ProductBody):
+    # `UNSECURED`, `GOV_SUPPORT`: the same in every version of the product.
+    code: Annotated[str, Field(max_length=32)]
+    # A draft is not in the catalog until it is activated.
+    status: Literal["draft", "active"] = "draft"
+
+
+def _money(amount: Decimal | None) -> Money | None:
+    return None if amount is None else Money(amount)
 
 
 class ReasonRead(_Read):

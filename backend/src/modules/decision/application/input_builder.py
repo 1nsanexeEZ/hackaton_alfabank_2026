@@ -27,6 +27,8 @@ from src.modules.decision.domain.model import (
     AlternativeInput,
     AmlHit,
     AmlInput,
+    BankStopListInput,
+    BankTurnoverInput,
     BureauInput,
     CashflowInput,
     CollateralInput,
@@ -40,6 +42,7 @@ from src.modules.decision.domain.model import (
     RequestInput,
     ScoreInput,
     SupportProgramInput,
+    ThirdPartiesInput,
     on_scale,
 )
 from src.modules.decision.domain.policy import CreditPolicy
@@ -49,7 +52,7 @@ from src.modules.products.facade import ProductDTO, ProductsFacade
 from src.modules.scoring.facade import ScoringFacade, ScoringResultDTO
 
 # Внешние источники: сбой любого — данных для стоп-факторов не хватает, решает андеррайтер.
-_EXTERNAL_SOURCES = ("egrul", "fns", "bki", "gir_bo", "kontur", "bki_head")
+_EXTERNAL_SOURCES = ("egrul", "fns", "bki", "gir_bo", "kontur", "bki_head", "bank_stop_list")
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +108,9 @@ class DecisionInputBuilder:
             founder_prescreen=await self._founder_prescreen(source),
             aml=_aml_input(snapshot),
             automated_decision_consent=source.automated_decision_consent_at is not None,
+            third_parties=_third_parties_input(source),
+            bank_stop_list=_bank_stop_list_input(snapshot),
+            bank_turnover=_bank_turnover_input(snapshot),
         )
         refs = DecisionInputRefs(
             scoring_result_id=result.id if result is not None else None,
@@ -181,6 +187,7 @@ def _product_input(source: ScoringInputDTO, product: ProductDTO | None) -> Produ
         else None,
         guarantee=product.guarantee if product is not None else "none",
         target_use_confirmation=product.target_use_confirmation if product is not None else False,
+        min_business_age_months=product.min_business_age_months if product is not None else 0,
     )
 
 
@@ -208,6 +215,9 @@ def _company_input(
         head_since_registration=(
             egrul is not None and head_since is not None and head_since <= egrul.registered_at
         ),
+        unreliable=egrul.unreliable if egrul is not None else (),
+        mass_head=fns.mass_head if fns is not None else None,
+        business_age_months=organization.business_age_months,
     )
 
 
@@ -228,6 +238,8 @@ def _score_input(result: ScoringResultDTO | None, scale: tuple[Grade, ...]) -> S
         pd_12m=result.pd_12m,
         ml_grade=result.ml.grade if result.ml is not None else None,
         ml_pd_12m=result.ml.pd_12m if result.ml is not None else None,
+        quality=result.quality,
+        quality_reasons=result.quality_reasons,
     )
 
 
@@ -302,6 +314,27 @@ def _cashflow_input(snapshot: EnrichmentSnapshotDTO | None) -> CashflowInput | N
     )
 
 
+def _bank_stop_list_input(snapshot: EnrichmentSnapshotDTO | None) -> BankStopListInput:
+    """Стоп-лист банка этой заявки; не ответил — `failed`, не запрашивали — `not_requested`."""
+    if snapshot is None:
+        return BankStopListInput("not_requested")
+    stop = snapshot.bank_stop_list
+    if stop is None:
+        failed = any(e.source == "bank_stop_list" for e in snapshot.sources_failed)
+        return BankStopListInput("failed" if failed else "not_requested")
+    return BankStopListInput("ok", listed=stop.listed, reason=stop.reason)
+
+
+def _bank_turnover_input(snapshot: EnrichmentSnapshotDTO | None) -> BankTurnoverInput | None:
+    turnover = snapshot.bank_turnover if snapshot is not None else None
+    if turnover is None:
+        return None
+    return BankTurnoverInput(
+        monthly_inflows=tuple(month.inflow for month in turnover.months),
+        annual_inflow=turnover.annual_inflow,
+    )
+
+
 def _sources_failed(snapshot: EnrichmentSnapshotDTO | None) -> tuple[str, ...]:
     if snapshot is None:
         return _EXTERNAL_SOURCES
@@ -316,6 +349,8 @@ _ROLES = {
     "beneficial_owner": "бенефициар",
     "founder_company": "учредитель-юрлицо",
     "representative": "представитель",
+    "beneficiary": "выгодоприобретатель",
+    "pledgor": "залогодатель",
 }
 _LISTS = {
     "terrorism": "перечень причастных к экстремизму и терроризму",
@@ -366,3 +401,31 @@ def _owners(check: AmlCheckDTO) -> tuple[str, ...]:
         else f"{o.name} ({basis.get(o.basis, o.basis)})"
         for o in check.beneficial_owners
     )
+
+
+def _third_parties_input(source: ScoringInputDTO) -> ThirdPartiesInput:
+    """Со слов клиента в заявке: к чьей выгоде действует и кому принадлежит залог (115-ФЗ)."""
+    declaration = source.beneficiary
+    collateral = source.collateral
+    third_party_pledge = collateral is not None and collateral.owner == "third_party"
+    owner = collateral.owner_party if collateral is not None else None
+    beneficiary = declaration.beneficiary if declaration is not None else None
+    return ThirdPartiesInput(
+        beneficiary="not_answered"
+        if declaration is None
+        else "declared"
+        if declaration.acts_for_third_party
+        else "none",
+        beneficiary_name=_party(beneficiary.name, beneficiary.inn) if beneficiary else None,
+        basis=declaration.basis if declaration is not None else None,
+        pledgor="not_applicable"
+        if not third_party_pledge
+        else "declared"
+        if owner is not None
+        else "unknown",
+        pledgor_name=_party(owner.name, owner.inn) if owner is not None else None,
+    )
+
+
+def _party(name: str, inn: str | None) -> str:
+    return f"{name}, ИНН {inn}" if inn else name

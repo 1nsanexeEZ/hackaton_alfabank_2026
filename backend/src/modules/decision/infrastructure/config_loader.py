@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v6`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v8`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v6"
+_DEFAULT_POLICY = "policy_v8"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -65,6 +65,13 @@ class _StopFactors(_Strict):
     negative_equity: bool = False
     mass_address: bool = False
     okved_classes: list[str] = Field(default_factory=list)
+    # policy_v7: стоп-факторы до модели и до проверки, есть ли результат скоринга.
+    before_scoring: bool = False
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
+    unreliable_data: bool = False
+    mass_head: bool = False
+    business_age: bool = False
+    bank_stop_list: bool = False
 
 
 class _InfoRequest(_Strict):
@@ -81,6 +88,8 @@ class _Limits(_Strict):
     turnover_multiplier: Decimal | None = Field(default=None, gt=0)
     grade_max_amount: dict[str, Decimal] = Field(default_factory=dict)
     group_exposure_max: Decimal | None = Field(default=None, ge=0)
+    # policy_v7: выписки нет — обороты по счёту в банке (АБС) для лимита и «разгона».
+    bank_turnover: bool = False
 
 
 class _Components(_Strict):
@@ -104,6 +113,8 @@ class _Routing(_Strict):
     grades: list[str]
     flags: dict[str, ReasonCode]
     tax_arrears: bool = False  # policy_v2
+    # policy_v7: скоринг пометил данные неполными (quality = degraded) → ручная проверка.
+    data_quality: bool = False
 
 
 class _TurnoverSpike(_Strict):
@@ -174,8 +185,18 @@ class _AutomatedDecision(_Strict):
     outcomes: list[_OutcomeName] = Field(min_length=1)
 
 
+class _ThirdParties(_Strict):
+    """policy_v8, 115-ФЗ: выгодоприобретатель и залогодатель — третье лицо."""
+
+    # Клиент действует к выгоде третьего лица → ручная проверка.
+    beneficiary_review: bool = True
+    # Нет ответа о выгодоприобретателе или у залога третьего лица нет владельца → ручная проверка.
+    require_answers: bool = False
+
+
 class _Compliance(_Strict):
     aml: _Aml | None = None
+    third_parties: _ThirdParties | None = None
     automated_decision_consent: _AutomatedDecision | None = None
 
 
@@ -302,10 +323,10 @@ def _check_strategy(schema: _PolicySchema, scale: tuple[str, ...], path: Path) -
 
 
 def _check_two_models(strategy: _Strategy, path: Path) -> None:
+    """policy_v5/v6 — две модели вместо матрицы; policy_v7 — обе: зоны моделей решают, можно ли
+    одобрить автоматически, корзина грейда — до какой суммы. Итог — строже из двух."""
     models = strategy.two_models
     assert models is not None
-    if strategy.risk_matrix:
-        raise PolicyConfigError(f"{path}: strategy.two_models заменяет risk_matrix — оставьте одно")
     # ML-модель всегда ставит грейд на шкале A–J — зоны покрывают её, а не шкалу политики.
     zoned = [g for grades in models.zones.values() for g in grades]
     if len(zoned) != len(set(zoned)) or set(zoned) != set(PD_SCALE):
@@ -322,6 +343,10 @@ def _check_two_models(strategy: _Strategy, path: Path) -> None:
 
 
 def _check_compliance(compliance: _Compliance, path: Path) -> None:
+    if compliance.third_parties is not None and compliance.aml is None:
+        raise PolicyConfigError(
+            f"{path}: compliance.third_parties проверяются вместе с compliance.aml"
+        )
     aml = compliance.aml
     if aml is not None and set(aml.zsk_stop_levels) & set(aml.zsk_review_levels):
         raise PolicyConfigError(
@@ -384,6 +409,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     two_models = strategy.two_models
     aml = schema.compliance.aml
     consent = schema.compliance.automated_decision_consent
+    third = schema.compliance.third_parties
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -459,6 +485,16 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         automated_decision_outcomes=frozenset(consent.outcomes)
         if consent is not None
         else frozenset(),
+        third_party_rules=third is not None,
+        third_party_beneficiary_review=third.beneficiary_review if third is not None else False,
+        third_party_answers_required=third.require_answers if third is not None else False,
+        screen_before_scoring=stops.before_scoring,
+        route_degraded_quality=schema.routing.data_quality,
+        stop_unreliable_data=stops.unreliable_data,
+        stop_mass_head=stops.mass_head,
+        stop_business_age=stops.business_age,
+        stop_bank_stop_list=stops.bank_stop_list,
+        turnover_from_bank=schema.limits.bank_turnover,
     )
 
 

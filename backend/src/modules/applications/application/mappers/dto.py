@@ -9,8 +9,10 @@ from src.core.serialization import from_jsonable, to_jsonable
 from src.modules.applications.application.dto.applications import (
     ApplicationCardDTO,
     ApplicationSummaryDTO,
+    BeneficiaryDTO,
     CollateralDTO,
     ConsentsDTO,
+    ConsentSource,
     DecisionSummaryDTO,
     DocumentDTO,
     InfoRequestDTO,
@@ -18,6 +20,7 @@ from src.modules.applications.application.dto.applications import (
     OfferDTO,
     ScoringInputDTO,
     StatusChangeDTO,
+    ThirdPartyDTO,
 )
 from src.modules.applications.application.dto.drafts import DraftRequestDTO
 from src.modules.applications.application.dto.views import (
@@ -32,6 +35,7 @@ from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.entities import Document, InfoRequest
 from src.modules.applications.domain.fields_schema import ProductFieldsSchema
 from src.modules.applications.domain.value_objects import (
+    BeneficiaryDeclaration,
     CollateralDeclaration,
     Consents,
     DecisionSummary,
@@ -40,8 +44,11 @@ from src.modules.applications.domain.value_objects import (
     Offer,
     OrganizationSnapshot,
     ProductTerms,
+    ProfileConsent,
+    ThirdParty,
 )
 from src.modules.clients.facade import OrganizationSnapshotDTO
+from src.modules.identity.facade import ConsentDTO
 from src.modules.products.facade import PaymentScheduleDTO, ProductTermsDTO, RequiredDocumentDTO
 
 
@@ -139,6 +146,31 @@ def collateral_declaration(dto: CollateralDTO) -> CollateralDeclaration:
         description=dto.description,
         declared_value=Money.of(dto.declared_value),
         owner=dto.owner,
+        owner_party=third_party(dto.owner_party),
+    )
+
+
+def third_party(dto: ThirdPartyDTO | None) -> ThirdParty | None:
+    if dto is None:
+        return None
+    return ThirdParty(kind=dto.kind, name=dto.name, inn=dto.inn)
+
+
+def third_party_dto(party: ThirdParty | None) -> ThirdPartyDTO | None:
+    if party is None:
+        return None
+    return ThirdPartyDTO(kind=party.kind, name=party.name, inn=party.inn)
+
+
+def beneficiary_dto(declaration: BeneficiaryDeclaration | None) -> BeneficiaryDTO | None:
+    if declaration is None:
+        return None
+    return BeneficiaryDTO(
+        acts_for_third_party=declaration.acts_for_third_party,
+        declared_by=declaration.declared_by,
+        declared_at=declaration.declared_at,
+        beneficiary=third_party_dto(declaration.beneficiary),
+        basis=declaration.basis,
     )
 
 
@@ -179,7 +211,20 @@ def collateral_dto(collateral: CollateralDeclaration | None) -> CollateralDTO | 
         description=collateral.description,
         declared_value=collateral.declared_value.amount,
         owner=collateral.owner,
+        owner_party=third_party_dto(collateral.owner_party),
     )
+
+
+def profile_consent(consent: ConsentDTO | None) -> ProfileConsent | None:
+    if consent is None:
+        return None
+    return ProfileConsent(consent.account_id, consent.given_at, consent.text_version)
+
+
+def _consent_source(at: datetime | None, profile: ProfileConsent | None) -> ConsentSource | None:
+    if at is None:
+        return None
+    return "application" if profile is None else "profile"
 
 
 def consents_dto(consents: Consents) -> ConsentsDTO:
@@ -188,6 +233,12 @@ def consents_dto(consents: Consents) -> ConsentsDTO:
         consents.credit_bureau_at,
         consents.given_by,
         consents.automated_decision_at,
+        personal_data_source=_consent_source(
+            consents.personal_data_at, consents.personal_data_profile
+        ),
+        credit_bureau_source=_consent_source(
+            consents.credit_bureau_at, consents.credit_bureau_profile
+        ),
     )
 
 
@@ -266,6 +317,7 @@ def card(application: CreditApplication) -> ApplicationCardDTO:
         disbursement_reference=application.disbursement.reference
         if application.disbursement
         else None,
+        beneficiary=beneficiary_dto(application.beneficiary),
     )
 
 
@@ -306,6 +358,7 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
         submitted_at=application.submitted_at,
         applicant_account_id=application.applicant_account_id,
         automated_decision_consent_at=application.consents.automated_decision_at,
+        beneficiary=beneficiary_dto(application.beneficiary),
     )
 
 
@@ -363,6 +416,7 @@ def application_view(
         updated_at=application.updated_at,
         submitted_at=application.submitted_at,
         closed_at=application.closed_at,
+        beneficiary=beneficiary_dto(application.beneficiary),
     )
 
 

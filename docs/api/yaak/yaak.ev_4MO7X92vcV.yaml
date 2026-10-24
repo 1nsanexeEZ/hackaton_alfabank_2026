@@ -1,0 +1,19 @@
+type: environment
+model: environment
+id: ev_4MO7X92vcV
+workspaceId: wk_6MYZUPM7tf
+name: Переменные S-5
+public: true
+parentModel: folder
+parentId: fl_4MO7X92vcV
+variables:
+- enabled: true
+  name: organization_id
+  value: ${[ response.body.path(request='rq_V7Jn3E5UOR', behavior='smart', path='$[?(@.inn=="7704568152")].id') ]}
+- enabled: true
+  name: application_id
+  value: ${[ response.body.path(request='rq_vHdNYaSMBA', behavior='smart', path='$.id') ]}
+color: null
+sortPriority: 1000.0
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

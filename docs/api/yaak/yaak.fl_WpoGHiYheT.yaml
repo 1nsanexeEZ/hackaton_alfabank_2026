@@ -1,0 +1,15 @@
+type: folder
+model: folder
+id: fl_WpoGHiYheT
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PKvrC4MM6R
+name: 'S-3. Вектор: руководитель не совпадает с ЕГРЮЛ'
+description: |-
+  «Кредитная линия», 10 млн ₽ на 24 месяца: руководитель в кабинете не тот, что в ЕГРЮЛ → ручное рассмотрение, андеррайтер снижает лимит до 6 млн → клиент отказывается.
+
+  Входит директор ООО «Вектор» (`petrov@vector.test`). Шаги отправляются по порядку.
+sortPriority: 3000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

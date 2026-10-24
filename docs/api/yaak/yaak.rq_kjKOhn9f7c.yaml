@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_kjKOhn9f7c
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PfNW2aqqEA
+name: Задача
+description: |-
+  Get Task
+
+  Первая задача очереди. Очередь пуста — пройдите сценарий до шага «у специалиста» (S-2, S-3, S-5, S-6, S-7).
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/tasks/:task_id
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ task_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

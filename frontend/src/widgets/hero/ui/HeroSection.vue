@@ -52,13 +52,14 @@ const stats = computed(() => heroStats(props.products))
           </div>
         </div>
 
-        <HeroApplication
-          :products="products"
-          class="w-full lg:justify-self-end"
-          @apply="emit('apply')"
-          @continue="(draft) => emit('continue', draft)"
-          @open="(id) => emit('open', id)"
-        />
+        <div class="w-full space-y-4 lg:justify-self-end">
+          <HeroApplication
+            :products="products"
+            @apply="emit('apply')"
+            @continue="(draft) => emit('continue', draft)"
+            @open="(id) => emit('open', id)"
+          />
+        </div>
       </div>
 
       <ul class="mt-12 grid grid-cols-2 gap-3 lg:mt-20 lg:grid-cols-4 lg:gap-4">

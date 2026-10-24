@@ -343,6 +343,172 @@
         }
       }
     },
+    "/organizations/{organization_id}/consents": {
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "List Organization Consents",
+        "description": "Company consents in force and the history, newest first. Needs `view` in the company.",
+        "operationId": "list_organization_consents_organizations__organization_id__consents_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationConsentRead"
+                  },
+                  "title": "Response List Organization Consents Organizations  Organization Id  Consents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Give Organization Consents",
+        "description": "A representative with `submit_application` gives the consent for the company before\nan application; drafts and submissions take it from here.",
+        "operationId": "give_organization_consents_organizations__organization_id__consents_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationConsentGive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationConsentRead"
+                  },
+                  "title": "Response Give Organization Consents Organizations  Organization Id  Consents Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/consents/{type}": {
+      "delete": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Revoke Organization Consent",
+        "description": "Any representative with `submit_application` may revoke; an absent or already\nrevoked consent is also 204. Applications already submitted keep their consents.",
+        "operationId": "revoke_organization_consent_organizations__organization_id__consents__type__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "const": "credit_bureau_company",
+              "type": "string",
+              "title": "Type"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/accounts": {
       "get": {
         "tags": [
@@ -878,6 +1044,82 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Create Product",
+        "description": "Version 1 at the end of the catalog, a draft unless `status: active`. 409 — the code\nis taken; 422 `workflow_code` `unknown` — no such route (GET /workflows), `frontend_id`\n`taken` — another product has this card.",
+        "operationId": "create_product_products_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/all": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "List All Products",
+        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order.",
+        "operationId": "list_all_products_products_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductRead"
+                  },
+                  "type": "array",
+                  "title": "Response List All Products Products All Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
       }
     },
     "/products/recommend": {
@@ -989,6 +1231,149 @@
         "summary": "Get Product",
         "description": "Archived products are readable too (status `archived`).",
         "operationId": "get_product_products__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Update Product",
+        "description": "New terms. A draft changes in place; a published product gets a new active version\nand the previous one goes to the archive, so an archived product comes back this way.\nApplications keep the terms they were opened with.",
+        "operationId": "update_product_products__code__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Delete Product",
+        "description": "Off sale: a published product goes to the archive (old applications refer to it),\na draft is deleted. Already archived — 409 `invalid_transition`.",
+        "operationId": "delete_product_products__code__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{code}/activate": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Activate Product",
+        "description": "A draft goes to the catalog; anything else — 409 `invalid_transition`.",
+        "operationId": "activate_product_products__code__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
         "parameters": [
           {
             "name": "code",
@@ -1648,6 +2033,112 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FinancialReportRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/business-plan": {
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get Business Plan",
+        "description": "404 — not filled in yet.",
+        "operationId": "get_business_plan_organizations__organization_id__business_plan_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessPlanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Submit Business Plan",
+        "description": "The startup's project before an application: needs `edit_financials`. A new plan — 201,\na revised one — 200; the bank's assessment of an older revision stays until it is run\nagain (`POST /organizations/{id}/project-assessment`).",
+        "operationId": "submit_business_plan_organizations__organization_id__business_plan_put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessPlanWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessPlanRead"
                 }
               }
             }
@@ -3093,6 +3584,102 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FounderPrescreenRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/project-assessment": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Run Project Assessment",
+        "description": "The startup's project by its business plan from the cabinet: passed — a pre-approved\nSTARTUP offer (`basis = project`) up to `max_amount`, also in `pre-approved-offers`.\n422 `business_plan_required` — no business plan; 422 `product_not_eligible` — no startup\nproduct fits the company.",
+        "operationId": "run_project_assessment_organizations__organization_id__project_assessment_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAssessmentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Project Assessment",
+        "description": "The latest assessment; 404 — not run yet.",
+        "operationId": "get_project_assessment_organizations__organization_id__project_assessment_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAssessmentRead"
                 }
               }
             }
@@ -4660,7 +5247,9 @@
               "head",
               "beneficial_owner",
               "founder_company",
-              "representative"
+              "representative",
+              "beneficiary",
+              "pledgor"
             ],
             "title": "Role"
           },
@@ -4879,6 +5468,16 @@
               }
             ],
             "title": "Disbursement Reference"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5229,6 +5828,16 @@
               }
             ],
             "title": "Closed At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5446,6 +6055,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5540,6 +6159,73 @@
         ],
         "title": "BackofficeMetricsDTO"
       },
+      "BankStopListDTO": {
+        "properties": {
+          "listed": {
+            "type": "boolean",
+            "title": "Listed"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "listed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "listed"
+        ],
+        "title": "BankStopListDTO",
+        "description": "Компания во внутреннем стоп-листе банка или нет; причина — для банка, не для клиента."
+      },
+      "BankTurnoverDTO": {
+        "properties": {
+          "client_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Since"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/TurnoverMonthDTO"
+            },
+            "type": "array",
+            "title": "Months",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_since"
+        ],
+        "title": "BankTurnoverDTO",
+        "description": "Клиент банка с какой даты и обороты по его счёту по месяцам, от старых к новым (без\nтекущего месяца). Не клиент банка — `client_since = None`, оборотов нет."
+      },
       "BankruptcyMessageDTO": {
         "properties": {
           "date": {
@@ -5597,6 +6283,255 @@
           "basis"
         ],
         "title": "BeneficialOwnerDTO"
+      },
+      "BeneficiaryDTO": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "declared_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Declared By"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "agency",
+                  "commission",
+                  "mandate",
+                  "trust_management"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party",
+          "declared_by",
+          "declared_at"
+        ],
+        "title": "BeneficiaryDTO",
+        "description": "Whether the client acts to the benefit of a third party (115-FZ): \"no\" is an answer too."
+      },
+      "BeneficiaryIn": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "agency",
+                  "commission",
+                  "mandate",
+                  "trust_management"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party"
+        ],
+        "title": "BeneficiaryIn",
+        "description": "Does the client act to the benefit of a third party — the beneficiary (115-FZ art. 3).\n`false` is an answer too; `true` needs the beneficiary and the basis."
+      },
+      "BeneficiaryOut": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party",
+          "declared_at",
+          "beneficiary",
+          "basis"
+        ],
+        "title": "BeneficiaryOut"
+      },
+      "BusinessPlanDTO": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModelDTO"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "summary",
+          "financial_model",
+          "submitted_by",
+          "submitted_at",
+          "revision"
+        ],
+        "title": "BusinessPlanDTO"
+      },
+      "BusinessPlanRead": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModel-Output"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "summary",
+          "financial_model",
+          "submitted_by",
+          "submitted_at",
+          "revision"
+        ],
+        "title": "BusinessPlanRead"
+      },
+      "BusinessPlanWrite": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "financial_model": {
+            "$ref": "#/components/schemas/FinancialModel-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "financial_model"
+        ],
+        "title": "BusinessPlanWrite"
       },
       "CalculateBody": {
         "properties": {
@@ -6154,6 +7089,16 @@
               "third_party"
             ],
             "title": "Owner"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6203,6 +7148,16 @@
             ],
             "title": "Owner",
             "default": "self"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6230,6 +7185,16 @@
           "owner": {
             "type": "string",
             "title": "Owner"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6345,6 +7310,79 @@
         ],
         "title": "ConsentRead"
       },
+      "ConsentState": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personal_data",
+              "credit_bureau_company",
+              "credit_bureau_personal"
+            ],
+            "title": "Type"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "account",
+              "organization"
+            ],
+            "title": "Scope"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "given": {
+            "type": "boolean",
+            "title": "Given"
+          },
+          "given_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Given At"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "scope",
+          "title",
+          "purpose",
+          "required",
+          "given",
+          "given_at",
+          "valid_until"
+        ],
+        "title": "ConsentState"
+      },
       "ConsentsDTO": {
         "properties": {
           "personal_data_at": {
@@ -6394,6 +7432,36 @@
               }
             ],
             "title": "Automated Decision At"
+          },
+          "personal_data_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "application",
+                  "profile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Data Source"
+          },
+          "credit_bureau_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "application",
+                  "profile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Bureau Source"
           }
         },
         "type": "object",
@@ -6464,6 +7532,36 @@
               }
             ],
             "title": "Automated Decision At"
+          },
+          "personal_data_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "application",
+                  "profile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Data Source"
+          },
+          "credit_bureau_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "application",
+                  "profile"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Bureau Source"
           }
         },
         "type": "object",
@@ -7065,6 +8163,13 @@
             "type": "array",
             "title": "Todo"
           },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentState"
+            },
+            "type": "array",
+            "title": "Consents"
+          },
           "feed": {
             "$ref": "#/components/schemas/Feed"
           },
@@ -7102,6 +8207,7 @@
           "pre_approved",
           "active_applications",
           "todo",
+          "consents",
           "feed",
           "news",
           "degraded"
@@ -8090,7 +9196,9 @@
                 "gir_bo",
                 "kontur",
                 "bki_head",
-                "aml"
+                "aml",
+                "bank_stop_list",
+                "bank_turnover"
               ]
             },
             "type": "array",
@@ -8185,6 +9293,26 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AmlCheckDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bank_stop_list": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankStopListDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bank_turnover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankTurnoverDTO"
               },
               {
                 "type": "null"
@@ -8554,6 +9682,240 @@
           "after"
         ],
         "title": "FieldChangeRead"
+      },
+      "FinancialModel-Input": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonth-Input"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "minItems": 24,
+            "title": "Months"
+          },
+          "own_funds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Collateral Value",
+            "default": "0"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "guarantee_share": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Guarantee Share",
+            "default": "0"
+          },
+          "loan_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModel",
+        "description": "The bank's template, roubles: revenue and expenses for each of the first 24 months, own\nfunds put into the project, collateral (0 — none), a state support guarantee and the loan\nthe project needs."
+      },
+      "FinancialModel-Output": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonth-Output"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "minItems": 24,
+            "title": "Months"
+          },
+          "own_funds": {
+            "type": "string",
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "type": "string",
+            "title": "Collateral Value",
+            "default": "0"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "guarantee_share": {
+            "type": "string",
+            "title": "Guarantee Share",
+            "default": "0"
+          },
+          "loan_amount": {
+            "type": "string",
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModel",
+        "description": "The bank's template, roubles: revenue and expenses for each of the first 24 months, own\nfunds put into the project, collateral (0 — none), a state support guarantee and the loan\nthe project needs."
+      },
+      "FinancialModelDTO": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMonthDTO"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "own_funds": {
+            "type": "string",
+            "title": "Own Funds"
+          },
+          "collateral_value": {
+            "type": "string",
+            "title": "Collateral Value"
+          },
+          "collateral_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Description"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "msp_corporation",
+              "regional_fund"
+            ],
+            "title": "Guarantee"
+          },
+          "guarantee_share": {
+            "type": "string",
+            "title": "Guarantee Share"
+          },
+          "loan_amount": {
+            "type": "string",
+            "title": "Loan Amount"
+          },
+          "loan_term_months": {
+            "type": "integer",
+            "title": "Loan Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "own_funds",
+          "collateral_value",
+          "collateral_description",
+          "guarantee",
+          "guarantee_share",
+          "loan_amount",
+          "loan_term_months"
+        ],
+        "title": "FinancialModelDTO",
+        "description": "24 months of revenue and operating expenses, own funds, collateral, a state support\nguarantee and the loan the project needs; roubles."
       },
       "FinancialReportCreate": {
         "properties": {
@@ -10329,6 +11691,110 @@
         ],
         "title": "OrganizationBrief"
       },
+      "OrganizationConsentGive": {
+        "properties": {
+          "types": {
+            "items": {
+              "type": "string",
+              "const": "credit_bureau_company"
+            },
+            "type": "array",
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "types"
+        ],
+        "title": "OrganizationConsentGive"
+      },
+      "OrganizationConsentRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "credit_bureau_company",
+            "title": "Type"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "given_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Given By",
+            "description": "Account of the representative who gave it"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Given At"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until",
+            "description": "credit_bureau_company — 6 months"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By",
+            "description": "Account of the representative who revoked it"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "text_version": {
+            "type": "string",
+            "title": "Text Version",
+            "description": "Edition of the consent text that was shown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "organization_id",
+          "given_by",
+          "given_at",
+          "valid_until",
+          "revoked_at",
+          "revoked_by",
+          "active",
+          "text_version"
+        ],
+        "title": "OrganizationConsentRead"
+      },
       "OrganizationOut": {
         "properties": {
           "id": {
@@ -10649,7 +12115,9 @@
               "active",
               "liquidating",
               "liquidated",
-              "bankrupt"
+              "bankrupt",
+              "reorganizing",
+              "excluded"
             ],
             "title": "Registry Status"
           },
@@ -11140,6 +12608,37 @@
               }
             ]
           },
+          "max_affordable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Affordable"
+          },
+          "affordable_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pre_approved",
+                  "payment",
+                  "project"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affordable By"
+          },
+          "above_affordable": {
+            "type": "boolean",
+            "title": "Above Affordable"
+          },
           "degraded": {
             "items": {
               "type": "string"
@@ -11156,9 +12655,82 @@
           "eligible",
           "reasons",
           "suggestion",
+          "max_affordable",
+          "affordable_by",
+          "above_affordable",
           "degraded"
         ],
         "title": "PersonalSchedule"
+      },
+      "PlanMonth-Input": {
+        "properties": {
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Revenue"
+          },
+          "expenses": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonth"
+      },
+      "PlanMonth-Output": {
+        "properties": {
+          "revenue": {
+            "type": "string",
+            "title": "Revenue"
+          },
+          "expenses": {
+            "type": "string",
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonth"
+      },
+      "PlanMonthDTO": {
+        "properties": {
+          "revenue": {
+            "type": "string",
+            "title": "Revenue"
+          },
+          "expenses": {
+            "type": "string",
+            "title": "Expenses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revenue",
+          "expenses"
+        ],
+        "title": "PlanMonthDTO"
       },
       "Policies": {
         "type": "string",
@@ -11320,7 +12892,8 @@
             "type": "string",
             "enum": [
               "estimate",
-              "full"
+              "full",
+              "project"
             ],
             "title": "Basis"
           },
@@ -11650,6 +13223,588 @@
           "started_at"
         ],
         "title": "ProcessViewDTO"
+      },
+      "ProductBody": {
+        "properties": {
+          "frontend_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Frontend Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "short_description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Short Description"
+          },
+          "description_plain": {
+            "type": "string",
+            "title": "Description Plain",
+            "default": ""
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "working_capital",
+                "cash_gap",
+                "equipment",
+                "vehicles",
+                "real_estate",
+                "contract_execution",
+                "refinancing",
+                "expansion"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "facility": {
+            "type": "string",
+            "enum": [
+              "term_loan",
+              "credit_line_revolving",
+              "credit_line_non_revolving",
+              "overdraft"
+            ],
+            "title": "Facility"
+          },
+          "repayment_options": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "annuity",
+                "differentiated",
+                "interest_only",
+                "by_contract_schedule"
+              ]
+            },
+            "type": "array",
+            "title": "Repayment Options"
+          },
+          "amount_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Max"
+          },
+          "term_min_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Min Months"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Max Months"
+          },
+          "rate_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Max"
+          },
+          "collateral_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Collateral Kind",
+            "default": "none"
+          },
+          "collateral_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "real_estate",
+                "equipment",
+                "vehicle",
+                "goods"
+              ]
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "default": []
+          },
+          "collateral_required_from": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Required From"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "owner",
+              "msp_corporation"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "target_use_confirmation": {
+            "type": "boolean",
+            "title": "Target Use Confirmation",
+            "default": false
+          },
+          "support_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportProgramBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_business_age_months": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Business Age Months",
+            "default": 0
+          },
+          "allowed_legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Legal Forms",
+            "default": [
+              "LLC",
+              "IE",
+              "JSC"
+            ]
+          },
+          "min_annual_revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Annual Revenue"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only",
+            "default": false
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocumentBody"
+            },
+            "type": "array",
+            "title": "Required Documents",
+            "default": []
+          },
+          "application_fields_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Application Fields Schema",
+            "default": {}
+          },
+          "workflow_code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Workflow Code"
+          },
+          "auto_decision_limit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Auto Decision Limit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frontend_id",
+          "name",
+          "short_description",
+          "purposes",
+          "facility",
+          "repayment_options",
+          "amount_min",
+          "amount_max",
+          "term_min_months",
+          "term_max_months",
+          "rate_base",
+          "rate_max",
+          "workflow_code",
+          "auto_decision_limit"
+        ],
+        "title": "ProductBody",
+        "description": "Terms of a product, as in `ProductRead`: the code is in the path, the\nversion and the status are set by the catalog."
+      },
+      "ProductCreate": {
+        "properties": {
+          "frontend_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Frontend Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "short_description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Short Description"
+          },
+          "description_plain": {
+            "type": "string",
+            "title": "Description Plain",
+            "default": ""
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "working_capital",
+                "cash_gap",
+                "equipment",
+                "vehicles",
+                "real_estate",
+                "contract_execution",
+                "refinancing",
+                "expansion"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "facility": {
+            "type": "string",
+            "enum": [
+              "term_loan",
+              "credit_line_revolving",
+              "credit_line_non_revolving",
+              "overdraft"
+            ],
+            "title": "Facility"
+          },
+          "repayment_options": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "annuity",
+                "differentiated",
+                "interest_only",
+                "by_contract_schedule"
+              ]
+            },
+            "type": "array",
+            "title": "Repayment Options"
+          },
+          "amount_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Max"
+          },
+          "term_min_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Min Months"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Max Months"
+          },
+          "rate_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Max"
+          },
+          "collateral_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Collateral Kind",
+            "default": "none"
+          },
+          "collateral_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "real_estate",
+                "equipment",
+                "vehicle",
+                "goods"
+              ]
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "default": []
+          },
+          "collateral_required_from": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Required From"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "owner",
+              "msp_corporation"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "target_use_confirmation": {
+            "type": "boolean",
+            "title": "Target Use Confirmation",
+            "default": false
+          },
+          "support_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportProgramBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_business_age_months": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Business Age Months",
+            "default": 0
+          },
+          "allowed_legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Legal Forms",
+            "default": [
+              "LLC",
+              "IE",
+              "JSC"
+            ]
+          },
+          "min_annual_revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Annual Revenue"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only",
+            "default": false
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocumentBody"
+            },
+            "type": "array",
+            "title": "Required Documents",
+            "default": []
+          },
+          "application_fields_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Application Fields Schema",
+            "default": {}
+          },
+          "workflow_code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Workflow Code"
+          },
+          "auto_decision_limit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Auto Decision Limit"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Code"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "title": "Status",
+            "default": "draft"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frontend_id",
+          "name",
+          "short_description",
+          "purposes",
+          "facility",
+          "repayment_options",
+          "amount_min",
+          "amount_max",
+          "term_min_months",
+          "term_max_months",
+          "rate_base",
+          "rate_max",
+          "workflow_code",
+          "auto_decision_limit",
+          "code"
+        ],
+        "title": "ProductCreate"
       },
       "ProductInfo": {
         "properties": {
@@ -12283,6 +14438,409 @@
         "type": "object",
         "title": "ProfileUpdate"
       },
+      "ProjectAssessment": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "max_amount",
+          "plan_revision",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "ProjectAssessment",
+        "description": "passed — «вам предодобрен кредит» `product_code` до `max_amount`, it is also in\n`pre_approved`; failed — the client reads `reasons[].message`. No figures of the model:\nthey would give the thresholds away."
+      },
+      "ProjectAssessmentDTO": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectCheckDTO"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/ProjectFiguresDTO"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "plan_revision",
+          "max_amount",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons",
+          "figures",
+          "version"
+        ],
+        "title": "ProjectAssessmentDTO",
+        "description": "A startup's project assessment by its business plan: passed — a pre-approved offer of\n`product_code` up to `max_amount`."
+      },
+      "ProjectAssessmentRead": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReasonRead"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "product_code",
+          "max_amount",
+          "plan_revision",
+          "checked_at",
+          "valid_until",
+          "valid",
+          "reasons"
+        ],
+        "title": "ProjectAssessmentRead",
+        "description": "`passed` — «вам предодобрен кредит»: `product_code` до `max_amount`, заявка — в пределах.\n`failed` — клиенту `reasons[].message`, без порогов. Действует 30 дней; бизнес-план\nпоменяли (`plan_revision` отстал) — оценку запускают заново."
+      },
+      "ProjectCheckDTO": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectCheckDTO"
+      },
+      "ProjectFiguresDTO": {
+        "properties": {
+          "requested_amount": {
+            "type": "string",
+            "title": "Requested Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          },
+          "cash_flow": {
+            "type": "string",
+            "title": "Cash Flow"
+          },
+          "debt_service": {
+            "type": "string",
+            "title": "Debt Service"
+          },
+          "dscr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dscr"
+          },
+          "own_share": {
+            "type": "string",
+            "title": "Own Share"
+          },
+          "coverage": {
+            "type": "string",
+            "title": "Coverage"
+          },
+          "capacity": {
+            "type": "string",
+            "title": "Capacity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requested_amount",
+          "term_months",
+          "rate",
+          "cash_flow",
+          "debt_service",
+          "dscr",
+          "own_share",
+          "coverage",
+          "capacity"
+        ],
+        "title": "ProjectFiguresDTO",
+        "description": "Bank only: the request, the payment terms it was counted on and the figures of the\nfinancial model at the requested amount."
+      },
+      "ProjectForm": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "counter_offer",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "term_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Months"
+          },
+          "business_plan": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "acceptable",
+              "weak"
+            ],
+            "title": "Business Plan"
+          },
+          "collateral": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral"
+          },
+          "support_program": {
+            "type": "boolean",
+            "title": "Support Program"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "amount",
+          "term_months",
+          "business_plan",
+          "collateral",
+          "support_program"
+        ],
+        "title": "ProjectForm"
+      },
+      "ProjectReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectReason"
+      },
+      "ProjectReasonRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ],
+        "title": "ProjectReasonRead"
+      },
       "QueueItemDTO": {
         "properties": {
           "task_id": {
@@ -12911,6 +15469,14 @@
               }
             ],
             "title": "Head Since"
+          },
+          "unreliable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unreliable",
+            "default": []
           }
         },
         "type": "object",
@@ -12991,6 +15557,55 @@
           "comment"
         ],
         "title": "RequestedInfoDTO"
+      },
+      "RequiredDocumentBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title"
+          },
+          "required_from_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required From Amount"
+          },
+          "legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Legal Forms",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "title"
+        ],
+        "title": "RequiredDocumentBody"
       },
       "RequiredDocumentDTO": {
         "properties": {
@@ -13422,6 +16037,29 @@
                 "type": "null"
               }
             ]
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "degraded"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "quality_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quality Reasons",
+            "default": []
           }
         },
         "type": "object",
@@ -13518,7 +16156,9 @@
               "gir_bo",
               "kontur",
               "bki_head",
-              "aml"
+              "aml",
+              "bank_stop_list",
+              "bank_turnover"
             ],
             "title": "Source"
           },
@@ -13550,6 +16190,27 @@
                 "type": "null"
               }
             ]
+          },
+          "business_plan_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Plan Revision"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -13557,6 +16218,44 @@
           "prescreen"
         ],
         "title": "StartupBlock"
+      },
+      "StartupProjectDTO": {
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/ProjectAssessmentDTO"
+          },
+          "business_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPlanDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan_changed": {
+            "type": "boolean",
+            "title": "Plan Changed"
+          },
+          "valid_at_submission": {
+            "type": "boolean",
+            "title": "Valid At Submission"
+          },
+          "form": {
+            "$ref": "#/components/schemas/ProjectForm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessment",
+          "business_plan",
+          "plan_changed",
+          "valid_at_submission",
+          "form"
+        ],
+        "title": "StartupProjectDTO",
+        "description": "A startup's application: the bank's project assessment before it, the business plan it\nwas made on and what the project assessment form starts with."
       },
       "StatusChangeDTO": {
         "properties": {
@@ -13888,6 +16587,54 @@
         ],
         "title": "Suggestion"
       },
+      "SupportProgramBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "rate_cap": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Cap"
+          },
+          "msp_registry_required": {
+            "type": "boolean",
+            "title": "Msp Registry Required",
+            "default": true
+          },
+          "okved_whitelist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Okved Whitelist",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "rate_cap"
+        ],
+        "title": "SupportProgramBody"
+      },
       "SupportProgramRead": {
         "properties": {
           "code": {
@@ -14208,6 +16955,17 @@
             "type": "array",
             "title": "Account Blocks",
             "default": []
+          },
+          "mass_head": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mass Head"
           }
         },
         "type": "object",
@@ -14222,6 +16980,107 @@
           "in_msp_registry"
         ],
         "title": "TaxProfileDTO"
+      },
+      "ThirdPartyDTO": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "organization"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "ThirdPartyDTO",
+        "description": "Someone besides the client in the deal: a person by full name, a company or an\nentrepreneur by name and INN."
+      },
+      "ThirdPartyIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "organization"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{10}(\\d{2})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "ThirdPartyIn",
+        "description": "A person by full name; a company or an entrepreneur by name and INN."
+      },
+      "ThirdPartyOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "inn"
+        ],
+        "title": "ThirdPartyOut"
       },
       "TimelineEntryDTO": {
         "properties": {
@@ -14357,6 +17216,29 @@
         "title": "TriggerDTO",
         "description": "A soft trigger (policy_v3): not a refusal, a reason for a person to look."
       },
+      "TurnoverMonthDTO": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "inflow": {
+            "type": "string",
+            "title": "Inflow"
+          },
+          "outflow": {
+            "type": "string",
+            "title": "Outflow"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "inflow",
+          "outflow"
+        ],
+        "title": "TurnoverMonthDTO"
+      },
       "UnderwriterCard": {
         "properties": {
           "application": {
@@ -14454,6 +17336,16 @@
             },
             "type": "array",
             "title": "Degraded"
+          },
+          "startup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StartupProjectDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

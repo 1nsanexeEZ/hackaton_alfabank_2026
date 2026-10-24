@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_GerdeMezg9
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Подходит ли продукт компании
+description: |-
+  Check Eligibility
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/products/:code/eligibility
+urlParameters:
+- enabled: true
+  name: :code
+  value: UNSECURED
+- enabled: true
+  name: organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

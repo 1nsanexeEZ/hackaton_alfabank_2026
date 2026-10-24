@@ -1,0 +1,38 @@
+type: http_request
+model: http_request
+id: rq_8QzZtCLZ9Y
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Подписать договор
+description: |-
+  Simulated signature: the password is asked once more (step-up), the
+  document goes through the EDO mock; the response says `simulated: true`.
+  `offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.
+
+  Работает после «Принять предложение».
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/applications/:application_id/sign
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "password": "${[ demo_password ]}",
+      "offer_hash": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.offer_hash') ]}"
+    }
+sortPriority: 15000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

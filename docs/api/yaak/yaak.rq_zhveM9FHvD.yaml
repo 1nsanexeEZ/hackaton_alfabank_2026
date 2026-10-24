@@ -1,0 +1,42 @@
+type: http_request
+model: http_request
+id: rq_zhveM9FHvD
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Заполнить черновик
+description: |-
+  Update Draft
+
+  Токен: директор ООО «Ромашка».
+method: PATCH
+url: ${[ base_url ]}/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "version": ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.version') ]},
+      "request": {
+        "amount": "1000000",
+        "term_months": 12,
+        "purpose": "cash_gap"
+      },
+      "consents": {
+        "personal_data": true,
+        "credit_bureau": true
+      }
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_dOMfADWbnJ
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_rgp4VZHY1e
+name: '26. Карточка: выдача'
+description: |-
+  Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.
+
+  Решение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.
+method: GET
+url: ${[ base_url ]}/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 26000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -70,7 +70,7 @@ flowchart TD
 |---|---|
 | Калькулятор с учётом предскоринга | `bff` (`POST /bff/products/{code}/calculate`), расчёт — `products`, предодобрение — `decision` |
 | Вход | `identity`: по email или телефону, JWT RS256 |
-| Согласия | личные (ПДн, БКИ руководителя) — `identity` (`/me/consents`), согласия компании в заявке — `applications` |
+| Согласия | до заявки — `identity`: личные (ПДн, БКИ руководителя, `/me/consents`) и БКИ компании (`/organizations/{id}/consents`); заявка берёт их из профиля или из галочек черновика и фиксирует — `applications` |
 | Данные банка, сверка с ЕГРЮЛ | `clients` (сиды — это «база банка»), реестр — `enrichment.lookup_registry` |
 | Предскоринг и предодобрение | `decision` (пересчёт по событиям `clients`), грейд — `scoring` |
 | Запросы во внешние источники | `enrichment`: семь источников параллельно, частичный результат при сбоях |
@@ -252,6 +252,10 @@ sequenceDiagram
     M-->>E: ответы (таймауты, ретраи)
     E->>K: EnrichmentCompleted · enrichment.events
     K->>P: EnrichmentCompleted
+    P->>K: CheckStopFactors · decision.commands
+    K->>D: CheckStopFactors: стоп-факторы до модели (CreditPolicy.screen)
+    D->>K: StopFactorsPassed · decision.events (стоп-фактор — сразу DecisionMade, без скоринга)
+    K->>P: StopFactorsPassed → шлюз «Стоп-фактор?»
     P->>K: CalculateScore · scoring.commands
     K->>S: CalculateScore (фасады applications.get_scoring_input, enrichment.get_snapshot)
     S->>K: ScoreCalculated · scoring.events
@@ -285,7 +289,7 @@ sequenceDiagram
 | `applications.events` | applications | process, notifications, projector |
 | `applications.commands` | process | applications |
 | `process.events` | process | applications (этап для клиента), notifications, projector |
-| `enrichment.commands` / `enrichment.events` | process / enrichment | enrichment / process, clients |
+| `enrichment.commands` / `enrichment.events` | process / enrichment | enrichment / process, clients, scoring (хранилище признаков) |
 | `scoring.commands` / `scoring.events` | process / scoring | scoring / process |
 | `decision.commands` / `decision.events` | process / decision | decision / process, notifications, projector |
 | `clients.events` | clients | decision (предодобрение), notifications, projector |

@@ -32,9 +32,7 @@ export const HERO_DEMO_APPLICATION: ApplicationPreview = {
   status: 'scoring',
   stages: [
     { title: 'Заявка отправлена', caption: 'Сегодня, 10:42', state: 'done' },
-    { title: 'Проверка данных', caption: 'ЕГРЮЛ, ФНС, бюро кредитных историй', state: 'done' },
-    { title: 'Оценка риска', caption: 'Обычно до 5 минут', state: 'current' },
-    { title: 'Решение банка', state: 'pending' },
+    { title: 'Решение банка', caption: 'Оцениваем заявку, обычно до 5 минут', state: 'current' },
     { title: 'Подписание и выдача', state: 'pending' },
   ],
 }

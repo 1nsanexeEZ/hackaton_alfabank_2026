@@ -7,10 +7,12 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from src.core.domain.clock import Clock
 from src.core.exceptions.exceptions import NotFoundError, UnauthorizedError
+from src.core.facades import use_facade
 from src.core.infrastructure.database.session import DbSession
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.core.security import bearer_security
 from src.core.uow import SqlAlchemyUnitOfWork, UnitOfWork
+from src.modules.clients.facade import ClientsFacade
 from src.modules.identity.application.interfaces.demo_accounts import DemoAccountCatalog
 from src.modules.identity.application.interfaces.password_hasher import PasswordHasher
 from src.modules.identity.application.interfaces.repositories import (
@@ -37,6 +39,11 @@ from src.modules.identity.application.use_cases.consents import (
     RevokeConsentUseCase,
 )
 from src.modules.identity.application.use_cases.me import GetMeUseCase, UpdateMyProfileUseCase
+from src.modules.identity.application.use_cases.organization_consents import (
+    GiveOrganizationConsentsUseCase,
+    ListOrganizationConsentsUseCase,
+    RevokeOrganizationConsentUseCase,
+)
 from src.modules.identity.application.use_cases.roles import (
     CreateRoleUseCase,
     DeleteRoleUseCase,
@@ -95,6 +102,8 @@ Accounts = Annotated[AccountRepository, Depends(get_account_repository)]
 Roles = Annotated[RoleRepository, Depends(get_role_repository)]
 Consents = Annotated[ConsentRepository, Depends(get_consent_repository)]
 DemoCatalog = Annotated[DemoAccountCatalog, Depends(get_demo_account_catalog)]
+# Rights inside a company are kept by clients.
+Clients = Annotated[ClientsFacade, Depends(use_facade(ClientsFacade))]
 
 
 def get_current_request_token(
@@ -202,6 +211,27 @@ def get_revoke_consent(
     return RevokeConsentUseCase(uow, accounts, consents, clock)
 
 
+# --- company consents ----------------------------------------------------------------------
+
+
+def get_list_organization_consents(
+    accounts: Accounts, consents: Consents, clients: Clients, clock: ClockDep
+) -> ListOrganizationConsentsUseCase:
+    return ListOrganizationConsentsUseCase(accounts, consents, clients, clock)
+
+
+def get_give_organization_consents(
+    uow: Uow, accounts: Accounts, consents: Consents, clients: Clients, clock: ClockDep
+) -> GiveOrganizationConsentsUseCase:
+    return GiveOrganizationConsentsUseCase(uow, accounts, consents, clients, clock)
+
+
+def get_revoke_organization_consent(
+    uow: Uow, accounts: Accounts, consents: Consents, clients: Clients, clock: ClockDep
+) -> RevokeOrganizationConsentUseCase:
+    return RevokeOrganizationConsentUseCase(uow, accounts, consents, clients, clock)
+
+
 LoginDep = Annotated[LoginUseCase, Depends(get_login)]
 DemoLoginDep = Annotated[DemoLoginUseCase, Depends(get_demo_login)]
 ListDemoAccountsDep = Annotated[ListDemoAccountsUseCase, Depends(get_list_demo_accounts)]
@@ -220,3 +250,12 @@ UpdateMyProfileDep = Annotated[UpdateMyProfileUseCase, Depends(get_update_my_pro
 ListMyConsentsDep = Annotated[ListMyConsentsUseCase, Depends(get_list_my_consents)]
 GiveConsentsDep = Annotated[GiveConsentsUseCase, Depends(get_give_consents)]
 RevokeConsentDep = Annotated[RevokeConsentUseCase, Depends(get_revoke_consent)]
+ListOrganizationConsentsDep = Annotated[
+    ListOrganizationConsentsUseCase, Depends(get_list_organization_consents)
+]
+GiveOrganizationConsentsDep = Annotated[
+    GiveOrganizationConsentsUseCase, Depends(get_give_organization_consents)
+]
+RevokeOrganizationConsentDep = Annotated[
+    RevokeOrganizationConsentUseCase, Depends(get_revoke_organization_consent)
+]

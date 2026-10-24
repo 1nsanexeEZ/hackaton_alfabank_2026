@@ -25,6 +25,8 @@ DISPUTE_REASON_CODES: frozenset[str] = frozenset(
         "ROUTE_REVENUE_MISMATCH",
         # policy_v6: проверки по 115-ФЗ нет — данным нельзя доверять.
         "ROUTE_AML_INCOMPLETE",
+        # policy_v8: о третьих лицах клиент не сказал — данных не хватает.
+        "ROUTE_THIRD_PARTIES_UNKNOWN",
     }
 )
 
@@ -162,6 +164,47 @@ class FounderPrescreenDTO:
     reasons: tuple[PrescreenReasonDTO, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectCheckDTO:
+    code: str  # founder_prescreen | industry | dscr | own_funds | coverage | product_amount
+    passed: bool
+    message: str  # shown to the client, no thresholds
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectFiguresDTO:
+    """Bank only: the request, the payment terms it was counted on and the figures of the
+    financial model at the requested amount."""
+
+    requested_amount: Decimal
+    term_months: int
+    rate: Decimal  # the top of the product's corridor
+    cash_flow: Decimal  # revenue − expenses over the horizon of the model
+    debt_service: Decimal  # loan payments over the same horizon
+    dscr: Decimal | None
+    own_share: Decimal
+    coverage: Decimal
+    capacity: Decimal  # what the project carries by scoring, before the product's limits
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectAssessmentDTO:
+    """A startup's project assessment by its business plan: passed — a pre-approved offer of
+    `product_code` up to `max_amount`."""
+
+    status: Literal["passed", "failed"]
+    product_code: str
+    plan_revision: int
+    max_amount: Decimal | None
+    checked_at: datetime
+    valid_until: datetime
+    # False — expired: run a new one.
+    valid: bool
+    reasons: tuple[ProjectCheckDTO, ...]
+    figures: ProjectFiguresDTO
+    version: str
+
+
 class DecisionFacade(Protocol):
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         """Back office only: includes rule_trace and reason codes."""
@@ -173,4 +216,8 @@ class DecisionFacade(Protocol):
 
     async def get_founder_prescreen(self, organization_id: UUID) -> FounderPrescreenDTO | None:
         """The latest prescreen of the company's founder; None — not run yet."""
+        ...
+
+    async def get_project_assessment(self, organization_id: UUID) -> ProjectAssessmentDTO | None:
+        """The latest project assessment of a startup; None — not run yet."""
         ...

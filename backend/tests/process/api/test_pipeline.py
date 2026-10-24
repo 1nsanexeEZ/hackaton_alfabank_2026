@@ -174,15 +174,15 @@ def test_workflows_api(pipeline: Pipeline) -> None:
     client = pipeline.world.client
     workflows = client.get("/workflows", headers=pipeline.underwriter()).json()
     assert [w["code"] for w in workflows] == [
-        "express_v1",
-        "mortgage_v1",
-        "secured_v1",
-        "standard_v1",
-        "startup_v1",
+        f"{route}_v{version}"
+        for route in ("express", "mortgage", "secured", "standard", "startup")
+        for version in (1, 2)
     ]
     diagram = client.get("/workflows/express_v1/diagram", headers=pipeline.underwriter())
     assert diagram.headers["content-type"].startswith("application/xml")
     assert b"bpmndi:BPMNDiagram" in diagram.content
+    v2 = client.get("/workflows/express_v2/diagram", headers=pipeline.underwriter()).content
+    assert b'id="check_stop_factors"' in v2 and b'bpmnElement="gw_stop"' in v2
     assert client.get("/workflows/nope/diagram", headers=pipeline.underwriter()).status_code == 404
     client_token = pipeline.world.headers(pipeline.world.director)
     assert client.get("/workflows", headers=client_token).status_code == 403

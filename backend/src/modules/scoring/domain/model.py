@@ -13,6 +13,8 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
+from src.modules.scoring.domain.quality import QualityLevel
+
 # scorecard_v1 ставит A–E по баллу; PD-модель (pd_model_v2) — A–J по вероятности дефолта.
 Grade = Literal["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 Direction = Literal["positive", "negative", "neutral"]
@@ -91,6 +93,9 @@ class ScoringInput:
     mass_address: bool
     sources_failed: tuple[str, ...]
     as_of: date
+    # Полных месяцев оборотов в банке (АБС) до даты заявки; None — АБС не ответила или снимок до
+    # неё, тогда сегмент — по возрасту бизнеса.
+    bank_months: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,3 +144,6 @@ class ScoringResult:
     reason_codes: tuple[str, ...] = ()  # топ-3 признака, снизивших балл, по потере баллов
     # ML-модель (scoring_0003); у результатов до неё — None.
     ml: MlScore | None = None
+    # Качество данных (scoring_0004): «Данные полные?» общей схемы; у результатов до неё — None.
+    quality: QualityLevel | None = None
+    quality_reasons: tuple[str, ...] = ()

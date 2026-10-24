@@ -5,23 +5,39 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from src.core.messaging import topics
+from src.core.messaging.contracts.enrichment import EnrichmentCompleted
 from src.core.messaging.contracts.scoring import CalculateScore
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
-from src.modules.scoring.application.ports import MlScoringModel, ScoringModel
+from src.modules.scoring.application.client_features import ClientFeatureStore
+from src.modules.scoring.application.ports import (
+    DataQualityAssessor,
+    MlScoringModel,
+    ScoringModel,
+)
+from src.modules.scoring.application.store_client_features import StoreClientFeaturesUseCase
 from src.modules.scoring.facade import ScoringFacade
-from src.modules.scoring.infrastructure.config_loader import default_model
+from src.modules.scoring.infrastructure.config_loader import (
+    default_feature_store,
+    default_model,
+    default_project,
+    default_quality,
+)
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.ml_loader import default_ml_model
-from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
+from src.modules.scoring.infrastructure.repository import (
+    SqlAlchemyFeatureSnapshotRepository,
+    SqlAlchemyScoringRepository,
+)
 
 NAME = "scoring"
 
 # Модели грузятся один раз на процесс; невалидный YAML → исключение при старте.
 _scorecard: ScoringModel | None = None
 _ml_model: MlScoringModel | None = None
+_quality: DataQualityAssessor | None = None
 
 
 def register(app: FastAPI) -> None:
@@ -29,14 +45,19 @@ def register(app: FastAPI) -> None:
 
 
 def wire(app: FastAPI) -> None:
-    global _scorecard, _ml_model
+    global _scorecard, _ml_model, _quality
     _scorecard = default_model()
     _ml_model = default_ml_model()
+    _quality = default_quality()
+    default_feature_store()  # невалидный YAML → не стартуем
     scorecard = _scorecard
+    project = default_project()
     # Часы читаются на каждый вызов: тесты могут подменить app.state.clock.
     app.state.facades.register(
         ScoringFacade,
-        lambda session: ScoringFacadeImpl(session, scorecard, clock=app.state.clock),
+        lambda session: ScoringFacadeImpl(
+            session, scorecard, clock=app.state.clock, project=project
+        ),
     )
 
 
@@ -50,8 +71,23 @@ async def _on_calculate_score(ctx: HandlerContext, payload: CalculateScore) -> N
         ctx.facade(EnrichmentFacade),
         ctx.clock,
         _ml_model,
+        _quality,
+        _feature_store(ctx),
     )
     await use_case.execute(payload, command_event_id=ctx.envelope.event_id, outbox=ctx.outbox)
+
+
+async def _on_enrichment_completed(ctx: HandlerContext, payload: EnrichmentCompleted) -> None:
+    use_case = StoreClientFeaturesUseCase(
+        _feature_store(ctx), ctx.facade(ApplicationsFacade), ctx.facade(EnrichmentFacade)
+    )
+    await use_case.execute(payload)
+
+
+def _feature_store(ctx: HandlerContext) -> ClientFeatureStore:
+    return ClientFeatureStore(
+        SqlAlchemyFeatureSnapshotRepository(ctx.session), default_feature_store()
+    )
 
 
 def subscribers() -> list[Subscription]:
@@ -62,5 +98,13 @@ def subscribers() -> list[Subscription]:
             group_id="scoring.commands",
             handler=_on_calculate_score,
             message_types=frozenset({CalculateScore.TYPE}),
-        )
+        ),
+        # Хранилище признаков клиента: признаки на дату снимка обогащения.
+        Subscription(
+            module=NAME,
+            topic=topics.ENRICHMENT_EVENTS,
+            group_id="scoring.enrichment",
+            handler=_on_enrichment_completed,
+            message_types=frozenset({EnrichmentCompleted.TYPE}),
+        ),
     ]

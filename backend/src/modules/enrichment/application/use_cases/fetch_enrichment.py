@@ -28,8 +28,10 @@ from src.core.messaging.contracts.enrichment import (
     EnrichmentCompleted,
     EnrichmentFailed,
     FetchEnrichment,
+    ThirdPartyRef,
 )
 from src.core.messaging.outbox import OutboxWriter
+from src.modules.enrichment.application.dto.aml import AmlSubjectDTO, SubjectRole
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
@@ -123,7 +125,9 @@ class FetchEnrichmentUseCase:
         started = time.perf_counter()
         try:
             check = await AmlCheck(self._sources).run(
-                snapshot.data_of("egrul", RegistryExtractDTO), representatives=representatives
+                snapshot.data_of("egrul", RegistryExtractDTO),
+                representatives=representatives,
+                third_parties=tuple(_third_party(p) for p in command.third_parties),
             )
         except SourceFetchError as exc:
             snapshot.record_failure(
@@ -172,6 +176,10 @@ class FetchEnrichmentUseCase:
             assert head is not None and command.head_bki_consent_at is not None
             person = PersonDTO(head.last_name, head.first_name, head.middle_name, command.inn)
             return await self._sources.person_bureau.fetch(person, command.head_bki_consent_at)
+        if source == "bank_stop_list":
+            return await self._sources.bank_stop_list.fetch(command.inn)
+        if source == "bank_turnover":
+            return await self._sources.bank_turnover.fetch(command.inn)
         raise SourceFetchError("bad_response", f"Неизвестный источник {source!r}")
 
     async def _publish(
@@ -200,6 +208,12 @@ class FetchEnrichmentUseCase:
             correlation_id=snapshot.application_id,
             causation_id=command_event_id,
         )
+
+
+def _third_party(ref: ThirdPartyRef) -> AmlSubjectDTO:
+    """Организация (и ИП) — по ИНН, человек — по ФИО."""
+    role = cast(SubjectRole, ref.role)
+    return AmlSubjectDTO(role, ref.name, ref.inn if ref.kind == "organization" else None)
 
 
 def _fio(last_name: str, first_name: str, middle_name: str | None) -> str:

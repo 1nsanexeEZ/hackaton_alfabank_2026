@@ -13,11 +13,12 @@ from src.modules.enrichment.facade import (
     EnrichmentSnapshotDTO,
     ObligationDTO,
     RegistryExtractDTO,
+    SourceErrorDTO,
     TaxProfileDTO,
 )
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
 from src.modules.scoring.domain.model import ScoringResult
-from src.modules.scoring.infrastructure.config_loader import load_scorecard
+from src.modules.scoring.infrastructure.config_loader import load_quality, load_scorecard
 from src.modules.scoring.infrastructure.ml_loader import load_ml_model
 from tests.fakes import builders
 from tests.fakes.applications_facade import FakeApplicationsFacade
@@ -128,7 +129,11 @@ def _setup(
 
 
 def _use_case(
-    apps: FakeApplicationsFacade, enrichment: FakeEnrichmentFacade, *, with_ml: bool = False
+    apps: FakeApplicationsFacade,
+    enrichment: FakeEnrichmentFacade,
+    *,
+    with_ml: bool = False,
+    with_quality: bool = False,
 ) -> tuple[CalculateScoreUseCase, InMemoryScoringRepo]:
     repo = InMemoryScoringRepo()
     use_case = CalculateScoreUseCase(
@@ -138,8 +143,75 @@ def _use_case(
         enrichment,
         FrozenClock(_NOW),
         load_ml_model() if with_ml else None,
+        load_quality() if with_quality else None,
     )
     return use_case, repo
+
+
+async def test_complete_data_is_ok() -> None:
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=_romashka_bki())
+    )
+    use_case, repo = _use_case(apps, enrichment, with_quality=True)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=(outbox := FakeOutboxWriter()),
+    )
+
+    result, _ = repo.added[0]
+    assert (result.quality, result.quality_reasons) == ("ok", ())
+    assert outbox.of_type(ScoreCalculated)[0].quality == "ok"
+
+
+async def test_failed_bureau_degrades_the_data_but_the_model_still_scores() -> None:
+    """«Данные полные?» → нет: модель всё равно посчитана, решать будет человек."""
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    failed = (SourceErrorDTO("bki", "unavailable", "503"),)
+    enrichment.add_snapshot(
+        _snapshot(
+            scoring_input.application_id,
+            scoring_input.organization_id,
+            bki=None,
+            sources_failed=failed,
+        )
+    )
+    use_case, repo = _use_case(apps, enrichment, with_quality=True)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=(outbox := FakeOutboxWriter()),
+    )
+
+    result, _ = repo.added[0]
+    assert result.quality == "degraded"
+    assert result.quality_reasons == ("source_failed:bki",)
+    assert result.score > 0 and result.grade in "ABCDEFGHIJ"
+    event = outbox.of_type(ScoreCalculated)[0]
+    assert event.quality == "degraded" and "bureau_unavailable" in event.flags
+
+
+async def test_without_the_quality_policy_quality_is_unknown() -> None:
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=_romashka_bki())
+    )
+    use_case, repo = _use_case(apps, enrichment)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=(outbox := FakeOutboxWriter()),
+    )
+
+    assert repo.added[0][0].quality is None
+    assert outbox.of_type(ScoreCalculated)[0].quality is None
 
 
 async def test_romashka_scores_and_publishes() -> None:

@@ -20,6 +20,11 @@ from src.modules.enrichment.application.dto.aml import (
     PepHitDTO,
     ZskRiskDTO,
 )
+from src.modules.enrichment.application.dto.bank import (
+    BankStopListDTO,
+    BankTurnoverDTO,
+    TurnoverMonthDTO,
+)
 from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
@@ -53,6 +58,8 @@ __all__ = [
     "AccountingPeriodDTO",
     "AccountingReportsDTO",
     "ArbitrationDTO",
+    "BankStopListDTO",
+    "BankTurnoverDTO",
     "BankruptcyMessageDTO",
     "CashflowForecastDTO",
     "CashflowMonthDTO",
@@ -70,6 +77,7 @@ __all__ = [
     "Source",
     "SourceErrorDTO",
     "TaxProfileDTO",
+    "TurnoverMonthDTO",
 ]
 
 

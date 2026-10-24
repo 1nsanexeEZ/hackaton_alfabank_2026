@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_4kVp517WrC
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_gUp5OBYSWR
+name: Оценить проект стартапа
+description: |-
+  The startup's project by its business plan from the cabinet: passed — a pre-approved
+  STARTUP offer (`basis = project`) up to `max_amount`, also in `pre-approved-offers`.
+  422 `business_plan_required` — no business plan; 422 `product_not_eligible` — no startup
+  product fits the company.
+
+  Токен: учредитель ООО «Старт».
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/project-assessment
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ startup_organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

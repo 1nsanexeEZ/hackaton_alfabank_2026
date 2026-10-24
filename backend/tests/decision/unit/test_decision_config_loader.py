@@ -48,12 +48,37 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v6"
+    assert policy.version == "policy_v8"
+    assert policy.config.screen_before_scoring
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
     assert policy.config.offer_valid_days == 7
     assert policy.config.grade_scale == tuple("ABCDEFGHIJ")
     assert policy.config.revenue_multiplier["C"] == Decimal("0.4")
+
+
+def test_v7_is_v6_with_stop_factors_data_quality_and_the_risk_matrix() -> None:
+    v6, v7 = load_policy("policy_v6").config, load_policy("policy_v7").config
+    assert not v6.screen_before_scoring and v7.screen_before_scoring
+    assert not v6.route_degraded_quality and v7.route_degraded_quality
+    assert (
+        replace(
+            v7,
+            version=v6.version,
+            screen_before_scoring=False,
+            route_degraded_quality=False,
+            risk_matrix=(),
+            stop_registry_statuses=v6.stop_registry_statuses,
+            stop_unreliable_data=False,
+            stop_mass_head=False,
+            stop_business_age=False,
+            stop_bank_stop_list=False,
+            turnover_from_bank=False,
+        )
+        == v6
+    )
+    assert v7.stop_registry_statuses["reorganizing"] == "STOP_REORGANIZATION"
+    assert v7.stop_registry_statuses["excluded"] == "STOP_EXCLUDED_FROM_REGISTRY"
 
 
 def test_v4_keeps_the_v3_strategy_and_adds_the_startup_branch() -> None:
@@ -250,9 +275,17 @@ def test_v5_matrix_knows_only_four_verdicts(tmp_path: Path) -> None:
         _load(tmp_path, typo, version="policy_v5")
 
 
-def test_v5_two_models_replace_the_risk_matrix(tmp_path: Path) -> None:
-    def both(raw: dict[str, Any]) -> None:
-        raw["strategy"]["risk_matrix"] = _raw("policy_v4")["strategy"]["risk_matrix"]
+def test_v7_has_two_models_and_the_risk_matrix() -> None:
+    """policy_v7: зоны моделей — можно ли одобрить автоматически, корзина грейда — до какой
+    суммы; матрица та же, что в policy_v4."""
+    v4, v7 = load_policy("policy_v4").config, load_policy("policy_v7").config
+    assert v7.model_matrix and v7.risk_matrix == v4.risk_matrix
+    assert load_policy("policy_v5").config.risk_matrix == ()
 
-    with pytest.raises(PolicyConfigError, match="заменяет risk_matrix"):
-        _load(tmp_path, both, version="policy_v5")
+
+def test_two_models_with_a_broken_risk_matrix_is_rejected(tmp_path: Path) -> None:
+    def hole(raw: dict[str, Any]) -> None:
+        raw["strategy"]["risk_matrix"] = _raw("policy_v4")["strategy"]["risk_matrix"][:-1]
+
+    with pytest.raises(PolicyConfigError, match="risk_matrix должна покрыть"):
+        _load(tmp_path, hole, version="policy_v7")

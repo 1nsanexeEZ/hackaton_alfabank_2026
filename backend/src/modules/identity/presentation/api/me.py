@@ -6,7 +6,7 @@ from src.core.access.dependencies import CurrentToken, require_permissions
 from src.core.access.permissions import Permissions
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.modules.identity.application.dto.consents import GiveConsentsDTO
-from src.modules.identity.domain.enums import ConsentType
+from src.modules.identity.domain.enums import PersonalConsentType
 from src.modules.identity.presentation.dependencies import (
     GetMeDep,
     GiveConsentsDep,
@@ -59,7 +59,7 @@ async def give_my_consents(
 
 @router.delete("/consents/{type}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_my_consent(
-    type: ConsentType, token: CurrentToken, use_case: RevokeConsentDep
+    type: PersonalConsentType, token: CurrentToken, use_case: RevokeConsentDep
 ) -> None:
     """Revoking an absent or already revoked consent is also 204."""
     await use_case.execute(token.subject, type)

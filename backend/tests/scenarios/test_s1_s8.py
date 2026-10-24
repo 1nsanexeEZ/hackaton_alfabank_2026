@@ -1,4 +1,4 @@
-"""Scenarios S-1…S-8 end to end: the real application with every module and
+"""Scenarios S-1…S-10 end to end: the real application with every module and
 the demo seeds, the process drives the pipeline by itself. Only the outside
 world is played: answers of the external mocks (registry, tax, credit bureau)
 come through `httpx.MockTransport`, files lie in memory.
@@ -218,7 +218,11 @@ def test_s4_zakat_is_rejected(stand: Stand) -> None:
     assert card["status"] == "rejected"
     assert card["decision_summary"]["outcome"] == "REJECT"
     assert card["decision_summary"]["client_explanation"]
-    assert stand.process(application_id)["status"] == "completed"
+    process = stand.process(application_id)
+    assert process["status"] == "completed"
+    # Ликвидация, просрочки, недоимка — отказ на шаге «Стоп-факторы», модель не вызывается.
+    assert process["visited_node_ids"][-2:] == ["check_stop_factors", "reject"]
+    assert "calculate_score" not in process["visited_node_ids"]
     assert stand.stuck() == []
 
 
@@ -287,7 +291,7 @@ def test_s7_mortgage_is_always_decided_by_a_person(stand: Stand) -> None:
     )
     assert stand.card(application_id, ROMASHKA["email"])["status"] == "in_review"
     process = stand.process(application_id)
-    assert process["workflow_code"] == "mortgage_v1"
+    assert process["workflow_code"] == "mortgage_v2"
     assert "assess_collateral" in process["visited_node_ids"]
 
     approval = {
@@ -355,7 +359,11 @@ def test_s9_startup_founder_prescreen_project_assessment_and_offer(stand: Stand)
     dashboard = stand.client.get("/bff/dashboard", headers=founder).json()
     assert dashboard["organization"]["segment"] == "startup"
     assert dashboard["pre_approved"] == []
-    assert dashboard["startup"] == {"prescreen": None}
+    assert dashboard["startup"] == {
+        "prescreen": None,
+        "business_plan_revision": None,
+        "project": None,
+    }
 
     prescreen_url = f"/organizations/{organization_id}/founder-prescreen"
     no_consent = stand.client.post(prescreen_url, headers=founder)
@@ -394,7 +402,7 @@ def test_s9_startup_founder_prescreen_project_assessment_and_offer(stand: Stand)
     assert card["status"] == "in_review"
     assert card["client_stage"] == "Проектная оценка"
     process = stand.process(application_id)
-    assert process["workflow_code"] == "startup_v1"
+    assert process["workflow_code"] == "startup_v2"
     task = stand.task_for(application_id)
     assert task["type"] == "project_assessment"
     assert "business_plan" in task["form_schema"]["required"]
@@ -434,4 +442,111 @@ def test_s9_startup_without_a_prescreen_is_turned_down(stand: Stand) -> None:
     assert card["status"] == "rejected"
     assert card["decision_summary"]["outcome"] == "REJECT"
     assert "учредителя" in card["decision_summary"]["client_explanation"]
+    assert stand.stuck() == []
+
+
+def startup_plan() -> dict[str, Any]:
+    """Кофейня: выручка 1 млн и расходы 800 тыс. в месяц, свои 1 млн, гарантия Корпорации МСП
+    на половину кредита, нужно 3 млн на 3 года."""
+    return {
+        "summary": "Кофейня у метро: зерно от обжарщика, завтраки, доставка по району",
+        "financial_model": {
+            "months": [{"revenue": "1000000", "expenses": "800000"}] * 24,
+            "own_funds": "1000000",
+            "collateral_description": "Поручительство учредителя",
+            "guarantee": "msp_corporation",
+            "guarantee_share": "0.5",
+            "loan_amount": "3000000",
+            "loan_term_months": 36,
+        },
+    }
+
+
+def test_s10_startup_business_plan_pre_approval_application_and_offer(stand: Stand) -> None:
+    """The startup's way of the target scheme: the founder's prescreen → the business plan and
+    the financial model in the cabinet → the project assessment → «pre-approved up to N» → a
+    STARTUP application → the underwriter confirms the filled in project assessment → an offer,
+    signing and the money."""
+    founder = stand.login(START["email"])
+    organization_id = stand.organization_id(START["inn"])
+    consents = stand.client.post(
+        "/me/consents", json={"types": ["personal_data", "credit_bureau_personal"]}, headers=founder
+    )
+    assert consents.status_code == 201, consents.text
+    prescreen = stand.client.post(
+        f"/organizations/{organization_id}/founder-prescreen", headers=founder
+    )
+    assert prescreen.json()["status"] == "passed"
+
+    assessment_url = f"/organizations/{organization_id}/project-assessment"
+    no_plan = stand.client.post(assessment_url, headers=founder)
+    assert no_plan.status_code == 422, no_plan.text
+    assert no_plan.json()["details"]["code"] == "business_plan_required"
+    plan = stand.client.put(
+        f"/organizations/{organization_id}/business-plan", json=startup_plan(), headers=founder
+    )
+    assert plan.status_code == 201, plan.text
+
+    assessed = stand.client.post(assessment_url, headers=founder)
+    assert assessed.status_code == 201, assessed.text
+    assessment = assessed.json()
+    assert assessment["status"] == "passed" and assessment["product_code"] == "STARTUP"
+    # Поток 4,8 млн за 24 месяца выдерживает 3,82 млн при DSCR 1,3 по верхней ставке
+    # коридора (26%) — вниз до шага суммы.
+    assert Decimal(assessment["max_amount"]) == Decimal("3810000")
+    assert all(reason["passed"] for reason in assessment["reasons"])
+    stand.settle()
+
+    dashboard = stand.client.get("/bff/dashboard", headers=founder).json()
+    [offer] = dashboard["pre_approved"]
+    assert offer["product_code"] == "STARTUP"
+    assert Decimal(offer["max_amount"]) == Decimal("3810000")
+    assert dashboard["startup"]["project"]["status"] == "passed"
+    assert dashboard["startup"]["business_plan_revision"] == 1
+    assert any("предодобрен" in item["title"] for item in dashboard["feed"]["items"])
+    [listed] = stand.client.get(
+        f"/organizations/{organization_id}/pre-approved-offers", headers=founder
+    ).json()
+    assert listed["basis"] == "project"
+
+    application_id = submit(
+        stand,
+        **START,
+        product="STARTUP",
+        amount="3000000",
+        term=36,
+        documents=("business_plan", "financial_model"),
+    )
+    card = stand.card(application_id, START["email"])
+    assert card["status"] == "in_review"
+    assert card["client_stage"] == "Проектная оценка"
+
+    underwriter_card = stand.client.get(
+        f"/bff/backoffice/applications/{application_id}",
+        headers=stand.login("underwriter@bank.test"),
+    ).json()
+    startup = underwriter_card["startup"]
+    assert startup["valid_at_submission"] and not startup["plan_changed"]
+    assert Decimal(startup["assessment"]["figures"]["dscr"]) == Decimal("1.65")
+    form = startup["form"]
+    assert form["decision"] == "approve" and Decimal(form["amount"]) == Decimal("3000000")
+    assert form["business_plan"] == "acceptable" and form["support_program"] is True
+    assert underwriter_card["task"]["type"] == "project_assessment"
+
+    stand.underwriter_decides(
+        application_id,
+        {
+            **form,
+            "amount": str(form["amount"]),
+            "rate": "17",
+            "comment": "Проект подтверждаю: финмодель реалистичная, гарантия Корпорации МСП",
+        },
+    )
+    card = stand.card(application_id, START["email"])
+    assert card["status"] == "offer_ready"
+    assert Decimal(card["offer"]["amount"]) == Decimal("3000000")
+    assert Decimal(card["offer"]["rate"]) == Decimal("17")
+
+    card = stand.accept_and_sign(application_id, START["email"])
+    assert card["status"] == "disbursed"
     assert stand.stuck() == []

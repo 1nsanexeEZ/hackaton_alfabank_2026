@@ -14,7 +14,11 @@ _STATUS = {
     "LIQUIDATING": "liquidating",
     "LIQUIDATED": "liquidated",
     "BANKRUPT": "bankrupt",
+    "REORGANIZING": "reorganizing",
+    "EXCLUDED": "excluded",
 }
+# Записи о недостоверности сведений: что именно признано недостоверным.
+_UNRELIABLE = {"Адрес": "address", "Руководитель": "head", "Учредитель": "founder"}
 
 
 class EgrulHttpSource(HttpSource, RegistrySource):
@@ -51,6 +55,9 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
         mass_address=bool(raw["МассовыйАдрес"]),
         kpp=str(raw["КПП"]) if raw.get("КПП") else None,
         head_since=date.fromisoformat(head_since) if head_since else None,
+        unreliable=tuple(
+            dict.fromkeys(_UNRELIABLE[str(r["Сведения"])] for r in raw.get("СведНедостоверн", []))
+        ),
     )
 
 

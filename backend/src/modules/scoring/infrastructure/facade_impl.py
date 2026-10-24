@@ -20,6 +20,7 @@ from src.modules.scoring.domain.model import (
     TaxInput,
 )
 from src.modules.scoring.domain.prescreen import FounderPrescreen, PersonHistoryInput
+from src.modules.scoring.domain.project import ProjectAssessment, ProjectInput
 from src.modules.scoring.facade import (
     CompanyProfileDTO,
     EstimateDTO,
@@ -27,9 +28,12 @@ from src.modules.scoring.facade import (
     MlScoreDTO,
     PersonPrescreenDTO,
     PrescreenReasonDTO,
+    ProjectAssessmentDTO,
+    ProjectDTO,
+    ProjectReasonDTO,
     ScoringResultDTO,
 )
-from src.modules.scoring.infrastructure.config_loader import default_prescreen
+from src.modules.scoring.infrastructure.config_loader import default_prescreen, default_project
 from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
 
 # Предодобрение оценивает компанию без заявки: номинальные параметры запроса и
@@ -39,8 +43,8 @@ _ESTIMATE_RATE_BASE = Decimal("21.5")
 
 
 class ScoringFacadeImpl:
-    """Чтение результата для decision/bff, быстрый estimate для предодобрения и предскрин
-    учредителя стартапа."""
+    """Чтение результата для decision/bff, быстрый estimate для предодобрения, предскрин
+    учредителя стартапа и проектная оценка стартапа."""
 
     def __init__(
         self,
@@ -48,11 +52,41 @@ class ScoringFacadeImpl:
         scorecard: ScoringModel,
         prescreen: FounderPrescreen | None = None,
         clock: Clock | None = None,
+        project: ProjectAssessment | None = None,
     ) -> None:
         self._repo = SqlAlchemyScoringRepository(session)
         self._scorecard = scorecard
         self._prescreen = prescreen or default_prescreen()
         self._clock = clock or SystemClock()
+        self._project = project or default_project()
+
+    def assess_project(self, project: ProjectDTO) -> ProjectAssessmentDTO:
+        output = self._project.assess(
+            ProjectInput(
+                monthly_revenue=project.monthly_revenue,
+                monthly_expenses=project.monthly_expenses,
+                own_funds=project.own_funds,
+                collateral_value=project.collateral_value,
+                guarantee_share=project.guarantee_share,
+                amount=project.amount,
+                term_months=project.term_months,
+                rate=project.rate,
+                okved_main=project.okved_main,
+                prescreen_passed=project.prescreen_passed,
+            )
+        )
+        metrics = output.metrics
+        return ProjectAssessmentDTO(
+            version=output.version,
+            passed=output.passed,
+            reasons=tuple(ProjectReasonDTO(r.code, r.passed, r.message) for r in output.reasons),
+            max_amount=output.max_amount,
+            cash_flow=metrics.cash_flow,
+            debt_service=metrics.debt_service,
+            dscr=metrics.dscr,
+            own_share=metrics.own_share,
+            coverage=metrics.coverage,
+        )
 
     def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:
         output = self._prescreen.check(
@@ -91,6 +125,8 @@ class ScoringFacadeImpl:
             pd_12m=result.pd_12m,
             reason_codes=result.reason_codes,
             ml=_ml(result.ml) if result.ml is not None else None,
+            quality=result.quality,
+            quality_reasons=result.quality_reasons,
         )
 
     def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:

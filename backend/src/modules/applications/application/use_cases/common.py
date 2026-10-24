@@ -8,6 +8,7 @@ Access is checked twice, on purpose:
 Bank staff read without a company check; writing is not given to them.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from src.core.access.access_context import AccessContext
@@ -15,11 +16,12 @@ from src.core.uow import UnitOfWork
 from src.modules.applications.application.dto.views import ApplicationViewDTO
 from src.modules.applications.application.interfaces.outbox import MessageOutbox
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
-from src.modules.applications.application.mappers.dto import application_view
+from src.modules.applications.application.mappers.dto import application_view, profile_consent
 from src.modules.applications.application.mappers.messages import to_contract
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.value_objects import Violation
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO, OrgPermission
+from src.modules.identity.facade import IdentityFacade
 
 
 async def get_writable(
@@ -32,6 +34,32 @@ async def get_writable(
     application = await repository.get(application_id, access)
     await clients.ensure_can(access.user_id, application.organization_id, permission)
     return application
+
+
+async def take_profile_consents(
+    identity: IdentityFacade, application: CreditApplication, account_id: UUID, now: datetime
+) -> None:
+    """Consents the draft lacks, from the profile: the personal_data of the acting account
+    and the company's credit_bureau_company, both in force now."""
+    consents = application.consents
+    personal = (
+        await identity.get_active_consent(account_id, "personal_data")
+        if consents.personal_data_at is None
+        else None
+    )
+    bureau = (
+        await identity.get_active_organization_consent(
+            application.organization_id, "credit_bureau_company"
+        )
+        if consents.credit_bureau_at is None
+        else None
+    )
+    application.take_profile_consents(
+        personal_data=profile_consent(personal),
+        credit_bureau=profile_consent(bureau),
+        account_id=account_id,
+        now=now,
+    )
 
 
 async def publish(

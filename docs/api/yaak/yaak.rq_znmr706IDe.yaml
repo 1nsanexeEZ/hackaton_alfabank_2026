@@ -1,0 +1,64 @@
+type: http_request
+model: http_request
+id: rq_znmr706IDe
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Новые условия продукта
+description: |-
+  New terms. A draft changes in place; a published product gets a new active version
+  and the previous one goes to the archive, so an archived product comes back this way.
+  Applications keep the terms they were opened with.
+
+  Черновик `YAAK_DEMO` меняется на месте; опубликованный или архивный продукт получает новую активную версию.
+
+  Токен: администратор.
+method: PUT
+url: ${[ base_url ]}/products/:code
+urlParameters:
+- enabled: true
+  name: :code
+  value: YAAK_DEMO
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "frontend_id": "yaak-demo",
+      "name": "Факторинг (Yaak)",
+      "short_description": "Продукт из коллекции Yaak: деньги под отсрочку платежа покупателей",
+      "purposes": [
+        "working_capital",
+        "cash_gap"
+      ],
+      "facility": "credit_line_revolving",
+      "repayment_options": [
+        "interest_only",
+        "annuity"
+      ],
+      "amount_min": "500000",
+      "amount_max": "20000000",
+      "term_min_months": 3,
+      "term_max_months": 12,
+      "rate_base": "20",
+      "rate_max": "27",
+      "min_business_age_months": 6,
+      "min_annual_revenue": "5000000",
+      "required_documents": [
+        {
+          "type": "receivables_register",
+          "title": "Реестр дебиторской задолженности"
+        }
+      ],
+      "workflow_code": "standard_v2",
+      "auto_decision_limit": "5000000"
+    }
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

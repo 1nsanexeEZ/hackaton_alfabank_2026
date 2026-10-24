@@ -48,6 +48,8 @@ async def test_pd_model_result_roundtrips(
         pd_12m=output.pd_12m,
         reason_codes=output.reason_codes,
         ml=_ML.predict(scoring_input),
+        quality="degraded",
+        quality_reasons=("source_failed:fns",),
     )
     async with session_factory() as session:
         await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
@@ -60,6 +62,8 @@ async def test_pd_model_result_roundtrips(
         )
 
     assert dto is not None
+    assert (dto.quality, dto.quality_reasons) == ("degraded", ("source_failed:fns",))
+    assert stored_result is not None and stored_result.quality == "degraded"
     assert (dto.segment, dto.scorecard, dto.grade) == ("legal_entity", "legal_entity_v1", "F")
     assert dto.pd_12m == Decimal("0.0421")
     assert dto.reason_codes == ("amount_to_revenue", "industry_risk", "verification")
@@ -88,6 +92,7 @@ async def test_scorecard_v1_result_has_no_pd(
 
     assert dto is not None
     assert (dto.segment, dto.pd_12m, dto.reason_codes, dto.ml) == (None, None, (), None)
+    assert (dto.quality, dto.quality_reasons) == (None, ())
 
 
 def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:

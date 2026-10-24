@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Self
 
-from src.modules.bff.domain.enums import PreApprovalBasis
+from src.modules.bff.domain.enums import AffordableBy, PreApprovalBasis
 from src.modules.products.facade import EligibilityReasonDTO, PaymentScheduleDTO, Repayment
 
 
@@ -83,4 +83,12 @@ class PersonalScheduleDTO:
     reasons: tuple[ReasonDTO, ...]
     # The request cut to the pre-approved terms; None when it fits or nothing is pre-approved.
     suggestion: SuggestionDTO | None
+    # The largest amount for the requested term the client can be offered; None — nothing is
+    # pre-approved for this product. The lesser of the pre-approved maximum and what the
+    # payment allows by the company's report.
+    max_affordable: Decimal | None
+    # What limits it: the pre-approved maximum, the monthly payment, or the project offer.
+    affordable_by: AffordableBy | None
+    # The request is above max_affordable: the application is still accepted, a specialist decides.
+    above_affordable: bool
     degraded: tuple[str, ...]

@@ -87,6 +87,6 @@ class RevokeConsentUseCase:
             if not in_force:
                 return
             for consent in in_force:
-                consent.revoke(now)
+                consent.revoke(now, by=user_id)
                 await self._consents.save(consent)
             await self._uow.commit()

@@ -11,8 +11,12 @@ import CompanyMembers from './CompanyMembers.vue'
 import CompanyRequisites from './CompanyRequisites.vue'
 import FinancialReports from './FinancialReports.vue'
 import PreApprovedOffers from './PreApprovedOffers.vue'
+import StartupProject from './StartupProject.vue'
 
-/** Компания клиента: реквизиты, предодобрение (у стартапа — проверка учредителя), отчётность, участники */
+/**
+ * Компания клиента: реквизиты, предодобрение (у стартапа — проверка учредителя, бизнес-план и проектная
+ * оценка), отчётность, участники
+ */
 const props = defineProps<{ products: ProductCatalog | null }>()
 
 const emit = defineEmits<{ applyProduct: [code: string, organizationId: string, maxAmount: number] }>()
@@ -33,6 +37,7 @@ const {
   verification,
   canEditFinancials,
   canManageMembers,
+  canSubmit,
 } = company
 
 onMounted(() => void company.loadOrganizations())
@@ -57,10 +62,19 @@ const productTitle = (code: string) => props.products?.find((product) => product
       <p v-if="actionError" class="rounded-2xl bg-brand-soft p-3 text-sm text-brand" role="alert">{{ actionError }}</p>
 
       <CompanyRequisites :company="detail" :verification="verification" :verifying="busy === 'verify'" @verify="company.verify" />
-      <FounderPrescreenPanel v-if="isStartup" :organization-id="detail.id" />
+      <template v-if="isStartup">
+        <FounderPrescreenPanel :organization-id="detail.id" />
+        <StartupProject
+          :organization-id="detail.id"
+          :can-edit="canEditFinancials"
+          :can-submit="canSubmit"
+          @apply="(code, maxAmount) => emit('applyProduct', code, detail!.id, maxAmount)"
+        />
+      </template>
       <PreApprovedOffers
         v-else
         :offers="preApproved"
+        :verified="detail.verification.status === 'verified'"
         :product-title="productTitle"
         @apply="(code, maxAmount) => emit('applyProduct', code, detail!.id, maxAmount)"
       />

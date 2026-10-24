@@ -1,0 +1,20 @@
+type: http_request
+model: http_request
+id: rq_22ZQuQF0QV
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AEk4pZezSL
+name: 01. Мои компании
+description: 'Компания с ИНН 7706123455: её id — переменная папки `organization_id`.'
+method: GET
+url: ${[ base_url ]}/organizations
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

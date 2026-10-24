@@ -56,6 +56,21 @@ policy_v6 — v5 и обязательные требования закона:
   Отказ по 115-ФЗ — исключение: обслуживать лицо из перечня закон запрещает.
 Клиенту — нейтральные тексты: о мерах по 115-ФЗ клиента не информируют.
 
+policy_v7 — стоп-факторы до модели, как на общей схеме: `screen` проверяет их отдельным шагом
+процесса до скоринга, сработал — решение без модели. В `decide` они тоже идут раньше проверки,
+есть ли результат скоринга: стоп-фактор даёт отказ, даже если скоринг не посчитался. «Данные
+полные?»: скоринг пометил данные неполными (`quality = degraded`) → ручная проверка, спорная;
+модели не дают отказа на неполных данных. Стоп-факторы таблицы общей схемы, которых не было:
+реорганизация и исключение из реестра (статусы ЕГРЮЛ), недостоверность сведений ЕГРЮЛ, массовый
+руководитель (ФНС), срок работы меньше минимума продукта, внутренний стоп-лист банка.
+
+policy_v8 — v7 и третьи лица по 115-ФЗ. Выгодоприобретатель (к чьей выгоде действует клиент) и
+залогодатель — третье лицо проверяются вместе с остальными на каждой заявке: в перечне — отказ
+(STOP_AML_LISTED, как у всех). Клиент действует к выгоде третьего лица → ручная проверка
+(ROUTE_THIRD_PARTY_BENEFICIARY). Нет ответа о выгодоприобретателе или залог третьего лица без
+владельца → ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN) — правило включается ключом
+`require_answers`, когда форма заявки задаёт вопрос; пока выключено, факт пишется в трассу.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
 ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
@@ -89,6 +104,7 @@ from src.modules.decision.domain.model import (
     ReasonCode,
     RuleHit,
     ScoreInput,
+    ThirdPartiesInput,
     Trigger,
 )
 
@@ -207,6 +223,22 @@ class PolicyConfig:
     # решение только на основании автоматизированной обработки.
     automated_decision_forms: frozenset[str] = frozenset()
     automated_decision_outcomes: frozenset[str] = frozenset()
+    # policy_v8: третьи лица по 115-ФЗ. False — выключено (так ведут себя policy_v1–v7).
+    third_party_beneficiary_review: bool = False
+    third_party_answers_required: bool = False
+    third_party_rules: bool = False  # раздел есть в YAML — правила пишутся в трассу
+    # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
+    # в policy_v1–v6: без скоринга сразу ручная проверка.
+    screen_before_scoring: bool = False
+    # policy_v7: скоринг пометил данные неполными (quality = degraded) → решает человек.
+    route_degraded_quality: bool = False
+    # policy_v7: стоп-факторы таблицы общей схемы, которых не было. False — выключено.
+    stop_unreliable_data: bool = False  # отметки ЕГРЮЛ о недостоверности сведений
+    stop_mass_head: bool = False  # массовый руководитель (ФНС)
+    stop_business_age: bool = False  # срок работы меньше минимума продукта
+    stop_bank_stop_list: bool = False  # внутренний стоп-лист банка
+    # policy_v7: выписки нет — лимит по оборотам и «разгон» считаются по оборотам в банке (АБС).
+    turnover_from_bank: bool = False
 
     def band(self, grade: str) -> MatrixBand | None:
         return next((b for b in self.risk_matrix if grade in b.grades), None)
@@ -241,6 +273,12 @@ class CreditPolicy:
 
     def decide(self, inp: DecisionInput, *, key_rate: Decimal) -> PolicyDecision:
         return _Evaluation(self._c, self._x, inp, key_rate).run()
+
+    def screen(self, inp: DecisionInput, *, key_rate: Decimal) -> PolicyDecision | None:
+        """Стоп-факторы до скоринга: None — ни один не сработал, дальше модель; иначе решение
+        без модели — отказ (или ручная проверка, если по ст. 16 152-ФЗ отказ ИП без его согласия
+        готовит человек). Грейд здесь не нужен, результат скоринга не смотрим."""
+        return _Evaluation(self._c, self._x, replace(inp, score=None), key_rate).screen()
 
     def pre_approve(self, inp: PreApprovalInput, *, key_rate: Decimal) -> PreApproval | None:
         """Предодобренное предложение по продукту; None — предложить нечего (стоп-фактор,
@@ -481,12 +519,36 @@ def _pct(value: Decimal) -> str:
     return f"{value.quantize(_CENT, rounding=ROUND_HALF_UP)}%"
 
 
+_BASES = {
+    "agency": "агентский договор",
+    "commission": "договор комиссии",
+    "mandate": "договор поручения",
+    "trust_management": "доверительное управление",
+}
+
+
 def _zsk(level: str | None) -> str:
     return {"low": "низкий", "medium": "средний", "high": "высокий"}.get(level or "", "нет данных")
 
 
 def _pd_note(pd: Decimal | None) -> str:
     return f" (PD {_pct(pd * _HUNDRED)})" if pd is not None else ""
+
+
+def _quality_detail(score: ScoreInput) -> str:
+    """Трасса «Данные полные?»: почему скоринг пометил данные неполными."""
+    if score.quality is None:
+        return "качество данных скоринг не оценивал — проверка не выполнена"
+    if score.quality == "ok":
+        return "данные полные"
+    parts: list[str] = []
+    failed = [r.split(":", 1)[1] for r in score.quality_reasons if r.startswith("source_failed:")]
+    if failed:
+        parts.append(f"не ответили источники: {', '.join(failed)}")
+    for reason in score.quality_reasons:
+        if reason.startswith("completeness_below:"):
+            parts.append(f"данные есть по доле признаков {reason.split(':', 1)[1]} — ниже порога")
+    return "данные неполные: " + ("; ".join(parts) or "так решил скоринг") + " — решает человек"
 
 
 class _Evaluation:
@@ -514,7 +576,20 @@ class _Evaluation:
         aml_stops = self._aml_stops()
         if aml_stops:
             return self._result("REJECT", aml_stops)
+        if self._c.screen_before_scoring:
+            stops = self._screen_stops()
+            if stops:
+                return self._automated_decision_consent(self._result("REJECT", stops))
         return self._automated_decision_consent(self._decide())
+
+    def screen(self) -> PolicyDecision | None:
+        aml_stops = self._aml_stops()
+        if aml_stops:
+            return self._result("REJECT", aml_stops)
+        stops = self._screen_stops()
+        if not stops:
+            return None
+        return self._automated_decision_consent(self._result("REJECT", stops))
 
     def _decide(self) -> PolicyDecision:
         score = self._in.score
@@ -522,7 +597,11 @@ class _Evaluation:
             self._hit("input.scoring", True, "результата скоринга нет — решение за андеррайтером")
             return self._result("MANUAL_REVIEW", (ReasonCode.ROUTE_SOURCES_FAILED,))
 
-        stops = self._stop_factors(score)
+        stops = (
+            self._grade_stop(score)
+            if self._c.screen_before_scoring
+            else (*self._screen_stops(), *self._grade_stop(score))
+        )
         if stops:
             return self._result("REJECT", stops)
 
@@ -567,7 +646,8 @@ class _Evaluation:
 
     # --- 1. стоп-факторы ---------------------------------------------------------------------
 
-    def _stop_factors(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
+    def _screen_stops(self) -> tuple[ReasonCode, ...]:
+        """Стоп-факторы, которым модель не нужна: реестр, ФНС, БКИ, Контур, ГИР БО, предскрин."""
         company, bureau = self._in.company, self._in.bureau
         reasons: list[ReasonCode] = []
 
@@ -611,14 +691,15 @@ class _Evaluation:
         prescreen = self._founder_prescreen()
         if prescreen is not None:
             reasons.append(prescreen)
-
-        # В policy_v3 грейд отсекает матрица, а не стоп-фактор.
-        if self._c.stop_grades:
-            grade_stop = score.grade in self._c.stop_grades
-            self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
-            if grade_stop:
-                reasons.append(ReasonCode.STOP_GRADE_E)
         return tuple(reasons)
+
+    def _grade_stop(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
+        """policy_v1/v2: грейд E — стоп-фактор; в policy_v3 грейд отсекает матрица."""
+        if not self._c.stop_grades:
+            return ()
+        grade_stop = score.grade in self._c.stop_grades
+        self._hit("stop.grade", grade_stop, f"грейд {score.grade} (скор {score.score})")
+        return (ReasonCode.STOP_GRADE_E,) if grade_stop else ()
 
     def _external_stops(self, reasons: list[ReasonCode]) -> None:
         """Стоп-факторы policy_v2: каждое правило — только если оно включено в YAML."""
@@ -646,6 +727,10 @@ class _Evaluation:
             self._negative_equity(),
             self._mass_address(company),
             self._okved(company),
+            self._unreliable_data(company),
+            self._mass_head(company),
+            self._business_age(company),
+            self._bank_stop_list(),
         )
         reasons.extend(code for code in checks if code is not None)
 
@@ -811,6 +896,74 @@ class _Evaluation:
         self._hit("stop.okved", matched, f"основной ОКВЭД {company.okved_main} — {verdict}")
         return ReasonCode.STOP_FORBIDDEN_OKVED if matched else None
 
+    # --- policy_v7: остальные стоп-факторы таблицы общей схемы -------------------------------
+
+    def _unreliable_data(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_unreliable_data:
+            return None
+        names = {"address": "адрес", "head": "руководитель", "founder": "учредитель"}
+        matched = bool(company.unreliable)
+        self._hit(
+            "stop.unreliable_data",
+            matched,
+            "ЕГРЮЛ: недостоверные сведения — "
+            + ", ".join(names.get(mark, mark) for mark in company.unreliable)
+            if matched
+            else "отметок о недостоверности сведений в ЕГРЮЛ нет",
+        )
+        return ReasonCode.STOP_UNRELIABLE_DATA if matched else None
+
+    def _mass_head(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_mass_head:
+            return None
+        matched = company.mass_head is True
+        self._hit(
+            "stop.mass_head",
+            matched,
+            "ФНС не ответила — проверка не выполнена"
+            if company.mass_head is None
+            else "руководитель массовый (ФНС)"
+            if matched
+            else "руководитель не массовый",
+        )
+        return ReasonCode.STOP_MASS_HEAD if matched else None
+
+    def _business_age(self, company: CompanyInput) -> ReasonCode | None:
+        if not self._c.stop_business_age:
+            return None
+        need, age = self._in.product.min_business_age_months, company.business_age_months
+        if age is None:
+            self._hit("stop.business_age", False, "дата регистрации неизвестна — не проверить")
+            return None
+        matched = age < need
+        self._hit(
+            "stop.business_age",
+            matched,
+            f"срок работы {age} мес., минимум продукта {need} мес.",
+        )
+        return ReasonCode.STOP_BUSINESS_TOO_YOUNG if matched else None
+
+    def _bank_stop_list(self) -> ReasonCode | None:
+        if not self._c.stop_bank_stop_list:
+            return None
+        stop = self._in.bank_stop_list
+        if stop is None or stop.status != "ok":
+            detail = (
+                "стоп-лист банка не ответил — проверка не выполнена"
+                if stop is not None and stop.status == "failed"
+                else "стоп-лист банка не запрашивался — проверка не выполнена"
+            )
+            self._hit("stop.bank_stop_list", False, detail)
+            return None
+        self._hit(
+            "stop.bank_stop_list",
+            stop.listed,
+            f"компания во внутреннем стоп-листе банка: {stop.reason or 'причина не указана'}"
+            if stop.listed
+            else "во внутреннем стоп-листе банка компании нет",
+        )
+        return ReasonCode.STOP_BANK_STOP_LIST if stop.listed else None
+
     # --- 2. дозапрос ---------------------------------------------------------------------------
 
     def _info_request(self, score: ScoreInput) -> InfoNeed | None:
@@ -938,8 +1091,7 @@ class _Evaluation:
         k = self._c.turnover_multiplier
         if k is None:
             return None
-        cashflow = self._in.cashflow
-        inflow = cashflow.annual_inflow if cashflow is not None else None
+        _, inflow, source = self._inflows()
         if inflow is None:
             self._hit("limits.turnover", False, "выписки нет — по оборотам не ограничиваем")
             return None
@@ -947,9 +1099,20 @@ class _Evaluation:
         self._hit(
             "limits.turnover",
             limit < self._in.request.amount,
-            f"k {k} × обороты по счёту за год {_num(inflow)} = {_num(limit)}",
+            f"k {k} × обороты по счёту за год{source} {_num(inflow)} = {_num(limit)}",
         )
         return limit
+
+    def _inflows(self) -> tuple[tuple[Decimal, ...], Decimal | None, str]:
+        """Поступления по месяцам и за год: из выписки клиента, а если её нет (policy_v7) — из
+        оборотов по счёту в банке (АБС). Третье — пометка источника для трассы."""
+        cashflow = self._in.cashflow
+        if cashflow is not None:
+            return cashflow.monthly_inflows, cashflow.annual_inflow, ""
+        bank = self._in.bank_turnover
+        if self._c.turnover_from_bank and bank is not None:
+            return bank.monthly_inflows, bank.annual_inflow, " (АБС)"
+        return (), None, ""
 
     def _grade_limit(self, grade: Grade) -> Decimal | None:
         if not self._c.grade_max_amount:
@@ -1082,6 +1245,51 @@ class _Evaluation:
         self._hit("route.zsk", medium, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
         if medium:
             reasons.append(ReasonCode.ROUTE_ZSK_MEDIUM_RISK)
+        reasons.extend(self._third_parties())
+        return reasons
+
+    def _third_parties(self) -> list[ReasonCode]:
+        """policy_v8: выгодоприобретатель и залогодатель — третье лицо. Совпадение с перечнем
+        у них — уже отказ (`_aml_stops`), здесь — что третье лицо есть и что о нём не сказано."""
+        if not self._c.third_party_rules:
+            return []
+        parties = self._in.third_parties or ThirdPartiesInput()
+        reasons: list[ReasonCode] = []
+        declared = parties.beneficiary == "declared"
+        review = declared and self._c.third_party_beneficiary_review
+        basis = _BASES.get(parties.basis or "", parties.basis or "основание не указано")
+        self._hit(
+            "route.beneficiary",
+            review,
+            f"клиент действует к выгоде третьего лица: {parties.beneficiary_name} ({basis})"
+            if declared
+            else "клиент действует к своей выгоде"
+            if parties.beneficiary == "none"
+            else "клиент не ответил, действует ли к выгоде третьего лица",
+        )
+        if review:
+            reasons.append(ReasonCode.ROUTE_THIRD_PARTY_BENEFICIARY)
+        missing = [
+            text
+            for text, gap in (
+                ("ответа о выгодоприобретателе нет", parties.beneficiary == "not_answered"),
+                ("у залога третьего лица не указан владелец", parties.pledgor == "unknown"),
+            )
+            if gap
+        ]
+        required = bool(missing) and self._c.third_party_answers_required
+        self._hit(
+            "route.third_parties_unknown",
+            required,
+            "; ".join(missing)
+            + ("" if required else " — правило выключено, пока форма заявки не спрашивает")
+            if missing
+            else f"залогодатель: {parties.pledgor_name}"
+            if parties.pledgor == "declared"
+            else "сведения о третьих лицах есть",
+        )
+        if required:
+            reasons.append(ReasonCode.ROUTE_THIRD_PARTIES_UNKNOWN)
         return reasons
 
     def _automated_decision_consent(self, decision: PolicyDecision) -> PolicyDecision:
@@ -1111,6 +1319,12 @@ class _Evaluation:
     def _routing(self, score: ScoreInput) -> tuple[ReasonCode, ...]:
         product, request, company = self._in.product, self._in.request, self._in.company
         reasons: list[ReasonCode] = self._aml_routes()
+
+        if self._c.route_degraded_quality:
+            degraded = score.quality == "degraded"
+            self._hit("route.data_quality", degraded, _quality_detail(score))
+            if degraded:
+                reasons.append(ReasonCode.ROUTE_SOURCES_FAILED)
 
         over_limit = request.amount > product.auto_decision_limit
         self._hit(
@@ -1197,8 +1411,7 @@ class _Evaluation:
             self._turnover_spike(recent, ratio)
 
     def _turnover_spike(self, recent: int, ratio: Decimal) -> None:
-        cashflow = self._in.cashflow
-        inflows = cashflow.monthly_inflows if cashflow is not None else ()
+        inflows, _, source = self._inflows()
         if len(inflows) < recent * 2:
             self._trigger(
                 "turnover_spike",
@@ -1215,8 +1428,8 @@ class _Evaluation:
         self._trigger(
             "turnover_spike",
             matched,
-            f"поступления за последние {recent} мес. в среднем {_num(last)} против {_num(before)} "
-            f"раньше: ×{shown}, порог > ×{ratio}",
+            f"поступления{source} за последние {recent} мес. в среднем {_num(last)} против "
+            f"{_num(before)} раньше: ×{shown}, порог > ×{ratio}",
         )
 
     def _trigger(self, code: str, matched: bool, detail: str) -> None:

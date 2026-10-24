@@ -67,10 +67,15 @@ class SqlAlchemyFeedStore(FeedStore):
         if not pending:
             return 0
         seq = await self._next_seq()
+        written = 0
         for recipient in pending:
             row = None
             if delivery.replace_group and entry.group_key is not None:
                 row = await self._group_row(recipient, entry.group_key)
+            if delivery.only_existing and (
+                row is None or (row.title, row.body) == (entry.title, entry.body)
+            ):
+                continue
             if row is None:
                 row = FeedItem(
                     recipient_type=recipient.type,
@@ -80,8 +85,9 @@ class SqlAlchemyFeedStore(FeedStore):
                 self._session.add(row)
             self._fill(row, entry, source_id, source_type, seq, now)
             seq += 1
+            written += 1
         await self._session.flush()
-        return len(pending)
+        return written
 
     async def _group_row(self, recipient: Recipient, group_key: str) -> FeedItem | None:
         stmt = (
