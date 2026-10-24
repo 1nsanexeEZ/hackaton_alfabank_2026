@@ -1,0 +1,31 @@
+type: http_request
+model: http_request
+id: rq_vhlpbS8GyI
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Договор (PDF)
+description: |-
+  The contract PDF: `kind` = draft or signed, by default the latest one.
+  409 `contract_not_ready` before the offer is accepted, `document_pending`
+  while it is being made.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/applications/:application_id/contract/document
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: false
+  name: kind
+  value: draft
+headers: []
+bodyType: null
+body: {}
+sortPriority: 15000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

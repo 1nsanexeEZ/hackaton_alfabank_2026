@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_o3i1qnstZF
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4MO7X92vcV
+name: '20. Договор: PDF-проект'
+description: '200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.'
+method: GET
+url: ${[ base_url ]}/applications/:application_id/contract/document
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: kind
+  value: draft
+headers: []
+bodyType: null
+body: {}
+sortPriority: 20000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_progress ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

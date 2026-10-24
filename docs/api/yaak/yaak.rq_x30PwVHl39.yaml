@@ -3,7 +3,7 @@ model: http_request
 id: rq_x30PwVHl39
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_MUo8HeVGMW
-name: 10. Процесс по заявке
+name: 15. Процесс по заявке
 description: '`completed`; в `visited_node_ids` нет `underwriter_review`: человек не участвовал.'
 method: GET
 url: ${[ base_url ]}/processes/:application_id
@@ -14,7 +14,7 @@ urlParameters:
 headers: []
 bodyType: null
 body: {}
-sortPriority: 10000.0
+sortPriority: 15000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_underwriter ]}
