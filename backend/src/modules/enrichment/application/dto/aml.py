@@ -17,7 +17,17 @@ AmlList = Literal["terrorism", "freeze", "wmd"]
 PepKind = Literal["foreign", "russian", "international"]
 # Уровень риска на платформе «Знай своего клиента» Банка России (ст. 7.6 115-ФЗ).
 ZskLevel = Literal["low", "medium", "high"]
-SubjectRole = Literal["company", "head", "beneficial_owner", "founder_company", "representative"]
+# beneficiary — выгодоприобретатель, к выгоде которого действует клиент; pledgor — владелец
+# залога, если это не клиент. Оба — со слов клиента в заявке.
+SubjectRole = Literal[
+    "company",
+    "head",
+    "beneficial_owner",
+    "founder_company",
+    "representative",
+    "beneficiary",
+    "pledgor",
+]
 # ownership — владеет больше 25% прямо или по цепочке; head_by_default — больше 25% нет ни у
 # кого, бенефициаром признан руководитель; entrepreneur — ИП, бенефициар — он сам.
 BeneficialOwnerBasis = Literal["ownership", "head_by_default", "entrepreneur"]
