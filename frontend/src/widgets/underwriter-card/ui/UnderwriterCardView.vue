@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleCheck, CircleX, Download, Waves } from 'lucide-vue-next'
+import { CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
 import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
@@ -27,8 +27,18 @@ import {
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
 import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
-import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
-import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
+import {
+  errorMessage,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatPercent,
+  formatProbability,
+  formatTerm,
+  saveFile,
+  useAsyncData,
+} from '@/shared/lib'
+import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 
 import { usePrelude } from '../model/usePrelude'
 import AmlCheckSection from './AmlCheckSection.vue'
@@ -102,6 +112,24 @@ async function refreshAfterDecision() {
 async function download(documentId: string) {
   const { url } = await backofficeApi.downloadDocument(props.applicationId, documentId)
   window.open(url, '_blank', 'noopener')
+}
+
+/** Договор в PDF — после подписи клиента: итоговый с подписью банка или, пока его нет, последний готовый */
+const contractSigned = computed(() => data.value?.application.status === 'signed' || data.value?.application.status === 'disbursed')
+const contractBusy = ref(false)
+const contractError = ref<string | null>(null)
+
+async function downloadContract() {
+  contractBusy.value = true
+  contractError.value = null
+  try {
+    const file = await backofficeApi.contractDocument(props.applicationId)
+    saveFile(file.blob, file.filename ?? `Договор ${data.value?.application.number ?? ''}.pdf`)
+  } catch (caught) {
+    contractError.value = errorMessage(caught)
+  } finally {
+    contractBusy.value = false
+  }
 }
 
 /**
@@ -297,6 +325,14 @@ const RATE_PARTS = [
                   </button>
                 </li>
               </ul>
+            </div>
+
+            <div v-if="contractSigned" class="mt-5 flex flex-wrap items-center gap-3">
+              <BaseButton size="s" variant="secondary" :loading="contractBusy" @click="downloadContract">
+                <FileText class="size-4" aria-hidden="true" />
+                Договор (PDF)
+              </BaseButton>
+              <p v-if="contractError" class="text-sm text-brand" role="alert">{{ contractError }}</p>
             </div>
           </PanelCard>
 
