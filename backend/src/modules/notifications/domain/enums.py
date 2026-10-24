@@ -10,6 +10,7 @@ FeedItemType = Literal[
     "task_assigned",
     "advice",
     "news",
+    "support",
 ]
 RecipientType = Literal["account", "role"]
 Audience = Literal["client", "bank"]

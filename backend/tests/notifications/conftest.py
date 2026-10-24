@@ -139,7 +139,11 @@ class FeedHarness:
 
     async def deliver(self, message: IntegrationMessage, event_id: UUID | None = None) -> Outcome:
         subscription = next(s for s in feed_subscriptions() if s.topic == message.TOPIC)
-        correlation = getattr(message, "application_id", None) or message.organization_id
+        correlation = (
+            getattr(message, "ticket_id", None)
+            or getattr(message, "application_id", None)
+            or message.organization_id
+        )
         envelope = build_envelope(
             message,
             producer="test",

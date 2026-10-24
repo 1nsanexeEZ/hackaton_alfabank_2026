@@ -19,6 +19,7 @@ from src.main import create_app
 from src.modules.applications.facade import ApplicationCardDTO, ApplicationsFacade
 from src.modules.clients.facade import ClientsFacade
 from src.modules.identity.facade import IdentityFacade
+from src.modules.notifications.infrastructure.database.models import FeedItem
 from tests.fakes import builders, install
 from tests.fakes.applications_facade import FakeApplicationsFacade
 from tests.fakes.clients_facade import FakeClientsFacade
@@ -81,6 +82,21 @@ class World:
             async with self.client.app.state.session_factory() as session:  # type: ignore[attr-defined]
                 rows = await session.scalars(select(OutboxRecord).order_by(OutboxRecord.id))
                 return [row.message_type for row in rows]
+
+        return self.client.portal.call(read)  # type: ignore[union-attr]
+
+    def feed(self) -> list[tuple[str, str, str]]:
+        """Deliver what is staged in the outbox and read the feed records:
+        (recipient, title, action required)."""
+
+        async def read() -> list[tuple[str, str, str]]:
+            await self.client.app.state.messaging.drain()  # type: ignore[attr-defined]
+            async with self.client.app.state.session_factory() as session:  # type: ignore[attr-defined]
+                rows = await session.scalars(select(FeedItem).order_by(FeedItem.seq))
+                return [
+                    (f"{r.recipient_type}:{r.recipient_id}", r.title, str(r.action_required))
+                    for r in rows
+                ]
 
         return self.client.portal.call(read)  # type: ignore[union-attr]
 

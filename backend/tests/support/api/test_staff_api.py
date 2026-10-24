@@ -168,6 +168,25 @@ def test_admin_takes_like_anyone_and_supervises_taken_tickets(world: World) -> N
     assert took.json()["assignee_id"] == str(world.admin)
 
 
+def test_the_feed_follows_the_ticket(world: World) -> None:
+    ticket = world.open()
+    assert world.feed() == [
+        ("role:underwriter", "Новое обращение ТП-2026-000001", "True"),
+    ]
+
+    world.take(ticket, world.anna)
+    world.client.post(
+        f"/support/queue/{ticket['id']}/messages",
+        json={"text": "Выписка на месте"},
+        headers=world.as_staff(world.anna),
+    )
+
+    assert world.feed() == [
+        ("role:underwriter", "Новое обращение ТП-2026-000001", "False"),
+        (f"account:{world.director}", "Ответ по обращению ТП-2026-000001", "False"),
+    ]
+
+
 # --- rights -------------------------------------------------------------------------
 
 

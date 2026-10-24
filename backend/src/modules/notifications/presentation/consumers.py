@@ -13,6 +13,7 @@ SOURCE_TOPICS: tuple[str, ...] = (
     topics.PROCESS_EVENTS,
     topics.DECISION_EVENTS,
     topics.CLIENTS_EVENTS,
+    topics.SUPPORT_EVENTS,
 )
 
 

@@ -99,3 +99,18 @@ def task_group(task_id: UUID) -> str:
 
 def pre_approved_group(organization_id: UUID) -> str:
     return f"pre-approved:{organization_id}"
+
+
+def support_queue_group(ticket_id: UUID) -> str:
+    """The back office entry of a ticket waiting in the queue."""
+    return f"support-queue:{ticket_id}"
+
+
+def support_client_group(ticket_id: UUID) -> str:
+    """The client's entry of a ticket: the latest answer or status."""
+    return f"support:{ticket_id}"
+
+
+def support_assignee_group(ticket_id: UUID) -> str:
+    """The entry of the employee who took the ticket: the latest client message."""
+    return f"support-assignee:{ticket_id}"
