@@ -24,6 +24,7 @@ from src.modules.process import module as process_module
 from src.modules.products import module as products_module
 from src.modules.projector import module as projector_module
 from src.modules.scoring import module as scoring_module
+from src.modules.support import module as support_module
 
 # Explicit list: no discovery by string. Each module owns only its module.py.
 MODULES = (
@@ -36,6 +37,7 @@ MODULES = (
     scoring_module,
     decision_module,
     notifications_module,
+    support_module,
     projector_module,
     bff_module,
 )

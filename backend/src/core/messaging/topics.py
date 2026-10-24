@@ -1,5 +1,6 @@
 """Kafka topics. Key of every message about an application — its id;
-`clients.events` — organization id; `identity.events` — account id."""
+`clients.events` — organization id; `identity.events` — account id;
+`support.events` — ticket id."""
 
 IDENTITY_EVENTS = "identity.events"
 CLIENTS_EVENTS = "clients.events"
@@ -12,6 +13,7 @@ SCORING_COMMANDS = "scoring.commands"
 SCORING_EVENTS = "scoring.events"
 DECISION_COMMANDS = "decision.commands"
 DECISION_EVENTS = "decision.events"
+SUPPORT_EVENTS = "support.events"
 
 ALL_TOPICS: tuple[str, ...] = (
     IDENTITY_EVENTS,
@@ -25,6 +27,7 @@ ALL_TOPICS: tuple[str, ...] = (
     SCORING_EVENTS,
     DECISION_COMMANDS,
     DECISION_EVENTS,
+    SUPPORT_EVENTS,
 )
 
 DLQ_SUFFIX = ".dlq"

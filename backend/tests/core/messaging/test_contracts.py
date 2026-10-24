@@ -53,6 +53,9 @@ EXPECTED = {
     "DecisionMade",
     "ManualDecisionRejected",
     "PreApprovedOffersUpdated",
+    "SupportTicketOpened",
+    "SupportMessagePosted",
+    "SupportTicketStatusChanged",
 }
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
