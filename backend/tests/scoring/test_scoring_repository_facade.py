@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
@@ -93,6 +94,25 @@ async def test_scorecard_v1_result_has_no_pd(
     assert dto is not None
     assert (dto.segment, dto.pd_12m, dto.reason_codes, dto.ml) == (None, None, (), None)
     assert (dto.quality, dto.quality_reasons) == (None, ())
+
+
+async def test_reason_for_no_ml_estimate_is_stored(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    result, stored = _result()
+    result = replace(result, ml=None, ml_not_applicable="no_revenue")
+    async with session_factory() as session:
+        await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
+        await session.commit()
+
+    async with session_factory() as session:
+        dto = await ScoringFacadeImpl(session, _CARD).get_result(result.application_id)
+        stored_result = await SqlAlchemyScoringRepository(session).latest_for_application(
+            result.application_id
+        )
+
+    assert stored_result is not None and stored_result.ml_not_applicable == "no_revenue"
+    assert dto is not None and dto.ml is None and dto.ml_not_applicable == "no_revenue"
 
 
 def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:

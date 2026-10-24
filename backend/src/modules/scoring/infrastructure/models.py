@@ -40,6 +40,8 @@ class ScoringResultRecord(Base):
     # Качество данных (scoring_0004): ok / degraded и почему; до неё — пусто.
     quality: Mapped[str | None] = mapped_column(String(16), default=None)
     quality_reasons: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
+    # Почему оценки ML нет (scoring_0006): no_revenue; пусто — посчитана или результат до неё.
+    ml_not_applicable: Mapped[str | None] = mapped_column(String(32), default=None)
 
 
 class FeatureSnapshotRecord(Base):

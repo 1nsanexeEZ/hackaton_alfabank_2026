@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
@@ -276,6 +277,47 @@ async def test_without_the_ml_model_the_result_has_no_ml() -> None:
     )
 
     assert repo.added[0][0].ml is None
+
+
+async def test_ml_model_does_not_score_a_company_without_revenue() -> None:
+    """Стартап без выручки (S-9): ML-модель вне своей области — оценки нет, указано почему;
+    основная модель считает как обычно."""
+    scoring_input, apps = _setup("start")
+    snapshot = _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=None)
+    assert snapshot.fns is not None
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        replace(snapshot, fns=replace(snapshot.fns, reported_revenue=Decimal(0)))
+    )
+    use_case, repo = _use_case(apps, enrichment, with_ml=True)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=FakeOutboxWriter(),
+    )
+
+    result, _ = repo.added[0]
+    assert result.ml is None and result.ml_not_applicable == "no_revenue"
+    assert result.score > 0  # основная модель считает как обычно
+
+
+async def test_with_revenue_the_ml_model_applies() -> None:
+    scoring_input, apps = _setup()
+    enrichment = FakeEnrichmentFacade()
+    enrichment.add_snapshot(
+        _snapshot(scoring_input.application_id, scoring_input.organization_id, bki=_romashka_bki())
+    )
+    use_case, repo = _use_case(apps, enrichment, with_ml=True)
+
+    await use_case.execute(
+        CalculateScore(application_id=scoring_input.application_id),
+        command_event_id=uuid4(),
+        outbox=FakeOutboxWriter(),
+    )
+
+    result, _ = repo.added[0]
+    assert result.ml is not None and result.ml_not_applicable is None
 
 
 async def test_missing_snapshot_fails() -> None:
