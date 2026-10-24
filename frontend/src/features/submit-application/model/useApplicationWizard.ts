@@ -30,6 +30,15 @@ import {
 import { clamp, errorMessage } from '@/shared/lib'
 
 import { fieldTitle, parseNumber, toFormValues, toPayload, validateFieldValues, type FieldValues } from './productFields'
+import {
+  emptyThirdParty,
+  thirdPartyProblems,
+  toBeneficiaryInput,
+  toThirdPartyForm,
+  toThirdPartyInput,
+  type BeneficiaryForm,
+  type ThirdPartyForm,
+} from './thirdParty'
 import { describeViolations, type ViolationView, type WizardStep } from './violations'
 
 export interface CollateralForm {
@@ -37,6 +46,8 @@ export interface CollateralForm {
   description: string
   declaredValue: string
   owner: 'self' | 'third_party'
+  /** Владелец залога, если он принадлежит третьему лицу */
+  ownerParty: ThirdPartyForm
 }
 
 export interface MissingItem {
@@ -53,6 +64,12 @@ const MISSING_LABEL: Record<string, string> = {
   'collateral.type': 'Вид залога',
   'collateral.description': 'Описание залога',
   'collateral.declared_value': 'Стоимость залога',
+  'collateral.owner_party.name': 'Владелец залога',
+  'collateral.owner_party.inn': 'ИНН владельца залога',
+  'beneficiary.acts_for_third_party': 'В чьих интересах',
+  'beneficiary.beneficiary.name': 'Третье лицо',
+  'beneficiary.beneficiary.inn': 'ИНН третьего лица',
+  'beneficiary.basis': 'Основание',
   'consents.personal_data': 'Согласие на обработку данных',
   'consents.credit_bureau': 'Согласие на запрос в БКИ',
 }
@@ -87,7 +104,18 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     purpose: '' as LoanPurpose | '',
     purposeComment: '',
   })
-  const collateral = reactive<CollateralForm>({ type: '', description: '', declaredValue: '', owner: 'self' })
+  const collateral = reactive<CollateralForm>({
+    type: '',
+    description: '',
+    declaredValue: '',
+    owner: 'self',
+    ownerParty: emptyThirdParty(),
+  })
+  /**
+   * Действует ли клиент в интересах третьего лица — по агентскому договору, поручению, комиссии или доверительному
+   * управлению (115-ФЗ). Спрашиваем у всех на шаге согласий: без ответа дальше не пускаем.
+   */
+  const beneficiary = reactive<BeneficiaryForm>({ acts: null, party: emptyThirdParty(), basis: '' })
   const productFields = ref<FieldValues>({})
   /**
    * Галочки согласий. Действующие согласия из профиля (ПДн — личное, БКИ — компании) черновик берёт сам
@@ -241,7 +269,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     consents.creditBureau = false
     consents.automatedDecision = false
     headConsent.give = false
-    Object.assign(collateral, { description: '', declaredValue: '', owner: 'self' })
+    Object.assign(collateral, { description: '', declaredValue: '', owner: 'self', ownerParty: emptyThirdParty() })
+    Object.assign(beneficiary, { acts: null, party: emptyThirdParty(), basis: '' })
     terms.purposeComment = ''
     for (const key of Object.keys(uploads)) delete uploads[key]
   }
@@ -310,8 +339,14 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   }
 
   function showError(caught: unknown) {
-    if (caught instanceof ApiError && caught.details.violations?.length) {
-      violations.value = describeViolations(caught.details.violations, {
+    // Ошибка одного поля (например, неверный ИНН третьего лица) приходит как details.field + details.code
+    const single =
+      caught instanceof ApiError && typeof caught.details.field === 'string'
+        ? [{ field: caught.details.field, code: caught.details.code ?? '' }]
+        : null
+    const fields = caught instanceof ApiError && caught.details.violations?.length ? caught.details.violations : single
+    if (caught instanceof ApiError && fields) {
+      violations.value = describeViolations(fields, {
         documentTitle,
         fieldTitle: (path) => fieldTitle(product.value.fieldsSchema, path.replace(/^product_fields\.?/, '')),
       })
@@ -396,6 +431,14 @@ export function useApplicationWizard(products: () => ProductCatalog) {
         description: existing.collateral.description,
         declaredValue: String(Number(existing.collateral.declared_value)),
         owner: existing.collateral.owner,
+        ownerParty: toThirdPartyForm(existing.collateral.owner_party),
+      })
+    }
+    if (existing.beneficiary) {
+      Object.assign(beneficiary, {
+        acts: existing.beneficiary.acts_for_third_party,
+        party: toThirdPartyForm(existing.beneficiary.beneficiary),
+        basis: existing.beneficiary.basis ?? '',
       })
     }
     if (Object.keys(existing.product_fields).length) {
@@ -450,6 +493,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       if (!collateral.description.trim()) errors['collateral.description'] = 'Опишите залог'
       const value = parseNumber(collateral.declaredValue)
       if (!(value > 0)) errors['collateral.declared_value'] = 'Укажите стоимость залога'
+      if (collateral.owner === 'third_party') Object.assign(errors, thirdPartyProblems(collateral.ownerParty, 'collateral.owner_party'))
     }
     if (withFields.value) Object.assign(errors, validateFieldValues(product.value.fieldsSchema, productFields.value))
     for (const slot of documents.value) {
@@ -464,6 +508,12 @@ export function useApplicationWizard(products: () => ProductCatalog) {
 
   function consentsProblems(): Record<string, string> {
     const errors: Record<string, string> = {}
+    // Вопрос о третьем лице стоит над согласиями — и в списке пропусков он первым
+    if (beneficiary.acts === null) errors['beneficiary.acts_for_third_party'] = 'Ответьте на вопрос'
+    else if (beneficiary.acts) {
+      Object.assign(errors, thirdPartyProblems(beneficiary.party, 'beneficiary.beneficiary'))
+      if (!beneficiary.basis) errors['beneficiary.basis'] = 'Выберите основание'
+    }
     if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
     if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'
     return errors
@@ -515,6 +565,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
           description: collateral.description.trim(),
           declared_value: parseNumber(collateral.declaredValue),
           owner: collateral.owner,
+          // При owner = self владельца не передаём — бэкенд вернёт ошибку
+          ...(collateral.owner === 'third_party' && { owner_party: toThirdPartyInput(collateral.ownerParty) }),
         }
       } else if (application.value?.collateral) {
         input.collateral = null
@@ -531,6 +583,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     await run(async () => {
       // Уже данные согласия бэкенд не перезаписывает: момент и ссылка на профиль сохраняются
       await patch({
+        beneficiary: toBeneficiaryInput(beneficiary),
         consents: { personal_data: true, credit_bureau: true, automated_decision: isEntrepreneur.value && consents.automatedDecision },
       })
       // Согласие руководителя — до подачи: проверка данных банком начнётся сразу после неё
@@ -601,6 +654,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     organization,
     terms,
     collateral,
+    beneficiary,
     productFields,
     consents,
     isEntrepreneur,

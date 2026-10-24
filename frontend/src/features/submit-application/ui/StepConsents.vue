@@ -7,10 +7,12 @@ import { formatDate, formatMoney, formatPercent, formatTerm } from '@/shared/lib
 import { CheckboxField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
+import BeneficiaryQuestion from './BeneficiaryQuestion.vue'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
 
-const { terms, organization, product, consents, isEntrepreneur, headConsent, documents, fieldErrors, application } = props.wizard
+const { terms, organization, product, consents, beneficiary, isEntrepreneur, headConsent, documents, fieldErrors, application } =
+  props.wizard
 
 /** Согласие взято из профиля — когда его дали там, чтобы клиент видел, откуда галочка */
 const fromProfile = (kind: 'personal_data' | 'credit_bureau') => {
@@ -52,6 +54,8 @@ const summary = computed(() => [
         <dd class="text-right font-semibold text-ink">{{ row.value }}</dd>
       </div>
     </dl>
+
+    <BeneficiaryQuestion :beneficiary="beneficiary" :errors="fieldErrors" />
 
     <!-- Тексты согласий — по docs/personal-data.md: что обрабатываем, зачем, как отозвать -->
     <div class="space-y-4">
