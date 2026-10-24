@@ -4,11 +4,15 @@
 `config/scorecard_v1.yaml`, сегменты, бины, WoE, калибровка и шкала A–J действующей модели — в
 `config/pd_model_v2.yaml`. Файлы проверяются при старте; невалидный YAML (нет признака, бина,
 бины с дыркой или не то число) → `ScorecardConfigError`, и приложение не стартует — лучше сразу,
-чем молча посчитать не так.
+чем молча посчитать не так. Версии PD-модели, которые ведёт админ (`scoring_model_versions`),
+проверяются той же `parse_pd_model`: ошибка — 422 со списком проблем.
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
@@ -17,7 +21,14 @@ from typing import Any, get_args
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from src.core.exceptions.exceptions import ValidationError as AppValidationError
 from src.modules.enrichment.facade import Source
+from src.modules.scoring.application.model_versions import (
+    FeatureInfo,
+    ModelCatalog,
+    ModelDocuments,
+)
+from src.modules.scoring.application.ports import ScoringModel
 from src.modules.scoring.domain.client_features import FeatureStorePolicy
 from src.modules.scoring.domain.features import FEATURES
 from src.modules.scoring.domain.model import Grade, Segment
@@ -278,9 +289,15 @@ def default_feature_store() -> FeatureStorePolicy:
 
 
 # --- PD-модель ---------------------------------------------------------------------------------
+#
+# Один документ — и в YAML, и в версии админа в БД (`scoring_model_versions.body`): проверка одна
+# (`parse_pd_model`). Ошибки собираются списком `{path, message}`: при старте — исключение с
+# ними в тексте, в API — 422 со списком.
 
-_SEGMENTS: frozenset[Segment] = frozenset({"legal_entity", "entrepreneur", "new_client"})
+_SEGMENTS: tuple[Segment, ...] = ("legal_entity", "entrepreneur", "new_client")
 _PD_GRADES: tuple[Grade, ...] = ("A", "B", "C", "D", "E", "F", "G", "H", "I")
+_WORST_GRADE: Grade = "J"
+_INDUSTRY_SECTIONS = ("low", "high")
 # Категории, которые отдают признаки (features.py): у каждой должен быть бин.
 _CATEGORIES: dict[str, frozenset[str]] = {
     "bureau_overdue": frozenset({"thin"}),
@@ -294,6 +311,22 @@ _NUMERIC = frozenset(FEATURES) - {"tax_arrears", "industry_risk", "verification"
 _REQUIRED_FEATURES = frozenset(
     {"business_age", "debt_load", "bureau_overdue", "amount_to_revenue", "collateral_coverage"}
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ModelProblem:
+    """Что не так в документе модели: путь до места (`scorecards.legal_entity.…`) и текст."""
+
+    path: str
+    message: str
+
+
+class PdModelError(ScorecardConfigError):
+    """Документ PD-модели не прошёл проверку; `problems` — всё, что нашлось."""
+
+    def __init__(self, message: str, problems: list[ModelProblem]) -> None:
+        super().__init__(message)
+        self.problems = problems
 
 
 class _Bin(BaseModel):
@@ -358,15 +391,125 @@ def load_pd_model(name: str = _DEFAULT_MODEL) -> PdModel:
 
 
 def load_pd_model_file(path: Path) -> PdModel:
+    return parse_pd_model(_read_model(path), str(path))
+
+
+def parse_pd_model(raw: Any, where: str) -> PdModel:
+    """Документ модели (YAML или версия из БД) → модель; не прошёл проверку — `PdModelError`."""
+    return _compile(_validated(raw, where))
+
+
+def normalize_pd_model(raw: Any, where: str) -> dict[str, Any]:
+    """Проверенный документ в каноническом виде для БД и API: Decimal строками, признаки — в
+    порядке `FEATURES`, пустые поля опущены."""
+    schema = _validated(raw, where)
+    for card in schema.scorecards.values():
+        card.features = dict(
+            sorted(card.features.items(), key=lambda item: _feature_order(item[0]))
+        )
+    return schema.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+@lru_cache(maxsize=4)
+def _builtin_body(name: str) -> str:
+    path = _CONFIG_DIR / f"{name}.yaml"
+    return json.dumps(normalize_pd_model(_read_model(path), str(path)), ensure_ascii=False)
+
+
+def builtin_pd_model_body(name: str = _DEFAULT_MODEL) -> dict[str, Any]:
+    """Документ встроенной модели из YAML — каждый раз свежая копия, её можно править."""
+    body: dict[str, Any] = json.loads(_builtin_body(name))
+    return body
+
+
+@lru_cache(maxsize=4)
+def default_model() -> PdModel:
+    """Встроенная модель, загружается один раз на процесс. Действует, пока админ не
+    активировал свою версию (`scoring_model_versions`)."""
+    return load_pd_model()
+
+
+def pd_model_catalog() -> ModelCatalog:
+    """Из чего собирается документ модели: что проверяет `parse_pd_model`, для редактора."""
+    return ModelCatalog(
+        builtin=_DEFAULT_MODEL,
+        segments=_SEGMENTS,
+        features=tuple(
+            FeatureInfo(
+                code=code,
+                kind="numeric" if code in _NUMERIC else "categorical",
+                categories=tuple(sorted(_CATEGORIES.get(code, frozenset()))),
+                required=code in _REQUIRED_FEATURES,
+            )
+            for code in FEATURES
+        ),
+        grades=_PD_GRADES,
+        worst_grade=_WORST_GRADE,
+        industry_sections=_INDUSTRY_SECTIONS,
+    )
+
+
+class PdModelDocuments(ModelDocuments):
+    """Документы PD-модели для реестра версий: встроенная модель, проверка и сборка. Ошибка
+    проверки — 422 со списком `{path, message}`."""
+
+    @property
+    def builtin_version(self) -> str:
+        return default_model().version
+
+    def builtin_body(self) -> dict[str, Any]:
+        return builtin_pd_model_body()
+
+    def builtin_model(self) -> ScoringModel:
+        return default_model()
+
+    def normalize(self, body: Mapping[str, Any], version: str) -> dict[str, Any]:
+        try:
+            return normalize_pd_model(dict(body), version)
+        except PdModelError as exc:
+            raise _invalid(exc) from None
+
+    def compile(self, body: Mapping[str, Any], version: str) -> ScoringModel:
+        try:
+            return parse_pd_model(dict(body), version)
+        except PdModelError as exc:
+            raise _invalid(exc) from None
+
+    def catalog(self) -> ModelCatalog:
+        return pd_model_catalog()
+
+
+def _invalid(exc: PdModelError) -> AppValidationError:
+    return AppValidationError(
+        "PD model is invalid",
+        details={"errors": [{"path": p.path, "message": p.message} for p in exc.problems]},
+    )
+
+
+def _read_model(path: Path) -> Any:
     try:
-        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise ScorecardConfigError(f"Не удалось прочитать модель {path}: {exc}") from exc
+
+
+def _validated(raw: Any, where: str) -> _ModelSchema:
     try:
         schema = _ModelSchema.model_validate(raw)
     except ValidationError as exc:
-        raise ScorecardConfigError(f"Модель {path} не прошла схему: {exc}") from exc
-    _check_model(schema, path)
+        problems = [
+            ModelProblem(".".join(str(part) for part in error["loc"]), error["msg"])
+            for error in exc.errors()
+        ]
+        raise PdModelError(f"Модель {where} не прошла схему: {exc}", problems) from exc
+    problems = _check_model(schema)
+    if problems:
+        listed = "; ".join(f"{p.path}: {p.message}" for p in problems)
+        raise PdModelError(f"Модель {where}: {listed}", problems)
+    return schema
+
+
+def _compile(schema: _ModelSchema) -> PdModel:
     return PdModel(
         PdModelConfig(
             version=schema.version,
@@ -383,13 +526,14 @@ def load_pd_model_file(path: Path) -> PdModel:
     )
 
 
-@lru_cache(maxsize=4)
-def default_model() -> PdModel:
-    """Действующая модель, загружается один раз на процесс."""
-    return load_pd_model()
+def _feature_order(code: str) -> int:
+    return FEATURES.index(code) if code in FEATURES else len(FEATURES)
 
 
 def _card(card: _Card) -> ScorecardSpec:
+    # Порядок признаков — порядок FEATURES, а не документа: JSONB в Postgres ключи переставляет,
+    # а от порядка зависят факторы в ответе и выбор кодов причин при равной потере.
+    features = sorted(card.features.items(), key=lambda item: _feature_order(item[0]))
     return ScorecardSpec(
         code=card.code,
         base=card.base,
@@ -408,58 +552,72 @@ def _card(card: _Card) -> ScorecardSpec:
                 cap=feature.cap,
                 optional=feature.optional,
             )
-            for code, feature in card.features.items()
+            for code, feature in features
         ),
     )
 
 
-def _check_model(schema: _ModelSchema, path: Path) -> None:
-    if set(schema.scorecards) != _SEGMENTS:
-        raise ScorecardConfigError(f"Модель {path}: нужны скоркарты сегментов {sorted(_SEGMENTS)}")
+def _check_model(schema: _ModelSchema) -> list[ModelProblem]:
+    problems: list[ModelProblem] = []
+    if set(schema.scorecards) != set(_SEGMENTS):
+        problems.append(
+            ModelProblem("scorecards", f"нужны скоркарты сегментов {sorted(_SEGMENTS)}")
+        )
     if set(schema.grades) != set(_PD_GRADES):
-        raise ScorecardConfigError(f"Модель {path}: нужны границы PD грейдов {list(_PD_GRADES)}")
-    bounds = [schema.grades[grade] for grade in _PD_GRADES]
-    if any(low >= high for low, high in zip(bounds, bounds[1:], strict=False)) or not (
-        0 < bounds[0] and bounds[-1] < 1
-    ):
-        raise ScorecardConfigError(f"Модель {path}: границы PD грейдов должны расти в (0; 1)")
-    for section in ("low", "high"):
+        problems.append(ModelProblem("grades", f"нужны границы PD грейдов {list(_PD_GRADES)}"))
+    else:
+        bounds = [schema.grades[grade] for grade in _PD_GRADES]
+        if any(low >= high for low, high in zip(bounds, bounds[1:], strict=False)) or not (
+            0 < bounds[0] and bounds[-1] < 1
+        ):
+            problems.append(ModelProblem("grades", "границы PD грейдов должны расти в (0; 1)"))
+    for section in _INDUSTRY_SECTIONS:
         if section not in schema.industry_sections:
-            raise ScorecardConfigError(f"Модель {path}: нет секции industry_sections.{section}")
+            problems.append(
+                ModelProblem(f"industry_sections.{section}", "нет секции отраслевого риска")
+            )
     for segment, card in schema.scorecards.items():
-        where = f"Модель {path}, скоркарта {segment}"
+        where = f"scorecards.{segment}.features"
         unknown = set(card.features) - set(FEATURES)
         if unknown:
-            raise ScorecardConfigError(f"{where}: неизвестные признаки {sorted(unknown)}")
+            problems.append(ModelProblem(where, f"неизвестные признаки {sorted(unknown)}"))
         missing = _REQUIRED_FEATURES - set(card.features)
         if missing:
-            raise ScorecardConfigError(f"{where}: нет признаков {sorted(missing)}")
+            problems.append(ModelProblem(where, f"нет признаков {sorted(missing)}"))
         for code, feature in card.features.items():
-            _check_bins(f"{where}, признак {code!r}", code, feature)
+            if code in FEATURES:
+                problems += _check_bins(f"{where}.{code}", code, feature)
+    return problems
 
 
-def _check_bins(where: str, code: str, feature: _Feature) -> None:
+def _check_bins(where: str, code: str, feature: _Feature) -> list[ModelProblem]:
+    path = f"{where}.bins"
     categories = {b.category for b in feature.bins if b.category is not None}
     lacking = _CATEGORIES.get(code, frozenset()) - categories
+    problems: list[ModelProblem] = []
     if lacking:
-        raise ScorecardConfigError(f"{where}: нет бинов категорий {sorted(lacking)}")
+        problems.append(ModelProblem(path, f"нет бинов категорий {sorted(lacking)}"))
     numeric = sorted(
         (b for b in feature.bins if b.category is None),
         key=lambda b: b.lower if b.lower is not None else Decimal("-Infinity"),
     )
     if code not in _NUMERIC:
         if numeric:
-            raise ScorecardConfigError(f"{where}: у категориального признака интервальные бины")
-        return
+            problems.append(ModelProblem(path, "у категориального признака интервальные бины"))
+        return problems
     if not numeric:
-        raise ScorecardConfigError(f"{where}: нет интервальных бинов")
+        problems.append(ModelProblem(path, "нет интервальных бинов"))
+        return problems
     first, last = numeric[0], numeric[-1]
     if first.lower is not None and (feature.floor is None or first.lower > feature.floor):
-        raise ScorecardConfigError(f"{where}: бины не покрывают значения ниже {first.lower}")
+        problems.append(ModelProblem(path, f"бины не покрывают значения ниже {first.lower}"))
     if last.upper is not None and (feature.cap is None or last.upper <= feature.cap):
-        raise ScorecardConfigError(f"{where}: бины не покрывают значения от {last.upper}")
+        problems.append(ModelProblem(path, f"бины не покрывают значения от {last.upper}"))
     for left, right in zip(numeric, numeric[1:], strict=False):
         if left.upper is None or left.upper != right.lower:
-            raise ScorecardConfigError(
-                f"{where}: дырка или перекрытие бинов между {left.label!r} и {right.label!r}"
+            problems.append(
+                ModelProblem(
+                    path, f"дырка или перекрытие бинов между {left.label!r} и {right.label!r}"
+                )
             )
+    return problems

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.exceptions.exceptions import ConflictError, NotFoundError
 from src.modules.scoring.application.serialization import (
     dump_client_features,
     load_client_features,
@@ -23,8 +25,13 @@ from src.modules.scoring.domain.model import (
     ScoringResult,
     Segment,
 )
+from src.modules.scoring.domain.model_version import ModelStatus, ModelVersion
 from src.modules.scoring.domain.quality import QualityLevel
-from src.modules.scoring.infrastructure.models import FeatureSnapshotRecord, ScoringResultRecord
+from src.modules.scoring.infrastructure.models import (
+    FeatureSnapshotRecord,
+    ScoringModelVersionRecord,
+    ScoringResultRecord,
+)
 
 
 class SqlAlchemyScoringRepository:
@@ -50,6 +57,123 @@ class SqlAlchemyScoringRepository:
         )
         record = (await self._session.scalars(stmt)).first()
         return _to_domain(record) if record is not None else None
+
+    async def recent_pd_inputs(self, limit: int) -> list[tuple[ScoringResult, dict[str, Any]]]:
+        """Последний результат PD-модели по каждой из `limit` самых свежих заявок со снимком
+        входа: пересчёт той же заявки не считается дважды. scorecard_v1 (без PD) не берём."""
+        has_pd = ScoringResultRecord.pd_12m.is_not(None)
+        latest = (
+            select(
+                ScoringResultRecord.application_id,
+                func.max(ScoringResultRecord.computed_at).label("computed_at"),
+            )
+            .where(has_pd)
+            .group_by(ScoringResultRecord.application_id)
+            .subquery()
+        )
+        stmt = (
+            select(ScoringResultRecord)
+            .join(
+                latest,
+                (ScoringResultRecord.application_id == latest.c.application_id)
+                & (ScoringResultRecord.computed_at == latest.c.computed_at),
+            )
+            .where(has_pd)
+            .order_by(ScoringResultRecord.computed_at.desc(), ScoringResultRecord.id)
+            .limit(limit)
+        )
+        seen: set[UUID] = set()
+        recent: list[tuple[ScoringResult, dict[str, Any]]] = []
+        for record in (await self._session.scalars(stmt)).all():
+            if record.application_id not in seen:
+                seen.add(record.application_id)
+                recent.append((_to_domain(record), record.input_snapshot))
+        return recent
+
+
+class SqlAlchemyModelVersionRepository:
+    """Версии PD-модели админа. Активной бывает одна (частичный уникальный индекс): гонку двух
+    активаций проигравший получает как 409."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_all(self) -> list[ModelVersion]:
+        stmt = select(ScoringModelVersionRecord).order_by(
+            ScoringModelVersionRecord.created_at, ScoringModelVersionRecord.version
+        )
+        return [_version_to_domain(r) for r in (await self._session.scalars(stmt)).all()]
+
+    async def get(self, version: str) -> ModelVersion | None:
+        record = await self._session.get(ScoringModelVersionRecord, version)
+        return _version_to_domain(record) if record is not None else None
+
+    async def codes(self) -> list[str]:
+        return list((await self._session.scalars(select(ScoringModelVersionRecord.version))).all())
+
+    async def active_version(self) -> str | None:
+        stmt = select(ScoringModelVersionRecord.version).where(
+            ScoringModelVersionRecord.status == "active"
+        )
+        return (await self._session.scalars(stmt)).one_or_none()
+
+    async def add(self, version: ModelVersion) -> None:
+        self._session.add(
+            ScoringModelVersionRecord(
+                version=version.version,
+                status=version.status,
+                body=version.body,
+                based_on=version.based_on,
+                comment=version.comment,
+                created_by=version.created_by,
+                created_at=version.created_at,
+                updated_at=version.updated_at,
+                activated_by=version.activated_by,
+                activated_at=version.activated_at,
+            )
+        )
+        await self._flush(version.version)
+
+    async def save(self, version: ModelVersion) -> None:
+        record = await self._session.get(ScoringModelVersionRecord, version.version)
+        if record is None:
+            raise NotFoundError("Model version not found", details={"version": version.version})
+        record.status = version.status
+        record.body = version.body
+        record.comment = version.comment
+        record.updated_at = cast(datetime, version.updated_at)
+        record.activated_by = version.activated_by
+        record.activated_at = version.activated_at
+        await self._flush(version.version)
+
+    async def delete(self, version: str) -> None:
+        await self._session.execute(
+            delete(ScoringModelVersionRecord).where(ScoringModelVersionRecord.version == version)
+        )
+        await self._session.flush()
+
+    async def _flush(self, version: str) -> None:
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "Model version changed concurrently", details={"version": version}
+            ) from exc
+
+
+def _version_to_domain(record: ScoringModelVersionRecord) -> ModelVersion:
+    return ModelVersion(
+        version=record.version,
+        status=cast(ModelStatus, record.status),
+        body=record.body,
+        based_on=record.based_on,
+        comment=record.comment,
+        created_by=record.created_by,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        activated_by=record.activated_by,
+        activated_at=record.activated_at,
+    )
 
 
 class SqlAlchemyFeatureSnapshotRepository:

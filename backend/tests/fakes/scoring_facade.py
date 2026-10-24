@@ -84,7 +84,9 @@ class FakeScoringFacade:
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None:
         return self.results.get(application_id)
 
-    def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
+    async def estimate(
+        self, company: CompanyProfileDTO, amount: Decimal | None = None
+    ) -> EstimateDTO:
         self.estimate_calls.append(company)
         return self.default_estimate
 

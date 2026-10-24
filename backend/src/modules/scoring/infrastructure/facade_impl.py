@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain.clock import Clock, SystemClock
 from src.modules.enrichment.facade import CreditHistoryDTO
-from src.modules.scoring.application.ports import ScoringModel
+from src.modules.scoring.application.model_versions import ModelProvider
 from src.modules.scoring.domain.model import (
     BureauInput,
     CashflowInput,
@@ -34,7 +34,10 @@ from src.modules.scoring.facade import (
     ScoringResultDTO,
 )
 from src.modules.scoring.infrastructure.config_loader import default_prescreen, default_project
-from src.modules.scoring.infrastructure.repository import SqlAlchemyScoringRepository
+from src.modules.scoring.infrastructure.repository import (
+    SqlAlchemyModelVersionRepository,
+    SqlAlchemyScoringRepository,
+)
 
 # Предодобрение оценивает компанию без заявки: номинальные параметры запроса и
 # чистая кредитная история по умолчанию (оценка ориентировочная, не решение).
@@ -44,18 +47,20 @@ _ESTIMATE_RATE_BASE = Decimal("21.5")
 
 class ScoringFacadeImpl:
     """Чтение результата для decision/bff, быстрый estimate для предодобрения, предскрин
-    учредителя стартапа и проектная оценка стартапа."""
+    учредителя стартапа и проектная оценка стартапа. Estimate считает действующей версией
+    модели: активной версией админа или встроенной."""
 
     def __init__(
         self,
         session: AsyncSession,
-        scorecard: ScoringModel,
+        models: ModelProvider,
         prescreen: FounderPrescreen | None = None,
         clock: Clock | None = None,
         project: ProjectAssessment | None = None,
     ) -> None:
         self._repo = SqlAlchemyScoringRepository(session)
-        self._scorecard = scorecard
+        self._versions = SqlAlchemyModelVersionRepository(session)
+        self._models = models
         self._prescreen = prescreen or default_prescreen()
         self._clock = clock or SystemClock()
         self._project = project or default_project()
@@ -130,7 +135,9 @@ class ScoringFacadeImpl:
             ml_not_applicable=result.ml_not_applicable,
         )
 
-    def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
+    async def estimate(
+        self, company: CompanyProfileDTO, amount: Decimal | None = None
+    ) -> EstimateDTO:
         scoring_input = ScoringInput(
             request=RequestInput(
                 amount=amount or Decimal(0),
@@ -169,7 +176,8 @@ class ScoringFacadeImpl:
             sources_failed=(),
             as_of=self._clock.now().date(),
         )
-        output = self._scorecard.calculate(scoring_input)
+        model = await self._models.active(self._versions)
+        output = model.calculate(scoring_input)
         return EstimateDTO(
             score=output.score,
             grade=output.grade,
