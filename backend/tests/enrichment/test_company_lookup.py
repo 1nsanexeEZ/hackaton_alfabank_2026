@@ -63,6 +63,7 @@ class _Mocks:
             zsk=unused,  # type: ignore[arg-type]
             bank_stop_list=BankStopListHttpSource(client, backoff=()),
             bank_turnover=unused,  # type: ignore[arg-type]
+            licenses=unused,  # type: ignore[arg-type]
         )
         registry = LookupRegistryUseCase(sources.registry, cache or InMemoryRegistryCache())
         return LookupCompanyUseCase(registry, sources)
