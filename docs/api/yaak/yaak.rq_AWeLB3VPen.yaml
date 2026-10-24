@@ -1,0 +1,34 @@
+type: http_request
+model: http_request
+id: rq_AWeLB3VPen
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Черновик модели
+description: |-
+  A draft copied from any version, under the next number: `pd_model_v2.1`,
+  `pd_model_v2.2`… 404 — no such version.
+
+  Копия встроенной модели `pd_model_v2`: отсюда `model_version` справочника (`pd_model_v2.1`, `pd_model_v2.2`…), с ним работают запросы папки.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/scoring/models
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "based_on": "pd_model_v2",
+      "comment": "Черновик из коллекции Yaak"
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

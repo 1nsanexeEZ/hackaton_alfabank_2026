@@ -27,6 +27,11 @@ FOLDERS: list[tuple[str, str, str]] = [
     ("contracts", "Договор: правила и проверка", "Правила ЭП и публичная проверка договора."),
     ("process", "Процесс и задачи", "BPMN-процессы и задачи андеррайтера."),
     ("decision", "Предодобрение и стартапы", "Предодобрения, проверка учредителя, проект."),
+    (
+        "scoring",
+        "Модель скоринга",
+        "Версии PD-модели: черновик, правка, примерка на прошлых заявках, активация и откат.",
+    ),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
     ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
     ("bff", "BFF клиента", "Экраны кабинета клиента одним запросом."),
@@ -143,6 +148,14 @@ NAMES: dict[str, str] = {
     "GET /bff/backoffice/queue": "Очередь андеррайтера",
     "GET /bff/backoffice/applications/{application_id}": "Карточка андеррайтера",
     "GET /bff/backoffice/metrics": "Метрики бэк-офиса",
+    "GET /scoring/models": "Версии PD-модели",
+    "GET /scoring/models/catalog": "Из чего собирается модель",
+    "GET /scoring/models/{version}": "Версия модели с документом",
+    "POST /scoring/models": "Черновик модели",
+    "PUT /scoring/models/{version}": "Править черновик модели",
+    "DELETE /scoring/models/{version}": "Удалить черновик модели",
+    "POST /scoring/models/{version}/activate": "Активировать версию модели",
+    "POST /scoring/models/{version}/preview": "Примерить версию на прошлых заявках",
     "GET /health": "Сервис жив",
     "GET /ready": "Сервис готов (БД, Kafka)",
 }
@@ -158,6 +171,13 @@ _CATALOG_KEEPING = {
     ("post", "/products/{code}/activate"),
 }
 YAAK_PRODUCT = "YAAK_DEMO"
+# Keeping the versions of the PD model: the admin works on a draft of its own.
+_MODEL_KEEPING = {
+    ("post", "/scoring/models"),
+    ("put", "/scoring/models/{version}"),
+    ("delete", "/scoring/models/{version}"),
+    ("post", "/scoring/models/{version}/activate"),
+}
 # Changes the demo data in a way the scenarios notice.
 _CAREFUL = (
     "Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, "
@@ -249,6 +269,25 @@ NOTES: dict[str, str] = {
     ),
     "POST /support/queue/{ticket_id}/messages": (
         "Сначала «Взять обращение»: в невзятое — 409 `not_taken`."
+    ),
+    "POST /scoring/models": (
+        "Копия встроенной модели `pd_model_v2`: отсюда `model_version` справочника "
+        "(`pd_model_v2.1`, `pd_model_v2.2`…), с ним работают запросы папки."
+    ),
+    "PUT /scoring/models/{version}": (
+        "Документ черновика как есть, из «Версия модели с документом»: поменяйте баллы или "
+        "границы и отправьте. Дырявые бины — 422 со списком `{path, message}`."
+    ),
+    "POST /scoring/models/{version}/activate": (
+        "С этого момента новые заявки и предодобрения считаются этой версией. Вернуть "
+        "встроенную — тот же запрос с `pd_model_v2` вместо версии черновика."
+    ),
+    "DELETE /scoring/models/{version}": (
+        "Удаляется только черновик: после «Активировать версию модели» — 409 `invalid_transition`."
+    ),
+    "POST /scoring/models/{version}/preview": (
+        "Под андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой "
+        "версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки."
     ),
 }
 
@@ -404,6 +443,15 @@ def _bodies() -> dict[str, Any]:
         "POST /support/queue/{ticket_id}/messages": {
             "text": "Здравствуйте! Да, за месяц до конца срока придёт предложение продлить.",
         },
+        "POST /scoring/models": {
+            "based_on": "pd_model_v2",
+            "comment": "Черновик из коллекции Yaak",
+        },
+        # The document of the draft as it is: the admin changes points or bounds in it.
+        "PUT /scoring/models/{version}": {
+            "body": Raw(answer(ref("GET", "/scoring/models/{version}"), "$.body")),
+            "comment": "Правка из коллекции Yaak",
+        },
     }
 
 
@@ -433,14 +481,21 @@ def reference_variables() -> dict[str, str]:
             ref("GET", "/applications/{application_id}/contract"), "$.document.id"
         ),
         "ticket_id": answer(ref("POST", "/support/tickets"), "$.id"),
+        "model_version": answer(ref("POST", "/scoring/models"), "$.version"),
     }
 
 
 def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
     if not operation.get("security"):
         return None
-    if path.startswith(("/accounts", "/roles")) or (method, path) in _CATALOG_KEEPING:
+    if (
+        path.startswith(("/accounts", "/roles"))
+        or (method, path) in _CATALOG_KEEPING
+        or (method, path) in _MODEL_KEEPING
+    ):
         return "admin"
+    if path.startswith("/scoring/models"):
+        return "underwriter"
     if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice", "/support/queue")):
         return "underwriter"
     if (method, path) in {("get", "/organizations"), ("post", "/organizations/inn-check")}:
@@ -477,6 +532,8 @@ def _path_value(method: str, path: str, param: str) -> str:
         return YAAK_PRODUCT if (method, path) in _CATALOG_KEEPING else "UNSECURED"
     if param == "type":
         return "credit_bureau_company" if path.startswith("/organizations") else "personal_data"
+    if param == "version":
+        return var("model_version")
     return var(param)
 
 

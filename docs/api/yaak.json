@@ -464,6 +464,11 @@
             "enabled": true,
             "name": "ticket_id",
             "value": "${[ response.body.path(request='rq_a0Fuaxyc7Z', behavior='smart', path='$.id') ]}"
+          },
+          {
+            "enabled": true,
+            "name": "model_version",
+            "value": "${[ response.body.path(request='rq_AWeLB3VPen', behavior='smart', path='$.version') ]}"
           }
         ],
         "color": null,
@@ -761,12 +766,25 @@
       },
       {
         "model": "folder",
+        "id": "fl_tEgk2X6Glx",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_LRnXWnQzgy",
+        "name": "Модель скоринга",
+        "description": "Версии PD-модели: черновик, правка, примерка на прошлых заявках, активация и откат.",
+        "sortPriority": 10000.0,
+        "authenticationType": null,
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "folder",
         "id": "fl_5ZqWLZjg9B",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "Лента и новости",
         "description": "События по заявкам, поток SSE, персональные новости.",
-        "sortPriority": 10000.0,
+        "sortPriority": 11000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -779,7 +797,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Техподдержка",
         "description": "Обращения клиента, очередь сотрудников, взятие и переписка.",
-        "sortPriority": 11000.0,
+        "sortPriority": 12000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -792,7 +810,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF клиента",
         "description": "Экраны кабинета клиента одним запросом.",
-        "sortPriority": 12000.0,
+        "sortPriority": 13000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -805,7 +823,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF бэк-офиса",
         "description": "Очередь, карточка андеррайтера, метрики.",
-        "sortPriority": 13000.0,
+        "sortPriority": 14000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -818,7 +836,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Администрирование",
         "description": "Аккаунты и роли: создаём свои и на них пробуем.",
-        "sortPriority": 14000.0,
+        "sortPriority": 15000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -8993,6 +9011,205 @@
       },
       {
         "model": "http_request",
+        "id": "rq_ModVPWvQHO",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Версии PD-модели",
+        "description": "The built-in model first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/scoring/models",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 1000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_AWeLB3VPen",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Черновик модели",
+        "description": "A draft copied from any version, under the next number: `pd_model_v2.1`,\n`pd_model_v2.2`… 404 — no such version.\n\nКопия встроенной модели `pd_model_v2`: отсюда `model_version` справочника (`pd_model_v2.1`, `pd_model_v2.2`…), с ним работают запросы папки.\n\nТокен: администратор.",
+        "method": "POST",
+        "url": "${[ base_url ]}/scoring/models",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"based_on\": \"pd_model_v2\",\n  \"comment\": \"Черновик из коллекции Yaak\"\n}"
+        },
+        "sortPriority": 2000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_NV4PbXDzlt",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Из чего собирается модель",
+        "description": "What a model document is made of: segments, features (numeric or categorical,\nthe categories that need a bin, required ones) and the grade scale.\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/scoring/models/catalog",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_IWBFIkg758",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Версия модели с документом",
+        "description": "A version with its document (`body`), the same as the YAML file.\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/scoring/models/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 4000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_6iTYiprFDR",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Править черновик модели",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}`. Not a\ndraft — 409 `invalid_transition`.\n\nДокумент черновика как есть, из «Версия модели с документом»: поменяйте баллы или границы и отправьте. Дырявые бины — 422 со списком `{path, message}`.\n\nТокен: администратор.",
+        "method": "PUT",
+        "url": "${[ base_url ]}/scoring/models/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"body\": ${[ response.body.path(request='rq_IWBFIkg758', behavior='smart', path='$.body') ]},\n  \"comment\": \"Правка из коллекции Yaak\"\n}"
+        },
+        "sortPriority": 5000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Wy6IvuTBqN",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Активировать версию модели",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML model is in force again. Already active — 409 `invalid_transition`.\nNew applications and pre-approvals are scored by it; old results keep their\n`model_version`.\n\nС этого момента новые заявки и предодобрения считаются этой версией. Вернуть встроенную — тот же запрос с `pd_model_v2` вместо версии черновика.\n\nТокен: администратор.",
+        "method": "POST",
+        "url": "${[ base_url ]}/scoring/models/:version/activate",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 6000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_QnNW7a1DWd",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Примерить версию на прошлых заявках",
+        "description": "The latest `limit` applications scored by the PD model, scored again by this\nversion from their stored input: score, PD, grade and segment before and after, and\nhow the grades moved. Nothing is written. scorecard_v1 results (no PD, grades A–E)\nare left out.\n\nПод андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/scoring/models/:version/preview",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          },
+          {
+            "enabled": false,
+            "name": "limit",
+            "value": "20"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 7000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_vnolUEXUfL",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_gUp5OBYSWR",
@@ -10296,6 +10513,34 @@
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_505SNtU82g",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tEgk2X6Glx",
+        "name": "Удалить черновик модели",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: results\nwere scored by it.\n\nУдаляется только черновик: после «Активировать версию модели» — 409 `invalid_transition`.\n\nТокен: администратор.",
+        "method": "DELETE",
+        "url": "${[ base_url ]}/scoring/models/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 8000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
           "prefix": "Bearer"
         },
         "createdAt": "2026-10-24T00:00:00",

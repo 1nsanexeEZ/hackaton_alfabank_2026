@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_tEgk2X6Glx
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Модель скоринга
+description: 'Версии PD-модели: черновик, правка, примерка на прошлых заявках, активация и откат.'
+sortPriority: 10000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -3693,6 +3693,360 @@
         }
       }
     },
+    "/scoring/models": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "List Versions",
+        "description": "The built-in model first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.",
+        "operationId": "list_versions_scoring_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelVersionSummaryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Versions Scoring Models Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Create Draft",
+        "description": "A draft copied from any version, under the next number: `pd_model_v2.1`,\n`pd_model_v2.2`… 404 — no such version.",
+        "operationId": "create_draft_scoring_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/scoring/models/catalog": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Get Catalog",
+        "description": "What a model document is made of: segments, features (numeric or categorical,\nthe categories that need a bin, required ones) and the grade scale.",
+        "operationId": "get_catalog_scoring_models_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelCatalogRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/scoring/models/{version}": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Get Version",
+        "description": "A version with its document (`body`), the same as the YAML file.",
+        "operationId": "get_version_scoring_models__version__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Update Draft",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}`. Not a\ndraft — 409 `invalid_transition`.",
+        "operationId": "update_draft_scoring_models__version__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Delete Draft",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: results\nwere scored by it.",
+        "operationId": "delete_draft_scoring_models__version__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scoring/models/{version}/activate": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Activate Version",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML model is in force again. Already active — 409 `invalid_transition`.\nNew applications and pre-approvals are scored by it; old results keep their\n`model_version`.",
+        "operationId": "activate_version_scoring_models__version__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scoring/models/{version}/preview": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Preview Version",
+        "description": "The latest `limit` applications scored by the PD model, scored again by this\nversion from their stored input: score, PD, grade and segment before and after, and\nhow the grades moved. Nothing is written. scorecard_v1 results (no PD, grades A–E)\nare left out.",
+        "operationId": "preview_version_scoring_models__version__preview_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizations/{organization_id}/pre-approved-offers": {
       "get": {
         "tags": [
@@ -10547,6 +10901,64 @@
         ],
         "title": "DownloadOut"
       },
+      "DraftCreate": {
+        "properties": {
+          "based_on": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Based On",
+            "description": "Версия, которую копируем"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "based_on"
+        ],
+        "title": "DraftCreate"
+      },
+      "DraftUpdate": {
+        "properties": {
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ целиком; `version` внутри заменяется кодом версии"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment",
+            "description": "Не прислали — остаётся прежний"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "DraftUpdate"
+      },
       "EligibilityCheckDTO": {
         "properties": {
           "product_code": {
@@ -10878,6 +11290,70 @@
         ],
         "title": "EsignRulesOut"
       },
+      "EstimateRead": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "pd_12m": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pd 12M"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "Grade"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "legal_entity",
+                  "entrepreneur",
+                  "new_client"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "pd_12m",
+          "grade",
+          "segment",
+          "model_version"
+        ],
+        "title": "EstimateRead"
+      },
       "FactorDTO": {
         "properties": {
           "code": {
@@ -10933,6 +11409,44 @@
           "direction"
         ],
         "title": "FactorDTO"
+      },
+      "FeatureInfoRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "numeric",
+              "categorical"
+            ],
+            "title": "Kind",
+            "description": "numeric — интервальные бины [from; to), categorical — бины категорий"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "Категории, у каждой из которых обязан быть бин"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Обязателен в скоркарте каждого сегмента"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "kind",
+          "categories",
+          "required"
+        ],
+        "title": "FeatureInfoRead"
       },
       "Feed": {
         "properties": {
@@ -12015,6 +12529,54 @@
           "sum"
         ],
         "title": "GovContractsDTO"
+      },
+      "GradeShiftRead": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "To"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "count"
+        ],
+        "title": "GradeShiftRead",
+        "description": "Клетка матрицы переходов: столько заявок было в грейде `from` и стало в `to`."
       },
       "HTTPValidationError": {
         "properties": {
@@ -13171,6 +13733,323 @@
         ],
         "title": "MlScoreDTO",
         "description": "The ML model's estimate, computed next to the PD model on the same input and graded\non the same A–J scale, so the underwriter compares the two directly."
+      },
+      "ModelCatalogRead": {
+        "properties": {
+          "builtin": {
+            "type": "string",
+            "title": "Builtin",
+            "description": "Код встроенной модели"
+          },
+          "segments": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "legal_entity",
+                "entrepreneur",
+                "new_client"
+              ]
+            },
+            "type": "array",
+            "title": "Segments",
+            "description": "Скоркарта нужна каждому сегменту"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureInfoRead"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "grades": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Grades",
+            "description": "Грейды с верхней границей PD, по возрастанию"
+          },
+          "worst_grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "Worst Grade",
+            "description": "PD не ниже границы последнего грейда"
+          },
+          "industry_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Industry Sections",
+            "description": "Обязательные секции `industry_sections`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "builtin",
+          "segments",
+          "features",
+          "grades",
+          "worst_grade",
+          "industry_sections"
+        ],
+        "title": "ModelCatalogRead"
+      },
+      "ModelVersionRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`pd_model_v2` — встроенная, `pd_model_v2.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ модели, как pd_model_v2.yaml: сегменты, признаки, бины, WoE и баллы, калибровка, границы грейдов; Decimal — строками"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin",
+          "body"
+        ],
+        "title": "ModelVersionRead"
+      },
+      "ModelVersionSummaryRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`pd_model_v2` — встроенная, `pd_model_v2.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin"
+        ],
+        "title": "ModelVersionSummaryRead"
       },
       "NeedBody": {
         "properties": {
@@ -14431,6 +15310,8 @@
           "tasks.read",
           "tasks.update",
           "decisions.read",
+          "scoring.read",
+          "scoring.update",
           "backoffice.read",
           "feed.read",
           "support.read",
@@ -14954,6 +15835,102 @@
           "expires_at"
         ],
         "title": "PresignedUploadOut"
+      },
+      "PreviewItemRead": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          },
+          "before": {
+            "$ref": "#/components/schemas/EstimateRead",
+            "description": "Как посчитано тогда своей версией модели"
+          },
+          "after": {
+            "$ref": "#/components/schemas/EstimateRead",
+            "description": "Как посчитала бы примеряемая версия"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "result_id",
+          "computed_at",
+          "before",
+          "after"
+        ],
+        "title": "PreviewItemRead"
+      },
+      "PreviewRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Сколько заявок пересчитано"
+          },
+          "same": {
+            "type": "integer",
+            "title": "Same",
+            "description": "Грейд не изменился"
+          },
+          "better": {
+            "type": "integer",
+            "title": "Better",
+            "description": "Грейд стал лучше"
+          },
+          "worse": {
+            "type": "integer",
+            "title": "Worse",
+            "description": "Грейд стал хуже"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Снимок входа не прочитан — заявка пропущена"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/GradeShiftRead"
+            },
+            "type": "array",
+            "title": "Transitions",
+            "description": "Переходы грейдов «было → стало», только непустые"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "total",
+          "same",
+          "better",
+          "worse",
+          "skipped",
+          "transitions",
+          "items"
+        ],
+        "title": "PreviewRead"
       },
       "ProcessOut": {
         "properties": {
