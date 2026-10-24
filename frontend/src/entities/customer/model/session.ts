@@ -13,24 +13,29 @@ const STORAGE_KEY = 'client:session'
 interface StoredSession {
   token: string
   expiresAt: number
+  /** Вошёл кнопкой демо-доступа, пароль не вводил — подпись договора его всё равно спросит */
+  viaDemo?: boolean
 }
 
-const state = reactive<{ token: string | null; expiresAt: number; me: MeDto | null }>({
+const state = reactive<{ token: string | null; expiresAt: number; me: MeDto | null; viaDemo: boolean }>({
   token: null,
   expiresAt: 0,
   me: null,
+  viaDemo: false,
 })
 
 const stored = readStorage<StoredSession>(STORAGE_KEY)
 if (stored && stored.expiresAt > Date.now()) {
   state.token = stored.token
   state.expiresAt = stored.expiresAt
+  state.viaDemo = stored.viaDemo ?? false
 }
 
 function clear() {
   state.token = null
   state.expiresAt = 0
   state.me = null
+  state.viaDemo = false
   writeStorage(STORAGE_KEY, null)
 }
 
@@ -55,9 +60,10 @@ export function customerName(me: Pick<MeDto, 'email' | 'phone' | 'profile'> | nu
   return me.email ?? me.phone ?? 'Клиент'
 }
 
-async function authorize(token: TokenResponse): Promise<MeDto> {
+async function authorize(token: TokenResponse, viaDemo = false): Promise<MeDto> {
   state.token = token.access_token
   state.expiresAt = Date.now() + token.expires_in * 1000
+  state.viaDemo = viaDemo
   try {
     const me = await clientApi.me()
     if (!isClientAccount(me)) {
@@ -68,7 +74,7 @@ async function authorize(token: TokenResponse): Promise<MeDto> {
     clear()
     throw error
   }
-  writeStorage(STORAGE_KEY, { token: state.token, expiresAt: state.expiresAt } satisfies StoredSession)
+  writeStorage(STORAGE_KEY, { token: state.token, expiresAt: state.expiresAt, viaDemo } satisfies StoredSession)
   return state.me
 }
 
@@ -78,7 +84,7 @@ async function login(login: string, password: string): Promise<MeDto> {
 
 /** Вход в демо-учётку без пароля — только на стенде с DEMO_LOGIN_ENABLED=true */
 async function loginWithDemo(login: string): Promise<MeDto> {
-  return authorize(await clientApi.demoLogin(login))
+  return authorize(await clientApi.demoLogin(login), true)
 }
 
 /** Профиль по сохранённому токену; токена нет или он истёк — null, то есть «не вошёл» */

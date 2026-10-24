@@ -22,6 +22,10 @@ const props = defineProps<{
   draftOpened: boolean
   busy: string | null
   formId: string
+  /** Неверный пароль — показываем прямо под полем, а не общим текстом */
+  passwordError: string | null
+  /** Клиент вошёл кнопкой демо-доступа и пароль не вводил */
+  viaDemo: boolean
 }>()
 
 const password = defineModel<string>('password', { required: true })
@@ -127,7 +131,12 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
               label="Подтвердите паролем от кабинета"
               type="password"
               autocomplete="current-password"
-              hint="Подтверждаем, что подписываете именно вы"
+              :error="passwordError ?? undefined"
+              :hint="
+                viaDemo
+                  ? 'Вы вошли через демо-доступ без пароля. Пароль демо-учёток — значение DEMO_PASSWORD из README стенда'
+                  : 'Подтверждаем, что подписываете именно вы'
+              "
             />
           </div>
         </li>

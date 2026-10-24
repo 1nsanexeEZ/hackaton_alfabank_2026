@@ -4,6 +4,7 @@ import { computed, ref, watch, type Component } from 'vue'
 
 import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, REPAYMENT_LABEL, type ProductCatalog } from '@/entities/credit-product'
+import { customer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
 import type { LoanPurpose, Repayment } from '@/shared/api'
 import { formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
@@ -48,8 +49,30 @@ const emit = defineEmits<{
 const SIGN_FORM_ID = 'application-sign-form'
 
 const application = useApplicationCard(() => props.applicationId)
-const { card, details, loading, error, busy, actionError, uploadErrors, contract, contractError, documentSlow, rules, rulesError, infoDocuments, can } =
-  application
+const {
+  card,
+  details,
+  loading,
+  error,
+  busy,
+  actionError,
+  actionErrorCode,
+  uploadErrors,
+  contract,
+  contractError,
+  documentSlow,
+  rules,
+  rulesError,
+  infoDocuments,
+  can,
+} = application
+
+/*
+ * Ошибка действия показывается там, где клиент действовал: неверный пароль — под полем пароля,
+ * остальное — в подвале рядом с кнопками, а не над всей карточкой, где её не видно.
+ */
+const passwordError = computed(() => (actionErrorCode.value === 'invalid_password' ? actionError.value : null))
+const footerError = computed(() => (passwordError.value ? null : actionError.value))
 
 const status = computed(() => card.value?.client_status ?? null)
 const meta = computed(() => (status.value ? CLIENT_STATUS_META[status.value] : null))
@@ -240,6 +263,13 @@ watch(
   },
 )
 
+// Клиент исправляет пароль — старая ошибка под полем уходит
+watch(password, () => {
+  if (actionErrorCode.value !== 'invalid_password') return
+  actionError.value = null
+  actionErrorCode.value = null
+})
+
 async function downloadContract(kind: 'draft' | 'signed') {
   await application.downloadContract(kind)
   if (kind === 'draft' && !actionError.value) draftOpened.value = true
@@ -333,11 +363,6 @@ const footerHint = computed(() => {
             </span>
           </section>
 
-          <p v-if="actionError" class="flex items-start gap-2 rounded-2xl bg-brand-soft p-4 text-sm text-brand" role="alert">
-            <AlertCircle class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {{ actionError }}
-          </p>
-
           <template v-if="tilesOffer">
             <TermTiles :offer="tilesOffer" :compact="status === 'signing'" />
             <p v-if="contract" class="-mt-1 text-sm text-ink-secondary">
@@ -426,6 +451,8 @@ const footerHint = computed(() => {
                   :draft-opened="draftOpened"
                   :busy="busy"
                   :form-id="SIGN_FORM_ID"
+                  :password-error="passwordError"
+                  :via-demo="customer.state.viaDemo"
                   @submit="submitSign"
                   @reload-rules="application.loadRules"
                   @download="downloadContract"
@@ -484,7 +511,11 @@ const footerHint = computed(() => {
       </AsyncState>
     </div>
 
-    <footer v-if="card" class="border-t border-line bg-white px-5 py-3.5 sm:px-7 sm:py-4">
+    <footer v-if="card" class="shrink-0 border-t border-line bg-white px-5 py-3.5 sm:px-7 sm:py-4">
+      <p v-if="footerError" class="mb-3 flex items-start gap-2 rounded-xl bg-brand-soft px-3.5 py-2.5 text-sm text-brand" role="alert">
+        <AlertCircle class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        {{ footerError }}
+      </p>
       <div v-if="confirming" class="space-y-3">
         <TextField
           v-model="confirmReason"
