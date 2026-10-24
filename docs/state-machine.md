@@ -43,7 +43,7 @@ stateDiagram-v2
 | `INFO_REQUESTED` | `info_requested` | Банк запросил сведения или документы, ждём клиента | — |
 | `OFFER_READY` | `offer_ready` | Есть предложение (как просили или контрпредложение) со сроком действия | — |
 | `SIGNING` | `signing` | Клиент принял предложение, осталось подписать | — |
-| `SIGNED` | `signed` | Подписано (смоделированное подписание через ЭДО-мок) | — |
+| `SIGNED` | `signed` | Подписано: простая ЭП клиента и подпись банка на итоговом PDF; передача в ЭДО смоделирована (мок) | — |
 | `DISBURSED` | `disbursed` | Средства выданы (смоделировано, АБС — мок) | ✓ |
 | `REJECTED` | `rejected` | Отказ | ✓ |
 | `OFFER_DECLINED` | `offer_declined` | Клиент отказался от предложения | ✓ |
@@ -79,7 +79,7 @@ stateDiagram-v2
 | `OFFER_READY` | `OFFER_DECLINED` | клиент | `POST /applications/{id}/offer/decline` | `decline_offer` | причина необязательна | `OfferDeclined` |
 | `OFFER_READY` | `EXPIRED` | система | фоновая проверка `expires_at` | `expire_offer` | срок действительно истёк, иначе ничего не меняется | `OfferExpired` |
 | `OFFER_READY` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | — | `ApplicationCancelled` |
-| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password, offer_hash}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); `offer_hash` из договора совпадает с текущим предложением (иначе 409 `offer_changed`); документ уходит в ЭДО-мок | `ApplicationSigned` |
+| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password, offer_hash, document_hash, rules_version}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); `offer_hash` из договора совпадает с текущим предложением (иначе 409 `offer_changed`); `document_hash` — хеш PDF-проекта этого предложения (иначе 422 `document_changed`), `rules_version` — действующие правила ЭП (иначе 422 `rules_outdated`); документ уходит в ЭДО-мок, затем банк подписывает итоговый PDF | `ApplicationSigned` |
 | `SIGNED` | `DISBURSED` | процесс | команда `MarkDisbursed` | `mark_disbursed` | повтор в `DISBURSED` ничего не меняет | — |
 
 Чего в таблице нет, того нет и в коде: например, после принятия предложения (`SIGNING`) заявку уже нельзя отменить, а отклонённую — подать заново.
