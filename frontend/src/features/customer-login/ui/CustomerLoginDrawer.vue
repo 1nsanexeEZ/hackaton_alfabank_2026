@@ -5,12 +5,13 @@ import { computed, reactive, ref, watch } from 'vue'
 import { customer } from '@/entities/customer'
 import { clientApi, type DemoAccountDto, type MeDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
-import { BaseButton, BaseModal, TextField } from '@/shared/ui'
+import { BaseButton, BaseDrawer, FloatingLetters, TextField } from '@/shared/ui'
 
 /**
  * Вход клиента на сайте: email или телефон и пароль (POST /auth/login). С входом сотрудников
  * в рабочее место не связан — своя сессия, свой токен; учётки сотрудников сюда не пускаем.
  * Если на стенде включён демо-вход, ниже — учётки предпринимателей из сидов: вход одной кнопкой.
+ * Форма — в панели справа; открытая часть страницы размыта, по ней плавают буквы «А».
  */
 withDefaults(defineProps<{ description?: string }>(), {
   description: 'Войдите, чтобы оформить заявку: данные компании подтянем автоматически',
@@ -81,7 +82,11 @@ async function loginAsDemo(account: DemoAccountDto) {
 </script>
 
 <template>
-  <BaseModal v-model:open="open" title="Вход в личный кабинет" :description="description">
+  <BaseDrawer v-model:open="open" title="Вход в личный кабинет" eyebrow="Личный кабинет" :description="description">
+    <template #backdrop>
+      <FloatingLetters />
+    </template>
+
     <form class="space-y-4" novalidate @submit.prevent="submit">
       <TextField
         v-model="form.login"
@@ -104,7 +109,7 @@ async function loginAsDemo(account: DemoAccountDto) {
       <BaseButton type="submit" size="l" block :loading="pending">Войти</BaseButton>
     </form>
 
-    <div v-if="clientDemoAccounts.length" class="mt-6 rounded-2xl bg-surface-soft p-4">
+    <div v-if="clientDemoAccounts.length" class="rounded-2xl bg-surface-soft p-4">
       <p class="text-sm font-semibold text-ink">Демо-доступ</p>
       <p class="mt-0.5 text-xs text-ink-secondary">Синтетические предприниматели — вход без пароля</p>
       <ul class="mt-3 grid gap-2">
@@ -129,5 +134,5 @@ async function loginAsDemo(account: DemoAccountDto) {
         </li>
       </ul>
     </div>
-  </BaseModal>
+  </BaseDrawer>
 </template>

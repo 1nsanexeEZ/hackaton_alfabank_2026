@@ -1,1 +1,1 @@
-export { default as CustomerLoginModal } from './ui/CustomerLoginModal.vue'
+export { default as CustomerLoginDrawer } from './ui/CustomerLoginDrawer.vue'
