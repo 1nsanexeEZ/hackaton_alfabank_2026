@@ -52,6 +52,9 @@ variables:
 - enabled: true
   name: model_version
   value: ${[ response.body.path(request='rq_AWeLB3VPen', behavior='smart', path='$.version') ]}
+- enabled: true
+  name: policy_version
+  value: ${[ response.body.path(request='rq_iRPdpMb5PL', behavior='smart', path='$.version') ]}
 color: null
 sortPriority: 1000.0
 createdAt: '2026-10-24T00:00:00'

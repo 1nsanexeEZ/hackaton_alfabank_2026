@@ -2,25 +2,25 @@ type: http_request
 model: http_request
 id: rq_H0cAnMF7Yo
 workspaceId: wk_6MYZUPM7tf
-folderId: fl_gUp5OBYSWR
-name: Get Catalog
+folderId: fl_q0wUTDO0aH
+name: Из чего собирается политика
 description: |-
   What a policy document is made of: the grade scales, the outcomes, the reason codes
   with their client texts (not editable here: a code without a text is refused), the
   stop-factor keys, registry statuses, routing flags, zones of the two models and the
   names of collateral types and alternative products.
 
-  Токен: директор ООО «Ромашка».
+  Токен: андеррайтер банка.
 method: GET
 url: ${[ base_url ]}/decision/policies/catalog
 urlParameters: []
 headers: []
 bodyType: null
 body: {}
-sortPriority: 8000.0
+sortPriority: 3000.0
 authenticationType: bearer
 authentication:
-  token: ${[ token_romashka ]}
+  token: ${[ token_underwriter ]}
   prefix: Bearer
 createdAt: '2026-10-24T00:00:00'
 updatedAt: '2026-10-24T00:00:00'
