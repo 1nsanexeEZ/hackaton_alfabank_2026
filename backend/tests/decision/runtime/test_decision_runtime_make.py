@@ -52,7 +52,7 @@ async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -
 
     stored = await decision(session_factory, world.application_id)
     assert stored is not None and stored.id == made.decision_id
-    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v7"
+    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v8"
     assert stored.decided_by_type == "auto" and stored.override_of is None
     assert stored.terms is not None and stored.terms.monthly_payment == offer.monthly_payment
     assert stored.limits.by_revenue is not None and stored.limits.by_capacity is not None

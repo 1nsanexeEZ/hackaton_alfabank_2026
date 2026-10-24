@@ -42,6 +42,7 @@ from src.modules.decision.domain.model import (
     RequestInput,
     ScoreInput,
     SupportProgramInput,
+    ThirdPartiesInput,
     on_scale,
 )
 from src.modules.decision.domain.policy import CreditPolicy
@@ -107,6 +108,7 @@ class DecisionInputBuilder:
             founder_prescreen=await self._founder_prescreen(source),
             aml=_aml_input(snapshot),
             automated_decision_consent=source.automated_decision_consent_at is not None,
+            third_parties=_third_parties_input(source),
             bank_stop_list=_bank_stop_list_input(snapshot),
             bank_turnover=_bank_turnover_input(snapshot),
         )
@@ -347,6 +349,8 @@ _ROLES = {
     "beneficial_owner": "бенефициар",
     "founder_company": "учредитель-юрлицо",
     "representative": "представитель",
+    "beneficiary": "выгодоприобретатель",
+    "pledgor": "залогодатель",
 }
 _LISTS = {
     "terrorism": "перечень причастных к экстремизму и терроризму",
@@ -397,3 +401,31 @@ def _owners(check: AmlCheckDTO) -> tuple[str, ...]:
         else f"{o.name} ({basis.get(o.basis, o.basis)})"
         for o in check.beneficial_owners
     )
+
+
+def _third_parties_input(source: ScoringInputDTO) -> ThirdPartiesInput:
+    """Со слов клиента в заявке: к чьей выгоде действует и кому принадлежит залог (115-ФЗ)."""
+    declaration = source.beneficiary
+    collateral = source.collateral
+    third_party_pledge = collateral is not None and collateral.owner == "third_party"
+    owner = collateral.owner_party if collateral is not None else None
+    beneficiary = declaration.beneficiary if declaration is not None else None
+    return ThirdPartiesInput(
+        beneficiary="not_answered"
+        if declaration is None
+        else "declared"
+        if declaration.acts_for_third_party
+        else "none",
+        beneficiary_name=_party(beneficiary.name, beneficiary.inn) if beneficiary else None,
+        basis=declaration.basis if declaration is not None else None,
+        pledgor="not_applicable"
+        if not third_party_pledge
+        else "declared"
+        if owner is not None
+        else "unknown",
+        pledgor_name=_party(owner.name, owner.inn) if owner is not None else None,
+    )
+
+
+def _party(name: str, inn: str | None) -> str:
+    return f"{name}, ИНН {inn}" if inn else name

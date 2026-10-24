@@ -98,6 +98,9 @@ class ReasonCode(StrEnum):
     ROUTE_ZSK_MEDIUM_RISK = "ROUTE_ZSK_MEDIUM_RISK"
     ROUTE_PEP = "ROUTE_PEP"
     ROUTE_AUTOMATED_DECISION_CONSENT = "ROUTE_AUTOMATED_DECISION_CONSENT"
+    # policy_v8: выгодоприобретатель и залогодатель — третье лицо (115-ФЗ).
+    ROUTE_THIRD_PARTY_BENEFICIARY = "ROUTE_THIRD_PARTY_BENEFICIARY"
+    ROUTE_THIRD_PARTIES_UNKNOWN = "ROUTE_THIRD_PARTIES_UNKNOWN"
     # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
     STOP_REORGANIZATION = "STOP_REORGANIZATION"
     STOP_EXCLUDED_FROM_REGISTRY = "STOP_EXCLUDED_FROM_REGISTRY"
@@ -268,6 +271,25 @@ class AmlInput:
     lists_date: str | None = None  # версия перечней, ISO-дата
 
 
+# none — клиент ответил, что действует к своей выгоде; declared — указал выгодоприобретателя;
+# not_answered — ответа нет.
+BeneficiaryStatus = Literal["none", "declared", "not_answered"]
+# not_applicable — залога третьего лица нет; declared — владелец указан; unknown — не указан.
+PledgorStatus = Literal["not_applicable", "declared", "unknown"]
+
+
+@dataclass(frozen=True, slots=True)
+class ThirdPartiesInput:
+    """Выгодоприобретатель и залогодатель-третье лицо со слов клиента (115-ФЗ, policy_v8).
+    Их проверку по перечням и базе ПДЛ делает enrichment, совпадения — в `AmlInput`."""
+
+    beneficiary: BeneficiaryStatus = "not_answered"
+    beneficiary_name: str | None = None
+    basis: str | None = None  # agency | commission | mandate | trust_management
+    pledgor: PledgorStatus = "not_applicable"
+    pledgor_name: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class BankTurnoverInput:
     """Обороты по счёту в банке (АБС): поступления по месяцам от старых к новым и за год."""
@@ -320,6 +342,8 @@ class DecisionInput:
     aml: AmlInput | None = None
     # Согласие на решение только на основании автоматизированной обработки (ст. 16 152-ФЗ).
     automated_decision_consent: bool = False
+    # Выгодоприобретатель и залогодатель — третье лицо (policy_v8); None — не собирались.
+    third_parties: ThirdPartiesInput | None = None
     # Внутренний стоп-лист банка (policy_v7); None — не собирался.
     bank_stop_list: BankStopListInput | None = None
     # Обороты по счёту в банке (policy_v7) — когда выписки нет; None — АБС не ответила.
