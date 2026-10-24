@@ -26,7 +26,12 @@ from seed.demo_data import ACCOUNTS
 from seed.products import catalog
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.enrichment import FetchEnrichment, PersonRef
-from src.modules.applications.facade import CollateralDTO, DocumentDTO, InfoRequestDTO
+from src.modules.applications.facade import (
+    BeneficiaryDTO,
+    CollateralDTO,
+    DocumentDTO,
+    InfoRequestDTO,
+)
 from src.modules.clients.facade import OrganizationSnapshotDTO
 from src.modules.decision.application.input_builder import DecisionInputBuilder
 from src.modules.decision.domain.policy import CreditPolicy
@@ -114,10 +119,13 @@ async def build_world(
     head_consent: bool = False,
     scoring_model: ScoringModel | None = None,
     automated_decision_consent: bool = False,
+    acts_for_itself: bool = False,
 ) -> DecisionWorld:
     """`head_consent` — руководитель по реестру дал личное согласие на запрос своего БКИ;
     `scoring_model` — чем считать скоринг, по умолчанию действующая PD-модель и рядом с ней
-    ML-модель (у старых моделей golden policy_v1 и policy_v2 ML-оценки нет)."""
+    ML-модель (у старых моделей golden policy_v1 и policy_v2 ML-оценки нет);
+    `acts_for_itself` — клиент ответил, что действует к своей выгоде (115-ФЗ; вопрос формы
+    заявки, policy_v10 без ответа отдаёт заявку человеку)."""
     scenario = SCENARIOS[name]
     organization = builders.organization_snapshot(scenario.code)
     products = _products(organization)
@@ -172,6 +180,9 @@ async def build_world(
         card,
         statement_document_ids=tuple(d.id for d in documents),
         automated_decision_consent_at=NOW if automated_decision_consent else None,
+        beneficiary=BeneficiaryDTO(acts_for_third_party=False, declared_by=uuid4(), declared_at=NOW)
+        if acts_for_itself
+        else None,
     )
     for document in documents:
         applications.add_document_content(
