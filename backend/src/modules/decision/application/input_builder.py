@@ -238,6 +238,7 @@ def _score_input(result: ScoringResultDTO | None, scale: tuple[Grade, ...]) -> S
         pd_12m=result.pd_12m,
         ml_grade=result.ml.grade if result.ml is not None else None,
         ml_pd_12m=result.ml.pd_12m if result.ml is not None else None,
+        ml_not_applicable=result.ml_not_applicable,
         quality=result.quality,
         quality_reasons=result.quality_reasons,
     )
