@@ -57,6 +57,8 @@ export function useApplicationCard(applicationId: () => string | null) {
   /** Какое действие выполняется: accept, decline, sign, answer, cancel, upload:<type> */
   const busy = ref<string | null>(null)
   const actionError = ref<string | null>(null)
+  /** Код ошибки действия (details.code): по нему окно показывает ошибку рядом с полем, а не общим текстом */
+  const actionErrorCode = ref<string | null>(null)
   const uploadErrors = ref<Record<string, string>>({})
   const signature = shallowRef<{ signed_at: string; edo_document_id: string; simulated: boolean } | null>(null)
   /** Договор: на подписи — что клиент подписывает (и его offer_hash), после — что подписано */
@@ -192,6 +194,7 @@ export function useApplicationCard(applicationId: () => string | null) {
     if (!id) return false
     busy.value = name
     actionError.value = null
+    actionErrorCode.value = null
     try {
       await action(id)
       await load(true)
@@ -199,6 +202,7 @@ export function useApplicationCard(applicationId: () => string | null) {
       return true
     } catch (caught) {
       actionError.value = errorMessage(caught)
+      actionErrorCode.value = caught instanceof ApiError ? (caught.details.code ?? caught.code) : null
       return false
     } finally {
       busy.value = null
@@ -304,6 +308,7 @@ export function useApplicationCard(applicationId: () => string | null) {
     error,
     busy,
     actionError,
+    actionErrorCode,
     uploadErrors,
     signature,
     contract,
