@@ -72,6 +72,8 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.TASKS_READ,
             Permissions.TASKS_UPDATE,
             Permissions.DECISIONS_READ,
+            # Versions of the PD model: read and preview, without editing.
+            Permissions.SCORING_READ,
             Permissions.BACKOFFICE_READ,
             Permissions.FEED_READ,
             Permissions.PROFILE_UPDATE,
