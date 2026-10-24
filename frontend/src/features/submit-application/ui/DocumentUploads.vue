@@ -31,7 +31,13 @@ function size(bytes: number) {
 
 <template>
   <ul class="space-y-3">
-    <li v-for="slot in slots" :key="slot.type" class="rounded-2xl bg-surface-soft p-4">
+    <li
+      v-for="slot in slots"
+      :key="slot.type"
+      :data-field="`documents.${slot.type}`"
+      class="rounded-2xl p-4 transition-colors"
+      :class="!slot.files.length && (slot.error || errors[`documents.${slot.type}`]) ? 'bg-brand-soft/60 ring-1 ring-brand/40' : 'bg-surface-soft'"
+    >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <p class="flex items-center gap-2 text-sm font-semibold text-ink">
