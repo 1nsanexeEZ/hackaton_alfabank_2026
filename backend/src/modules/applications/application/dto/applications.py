@@ -40,11 +40,37 @@ class LoanRequestDTO:
 
 
 @dataclass(frozen=True, slots=True)
+class ThirdPartyDTO:
+    """Someone besides the client in the deal: a person by full name, a company or an
+    entrepreneur by name and INN."""
+
+    kind: Literal["person", "organization"]
+    name: str
+    inn: str | None = None
+
+
+BeneficiaryBasis = Literal["agency", "commission", "mandate", "trust_management"]
+
+
+@dataclass(frozen=True, slots=True)
+class BeneficiaryDTO:
+    """Whether the client acts to the benefit of a third party (115-FZ): "no" is an answer too."""
+
+    acts_for_third_party: bool
+    declared_by: UUID
+    declared_at: datetime
+    beneficiary: ThirdPartyDTO | None = None
+    basis: BeneficiaryBasis | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CollateralDTO:
     type: CollateralType
     description: str
     declared_value: Decimal
     owner: Literal["self", "third_party"]
+    # The pledgor when the collateral is not the client's.
+    owner_party: ThirdPartyDTO | None = None
 
 
 # application — a checkbox in the draft; profile — a consent in force in the profile
@@ -148,6 +174,8 @@ class ApplicationCardDTO:
     closed_at: datetime | None = None
     # Loan contract number from the core banking system once paid out.
     disbursement_reference: str | None = None
+    # The answer about the beneficiary (115-FZ); None — not answered.
+    beneficiary: BeneficiaryDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +204,8 @@ class ScoringInputDTO:
     applicant_account_id: UUID | None = None
     # Consent to a decision made solely by automated processing (152-FZ art. 16).
     automated_decision_consent_at: datetime | None = None
+    # The answer about the beneficiary (115-FZ); None — not answered.
+    beneficiary: BeneficiaryDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

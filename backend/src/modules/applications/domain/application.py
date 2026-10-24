@@ -40,6 +40,8 @@ from src.modules.applications.domain.value_objects import (
     SYSTEM,
     Actor,
     ApplicationNumber,
+    BeneficiaryBasis,
+    BeneficiaryDeclaration,
     CollateralDeclaration,
     Consents,
     DecisionSummary,
@@ -51,6 +53,7 @@ from src.modules.applications.domain.value_objects import (
     ProfileConsent,
     Signature,
     StatusChange,
+    ThirdParty,
     Violation,
 )
 
@@ -73,6 +76,7 @@ class CreditApplication:
         product_fields: Mapping[str, Any] | None = None,
         collateral: CollateralDeclaration | None = None,
         consents: Consents | None = None,
+        beneficiary: BeneficiaryDeclaration | None = None,
         org_snapshot: OrganizationSnapshot | None = None,
         documents: list[Document] | None = None,
         info_requests: list[InfoRequest] | None = None,
@@ -96,6 +100,8 @@ class CreditApplication:
         self.product_fields: dict[str, Any] = dict(product_fields or {})
         self.collateral = collateral
         self.consents = consents or Consents()
+        # None — the client has not answered whether it acts for a third party (115-FZ).
+        self.beneficiary = beneficiary
         self.org_snapshot = org_snapshot
         self.documents: list[Document] = list(documents or [])
         self.info_requests: list[InfoRequest] = list(info_requests or [])
@@ -221,6 +227,31 @@ class CreditApplication:
     def change_collateral(self, collateral: CollateralDeclaration | None, now: datetime) -> None:
         self._ensure_editable("collateral")
         self.collateral = collateral
+        self.updated_at = now
+
+    def declare_beneficiary(
+        self,
+        *,
+        acts_for_third_party: bool,
+        beneficiary: ThirdParty | None,
+        basis: BeneficiaryBasis | None,
+        account_id: UUID,
+        now: datetime,
+    ) -> None:
+        """The client's answer about the beneficiary (115-FZ); a new answer replaces the old."""
+        self._ensure_editable("beneficiary")
+        self.beneficiary = BeneficiaryDeclaration(
+            acts_for_third_party=acts_for_third_party,
+            declared_by=account_id,
+            declared_at=now,
+            beneficiary=beneficiary,
+            basis=basis,
+        )
+        self.updated_at = now
+
+    def withdraw_beneficiary(self, now: datetime) -> None:
+        self._ensure_editable("beneficiary")
+        self.beneficiary = None
         self.updated_at = now
 
     def set_consents(

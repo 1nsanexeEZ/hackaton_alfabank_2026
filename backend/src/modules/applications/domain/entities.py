@@ -96,8 +96,8 @@ class InfoRequest:
         return self.status is InfoRequestStatus.OPEN
 
     def allows_field(self, name: str) -> bool:
-        """`request`, `collateral`, `consents`, `product_fields` open a whole
-        section; any other name is a single product field."""
+        """`request`, `collateral`, `consents`, `beneficiary`, `product_fields` open a
+        whole section; any other name is a single product field."""
         return name in self.requested_fields
 
     def answer(self, account_id: UUID, now: datetime) -> None:
