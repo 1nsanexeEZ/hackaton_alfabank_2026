@@ -1,4 +1,10 @@
-import type { ApplicationStatusCode, ClientStatus } from '../client/types'
+import type {
+  ApplicationStatusCode,
+  BusinessPlanDto,
+  ClientStatus,
+  ConsentsDto,
+  ProjectAssessmentDto,
+} from '../client/types'
 
 /**
  * Бэк-офис андеррайтера на бэкенде (docs/api/client-journey.md §3.8): очередь задач,
@@ -60,6 +66,8 @@ export interface UnderwriterApplicationDto {
   request: { amount: string; term_months: number; purpose: string; purpose_comment: string | null } | null
   product_fields: Record<string, unknown>
   collateral: { type: string; description: string; declared_value: string; owner: string } | null
+  /** Согласия заявки: когда даны и откуда — галочка в черновике или из профиля */
+  consents?: (ConsentsDto & { given_by?: string | null }) | null
   org_snapshot: {
     inn: string
     ogrn: string
@@ -71,6 +79,7 @@ export interface UnderwriterApplicationDto {
     okved_main: string
     tax_regime: string
     employees_count: number
+    /** active | liquidating | liquidated | bankrupt | reorganizing | excluded */
     registry_status: string
     verification_status: 'unverified' | 'verified' | 'mismatch'
     discrepancies: { field: string; declared: string | null; registry: string | null }[]
@@ -97,7 +106,17 @@ export interface ObligationDto {
   overdue_days: number
 }
 
-export type EnrichmentSource = 'egrul' | 'fns' | 'bki' | 'statement' | 'gir_bo' | 'kontur' | 'bki_head'
+export type EnrichmentSource =
+  | 'egrul'
+  | 'fns'
+  | 'bki'
+  | 'statement'
+  | 'gir_bo'
+  | 'kontur'
+  | 'bki_head'
+  | 'aml'
+  | 'bank_stop_list'
+  | 'bank_turnover'
 
 export interface SourceErrorDto {
   source: EnrichmentSource
@@ -136,6 +155,29 @@ export interface CounterpartyRiskDto {
   active_pledges: number
 }
 
+/** Кого проверили по 115-ФЗ: компания, учредитель-юрлицо цепочки, руководитель, бенефициар, представитель */
+export interface AmlSubjectDto {
+  role: 'company' | 'founder_company' | 'head' | 'beneficial_owner' | 'representative'
+  name: string
+  inn: string | null
+}
+
+/** Проверка по 115-ФЗ: бенефициары, перечни Росфинмониторинга, публичные должностные лица, риск ЗСК */
+export interface AmlCheckDto {
+  lists_date: string
+  zsk: { level: 'low' | 'medium' | 'high'; as_of: string }
+  beneficial_owners: { name: string; basis: 'ownership' | 'head_by_default' | 'entrepreneur'; share_percent: string | null }[]
+  subjects: AmlSubjectDto[]
+  list_hits: { subject: AmlSubjectDto; list: 'terrorism' | 'freeze' | 'wmd'; record: string }[]
+  pep_hits: { subject: AmlSubjectDto; kind: 'foreign' | 'russian' | 'international'; position: string }[]
+}
+
+/** Обороты по расчётному счёту в банке (АБС) за 24 месяца */
+export interface BankTurnoverDto {
+  client_since: string | null
+  months: { month: string; inflow: string; outflow: string }[]
+}
+
 export interface EnrichmentDto {
   collected_at: string
   sources_ok: EnrichmentSource[]
@@ -151,12 +193,14 @@ export interface EnrichmentDto {
     head_first_name: string
     head_middle_name: string | null
     head_position: string
-    founders: { name: string; share_percent: string }[]
+    founders: { name: string; share_percent: string; inn?: string | null }[]
     address: string
     mass_address: boolean
     kpp?: string | null
     /** С какой даты руководитель в реестре */
     head_since?: string | null
+    /** Отметки о недостоверности сведений: адрес, руководитель, учредитель */
+    unreliable?: ('address' | 'head' | 'founder')[]
   } | null
   fns: {
     tax_arrears: string
@@ -168,12 +212,19 @@ export interface EnrichmentDto {
     in_msp_registry: boolean
     /** Приостановления операций по счетам */
     account_blocks?: { decision_number: string; date: string; authority_code: string; reason: string }[]
+    /** Признаки массового руководителя */
+    mass_head?: boolean | null
   } | null
   bki: CreditHistoryDto | null
   /** БКИ руководителя — только с его личным согласием */
   bki_head?: CreditHistoryDto | null
   gir_bo?: { available: boolean; reason: string | null; periods: AccountingPeriodDto[] } | null
   kontur?: CounterpartyRiskDto | null
+  /** Проверка по 115-ФЗ; null — не выполнена (aml в sources_failed) */
+  aml?: AmlCheckDto | null
+  /** Внутренний стоп-лист банка */
+  bank_stop_list?: { listed: boolean; reason: string | null; listed_at: string | null } | null
+  bank_turnover?: BankTurnoverDto | null
   cashflow: {
     months_history: { month: string; inflow: string; outflow: string; net: string; balance: string }[]
     forecast: { month: string; projected_balance: string }[]
@@ -221,6 +272,10 @@ export interface ScoringDto {
   reason_codes?: string[]
   /** Оценка ML-модели; нет — заявка оценена до появления второй модели */
   ml?: MlScoreDto | null
+  /** Данные полные? degraded — не ответил критичный источник или мало признаков: решает человек */
+  quality?: 'ok' | 'degraded' | null
+  /** source_failed:<источник>, completeness_below:<доля> */
+  quality_reasons?: string[]
 }
 
 /** Лимиты движка; binding — какой из них дал итоговый минимум */
@@ -286,6 +341,45 @@ export interface UnderwriterCardDto {
   } | null
   task: UnderwriterTaskDto | null
   degraded: string[]
+  /** Заявка стартапа с проектной оценкой её продукта */
+  startup?: StartupProjectDto | null
+}
+
+/** Проектная оценка стартапа для андеррайтера — с цифрами модели, которых клиент не видит */
+export interface ProjectAssessmentFullDto extends ProjectAssessmentDto {
+  figures: {
+    requested_amount: string
+    term_months: number
+    rate: string
+    cash_flow: string
+    debt_service: string
+    dscr: string | null
+    own_share: string
+    coverage: string
+    /** Сколько выдерживает проект */
+    capacity: string
+  }
+  version: string
+}
+
+/** С чем открыть форму проектной оценки: андеррайтер подтверждает или правит */
+export interface ProjectFormDto {
+  decision: 'approve' | 'counter_offer' | 'reject'
+  amount: string | null
+  term_months: number | null
+  business_plan: 'strong' | 'acceptable' | 'weak'
+  collateral: string | null
+  support_program: boolean
+}
+
+export interface StartupProjectDto {
+  assessment: ProjectAssessmentFullDto
+  business_plan: BusinessPlanDto | null
+  /** План уточнили после оценки */
+  plan_changed: boolean
+  /** Оценка действовала на дату подачи */
+  valid_at_submission: boolean
+  form: ProjectFormDto
 }
 
 /** Состояние процесса: running — идёт, waiting — ждёт человека или внешний сервис, остальные — финал */
@@ -355,6 +449,10 @@ export interface TaskResultInput {
   conditions: string[]
   requested_documents: string[]
   comment: string
+  /** Только проектная оценка стартапа */
+  business_plan?: ProjectFormDto['business_plan']
+  collateral?: string | null
+  support_program?: boolean
 }
 
 export interface BackofficeApi {

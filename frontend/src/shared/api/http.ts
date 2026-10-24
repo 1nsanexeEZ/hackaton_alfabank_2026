@@ -63,7 +63,7 @@ export function currentToken(realm: AuthRealm = 'staff'): string | null {
 type Query = Record<string, string | number | undefined>
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   query?: Query
   /** Чьим токеном подписать запрос; по умолчанию — сотрудника */

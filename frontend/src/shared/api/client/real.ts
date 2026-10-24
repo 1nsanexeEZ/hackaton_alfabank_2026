@@ -94,6 +94,16 @@ export const realClientApi: ClientApi = {
 
   runFounderPrescreen: (organizationId) => call(`/organizations/${organizationId}/founder-prescreen`, { method: 'POST' }),
   founderPrescreen: (organizationId) => call(`/organizations/${organizationId}/founder-prescreen`),
+  organizationConsents: (organizationId) => call(`/organizations/${organizationId}/consents`),
+  giveOrganizationConsents: (organizationId, types) =>
+    call(`/organizations/${organizationId}/consents`, { method: 'POST', body: { types } }),
+  revokeOrganizationConsent: (organizationId, type) =>
+    call(`/organizations/${organizationId}/consents/${type}`, { method: 'DELETE' }),
+  businessPlan: (organizationId) => call(`/organizations/${organizationId}/business-plan`),
+  submitBusinessPlan: (organizationId, input) =>
+    call(`/organizations/${organizationId}/business-plan`, { method: 'PUT', body: input }),
+  projectAssessment: (organizationId) => call(`/organizations/${organizationId}/project-assessment`),
+  runProjectAssessment: (organizationId) => call(`/organizations/${organizationId}/project-assessment`, { method: 'POST' }),
 
   async uploadFile(upload, file) {
     let response: Response
