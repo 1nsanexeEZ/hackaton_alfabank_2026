@@ -6,6 +6,7 @@ import { formatDateTime, formatDuration, formatTime, pluralize } from '@/shared/
 import { BaseBadge, BaseButton, PanelCard, type BadgeTone } from '@/shared/ui'
 
 import { columnWidth, hopLine, lineLength, mapGeometry, pointAlong, roundedPath, STAGE_RADIUS, type Point } from '../model/geometry'
+import { emptyProgress, withPrelude, withPreludeProgress, type PreludeStage } from '../model/prelude'
 import { processProgress, type StageProgress, type StageState, type StageWindow, type WaitingFor } from '../model/progress'
 import type { Stage, StageKey } from '../model/stages'
 import { useProcessTracking } from '../model/useProcessTracking'
@@ -13,9 +14,14 @@ import { useProcessTracking } from '../model/useProcessTracking'
 /**
  * Маршрут заявки по этапам в реальном времени: красная точка идёт по этапам, которые проходит
  * процесс, клик по этапу показывает подробности. Что показать про этап из карточки заявки —
- * решает тот, кто встраивает схему, через слот details.
+ * решает тот, кто встраивает схему, через слот details. prelude — этапы до подачи (согласия,
+ * предскоринг), они встают в начало; fallbackWorkflow — маршрут продукта, по нему схема строится
+ * у черновика, пока процесса нет.
  */
-const props = defineProps<{ applicationId: string }>()
+const props = withDefaults(
+  defineProps<{ applicationId: string; prelude?: readonly PreludeStage[]; fallbackWorkflow?: string | null }>(),
+  { prelude: () => [], fallbackWorkflow: null },
+)
 const emit = defineEmits<{ advance: [process: ProcessDto] }>()
 
 defineSlots<{
@@ -24,11 +30,25 @@ defineSlots<{
   footer?: () => unknown
 }>()
 
-const tracking = useProcessTracking(() => props.applicationId, { onAdvance: (process) => emit('advance', process) })
-const { process, graph, loading, missing, error, now } = tracking
+const tracking = useProcessTracking(() => props.applicationId, {
+  onAdvance: (process) => emit('advance', process),
+  fallbackWorkflow: () => props.fallbackWorkflow,
+})
+const { process, graph: routeGraph, loading, missing, error, now } = tracking
 defineExpose({ refresh: tracking.refresh })
 
-const progress = computed(() => (graph.value && process.value ? processProgress(graph.value, process.value, now.value) : null))
+/** Маршрут с этапами до подачи в начале */
+const graph = computed(() => (routeGraph.value ? withPrelude(routeGraph.value, props.prelude) : null))
+
+const progress = computed(() => {
+  const route = routeGraph.value
+  if (!route) return null
+  const base = process.value ? processProgress(route, process.value, now.value) : emptyProgress(route)
+  return withPreludeProgress(base, props.prelude, route.start)
+})
+
+const isPrelude = (key: StageKey) => key.startsWith('pre:')
+const preludeNote = computed(() => new Map(props.prelude.map((item) => [item.key as StageKey, item.note])))
 
 // Колонки растягиваем под ширину панели; на узком экране схема прокручивается внутри панели
 const scroller = ref<HTMLElement | null>(null)
@@ -106,10 +126,20 @@ const FINALE_BADGE: Record<string, { label: string; tone: BadgeTone }> = {
   rejected: { label: 'Отказ', tone: 'brand' },
   closed: { label: 'Клиент не принял предложение', tone: 'neutral' },
 }
-const badgeOf = (view: StageView) => (view.finale && FINALE_BADGE[view.stage.key]) || STATE_BADGE[view.progress.state]
+/** У этапов до подачи — свои слова: предскоринга могло не быть, проверка учредителя может быть не пройдена */
+const PRELUDE_BADGE: Partial<Record<StageState, { label: string; tone: BadgeTone }>> = {
+  current: { label: 'Клиент сейчас здесь', tone: 'brand' },
+  failed: { label: 'Не пройден', tone: 'brand' },
+  skipped: { label: 'Не было', tone: 'neutral' },
+}
+const badgeOf = (view: StageView) =>
+  (view.finale && FINALE_BADGE[view.stage.key]) ||
+  (isPrelude(view.stage.key) && PRELUDE_BADGE[view.progress.state]) ||
+  STATE_BADGE[view.progress.state]
 
 /** Строка под точкой этапа: сколько занял, кого ждёт */
 function statusLine(view: StageView): string {
+  if (isPrelude(view.stage.key)) return preludeNote.value.get(view.stage.key) ?? ''
   const { state, waitingFor, durationMs } = view.progress
   if (state === 'current') return waitingFor ? WAITING_LABEL[waitingFor] : 'в работе'
   if (state === 'failed') return 'ошибка'
@@ -154,6 +184,8 @@ const animating = ref(false)
 const showDot = computed(() => Boolean(progress.value && (!progress.value.finished || animating.value)))
 const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 let shownLength = 0
+/** Этап, на котором точка остановилась, — от него считаем новые переходы, даже если начало пути поменялось */
+let dotKey: StageKey | null = null
 let queue: Point[][] = []
 let frame = 0
 let disposed = false
@@ -167,17 +199,38 @@ watch([progress, geometry], ([next, geo], [, previousGeo]) => {
   if (!next || !geo) return
   const path = next.path
   const resized = previousGeo && geo !== previousGeo
-  if (shownLength === 0 || reduceMotion || path.length < shownLength || (resized && !animating.value)) {
+  // Где в новом пути этап, на котором стоит точка: начало пути может измениться (этапы до подачи
+  // после подачи заявки), поэтому ищем по этапу, а не по номеру — последнее вхождение не дальше прежней
+  // позиции со сдвигом на этапы до подачи (повторный заход на этап дальше по пути — уже другой переход)
+  let from = -1
+  if (dotKey) {
+    for (let index = Math.min(path.length - 1, shownLength - 1 + props.prelude.length); index >= 0; index--) {
+      if (path[index] === dotKey) {
+        from = index
+        break
+      }
+    }
+  }
+  if (shownLength === 0 || reduceMotion || from < 0) {
     queue = []
     cancelAnimationFrame(frame)
     animating.value = false
     placeDot(path.at(-1))
     if (shownLength === 0) void nextTick(scrollToCurrent)
     shownLength = path.length
+    dotKey = path.at(-1) ?? null
     return
   }
-  for (let index = Math.max(1, shownLength); index < path.length; index++) queue.push(hopLine(geo, path[index - 1]!, path[index]!))
+  // Схема перерисовалась (сменилась ширина) без новых переходов — точку просто переставляем;
+  // с новыми — она едет дальше по новой раскладке
+  if (resized && !animating.value && from === path.length - 1) {
+    placeDot(path.at(-1))
+    shownLength = path.length
+    return
+  }
+  for (let index = from + 1; index < path.length; index++) queue.push(hopLine(geo, path[index - 1]!, path[index]!))
   shownLength = path.length
+  dotKey = path.at(-1) ?? null
   void animate()
 })
 
@@ -240,7 +293,10 @@ const stepDuration = (step: ProcessStepDto) =>
     title="Маршрут заявки"
     :description="graph ? [graph.workflow.name, process && `версия ${process.workflow_version}`].filter(Boolean).join(' · ') : undefined"
   >
-    <template v-if="process" #actions>
+    <template v-if="!process && graph" #actions>
+      <span class="text-xs text-ink-secondary">Заявка ещё не подана — процесс начнётся с подачи</span>
+    </template>
+    <template v-else-if="process" #actions>
       <span v-if="error" class="text-xs font-medium text-warning">Нет связи — повторим через 10 секунд</span>
       <span v-else-if="progress?.finished" class="text-xs text-ink-secondary">
         {{ PROCESS_STATUS[process.status] }}<template v-if="process.finished_at"> · {{ formatDateTime(process.finished_at) }}</template>
@@ -251,11 +307,11 @@ const stepDuration = (step: ProcessStepDto) =>
       </span>
     </template>
 
-    <div v-if="loading && !process" class="h-44 animate-pulse rounded-xl bg-surface-soft" aria-label="Загружаем маршрут" />
-    <p v-else-if="missing && !process" class="text-sm text-ink-secondary">
+    <div v-if="loading && !graph" class="h-44 animate-pulse rounded-xl bg-surface-soft" aria-label="Загружаем маршрут" />
+    <p v-else-if="missing && !graph" class="text-sm text-ink-secondary">
       Процесс по заявке ещё не запущен — схема появится, когда банк примет заявку в работу.
     </p>
-    <div v-else-if="error && !process" class="flex flex-wrap items-center gap-3 text-sm">
+    <div v-else-if="error && !graph" class="flex flex-wrap items-center gap-3 text-sm">
       <span class="text-ink-secondary">Не удалось загрузить маршрут: {{ error }}</span>
       <BaseButton size="s" variant="secondary" @click="tracking.refresh">Повторить</BaseButton>
     </div>
@@ -396,7 +452,7 @@ const stepDuration = (step: ProcessStepDto) =>
           {{ shown.stage.subtitle }}
         </p>
 
-        <dl v-if="shown.progress.enteredAt" class="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+        <dl v-if="shown.progress.enteredAt && !isPrelude(shown.stage.key)" class="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
           <div>
             <dt class="text-xs text-ink-secondary">Начало</dt>
             <dd class="font-medium text-ink">{{ formatDateTime(shown.progress.enteredAt) }}</dd>
@@ -416,8 +472,10 @@ const stepDuration = (step: ProcessStepDto) =>
             <dd class="font-medium text-ink">{{ WAITING_WHOM[shown.progress.waitingFor] }}</dd>
           </div>
         </dl>
-        <p v-else-if="shown.progress.state === 'ahead'" class="mt-2 text-sm text-ink-secondary">Заявка сюда ещё не дошла.</p>
-        <p v-else-if="shown.progress.state === 'skipped' && !shown.finale" class="mt-2 text-sm text-ink-secondary">
+        <p v-else-if="shown.progress.state === 'ahead' && !isPrelude(shown.stage.key)" class="mt-2 text-sm text-ink-secondary">
+          Заявка сюда ещё не дошла.
+        </p>
+        <p v-else-if="shown.progress.state === 'skipped' && !shown.finale && !isPrelude(shown.stage.key)" class="mt-2 text-sm text-ink-secondary">
           На этой заявке этап не понадобился.
         </p>
 
