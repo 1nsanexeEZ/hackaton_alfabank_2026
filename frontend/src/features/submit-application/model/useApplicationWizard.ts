@@ -70,9 +70,16 @@ const MISSING_LABEL: Record<string, string> = {
   'beneficiary.beneficiary.name': 'Третье лицо',
   'beneficiary.beneficiary.inn': 'ИНН третьего лица',
   'beneficiary.basis': 'Основание',
+  'documents.other': 'Договор с третьим лицом',
   'consents.personal_data': 'Согласие на обработку данных',
   'consents.credit_bureau': 'Согласие на запрос в БКИ',
 }
+
+/**
+ * Договор, по которому клиент действует в интересах третьего лица: банк обязан его проверить.
+ * Отдельного типа документа на бэкенде нет — грузим как «другой документ», его черновик принимает всегда.
+ */
+const BENEFICIARY_CONTRACT = 'other'
 
 export interface DocumentSlot {
   type: string
@@ -240,6 +247,16 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       error: uploads[required.type]?.error ?? null,
     })),
   )
+
+  const contractSlot = computed<DocumentSlot>(() => ({
+    type: BENEFICIARY_CONTRACT,
+    title: 'Договор с третьим лицом',
+    files: (application.value?.documents ?? []).filter(
+      (document) => document.type === BENEFICIARY_CONTRACT && document.status === 'uploaded',
+    ),
+    uploading: uploads[BENEFICIARY_CONTRACT]?.uploading ?? false,
+    error: uploads[BENEFICIARY_CONTRACT]?.error ?? null,
+  }))
 
   const hasDetails = computed(() => collateralNeeded.value || withFields.value || documents.value.length > 0)
   const steps = computed<Exclude<WizardStep, 'done'>[]>(() =>
@@ -513,6 +530,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     else if (beneficiary.acts) {
       Object.assign(errors, thirdPartyProblems(beneficiary.party, 'beneficiary.beneficiary'))
       if (!beneficiary.basis) errors['beneficiary.basis'] = 'Выберите основание'
+      if (!contractSlot.value.files.length) errors[`documents.${BENEFICIARY_CONTRACT}`] = 'Загрузите договор'
     }
     if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
     if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'
@@ -540,6 +558,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   })
 
   function missingLabel(key: string): string {
+    if (MISSING_LABEL[key]) return MISSING_LABEL[key]
     if (key.startsWith('documents.')) return documentTitle(key.slice('documents.'.length))
     if (key.startsWith('product_fields.')) return fieldTitle(product.value.fieldsSchema, key.slice('product_fields.'.length))
     return MISSING_LABEL[key] ?? key
@@ -669,6 +688,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     withFields,
     ineligibleReason,
     documents,
+    contractSlot,
     busy,
     error,
     violations,
