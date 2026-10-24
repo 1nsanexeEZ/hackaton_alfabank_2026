@@ -1,5 +1,6 @@
 import type {
   ApplicationStatusCode,
+  BeneficiaryDto,
   BusinessPlanDto,
   ClientStatus,
   ConsentsDto,
@@ -7,6 +8,7 @@ import type {
   OrganizationDetailDto,
   PreApprovedOfferDto,
   ProjectAssessmentDto,
+  ThirdPartyDto,
 } from '../client/types'
 
 /**
@@ -93,7 +95,9 @@ export interface UnderwriterApplicationDto {
   }
   request: { amount: string; term_months: number; purpose: string; purpose_comment: string | null } | null
   product_fields: Record<string, unknown>
-  collateral: { type: string; description: string; declared_value: string; owner: string } | null
+  collateral: { type: string; description: string; declared_value: string; owner: string; owner_party?: ThirdPartyDto | null } | null
+  /** Ответ клиента о третьем лице (выгодоприобретателе); null — не ответил */
+  beneficiary?: BeneficiaryDto | null
   /** Согласия заявки: когда даны и откуда — галочка в черновике или из профиля */
   consents?: (ConsentsDto & { given_by?: string | null }) | null
   org_snapshot: {
@@ -183,9 +187,12 @@ export interface CounterpartyRiskDto {
   active_pledges: number
 }
 
-/** Кого проверили по 115-ФЗ: компания, учредитель-юрлицо цепочки, руководитель, бенефициар, представитель */
+/**
+ * Кого проверили по 115-ФЗ: компания, учредитель-юрлицо цепочки, руководитель, бенефициар, представитель,
+ * выгодоприобретатель и залогодатель — третье лицо
+ */
 export interface AmlSubjectDto {
-  role: 'company' | 'founder_company' | 'head' | 'beneficial_owner' | 'representative'
+  role: 'company' | 'founder_company' | 'head' | 'beneficial_owner' | 'representative' | 'beneficiary' | 'pledgor'
   name: string
   inn: string | null
 }
