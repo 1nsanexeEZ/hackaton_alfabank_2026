@@ -284,9 +284,25 @@ def default_policy() -> CreditPolicy:
     return load_policy()
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Как `safe_load`, но повторяющийся ключ — ошибка: обычный YAML молча берёт последний, и
+    правило или текст теряется без следа."""
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+        seen: set[Any] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"ключ {key!r} повторяется", key_node.start_mark
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
+
+
 def _validate[S: BaseModel](schema: type[S], path: Path) -> S:
     try:
-        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+        raw: Any = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
     except (OSError, yaml.YAMLError) as exc:
         raise PolicyConfigError(f"Не удалось прочитать {path}: {exc}") from exc
     try:

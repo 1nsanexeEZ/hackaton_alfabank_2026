@@ -203,3 +203,17 @@ def test_country_codes_are_checked(tmp_path: Path) -> None:
 
 def test_stays_clean_input() -> None:
     assert v9().aml == CHECKED
+
+
+def test_hints_of_the_two_refusals() -> None:
+    """Подсказка отказа без лицензии — про реестр лицензий; у отказа по ЗСК — про пересмотр."""
+    unlicensed = decide(v9(okved="86.10"))
+    assert unlicensed.improvement_hints == (
+        "Если лицензия есть, проверьте, что она внесена в реестр лицензий, и подайте заявку снова.",
+    )
+    zsk = decide(v9(zsk_level="high"))
+    assert zsk.reason_codes == (ReasonCode.STOP_ZSK_HIGH_RISK,)
+    assert zsk.improvement_hints == (
+        "Если считаете решение ошибочным, обратитесь в банк: порядок пересмотра установлен "
+        "законом.",
+    )
