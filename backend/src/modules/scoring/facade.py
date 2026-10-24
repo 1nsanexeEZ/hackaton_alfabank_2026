@@ -147,9 +147,12 @@ class ProjectAssessmentDTO:
 class ScoringFacade(Protocol):
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None: ...
 
-    def estimate(self, company: CompanyProfileDTO, amount: Decimal | None = None) -> EstimateDTO:
+    async def estimate(
+        self, company: CompanyProfileDTO, amount: Decimal | None = None
+    ) -> EstimateDTO:
         """No application, nothing stored: used for pre-approved offers. A new
-        client (segment `new_client`) is scored only on an application."""
+        client (segment `new_client`) is scored only on an application. Scored by
+        the model version in force (the one the admin activated, or the built-in)."""
         ...
 
     def prescreen_person(self, history: CreditHistoryDTO | None) -> PersonPrescreenDTO:

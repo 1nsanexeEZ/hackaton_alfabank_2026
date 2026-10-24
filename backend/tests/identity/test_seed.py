@@ -44,6 +44,7 @@ UNDERWRITER_PERMISSIONS = [
     "tasks.read",
     "tasks.update",
     "decisions.read",
+    "scoring.read",
     "backoffice.read",
     "feed.read",
     "profile.update",

@@ -1,0 +1,24 @@
+type: http_request
+model: http_request
+id: rq_ModVPWvQHO
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Версии PD-модели
+description: |-
+  The built-in model first, then the admin's versions in the order they were made.
+  The one with `status: active` is in force.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/scoring/models
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

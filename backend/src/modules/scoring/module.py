@@ -10,16 +10,15 @@ from src.core.messaging.contracts.scoring import CalculateScore
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.scoring.api import router
 from src.modules.scoring.application.calculate_score import CalculateScoreUseCase
 from src.modules.scoring.application.client_features import ClientFeatureStore
-from src.modules.scoring.application.ports import (
-    DataQualityAssessor,
-    MlScoringModel,
-    ScoringModel,
-)
+from src.modules.scoring.application.model_versions import ActiveModelProvider
+from src.modules.scoring.application.ports import DataQualityAssessor, MlScoringModel
 from src.modules.scoring.application.store_client_features import StoreClientFeaturesUseCase
 from src.modules.scoring.facade import ScoringFacade
 from src.modules.scoring.infrastructure.config_loader import (
+    PdModelDocuments,
     default_feature_store,
     default_model,
     default_project,
@@ -29,44 +28,47 @@ from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
 from src.modules.scoring.infrastructure.ml_loader import default_ml_model
 from src.modules.scoring.infrastructure.repository import (
     SqlAlchemyFeatureSnapshotRepository,
+    SqlAlchemyModelVersionRepository,
     SqlAlchemyScoringRepository,
 )
 
 NAME = "scoring"
 
-# Модели грузятся один раз на процесс; невалидный YAML → исключение при старте.
-_scorecard: ScoringModel | None = None
+# Модели грузятся один раз на процесс; невалидный YAML → исключение при старте. PD-модель —
+# активная версия админа из БД или встроенная: провайдер спрашивает БД на каждую команду.
+_models: ActiveModelProvider | None = None
 _ml_model: MlScoringModel | None = None
 _quality: DataQualityAssessor | None = None
 
 
 def register(app: FastAPI) -> None:
-    """Scoring has no public HTTP API — only a facade and a command handler."""
+    """Versions of the PD model for the admin: list, drafts, preview, activation."""
+    app.include_router(router)
 
 
 def wire(app: FastAPI) -> None:
-    global _scorecard, _ml_model, _quality
-    _scorecard = default_model()
+    global _models, _ml_model, _quality
+    default_model()  # невалидный YAML → не стартуем
+    _models = ActiveModelProvider(PdModelDocuments())
     _ml_model = default_ml_model()
     _quality = default_quality()
     default_feature_store()  # невалидный YAML → не стартуем
-    scorecard = _scorecard
+    models = _models
     project = default_project()
     # Часы читаются на каждый вызов: тесты могут подменить app.state.clock.
     app.state.facades.register(
         ScoringFacade,
-        lambda session: ScoringFacadeImpl(
-            session, scorecard, clock=app.state.clock, project=project
-        ),
+        lambda session: ScoringFacadeImpl(session, models, clock=app.state.clock, project=project),
     )
 
 
 async def _on_calculate_score(ctx: HandlerContext, payload: CalculateScore) -> None:
-    if _scorecard is None:
+    if _models is None:
         raise RuntimeError("scoring module is not wired")
+    model = await _models.active(SqlAlchemyModelVersionRepository(ctx.session))
     use_case = CalculateScoreUseCase(
         SqlAlchemyScoringRepository(ctx.session),
-        _scorecard,
+        model,
         ctx.facade(ApplicationsFacade),
         ctx.facade(EnrichmentFacade),
         ctx.clock,

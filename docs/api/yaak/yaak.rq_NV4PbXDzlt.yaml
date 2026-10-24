@@ -1,0 +1,24 @@
+type: http_request
+model: http_request
+id: rq_NV4PbXDzlt
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Из чего собирается модель
+description: |-
+  What a model document is made of: segments, features (numeric or categorical,
+  the categories that need a bin, required ones) and the grade scale.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/scoring/models/catalog
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -35,6 +35,7 @@ from src.modules.decision.infrastructure.repository import (
 )
 from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
+from src.modules.scoring.application.model_versions import FixedModel
 from src.modules.scoring.facade import ScoringFacade
 from src.modules.scoring.infrastructure.config_loader import load_pd_model
 from src.modules.scoring.infrastructure.facade_impl import ScoringFacadeImpl
@@ -193,7 +194,7 @@ async def test_real_scoring_too_little_for_the_product(session_factory: Sessions
     """Настоящий scoring: поток выдерживает меньше минимума STARTUP (500 тыс.) — предложить
     нечего, хотя правила на запрошенной сумме пройдены."""
     world = _World()
-    world.scoring = ScoringFacadeImpl(None, load_pd_model())  # type: ignore[arg-type]
+    world.scoring = ScoringFacadeImpl(None, FixedModel(load_pd_model()))  # type: ignore[arg-type]
     world.clients.business_plans[world.company.id] = business_plan(
         world.company.id,
         months=(PlanMonthDTO(Decimal("100000"), Decimal("85000")),) * 24,
