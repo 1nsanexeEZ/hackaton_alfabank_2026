@@ -32,6 +32,12 @@ FOLDERS: list[tuple[str, str, str]] = [
         "Модель скоринга",
         "Версии PD-модели: черновик, правка, примерка на прошлых заявках, активация и откат.",
     ),
+    (
+        "policies",
+        "Политика решения",
+        "Версии кредитной политики: черновик, правка, примерка на прошлых решениях, активация "
+        "и откат.",
+    ),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
     ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
     ("bff", "BFF клиента", "Экраны кабинета клиента одним запросом."),
@@ -156,6 +162,14 @@ NAMES: dict[str, str] = {
     "DELETE /scoring/models/{version}": "Удалить черновик модели",
     "POST /scoring/models/{version}/activate": "Активировать версию модели",
     "POST /scoring/models/{version}/preview": "Примерить версию на прошлых заявках",
+    "GET /decision/policies": "Версии кредитной политики",
+    "GET /decision/policies/catalog": "Из чего собирается политика",
+    "GET /decision/policies/{version}": "Версия политики с документом",
+    "POST /decision/policies": "Черновик политики",
+    "PUT /decision/policies/{version}": "Править черновик политики",
+    "DELETE /decision/policies/{version}": "Удалить черновик политики",
+    "POST /decision/policies/{version}/activate": "Активировать версию политики",
+    "POST /decision/policies/{version}/preview": "Примерить политику на прошлых решениях",
     "GET /health": "Сервис жив",
     "GET /ready": "Сервис готов (БД, Kafka)",
 }
@@ -177,6 +191,13 @@ _MODEL_KEEPING = {
     ("put", "/scoring/models/{version}"),
     ("delete", "/scoring/models/{version}"),
     ("post", "/scoring/models/{version}/activate"),
+}
+# The same for the versions of the credit policy.
+_POLICY_KEEPING = {
+    ("post", "/decision/policies"),
+    ("put", "/decision/policies/{version}"),
+    ("delete", "/decision/policies/{version}"),
+    ("post", "/decision/policies/{version}/activate"),
 }
 # Changes the demo data in a way the scenarios notice.
 _CAREFUL = (
@@ -288,6 +309,28 @@ NOTES: dict[str, str] = {
     "POST /scoring/models/{version}/preview": (
         "Под андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой "
         "версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки."
+    ),
+    "POST /decision/policies": (
+        "Копия встроенной политики `policy_v10`: отсюда `policy_version` справочника "
+        "(`policy_v10.1`, `policy_v10.2`…), с ним работают запросы папки."
+    ),
+    "PUT /decision/policies/{version}": (
+        "Документ черновика как есть, из «Версия политики с документом»: поменяйте стоп-факторы, "
+        "лимиты или матрицу и отправьте. Код причины без текста для клиента, грейд вне шкалы — "
+        "422 со списком `{path, message}`."
+    ),
+    "POST /decision/policies/{version}/activate": (
+        "С этого момента новые решения, предодобрения и ночной пересчёт идут этой версией. "
+        "Вернуть встроенную — тот же запрос с `policy_v10` вместо версии черновика."
+    ),
+    "DELETE /decision/policies/{version}": (
+        "Удаляется только черновик: после «Активировать версию политики» — 409 "
+        "`invalid_transition`."
+    ),
+    "POST /decision/policies/{version}/preview": (
+        "Под андеррайтером: последние автоматические решения принимаются заново этой версией на "
+        "текущих данных заявки, ничего не пишется. Пусто — сначала пройдите сценарий с подачей "
+        "заявки."
     ),
 }
 
@@ -452,6 +495,15 @@ def _bodies() -> dict[str, Any]:
             "body": Raw(answer(ref("GET", "/scoring/models/{version}"), "$.body")),
             "comment": "Правка из коллекции Yaak",
         },
+        "POST /decision/policies": {
+            "based_on": "policy_v10",
+            "comment": "Черновик из коллекции Yaak",
+        },
+        # The document of the draft as it is: the admin changes stop factors or limits in it.
+        "PUT /decision/policies/{version}": {
+            "body": Raw(answer(ref("GET", "/decision/policies/{version}"), "$.body")),
+            "comment": "Правка из коллекции Yaak",
+        },
     }
 
 
@@ -482,6 +534,7 @@ def reference_variables() -> dict[str, str]:
         ),
         "ticket_id": answer(ref("POST", "/support/tickets"), "$.id"),
         "model_version": answer(ref("POST", "/scoring/models"), "$.version"),
+        "policy_version": answer(ref("POST", "/decision/policies"), "$.version"),
     }
 
 
@@ -492,9 +545,10 @@ def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
         path.startswith(("/accounts", "/roles"))
         or (method, path) in _CATALOG_KEEPING
         or (method, path) in _MODEL_KEEPING
+        or (method, path) in _POLICY_KEEPING
     ):
         return "admin"
-    if path.startswith("/scoring/models"):
+    if path.startswith(("/scoring/models", "/decision/policies")):
         return "underwriter"
     if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice", "/support/queue")):
         return "underwriter"
@@ -510,6 +564,8 @@ def _folder(path: str, tags: list[str]) -> str:
         return "backoffice"
     if path.startswith(("/accounts", "/roles")):
         return "admin"
+    if path.startswith("/decision/policies"):
+        return "policies"
     if tags[0] == "news":
         return "feed"
     return tags[0]
@@ -533,7 +589,7 @@ def _path_value(method: str, path: str, param: str) -> str:
     if param == "type":
         return "credit_bureau_company" if path.startswith("/organizations") else "personal_data"
     if param == "version":
-        return var("model_version")
+        return var("policy_version" if path.startswith("/decision/policies") else "model_version")
     return var(param)
 
 

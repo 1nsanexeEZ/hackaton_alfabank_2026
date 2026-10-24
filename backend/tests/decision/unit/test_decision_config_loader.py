@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import fields, replace
 from decimal import Decimal
@@ -19,6 +20,8 @@ from src.modules.decision.infrastructure.config_loader import (
     default_policy,
     load_policy,
     load_policy_files,
+    normalize_policy,
+    parse_policy,
 )
 
 _BACKEND = Path(__file__).resolve().parents[3]
@@ -140,6 +143,16 @@ def test_earlier_versions_keep_v3_rules_off(version: str) -> None:
 @pytest.mark.parametrize("version", ["policy_v1", "policy_v2", "policy_v3", "policy_v4"])
 def test_roundtrip_of_shipped_files_is_valid(tmp_path: Path, version: str) -> None:
     _load(tmp_path, version=version)
+
+
+@pytest.mark.parametrize("version", [f"policy_v{n}" for n in range(1, 11)])
+def test_policy_survives_the_trip_through_json(version: str) -> None:
+    """Версия админа лежит в JSONB: документ после `normalize_policy` и JSON собирается в ту же
+    политику, что из YAML (Decimal строками, порядок ключей JSONB не важен)."""
+    # sort_keys — как JSONB: ключи объектов идут не в порядке YAML.
+    stored = json.loads(json.dumps(normalize_policy(_raw(version), version), sort_keys=True))
+
+    assert parse_policy(stored, version).config == load_policy(version).config
 
 
 @pytest.mark.parametrize(
