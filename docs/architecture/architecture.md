@@ -274,7 +274,7 @@ sequenceDiagram
     C->>A: POST /applications/{id}/offer/accept → SIGNING
     A->>K: OfferAccepted
     K->>P: OfferAccepted
-    C->>A: POST /applications/{id}/sign {password, offer_hash} → SIGNED
+    C->>A: POST /applications/{id}/sign {password, offer_hash, document_hash, rules_version} → SIGNED
     A->>K: ApplicationSigned
     K->>P: ApplicationSigned
     P->>K: MarkDisbursed · applications.commands
