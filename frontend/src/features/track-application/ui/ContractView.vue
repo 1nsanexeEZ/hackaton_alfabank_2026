@@ -68,9 +68,10 @@ const terms = computed(() => {
       <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">
         График платежей · {{ contract.schedule.payments.length }}
       </summary>
-      <div class="mt-2 max-h-72 overflow-auto rounded-lg bg-white">
+      <!-- Таблица в общем потоке окна: своя вертикальная прокрутка со sticky-шапкой дёргалась при прокрутке окна -->
+      <div class="mt-2 overflow-x-auto rounded-lg bg-white">
         <table class="w-full min-w-[30rem] text-left text-xs">
-          <thead class="sticky top-0 bg-white text-ink-secondary">
+          <thead class="text-ink-secondary">
             <tr>
               <th class="px-2 py-1.5 font-medium">№</th>
               <th v-if="withDates" class="px-2 py-1.5 font-medium">Дата</th>

@@ -116,6 +116,17 @@
   }
 }
 
+/*
+ * Под открытой модалкой (BaseModal ставит has-modal) страница не анимируется: её никто не видит
+ * под затемнением, а постоянная перерисовка мешает плавно прокручивать окно. Модалки телепортированы
+ * в body — правило их не задевает.
+ */
+html.has-modal :is(main, header, footer) *,
+html.has-modal :is(main, header, footer) *::before,
+html.has-modal :is(main, header, footer) *::after {
+  animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
