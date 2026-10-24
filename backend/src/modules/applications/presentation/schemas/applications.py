@@ -6,9 +6,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.types import SafeString
-from src.modules.applications.application.dto.applications import CollateralDTO
+from src.modules.applications.application.dto.applications import CollateralDTO, ThirdPartyDTO
 from src.modules.applications.application.dto.common import UNSET
 from src.modules.applications.application.dto.drafts import (
+    BeneficiaryChoiceDTO,
     ConsentsChoiceDTO,
     DraftChangesDTO,
     DraftRequestDTO,
@@ -41,11 +42,24 @@ class LoanRequestIn(BaseModel):
         )
 
 
+class ThirdPartyIn(BaseModel):
+    """A person by full name; a company or an entrepreneur by name and INN."""
+
+    kind: Literal["person", "organization"]
+    name: Annotated[SafeString, Field(min_length=1, max_length=300)]
+    inn: Annotated[str, Field(pattern=r"^\d{10}(\d{2})?$")] | None = None
+
+    def to_dto(self) -> ThirdPartyDTO:
+        return ThirdPartyDTO(kind=self.kind, name=self.name, inn=self.inn)
+
+
 class CollateralIn(BaseModel):
     type: Literal["real_estate", "equipment", "vehicle", "goods"]
     description: Annotated[SafeString, Field(min_length=1, max_length=1000)]
     declared_value: Amount
     owner: Literal["self", "third_party"] = "self"
+    # Who owns the collateral when it is not the client (115-FZ: the pledgor is screened).
+    owner_party: ThirdPartyIn | None = None
 
     def to_dto(self) -> CollateralDTO:
         return CollateralDTO(
@@ -53,6 +67,23 @@ class CollateralIn(BaseModel):
             description=self.description,
             declared_value=self.declared_value,
             owner=self.owner,
+            owner_party=self.owner_party.to_dto() if self.owner_party else None,
+        )
+
+
+class BeneficiaryIn(BaseModel):
+    """Does the client act to the benefit of a third party — the beneficiary (115-FZ art. 3).
+    `false` is an answer too; `true` needs the beneficiary and the basis."""
+
+    acts_for_third_party: bool
+    beneficiary: ThirdPartyIn | None = None
+    basis: Literal["agency", "commission", "mandate", "trust_management"] | None = None
+
+    def to_dto(self) -> BeneficiaryChoiceDTO:
+        return BeneficiaryChoiceDTO(
+            acts_for_third_party=self.acts_for_third_party,
+            beneficiary=self.beneficiary.to_dto() if self.beneficiary else None,
+            basis=self.basis,
         )
 
 
@@ -72,6 +103,8 @@ class ApplicationUpdate(BaseModel):
     product_fields: dict[str, Any] | None = None
     collateral: CollateralIn | None = None
     consents: ConsentsIn | None = None
+    # null withdraws the answer.
+    beneficiary: BeneficiaryIn | None = None
 
     def to_dto(self) -> DraftChangesDTO:
         """Fields that weren't sent are UNSET; null stays None."""
@@ -93,6 +126,9 @@ class ApplicationUpdate(BaseModel):
             product_fields=self.product_fields if "product_fields" in sent else UNSET,
             collateral=collateral if "collateral" in sent else UNSET,
             consents=consents if "consents" in sent else UNSET,
+            beneficiary=(self.beneficiary.to_dto() if self.beneficiary else None)
+            if "beneficiary" in sent
+            else UNSET,
         )
 
 
@@ -112,6 +148,14 @@ class LoanRequestOut(BaseModel):
     purpose_comment: str | None
 
 
+class ThirdPartyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    kind: str
+    name: str
+    inn: str | None
+
+
 class CollateralOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -119,6 +163,16 @@ class CollateralOut(BaseModel):
     description: str
     declared_value: Decimal
     owner: str
+    owner_party: ThirdPartyOut | None = None
+
+
+class BeneficiaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    acts_for_third_party: bool
+    declared_at: datetime
+    beneficiary: ThirdPartyOut | None
+    basis: str | None
 
 
 class ConsentsOut(BaseModel):
@@ -262,6 +316,8 @@ class ApplicationOut(BaseModel):
     updated_at: datetime
     submitted_at: datetime | None
     closed_at: datetime | None
+    # Whether the client acts to the benefit of a third party (115-FZ); null — not answered.
+    beneficiary: BeneficiaryOut | None = None
 
 
 class ApplicationListItem(BaseModel):

@@ -32,6 +32,8 @@ function loadGraph(code: string): Promise<StageGraph> {
 export interface ProcessTrackingOptions {
   /** Процесс продвинулся — например, перечитать карточку, чтобы подробности этапов были свежими */
   onAdvance?: (process: ProcessDto) => void
+  /** Маршрут продукта: пока процесса нет (черновик), схема строится по нему */
+  fallbackWorkflow?: () => string | null | undefined
 }
 
 export function useProcessTracking(applicationId: () => string, options: ProcessTrackingOptions = {}) {
@@ -64,7 +66,8 @@ export function useProcessTracking(applicationId: () => string, options: Process
       if (!graph.value || graph.value.workflow.code !== next.workflow_code) graph.value = await loadGraph(next.workflow_code)
       if (disposed) return
       const print = `${next.status}|${next.current_node_id}|${next.steps.length}|${next.steps.at(-1)?.finished_at ?? ''}`
-      const advanced = fingerprint !== '' && print !== fingerprint
+      // Процесс появился после «ещё не запущен» — заявку подали: это тоже продвижение
+      const advanced = (fingerprint !== '' && print !== fingerprint) || missing.value
       fingerprint = print
       process.value = next
       now.value = Date.now()
@@ -74,8 +77,11 @@ export function useProcessTracking(applicationId: () => string, options: Process
       schedule(next.status === 'running' ? RUNNING_INTERVAL : next.status === 'waiting' ? WAITING_INTERVAL : null)
     } catch (caught) {
       if (disposed) return
-      if (caught instanceof ApiError && caught.status === 404) missing.value = true
-      else error.value = errorMessage(caught)
+      if (caught instanceof ApiError && caught.status === 404) {
+        missing.value = true
+        const code = options.fallbackWorkflow?.()
+        if (code && !graph.value) graph.value = await loadGraph(code).catch(() => null)
+      } else error.value = errorMessage(caught)
       schedule(RETRY_INTERVAL)
     } finally {
       inFlight = false

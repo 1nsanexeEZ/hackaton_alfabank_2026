@@ -99,6 +99,16 @@ class PersonFact:
 
 
 @dataclass(frozen=True, slots=True)
+class ThirdPartyFact:
+    """The beneficiary or the pledgor from the application, screened under 115-FZ."""
+
+    role: str  # beneficiary | pledgor
+    kind: str  # person | organization
+    name: str
+    inn: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class EnrichmentRequestFact:
     inn: str
     bki_consent_at: datetime | None
@@ -108,6 +118,7 @@ class EnrichmentRequestFact:
     head_bki_consent_at: datetime | None = None
     # Who submitted the application, when not the head: a representative for the 115-FZ check.
     representative: PersonFact | None = None
+    third_parties: tuple[ThirdPartyFact, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,6 +219,10 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 "head": _person(fact.head),
                 "head_bki_consent_at": fact.head_bki_consent_at,
                 "representative": _person(fact.representative),
+                "third_parties": [
+                    {"role": p.role, "kind": p.kind, "name": p.name, "inn": p.inn}
+                    for p in fact.third_parties
+                ],
             },
         ),
         {"EnrichmentCompleted", "EnrichmentFailed"},

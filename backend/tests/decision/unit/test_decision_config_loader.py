@@ -48,7 +48,7 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v7"
+    assert policy.version == "policy_v8"
     assert policy.config.screen_before_scoring
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")

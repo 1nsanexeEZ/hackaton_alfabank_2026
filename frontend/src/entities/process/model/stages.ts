@@ -23,7 +23,7 @@ export type KnownStage =
   | 'rejected'
   | 'closed'
 
-export type StageKey = KnownStage | `node:${string}`
+export type StageKey = KnownStage | `node:${string}` | `pre:${string}`
 
 export const STAGE_TITLE: Record<KnownStage, string> = {
   submitted: 'Подача',

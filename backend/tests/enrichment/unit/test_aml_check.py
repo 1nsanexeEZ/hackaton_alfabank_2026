@@ -15,6 +15,7 @@ from src.core.messaging.contracts.enrichment import (
     EnrichmentCompleted,
     FetchEnrichment,
     PersonRef,
+    ThirdPartyRef,
 )
 from src.modules.enrichment.application.dto.aml import (
     AmlCheckDTO,
@@ -249,3 +250,57 @@ async def test_check_survives_storage() -> None:
     assert data_from_json("aml", data_to_json("aml", check)) == check
     egrul = snapshot.data_of("egrul", RegistryExtractDTO)
     assert egrul is not None and data_from_json("egrul", data_to_json("egrul", egrul)) == egrul
+
+
+async def test_beneficiary_and_pledgor_are_screened() -> None:
+    """Выгодоприобретатель и залогодатель из заявки: организация — по ИНН, человек — по ФИО,
+    в перечнях и в базе ПДЛ (115-ФЗ)."""
+    command = FetchEnrichment(
+        application_id=uuid4(),
+        organization_id=uuid4(),
+        inn=_INN,
+        sources=["egrul", "aml"],
+        third_parties=[
+            ThirdPartyRef(
+                role="beneficiary",
+                kind="organization",
+                name="ООО «Транзитный агент»",
+                inn="7707115094",
+            ),
+            ThirdPartyRef(role="pledgor", kind="person", name="Посредников Павел Павлович"),
+        ],
+    )
+    lists = FakeAmlLists({"7707115094": "freeze", "Посредников Павел Павлович": "terrorism"})
+    pep = FakePep()
+    snapshot, _ = await _run(command, aml_lists=lists, pep=pep)
+
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert AmlSubjectDTO("beneficiary", "ООО «Транзитный агент»", "7707115094") in check.subjects
+    assert AmlSubjectDTO("pledgor", "Посредников Павел Павлович") in check.subjects
+    assert sorted((h.subject.role, h.list) for h in check.list_hits) == [
+        ("beneficiary", "freeze"),
+        ("pledgor", "terrorism"),
+    ]
+    # ПДЛ — только люди: организацию в базе ПДЛ не ищут.
+    assert pep.calls == [("Дочкин Дмитрий Данилович", "Посредников Павел Павлович")]
+
+
+async def test_third_parties_are_screened_on_every_application() -> None:
+    lists = FakeAmlLists()
+    registry = Registry(_extract())
+    repo, outbox = InMemoryRepo(), FakeOutboxWriter()
+    use_case = FetchEnrichmentUseCase(
+        repo, sources(registry=registry, aml_lists=lists), FrozenClock()
+    )
+    party = ThirdPartyRef(role="beneficiary", kind="person", name="Агентов Аркадий")
+    for _ in range(2):
+        command = FetchEnrichment(
+            application_id=uuid4(),
+            organization_id=uuid4(),
+            inn=_INN,
+            sources=["egrul", "aml"],
+            third_parties=[party],
+        )
+        await use_case.execute(command, command_event_id=uuid4(), outbox=outbox)
+    assert [s[-1].role for s in lists.calls] == ["beneficiary", "beneficiary"]

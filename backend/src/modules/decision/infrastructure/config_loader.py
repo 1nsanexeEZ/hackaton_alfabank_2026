@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v7`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v8`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v7"
+_DEFAULT_POLICY = "policy_v8"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -185,8 +185,18 @@ class _AutomatedDecision(_Strict):
     outcomes: list[_OutcomeName] = Field(min_length=1)
 
 
+class _ThirdParties(_Strict):
+    """policy_v8, 115-ФЗ: выгодоприобретатель и залогодатель — третье лицо."""
+
+    # Клиент действует к выгоде третьего лица → ручная проверка.
+    beneficiary_review: bool = True
+    # Нет ответа о выгодоприобретателе или у залога третьего лица нет владельца → ручная проверка.
+    require_answers: bool = False
+
+
 class _Compliance(_Strict):
     aml: _Aml | None = None
+    third_parties: _ThirdParties | None = None
     automated_decision_consent: _AutomatedDecision | None = None
 
 
@@ -333,6 +343,10 @@ def _check_two_models(strategy: _Strategy, path: Path) -> None:
 
 
 def _check_compliance(compliance: _Compliance, path: Path) -> None:
+    if compliance.third_parties is not None and compliance.aml is None:
+        raise PolicyConfigError(
+            f"{path}: compliance.third_parties проверяются вместе с compliance.aml"
+        )
     aml = compliance.aml
     if aml is not None and set(aml.zsk_stop_levels) & set(aml.zsk_review_levels):
         raise PolicyConfigError(
@@ -395,6 +409,7 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     two_models = strategy.two_models
     aml = schema.compliance.aml
     consent = schema.compliance.automated_decision_consent
+    third = schema.compliance.third_parties
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -470,6 +485,9 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         automated_decision_outcomes=frozenset(consent.outcomes)
         if consent is not None
         else frozenset(),
+        third_party_rules=third is not None,
+        third_party_beneficiary_review=third.beneficiary_review if third is not None else False,
+        third_party_answers_required=third.require_answers if third is not None else False,
         screen_before_scoring=stops.before_scoring,
         route_degraded_quality=schema.routing.data_quality,
         stop_unreliable_data=stops.unreliable_data,
