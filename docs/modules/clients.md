@@ -18,21 +18,25 @@ clients/
 │   ├── financial_report.py   # агрегат FinancialReport, ReportFigures
 │   ├── rights.py             # таблица прав, PowerOfAttorney
 │   ├── value_objects.py      # Inn, Ogrn, Requisites, FiscalPeriod, PersonName, RegistryExtract…
+│   ├── inn_check.py          # проверка по ИНН до заявки: CompanyRecord, правила, итог
 │   ├── enums.py              # OrgPermission, MemberRole, Authority, LegalForm, RegistryStatus,
 │   │                         # TaxRegime, VerificationStatus, ReportSource
 │   └── events.py             # доменные события
 ├── application/
-│   ├── dto/                  # snapshot, membership (фасад); organizations, members, reports (API)
-│   ├── interfaces/           # repositories, outbox (EventOutbox), registry (RegistryLookup)
+│   ├── dto/                  # snapshot, membership (фасад); organizations, members, reports,
+│   │                         # inn_check (API)
+│   ├── interfaces/           # repositories, outbox (EventOutbox), registry (RegistryLookup),
+│   │                         # company_check (CompanyCheckSource)
 │   ├── mappers/events.py     # доменные события → контракты clients.events
-│   └── use_cases/            # organizations, members, reports, verification (API и Kafka);
-│                             # membership, snapshot (фасад); common — общие проверки доступа
+│   └── use_cases/            # organizations, members, reports, verification (API и Kafka),
+│                             # inn_check; membership, snapshot (фасад); common — проверки доступа
 ├── infrastructure/
-│   ├── adapters/             # clients_facade.py, enrichment_registry.py (ЕГРЮЛ через enrichment)
+│   ├── adapters/             # clients_facade.py, enrichment_registry.py (ЕГРЮЛ через enrichment),
+│   │                         # enrichment_company_check.py (компания по ИНН через enrichment)
 │   ├── database/             # models
 │   └── repositories/         # organization, financial_report, mappers
 └── presentation/
-    ├── api/                  # organizations, members, financial_reports
+    ├── api/                  # inn_check, organizations, members, financial_reports
     ├── schemas/              # pydantic-схемы по тем же темам
     ├── consumers.py          # EnrichmentCompleted → ApplyRegistryExtractUseCase
     └── dependencies.py       # сборка use case'ов, фасада и use case'а для обработчика
@@ -127,6 +131,7 @@ clients/
 | Метод | Путь | Что | Ответ |
 |---|---|---|---|
 | GET | `/organizations` | мои компании (банк — все): `my_role`, `my_permissions` | 200 |
+| POST | `/organizations/inn-check` | проверка компании по ИНН до заявки, только банк (`backoffice.read`): `{inn, ogrn?, kpp?, name?}` → итог, проверки, данные источников — см. «Проверка по ИНН до заявки» | 200 / 401 / 403 / 422 / 503 |
 | GET | `/organizations/{id}` | карточка: реквизиты, адрес, ОКВЭД, возраст бизнеса, руководитель по реестру, сверка, мои права | 200 / 404 |
 | POST | `/organizations/{id}/verification` | сверка с ЕГРЮЛ/ЕГРИП, без тела: `{organization, updated_fields, discrepancies}` — см. «Сверка с реестром» | 200 / 404 / 422 / 503 |
 | GET | `/organizations/{id}/members` | участники с ФИО (из identity), полномочием, доверенностью и действующими правами | 200 / 404 |
@@ -210,6 +215,100 @@ clients/
 
 Сохранение — та же оптимистическая блокировка: сверка увеличивает `version`, параллельное изменение — `409 version_conflict` (в автосверке — повтор обработчика).
 
+## Проверка по ИНН до заявки
+
+Инструмент сотрудника банка (страница админки «Проверка по ИНН»): компанию проверяют до заявки,
+в системе её может и не быть. `POST /organizations/inn-check`, пермишн `backoffice.read` — он есть
+у андеррайтера и admin, у клиента нет (403). Ничего не сохраняет и событий не публикует.
+
+```json
+{"inn": "7701158817", "ogrn": "1037702309116", "kpp": "770101001", "name": "ООО «Вектор»"}
+```
+
+`inn` — 10 или 12 цифр, обязателен. `ogrn`, `kpp`, `name` — необязательные реквизиты из документов
+клиента: ИНН сверяется с каждым переданным. Наименование сравнивается без формы, кавычек и
+регистра: «ООО «Ромашка»», «Общество с ограниченной ответственностью "РОМАШКА"» и «ромашка» —
+одно и то же. Неверный формат полей — 422.
+
+Как устроено:
+
+- Порт `CompanyCheckSource` (`application/interfaces/company_check.py`) отдаёт `CompanyRecord`:
+  выписку ЕГРЮЛ/ЕГРИП и, если ответили, ФНС, Контур и стоп-лист банка. На стенде его закрывает
+  адаптер `EnrichmentCompanyCheck` → `EnrichmentFacade.lookup_company` → external-mocks, как и
+  остальные внешние источники. Настоящий провайдер — другой адаптер за тем же портом.
+- Правила — чистый домен `domain/inn_check.py`: `assess`, `not_found`, `inn_typo`. Use case
+  `CheckInnUseCase` проверяет контрольную сумму, зовёт порт и ищет компанию среди клиентов банка
+  (`OrganizationRepository.get_by_inn`).
+- Реестр не ответил — 503, остальные источники необязательны: их проверки `skipped`.
+
+Ответ:
+
+| Поле | Что |
+|---|---|
+| `verdict` | `ok` — всё пройдено; `warning` — есть замечание или источник не ответил; `fail` — хоть одна проверка не пройдена или в ИНН ошибка; `not_found` — ЕГРЮЛ/ЕГРИП не знают ИНН |
+| `summary` | итог словами: «Проверка пройдена», «Есть замечания: …», «Не пройдена: …», «ИНН не найден в ЕГРЮЛ» |
+| `checks[]` | `{code, title, status, message, source}`: `status` — `passed` / `warning` / `failed` / `skipped`, `source` — `input` / `egrul` / `fns` / `kontur` / `bank`, `message` — по-русски |
+| `company` | ЕГРЮЛ/ЕГРИП: реквизиты, форма, краткое и полное наименование, статус, дата регистрации, адрес, массовый адрес, отметки о недостоверности, ОКВЭД, руководитель, учредители; `null` — ничего не нашли |
+| `tax` | ФНС: режим, численность, выручка, недоимка, МСП, блокировки счетов, дисквалификация и массовость руководителя; `null` — не ответила |
+| `counterparty` | Контур: надёжность, заметки, иски к компании, исполнительные производства, сообщения о банкротстве; `null` — не ответил |
+| `organization_id` | компания уже клиент банка — её карточка; иначе `null` |
+| `checked_at` | момент проверки |
+
+Проверки по порядку:
+
+| `code` | Источник | Не пройдена (`failed`) | Замечание (`warning`) |
+|---|---|---|---|
+| `inn_checksum` | input | контрольная цифра не сходится — дальше не проверяем, `company: null` | — |
+| `registry_found` | egrul | ИНН не найден → `not_found` | — |
+| `ogrn_match` | input | ОГРН (ОГРНИП) по ИНН в реестре другой — ИНН и ОГРН от разных компаний | — |
+| `kpp_match` | input | — | КПП в реестре другой (могли сменить налоговую); у ИП КПП нет |
+| `name_match` | input | по ИНН в реестре другое наименование | — |
+| `registry_status` | egrul | ликвидация, ликвидирована, банкрот, реорганизация, исключена | — |
+| `unreliable_data` | egrul | отметка о недостоверности адреса, руководителя или учредителя | — |
+| `mass_address` | egrul | адрес массовой регистрации | — |
+| `company_age` | egrul | — | зарегистрирована меньше 12 месяцев назад |
+| `tax_arrears` | fns | — | недоимка по налогам |
+| `account_blocks` | fns | ФНС приостановила операции по счетам | — |
+| `disqualified_head` | fns | руководитель дисквалифицирован | — |
+| `mass_head` | fns | массовый руководитель | — |
+| `bankruptcy` | kontur | сообщения о банкротстве | — |
+| `enforcement` | kontur | — | открытые исполнительные производства |
+| `bank_stop_list` | bank | компания во внутреннем стоп-листе банка | — |
+| `bank_client` | bank | — | компания — клиент, и при последней сверке карточка разошлась с реестром (руководитель) |
+
+`ogrn_match`, `kpp_match`, `name_match` есть, только если поле передали; `bank_client` — только у
+клиента банка.
+
+### Демо-ИНН
+
+Данные — external-mocks (демо-компании сида, `STOP_DEMO`, `CHECK_DEMO`, `UNREGISTERED`). Итог —
+на стенде, где сиды уже залиты.
+
+| ИНН | Что передать ещё | Компания | Итог | Почему |
+|---|---|---|---|---|
+| 7701158817 | — | ООО «Ромашка» (клиент) | `ok` | действующая, долгов нет, карточка сверена |
+| 7704568152 | — | ООО «Прогресс» (клиент) | `ok` | |
+| 7705729405 | — | ООО «Сбой» (клиент) | `ok` | |
+| 770669871605 | — | ИП Иванов (клиент) | `warning` | зарегистрирован меньше года назад |
+| 7706123455 | — | ООО «Старт» (клиент) | `warning` | стартап, три месяца с регистрации |
+| 7707177037 | — | ООО «Должник» | `warning` | недоимка 1 240 000 ₽, 3 исполнительных производства |
+| 7703417070 | — | ООО «Закат» (клиент) | `fail` | ликвидация, ФНС приостановила операции по счетам; недоимка и приставы |
+| 7707177012 | — | ООО «Крах» | `fail` | банкрот, конкурсное производство |
+| 7707177020 | — | ООО «Адрес-Сити» | `fail` | адрес массовой регистрации |
+| 7707146039 | — | ООО «Мираж» | `fail` | недостоверны адрес и руководитель |
+| 7707146014 | — | ООО «Перестройка» | `fail` | реорганизация |
+| 7707146021 | — | ООО «Тень» | `fail` | исключена из реестра |
+| 7707146046 | — | ООО «Номинал» | `fail` | массовый руководитель |
+| 7707146053 | — | ООО «Стоп-Трейд» | `fail` | во внутреннем стоп-листе банка |
+| 7701158817 | `ogrn: 1037702309116`, `name: ООО «Вектор»` | ООО «Ромашка» | `fail` | ИНН Ромашки, ОГРН и название Вектора: ИНН от другой компании |
+| 7704568152 | `kpp: 770101001` | ООО «Прогресс» | `warning` | КПП не совпал: в реестре 770401001 |
+| 7702987976 | — | ООО «Вектор» (клиент) | `warning` | карточка банка разошлась с реестром: директор Петров, в реестре Сидоров |
+| 7707177990 | — | — | `not_found` | ИНН валидный, но в реестре его нет |
+| 7701158818 | — | — | `fail` | ошибка в контрольной цифре (ИНН Ромашки с последней цифрой +1) |
+
+Любой другой валидный ИНН external-mocks генерирует по хешу — так можно проверить и «свою»
+компанию.
+
 ## Фасад и порт `org_member`
 
 `ClientsFacadeImpl` (`infrastructure/adapters/clients_facade.py`) регистрируется в `module.wire` под двумя ключами — `ClientsFacade` и `MemberOrganizationsResolver`. Своей логики у него нет: каждый метод зовёт use case из `application/use_cases/membership.py` или `snapshot.py`, собирает их `presentation/dependencies.clients_facade`. Права считаются по `app.state.clock`.
@@ -238,7 +337,10 @@ S-8 на фасаде: бухгалтер Ромашки проходит `ensur
 
 ## Решения и упрощения
 
-- Регистрации и онбординга компании нет: компании появляются только из сидов.
+- Регистрации и онбординга компании нет: компании появляются только из сидов. Проверка по ИНН
+  компанию не заводит, а только показывает, что о ней знают источники.
+- Предварительного скоринга в проверке по ИНН нет: без заявки нет ни отчётности, ни согласия на
+  БКИ. Сверка `bank_client` берёт результат последней сверки карточки, а не сравнивает заново.
 - Подключение ещё одной компании по ИНН через `enrichment.lookup_registry` (Could) не сделано.
 - Расхождение по руководителю закрыть нечем: принять нового руководителя из реестра может только будущая ручка бэк-офиса. Пока `mismatch` ведёт заявку на ручную проверку.
 - Автосверка идёт после каждого сбора данных по заявке, и каждая пишет запись в ленту участников (notifications слушает `OrganizationVerified` / `OrganizationVerificationMismatch`).

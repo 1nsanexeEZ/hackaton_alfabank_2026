@@ -132,7 +132,7 @@ body:
         "loan_term_months": 36
       }
     }
-sortPriority: 13000.0
+sortPriority: 14000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_start ]}

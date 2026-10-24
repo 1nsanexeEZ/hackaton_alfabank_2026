@@ -1518,6 +1518,53 @@
         }
       }
     },
+    "/organizations/inn-check": {
+      "post": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Check Inn",
+        "description": "Check of a company by INN before an application — bank staff only (`backoffice.read`).\nThe company need not be a client. ЕГРЮЛ/ЕГРИП past the cache, the tax service, Kontur and\nthe bank stop list; `ogrn`, `kpp`, `name` from the client's documents are matched against\nthe registry. A typo in the INN — `fail`, an unknown INN — `not_found`, both with 200;\nthe registry did not answer — 503. Nothing is stored.",
+        "operationId": "check_inn_organizations_inn_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InnCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InnCheckRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
     "/organizations": {
       "get": {
         "tags": [
@@ -4886,6 +4933,30 @@
         "title": "AccountBlockDTO",
         "description": "Решение ФНС о приостановлении операций по счетам."
       },
+      "AccountBlockRead": {
+        "properties": {
+          "decision_number": {
+            "type": "string",
+            "title": "Decision Number"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_number",
+          "date",
+          "reason"
+        ],
+        "title": "AccountBlockRead"
+      },
       "AccountCreate": {
         "properties": {
           "email": {
@@ -6287,6 +6358,30 @@
         ],
         "title": "BankruptcyMessageDTO"
       },
+      "BankruptcyMessageRead": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "case": {
+            "type": "string",
+            "title": "Case"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "type",
+          "case"
+        ],
+        "title": "BankruptcyMessageRead"
+      },
       "BeneficialOwnerDTO": {
         "properties": {
           "name": {
@@ -6766,6 +6861,52 @@
           "projected_balance"
         ],
         "title": "CashflowProjectionDTO"
+      },
+      "CheckRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "skipped"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "input",
+              "egrul",
+              "fns",
+              "kontur",
+              "bank"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "status",
+          "message",
+          "source"
+        ],
+        "title": "CheckRead"
       },
       "ClientApplicationCard": {
         "properties": {
@@ -7880,6 +8021,61 @@
           "authority"
         ],
         "title": "ContractSignerOut"
+      },
+      "CounterpartyRead": {
+        "properties": {
+          "reliability": {
+            "type": "string",
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Reliability"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "arbitration_as_defendant": {
+            "type": "integer",
+            "title": "Arbitration As Defendant"
+          },
+          "arbitration_defendant_sum": {
+            "type": "string",
+            "title": "Arbitration Defendant Sum"
+          },
+          "enforcement_active": {
+            "type": "integer",
+            "title": "Enforcement Active"
+          },
+          "enforcement_sum": {
+            "type": "string",
+            "title": "Enforcement Sum"
+          },
+          "bankruptcy_messages": {
+            "items": {
+              "$ref": "#/components/schemas/BankruptcyMessageRead"
+            },
+            "type": "array",
+            "title": "Bankruptcy Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reliability",
+          "notes",
+          "arbitration_as_defendant",
+          "arbitration_defendant_sum",
+          "enforcement_active",
+          "enforcement_sum",
+          "bankruptcy_messages"
+        ],
+        "title": "CounterpartyRead",
+        "description": "Kontur: courts, bailiffs, bankruptcy; rubles."
       },
       "CounterpartyRiskDTO": {
         "properties": {
@@ -10340,7 +10536,7 @@
             "title": "Status"
           },
           "founder": {
-            "$ref": "#/components/schemas/FounderRead"
+            "$ref": "#/components/schemas/src__modules__decision__api__schemas__FounderRead"
           },
           "checked_at": {
             "type": "string",
@@ -10375,25 +10571,6 @@
         ],
         "title": "FounderPrescreenRead",
         "description": "`failed` — «отказ (стартап)»: клиенту — `reasons[].message`. Действует 30 дней; после\n`valid_until` для заявки на STARTUP нужен новый."
-      },
-      "FounderRead": {
-        "properties": {
-          "account_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Account Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "account_id",
-          "name"
-        ],
-        "title": "FounderRead"
       },
       "GovContractsDTO": {
         "properties": {
@@ -10681,6 +10858,151 @@
           "answered_at"
         ],
         "title": "InfoRequestOut"
+      },
+      "InnCheckRead": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "fail",
+              "not_found"
+            ],
+            "title": "Verdict"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRead"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegistryCompanyRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counterparty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CounterpartyRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn",
+          "verdict",
+          "summary",
+          "checked_at",
+          "checks",
+          "company",
+          "tax",
+          "counterparty",
+          "organization_id"
+        ],
+        "title": "InnCheckRead",
+        "description": "The verdict is the worst status of the checks: a failed one — `fail`; a warning or a\nsource that did not answer — `warning`; `not_found` — ЕГРЮЛ/ЕГРИП do not know the INN."
+      },
+      "InnCheckRequest": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "pattern": "^([0-9]{10}|[0-9]{12})$",
+            "title": "Inn",
+            "description": "10 digits — a legal entity, 12 — an entrepreneur"
+          },
+          "ogrn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9]{13}|[0-9]{15})$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ogrn",
+            "description": "ОГРН or ОГРНИП"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}[0-9A-Z]{2}[0-9]{3}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "With or without the legal form: `ООО «Ромашка»`, `Ромашка`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn"
+        ],
+        "title": "InnCheckRequest",
+        "description": "The INN and, if the client named them, the requisites from their documents: the INN is\nmatched against each one passed."
       },
       "JwksResponse": {
         "properties": {
@@ -15404,6 +15726,142 @@
         ],
         "title": "RecommendationsRead"
       },
+      "RegistryCompanyRead": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "ogrn": {
+            "type": "string",
+            "title": "Ogrn"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "legal_form": {
+            "type": "string",
+            "enum": [
+              "LLC",
+              "IE",
+              "JSC"
+            ],
+            "title": "Legal Form"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "registry_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "liquidating",
+              "liquidated",
+              "bankrupt",
+              "reorganizing",
+              "excluded"
+            ],
+            "title": "Registry Status"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Registered At"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressRead"
+          },
+          "mass_address": {
+            "type": "boolean",
+            "title": "Mass Address"
+          },
+          "unreliable": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "address",
+                "head",
+                "founder"
+              ]
+            },
+            "type": "array",
+            "title": "Unreliable"
+          },
+          "okved_main": {
+            "type": "string",
+            "title": "Okved Main"
+          },
+          "okved_extra": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Okved Extra"
+          },
+          "head_name": {
+            "type": "string",
+            "title": "Head Name"
+          },
+          "head_position": {
+            "type": "string",
+            "title": "Head Position"
+          },
+          "head_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Since"
+          },
+          "founders": {
+            "items": {
+              "$ref": "#/components/schemas/src__modules__clients__presentation__schemas__inn_check__FounderRead"
+            },
+            "type": "array",
+            "title": "Founders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn",
+          "ogrn",
+          "kpp",
+          "legal_form",
+          "name",
+          "full_name",
+          "registry_status",
+          "registered_at",
+          "address",
+          "mass_address",
+          "unreliable",
+          "okved_main",
+          "okved_extra",
+          "head_name",
+          "head_position",
+          "head_since",
+          "founders"
+        ],
+        "title": "RegistryCompanyRead",
+        "description": "ЕГРЮЛ/ЕГРИП."
+      },
       "RegistryExtractDTO": {
         "properties": {
           "inn": {
@@ -17018,6 +17476,84 @@
         ],
         "title": "TaxProfileDTO"
       },
+      "TaxRead": {
+        "properties": {
+          "tax_regime": {
+            "type": "string",
+            "title": "Tax Regime"
+          },
+          "avg_headcount": {
+            "type": "integer",
+            "title": "Avg Headcount"
+          },
+          "reported_revenue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Revenue"
+          },
+          "report_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Year"
+          },
+          "tax_arrears": {
+            "type": "string",
+            "title": "Tax Arrears"
+          },
+          "in_msp_registry": {
+            "type": "boolean",
+            "title": "In Msp Registry"
+          },
+          "disqualified_head": {
+            "type": "boolean",
+            "title": "Disqualified Head"
+          },
+          "mass_head": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mass Head"
+          },
+          "account_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/AccountBlockRead"
+            },
+            "type": "array",
+            "title": "Account Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tax_regime",
+          "avg_headcount",
+          "reported_revenue",
+          "report_year",
+          "tax_arrears",
+          "in_msp_registry",
+          "disqualified_head",
+          "mass_head",
+          "account_blocks"
+        ],
+        "title": "TaxRead",
+        "description": "The tax service («Прозрачный бизнес»), rubles."
+      },
       "ThirdPartyDTO": {
         "properties": {
           "kind": {
@@ -17710,6 +18246,55 @@
           "as_of"
         ],
         "title": "ZskRiskDTO"
+      },
+      "src__modules__clients__presentation__schemas__inn_check__FounderRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "share_percent": {
+            "type": "string",
+            "title": "Share Percent"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "share_percent",
+          "inn"
+        ],
+        "title": "FounderRead"
+      },
+      "src__modules__decision__api__schemas__FounderRead": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "name"
+        ],
+        "title": "FounderRead"
       }
     },
     "securitySchemes": {
