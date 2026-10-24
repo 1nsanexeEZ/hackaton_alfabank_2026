@@ -14,4 +14,9 @@ export const backofficeApi: BackofficeApi = {
   downloadDocument: (applicationId, documentId) => http(`/applications/${applicationId}/documents/${documentId}/download`),
   process: (applicationId) => http(`/processes/${applicationId}`),
   workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
+  applications: (query = {}) => http('/applications', { query: { limit: query.limit, offset: query.offset } }),
+  organization: (organizationId) => http(`/organizations/${organizationId}`),
+  preApprovedOffers: (organizationId) => http(`/organizations/${organizationId}/pre-approved-offers`),
+  founderPrescreen: (organizationId) => http(`/organizations/${organizationId}/founder-prescreen`),
+  projectAssessment: (organizationId) => http(`/organizations/${organizationId}/project-assessment`),
 }

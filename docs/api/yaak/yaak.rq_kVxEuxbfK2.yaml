@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_kVxEuxbfK2
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Участники компании
+description: |-
+  List Members
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/organizations/:organization_id/members
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

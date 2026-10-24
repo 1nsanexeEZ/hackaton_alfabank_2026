@@ -1,0 +1,16 @@
+type: environment
+model: environment
+id: ev_kLxpSkXdzx
+workspaceId: wk_6MYZUPM7tf
+name: local
+public: true
+parentModel: environment
+parentId: ev_4WIp6LalIA
+variables:
+- enabled: true
+  name: base_url
+  value: http://localhost:8080/api
+color: '#22c55e'
+sortPriority: 1000.0
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

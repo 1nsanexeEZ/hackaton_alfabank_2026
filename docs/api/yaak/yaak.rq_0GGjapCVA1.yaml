@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_0GGjapCVA1
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_P85dkFhpWD
+name: Удалить роль
+description: |-
+  409 while any account (deleted ones included) still has this role.
+
+  Токен: администратор.
+method: DELETE
+url: ${[ base_url ]}/roles/:role_id
+urlParameters:
+- enabled: true
+  name: :role_id
+  value: ${[ new_role_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

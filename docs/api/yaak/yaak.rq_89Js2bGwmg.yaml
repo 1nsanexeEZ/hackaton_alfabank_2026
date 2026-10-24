@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_89Js2bGwmg
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AEk4pZezSL
+name: '18. Андеррайтер: решение'
+description: '200, задача закрыта, процесс идёт дальше в той же транзакции. Задача `project_assessment`: в форме ещё оценка бизнес-плана и программа поддержки.'
+method: POST
+url: ${[ base_url ]}/tasks/:task_id/complete
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ response.body.path(request='rq_j4w4Y68Y5k', behavior='smart', path='$.task.id') ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "decision": "approve",
+      "amount": "3000000",
+      "term_months": 36,
+      "rate": "17",
+      "business_plan": "acceptable",
+      "collateral": "поручительство учредителя",
+      "support_program": true,
+      "comment": "Бизнес-план реалистичный, учредитель без просрочек, программа МСП"
+    }
+sortPriority: 18000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

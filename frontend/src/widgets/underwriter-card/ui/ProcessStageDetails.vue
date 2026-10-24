@@ -21,18 +21,32 @@ import type { UnderwriterCardDto } from '@/shared/api'
 import { formatDate, formatDateTime, formatMoney, formatPercent, formatRelativeTime, formatTerm } from '@/shared/lib'
 import { BaseBadge } from '@/shared/ui'
 
+import type { PreludeData } from '../model/usePrelude'
+
 /** Что карточка заявки знает про этап маршрута: данные, решение, задача, предложение и события этапа */
 const props = defineProps<{
   stage: StageKey
   state: StageState
   card: UnderwriterCardDto
   windows: readonly StageWindow[]
+  /** Что было с компанией до заявки — для этапов до подачи */
+  pre: PreludeData | null
 }>()
 
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 const application = computed(() => props.card.application)
 const decision = computed(() => props.card.decision)
 const manual = computed(() => decision.value?.decided_by_type === 'underwriter')
+/** Кто решил: на этапе «Решение» — подпись к бейджу исхода, на «Отказе» — отдельной строкой */
+const decidedBy = computed(() =>
+  props.stage === 'decision'
+    ? manual.value
+      ? 'решил андеррайтер'
+      : 'автоматически'
+    : manual.value
+      ? 'Решил андеррайтер'
+      : 'Решила автоматика',
+)
 
 const documentTitle = (type: string) => DOCUMENT_TITLE[type] ?? type
 const documents = computed(() => application.value.documents.map((item) => documentTitle(item.type)).join(', '))
@@ -49,6 +63,15 @@ const events = computed(() => {
   )
 })
 
+const SOURCE_TEXT: Record<string, string> = { profile: 'из профиля', application: 'галочкой в заявке' }
+const VERIFICATION_TEXT: Record<string, string> = {
+  verified: 'сверена — предодобрение считается',
+  mismatch: 'расхождения с реестром — без сверки предодобрения нет',
+  unverified: 'ещё не сверяли — без сверки предодобрения нет',
+}
+const BASIS_TEXT: Record<string, string> = { estimate: 'по данным компании', full: 'с проверками', project: 'по проектной оценке' }
+const offer = computed(() => props.pre?.offers.find((item) => item.product_code === application.value.product_code) ?? null)
+
 /** Сработавшие стоп-факторы: с ними заявка идёт мимо скоринга на отказ (или к специалисту у ИП без согласия на авторешение) */
 const stopCodes = computed(() => decision.value?.reason_codes.filter((code) => code.startsWith('STOP_')) ?? [])
 
@@ -64,7 +87,75 @@ const models = computed(() => {
 
 <template>
   <div class="mt-3 space-y-3 text-sm">
-    <template v-if="stage === 'submitted'">
+    <template v-if="stage === 'pre:consents'">
+      <ul class="space-y-0.5 text-ink">
+        <li>
+          Обработка ПДн —
+          {{ application.consents?.personal_data_at
+            ? `${SOURCE_TEXT[application.consents.personal_data_source ?? ''] ?? 'дано'}, ${formatDateTime(application.consents.personal_data_at)}`
+            : 'не дано' }}
+        </li>
+        <li>
+          Запрос в БКИ компании —
+          {{ application.consents?.credit_bureau_at
+            ? `${SOURCE_TEXT[application.consents.credit_bureau_source ?? ''] ?? 'дано'}, ${formatDateTime(application.consents.credit_bureau_at)}`
+            : 'не дано' }}
+        </li>
+        <li v-if="application.org_snapshot?.legal_form === 'IE'">
+          Решение автоматикой —
+          {{ application.consents?.automated_decision_at ? `дано, ${formatDateTime(application.consents.automated_decision_at)}` : 'не дано' }}
+        </li>
+      </ul>
+      <p v-if="application.status === 'draft'" class="text-xs text-ink-secondary">
+        Черновик: согласия из профиля он берёт сам, недостающие клиент отмечает перед подачей.
+      </p>
+    </template>
+
+    <template v-else-if="stage === 'pre:prescoring'">
+      <p v-if="application.org_snapshot" class="text-ink">
+        Сверка с ЕГРЮЛ: {{ VERIFICATION_TEXT[application.org_snapshot.verification_status] ?? application.org_snapshot.verification_status }}
+      </p>
+      <p v-if="offer" class="text-ink">
+        Предодобрено по продукту до <b>{{ money(offer.max_amount) }}</b> от {{ formatPercent(Number(offer.rate_from)) }},
+        {{ BASIS_TEXT[offer.basis ?? ''] ?? '' }} · действует до {{ formatDate(offer.valid_until) }}
+      </p>
+      <p v-else-if="pre" class="text-ink-secondary">По этому продукту предодобрения нет — решение по полной проверке.</p>
+      <p v-if="pre && pre.offers.length > (offer ? 1 : 0)" class="text-xs text-ink-secondary">
+        Другие предодобренные продукты: {{ pre.offers.filter((item) => item !== offer).length }}
+      </p>
+      <p v-if="application.status === 'draft'" class="text-xs text-ink-secondary">
+        Клиент выбирает условия — калькулятор считает по ставке предодобрения, заявка ещё не подана.
+      </p>
+    </template>
+
+    <template v-else-if="stage === 'pre:prescreen'">
+      <template v-if="pre?.prescreen">
+        <p class="text-ink">
+          {{ pre.prescreen.founder.name }} — {{ pre.prescreen.status === 'passed' ? 'пройдена' : 'не пройдена' }},
+          {{ formatDateTime(pre.prescreen.checked_at) }}{{ pre.prescreen.valid ? `, действует до ${formatDate(pre.prescreen.valid_until)}` : ', срок истёк' }}
+        </p>
+        <ul class="space-y-0.5 text-ink-secondary">
+          <li v-for="reason in pre.prescreen.reasons" :key="reason.code">{{ reason.passed ? '✓' : '✗' }} {{ reason.message }}</li>
+        </ul>
+      </template>
+      <p v-else class="text-ink-secondary">Проверку учредителя не проходили.</p>
+    </template>
+
+    <template v-else-if="stage === 'pre:project'">
+      <template v-if="pre?.project">
+        <p class="text-ink">
+          {{ pre.project.status === 'passed' ? 'Пройдена' : 'Не пройдена' }}, {{ formatDateTime(pre.project.checked_at)
+          }}<template v-if="pre.project.max_amount"> — предодобрено до <b>{{ money(pre.project.max_amount) }}</b></template>
+        </p>
+        <ul class="space-y-0.5 text-ink-secondary">
+          <li v-for="reason in pre.project.reasons" :key="reason.code">{{ reason.passed ? '✓' : '✗' }} {{ reason.message }}</li>
+        </ul>
+        <p class="text-xs text-ink-secondary">Цифры оценки — в панели «Проект стартапа» ниже.</p>
+      </template>
+      <p v-else class="text-ink-secondary">Проектную оценку не проходили — сумму определит специалист.</p>
+    </template>
+
+    <template v-else-if="stage === 'submitted'">
       <dl class="grid gap-x-6 gap-y-2 sm:grid-cols-3">
         <div v-if="application.request">
           <dt class="text-xs text-ink-secondary">Запрос</dt>
@@ -175,18 +266,23 @@ const models = computed(() => {
 
     <template v-else-if="stage === 'decision' || stage === 'rejected'">
       <template v-if="decision">
+        <!-- На этапе «Отказ» исход уже в заголовке — только кто решил, причины и комментарий андеррайтера -->
         <div class="flex flex-wrap items-center gap-2">
-          <BaseBadge :tone="OUTCOME_LABEL[decision.outcome]?.tone ?? 'neutral'">{{ OUTCOME_LABEL[decision.outcome]?.label ?? decision.outcome }}</BaseBadge>
-          <BaseBadge v-if="decision.review" :tone="REVIEW_LABEL[decision.review].tone">{{ REVIEW_LABEL[decision.review].label }}</BaseBadge>
-          <span class="text-xs text-ink-secondary">{{ manual ? 'решил андеррайтер' : 'автоматически' }} · {{ formatDateTime(decision.decided_at) }}</span>
+          <BaseBadge v-if="stage === 'decision'" :tone="OUTCOME_LABEL[decision.outcome]?.tone ?? 'neutral'">
+            {{ OUTCOME_LABEL[decision.outcome]?.label ?? decision.outcome }}
+          </BaseBadge>
+          <BaseBadge v-if="stage === 'decision' && decision.review" :tone="REVIEW_LABEL[decision.review].tone">
+            {{ REVIEW_LABEL[decision.review].label }}
+          </BaseBadge>
+          <span :class="stage === 'decision' ? 'text-xs text-ink-secondary' : 'text-ink'">
+            {{ decidedBy }} · {{ formatDateTime(decision.decided_at) }}
+          </span>
         </div>
         <ul v-if="decision.reason_codes.length" class="space-y-0.5 text-ink">
           <li v-for="code in decision.reason_codes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
         </ul>
-        <p v-if="decision.limits.final" class="text-ink-secondary">Итоговый лимит {{ money(decision.limits.final) }}</p>
-        <p v-if="stage === 'rejected' && decision.client_explanation" class="rounded-lg bg-white p-2.5 text-ink-secondary">
-          Клиенту: «{{ decision.client_explanation }}»
-        </p>
+        <p v-if="stage === 'decision' && decision.limits.final" class="text-ink-secondary">Итоговый лимит {{ money(decision.limits.final) }}</p>
+        <p v-if="stage === 'rejected' && manual && decision.comment" class="text-ink-secondary">Комментарий андеррайтера: «{{ decision.comment }}»</p>
       </template>
       <p v-else class="text-ink-secondary">Решения ещё нет.</p>
     </template>

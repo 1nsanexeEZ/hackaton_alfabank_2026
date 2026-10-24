@@ -2,7 +2,7 @@
 
 Прототип цифрового кредитного конвейера для малого и микробизнеса: предприниматель выбирает продукт и подаёт заявку в личном кабинете, банк проверяет данные, обогащает их из внешних источников, оценивает риск и принимает решение, клиент видит статус и следующий шаг на каждом этапе. Кейс «Альфа Хак 2026», трек «Умный кредитный кабинет предпринимателя» (Альфа-Банк, Changellenge); команда battalion 404. Текст кейса и наше понимание — [`docs/case.md`](docs/case.md), ответы экспертов — [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md).
 
-> **Состояние версии.** В `develop` работает весь конвейер: платформа (Kafka, outbox/inbox, DLQ), вход и права, компании, каталог и подбор продуктов, заявки и документы, движок процесса по BPMN-маршрутам, обогащение из внешних источников и прогноз кассового разрыва, скоринг, кредитное решение, ветка стартапа, задачи андеррайтера, лента, модели чтения и BFF. Сценарии S-1…S-9 ниже проходят целиком в автотестах (`backend/tests/scenarios`); коллекция запросов для ручной проверки ещё готовится.
+> **Состояние версии.** В `develop` работает весь конвейер: платформа (Kafka, outbox/inbox, DLQ), вход и права, компании, каталог и подбор продуктов, заявки и документы, движок процесса по BPMN-маршрутам, обогащение из внешних источников и прогноз кассового разрыва, скоринг, кредитное решение, ветка стартапа, задачи андеррайтера, лента, модели чтения и BFF. Сценарии S-1…S-9 ниже проходят целиком в автотестах (`backend/tests/scenarios`) и вручную — по [коллекции запросов Yaak](#коллекция-запросов-yaak).
 
 ## Содержание
 
@@ -13,6 +13,7 @@
 - [Демо-данные и учётные записи](#демо-данные-и-учётные-записи)
 - [Смоделированные интеграции](#смоделированные-интеграции)
 - [Сценарии проверки S-1…S-9](#сценарии-проверки-s-1s-9)
+- [Коллекция запросов Yaak](#коллекция-запросов-yaak)
 - [Документация](#документация)
 - [Разработка](#разработка)
 - [Что вошло и что дальше](#что-вошло-и-что-дальше)
@@ -23,7 +24,7 @@
 
 ```mermaid
 flowchart LR
-    Browser["Браузер: кабинет клиента и сотрудника банка"] --> Nginx["nginx :80"]
+    Browser["Браузер: кабинет клиента и сотрудника банка"] --> Nginx["nginx :8080<br/>(на стенде :443)"]
     Nginx --> Frontend["frontend (Vue)"]
     Nginx --> Backend["backend (FastAPI)<br/>модули: identity, clients, products,<br/>applications, process, enrichment,<br/>scoring, decision, notifications,<br/>projector, bff"]
     Nginx -->|presigned URL| MinIO[("MinIO<br/>документы")]
@@ -56,7 +57,7 @@ flowchart LR
 
 - Docker с Compose v2 (Docker Desktop на Windows/macOS или Docker Engine на Linux).
 - Машина с 12 ГБ оперативной памяти: стенд целиком занимает меньше 3 ГБ.
-- Около 2,5 ГБ диска под образы, свободные порты 80 и 443.
+- Около 2,5 ГБ диска под образы и свободный порт 8080 (другой порт — `HTTP_PORT`, см. ниже).
 - Интернет — только для первой сборки образов; дальше стенд запускается офлайн.
 - Для разработки без Docker: Python 3.12 и [uv](https://docs.astral.sh/uv/), Node.js 22+.
 
@@ -80,26 +81,31 @@ flowchart LR
 ```bash
 git clone https://github.com/1nsanexeEZ/hackaton_alfabank_2026.git
 cd hackaton_alfabank_2026
-cp .env.example .env
-docker compose up -d --build
+docker compose up -d --build --wait --wait-timeout 600
 ```
 
-`.env` необязателен: без него compose берёт значения по умолчанию. Из `.env.example` стоит взять хотя бы `DEMO_LOGIN_ENABLED=true` — вход в демо-учётки в один клик.
+Откройте **http://localhost:8080** и войдите в любую демо-учётку кнопкой, без пароля. На Windows то же самое делает двойной щелчок по [`start.cmd`](start.cmd): он проверит, что Docker запущен, поднимет стенд и откроет браузер.
 
-При старте backend сам применяет миграции, создаёт бакет MinIO, топики Kafka и DLQ, администратора и демо-данные. Первая сборка со скачиванием образов занимает несколько минут и зависит от сети; уже собранный стенд поднимается меньше чем за минуту (backend ждёт, пока Postgres, MinIO и Kafka пройдут healthcheck). Проверка:
+`.env` не нужен: значения по умолчанию в `docker-compose.yml` рассчитаны на локальную проверку (порт 8080, вход в один клик, демо-данные). Чтобы что-то поменять, скопируйте `.env.example` в `.env` и правьте его; если меняете `HTTP_PORT`, поменяйте под него и `MINIO_PUBLIC_ENDPOINT`, иначе не загрузятся документы.
+
+При старте backend сам применяет миграции, создаёт бакет MinIO, топики Kafka и DLQ, администратора и демо-данные. Первая сборка со скачиванием образов занимает 5–15 минут и зависит от сети; уже собранный стенд поднимается меньше чем за минуту. `--wait` возвращает управление, когда все сервисы прошли healthcheck. Проверка:
 
 ```bash
 docker compose ps
-curl http://localhost/ready
+curl http://localhost:8080/api/ready
 ```
 
-`/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. На свежем томе Kafka в первые секунды backend пишет в лог `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик offset'ов, это проходит само. Swagger UI — http://localhost/docs, OpenAPI — http://localhost/openapi.json и выгрузка в репозитории [`docs/api/openapi.json`](docs/api/openapi.json).
+`/api/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. На свежем томе Kafka в первые секунды backend пишет в лог `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик offset'ов, это проходит само. Swagger UI — http://localhost:8080/api/docs, OpenAPI — http://localhost:8080/openapi.json и выгрузка в репозитории [`docs/api/openapi.json`](docs/api/openapi.json). Все пути API снаружи начинаются с `/api/`.
 
-Первый вход:
+Вход по паролю из командной строки:
 
 ```bash
-curl -X POST http://localhost/auth/login -H "Content-Type: application/json" -d "{\"login\": \"owner@romashka.test\", \"password\": \"Demo-2026!\"}"
+curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d "{\"login\": \"owner@romashka.test\", \"password\": \"Demo-2026!\"}"
 ```
+
+**Если не стартует.** Порт 8080 занят — `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` в `.env`. Docker Desktop пишет «There was a problem with WSL» или сборка падает на `no space left on device` — кончилось место на диске, где лежат данные Docker: освободите место или перенесите их (Settings → Resources → Advanced → Disk image location). Что именно упало — `docker compose ps` и `docker compose logs --tail=100 <сервис>`.
+
+**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен. Это делает [`docker/deploy.sh`](docker/deploy.sh) по тегу версии `v*.*.*`; для локальной проверки добавка не нужна.
 
 **Офлайн.** Все зависимости ставятся при сборке образов (`uv sync --frozen`), в рантайме ничего не скачивается: ключи JWT генерируются при первом старте, топики и бакет создаёт backend, демо-данные лежат в репозитории. Чтобы запускать без интернета, один раз с интернетом выполните `docker compose pull` и `docker compose build`, дальше `docker compose up -d` работает офлайн.
 
@@ -120,12 +126,13 @@ Compose читает `.env` из корня репозитория; в конт�
 | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | `admin@example.com` / `Admin-2026!` | администратор, которого backend создаёт при первом старте |
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | учётка MinIO, общая для MinIO и backend |
 | `MINIO_BUCKET_NAME` | `credit-documents` | бакет документов; nginx проксирует путь `/credit-documents/` в MinIO |
-| `MINIO_PUBLIC_ENDPOINT` | `http://localhost` | адрес, на который подписываются presigned URL (то, что видит браузер) |
+| `HTTP_PORT` | `8080` | порт сайта на этой машине; на стенде nginx слушает 80 и 443 (`docker-compose.prod.yml`) |
+| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:8080` | адрес, на который подписываются presigned URL (то, что видит браузер); порт должен совпадать с `HTTP_PORT` |
 | `MESSAGING_MODE` | `kafka` | `kafka` — брокер из compose; `in_process` — без брокера, доставка внутри процесса (локальный запуск); `manual` — тесты |
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
-| `DEMO_LOGIN_ENABLED` | `false` (в `.env.example` — `true`) | вход в демо-учётку без пароля (`POST /auth/demo-login`); на публичном стенде выключен |
+| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля (`POST /api/auth/demo-login`); на публичном стенде выключен |
 | `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | адрес моков для подписания (ЭДО) и выдачи (АБС); без переменной (локальный запуск без моков) оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут запроса в секундах и число повторов (`backend/src/modules/enrichment/infrastructure/config.py`) |
 | `DECISION_KEY_RATE` | `16.50` | ключевая ставка Банка России, % годовых: от неё считается ставка предложения; на дату сдачи сверить с cbr.ru |
@@ -200,6 +207,16 @@ Compose читает `.env` из корня репозитория; в конт�
 
 Синтетические выписки для S-2 и S-5 лежат в `backend/seed/statements/` (`ivanov.csv`, `progress.csv` и выписки остальных демо-компаний); генератор — `uv run python -m scripts.generate_statements`.
 
+## Коллекция запросов Yaak
+
+[`docs/api/yaak/`](docs/api/yaak/) — коллекция для [Yaak](https://yaak.app): сценарии S-1…S-10 (S-10 — стартап через бизнес-план в кабинете и предодобрение) и справочник по всем ручкам API. Шаг сценария берёт id заявки, документа, задачи и хеш оферты из ответов прошлых шагов — вводить руками ничего не нужно.
+
+1. Yaak → **New Workspace → Open Folder** → `docs/api/yaak`. Папка синхронизируется с репозиторием: правки в Yaak попадают в файлы. Без синхронизации — **Import** файла [`docs/api/yaak.json`](docs/api/yaak.json).
+2. Выбрать окружение: `local` (`http://localhost:8080/api`, порт `HTTP_PORT` из compose) или `stand`.
+3. Открыть папку сценария и отправлять шаги по порядку. Решение банк принимает асинхронно: если шаг «Карточка» показывает ещё не тот статус, через пару секунд отправьте его снова. «Send All» на папке этого ожидания не делает.
+
+Токены ролей берутся сами: вход по паролю демо-учётки, повторно раз в 25 минут (на `stand` nginx пускает на вход 10 запросов в минуту). После смены окружения отправьте заново вход нужных ролей из папки «Токены ролей» — иначе до 25 минут будут уходить токены прошлого стенда. Сценарий доводит заявку до финального статуса, поэтому его можно пройти снова; ожидаемый ответ — в описании каждого шага. Коллекция собирается скриптом из `docs/api/openapi.json` и `backend/scripts/yaak/scenarios.py`: после изменения API или сценария — `uv run python -m scripts.export_yaak` из `backend/`.
+
 ## Документация
 
 | Что | Где |
@@ -207,7 +224,7 @@ Compose читает `.env` из корня репозитория; в конт�
 | Кейс, наше понимание, ответы организаторов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
 | Архитектура: модули, путь клиента, путь заявки через Kafka, модель принятия решения | [`docs/architecture/architecture.md`](docs/architecture/architecture.md) (схема draw.io — рядом), [`docs/platform.md`](docs/platform.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | Swagger UI `/docs`, [`docs/api/openapi.json`](docs/api/openapi.json); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
+| Описание API | Swagger UI `/docs`, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция запросов Yaak [`docs/api/yaak/`](docs/api/yaak/); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
 | Проверка клиента по 115-ФЗ на каждой заявке, автоматизированное решение (ст. 16 152-ФЗ) | [`docs/compliance-115.md`](docs/compliance-115.md) |
@@ -225,6 +242,7 @@ uv run pytest -m integration      # Postgres и Kafka в testcontainers, нуж�
 uv run ruff check . && uv run ruff format --check .
 uv run lint-imports               # границы модулей
 uv run python -m scripts.export_openapi   # обновить docs/api/openapi.json после изменения API
+uv run python -m scripts.export_yaak      # и коллекцию Yaak в docs/api/yaak/ (--check — свежая ли)
 ```
 
 Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков. Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.

@@ -1,0 +1,9 @@
+type: workspace
+model: workspace
+id: wk_6MYZUPM7tf
+name: Кредитный кабинет МСБ — API
+description: Справочник по всем ручкам API и сценарии проверки S-1…S-10. Выберите окружение `local` или `stand`, токены ролей берутся сами. Собрано `backend/scripts/export_yaak.py` из `docs/api/openapi.json`.
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
+authenticationType: none
+authentication: {}

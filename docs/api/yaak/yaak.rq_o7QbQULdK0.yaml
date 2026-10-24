@@ -1,0 +1,21 @@
+type: http_request
+model: http_request
+id: rq_o7QbQULdK0
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Каталог продуктов
+description: Active products in catalog order, optionally for one purpose.
+method: GET
+url: ${[ base_url ]}/products
+urlParameters:
+- enabled: false
+  name: purpose
+  value: working_capital
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

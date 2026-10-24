@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_vaRbOuFS8H
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_WpoGHiYheT
+name: 13. Отказаться от предложения
+description: '200, статус `offer_declined`: заявка закрыта, компания может подать новую.'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/offer/decline
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "reason": "Нужен лимит 10 млн, подтвердим полномочия и вернёмся"
+    }
+sortPriority: 13000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_vector ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

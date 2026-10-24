@@ -1,0 +1,31 @@
+type: http_request
+model: http_request
+id: rq_RdikzubQHz
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Удалить документ
+description: |-
+  Delete Document
+
+  Удалить документ можно, пока заявка — черновик: создайте черновик и заявите документ.
+
+  Токен: директор ООО «Ромашка».
+method: DELETE
+url: ${[ base_url ]}/applications/:application_id/documents/:document_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: :document_id
+  value: ${[ document_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 17000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

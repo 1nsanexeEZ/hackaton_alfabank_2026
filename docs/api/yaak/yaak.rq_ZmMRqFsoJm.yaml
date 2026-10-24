@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_ZmMRqFsoJm
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PfNW2aqqEA
+name: Очередь задач
+description: |-
+  Underwriter queue by due date (the back office screen reads the projector).
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/tasks
+urlParameters:
+- enabled: false
+  name: role
+  value: underwriter
+- enabled: false
+  name: status
+  value: active
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,4 +1,5 @@
 export { parseWorkflow, type BpmnFlow, type BpmnNode, type Workflow } from './model/bpmn'
+export { type PreludeStage } from './model/prelude'
 export {
   processProgress,
   type ProcessProgress,

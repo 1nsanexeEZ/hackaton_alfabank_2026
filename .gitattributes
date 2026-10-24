@@ -1,0 +1,23 @@
+# Git сам приводит переносы строк в текстовых файлах.
+* text=auto
+
+# Скрипты для Linux и контейнеров ломаются на CRLF, даже если репозиторий склонирован на Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+.env.example text eol=lf
+
+# Скрипты Windows — только с CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Демо-выписки хранятся байт в байт, как их выгрузил банк (с CRLF).
+backend/seed/statements/*.csv -text
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.docx binary
+*.woff2 binary

@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_N1neEYxZOh
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 03. Проверить учредителя
+description: '201, `status` = `passed`: личная кредитная история учредителя без просрочек.'
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/founder-prescreen
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

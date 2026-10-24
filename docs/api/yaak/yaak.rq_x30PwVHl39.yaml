@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_x30PwVHl39
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_MUo8HeVGMW
+name: 10. Процесс по заявке
+description: '`completed`; в `visited_node_ids` нет `underwriter_review`: человек не участвовал.'
+method: GET
+url: ${[ base_url ]}/processes/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

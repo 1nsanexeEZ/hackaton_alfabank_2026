@@ -1,0 +1,15 @@
+type: folder
+model: folder
+id: fl_NQa6xbcnQA
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PKvrC4MM6R
+name: 'S-4. Закат: отказ по стоп-факторам'
+description: |-
+  «Кредит без залога», 2 млн ₽ на 12 месяцев: компания ликвидируется, просрочка больше 90 дней, недоимка → отказ на шаге «Стоп-факторы», модель не вызывается.
+
+  Входит директор ООО «Закат» (`owner@zakat.test`). Шаги отправляются по порядку.
+sortPriority: 4000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

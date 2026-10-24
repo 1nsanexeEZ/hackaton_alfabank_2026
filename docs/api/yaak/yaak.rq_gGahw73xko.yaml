@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_gGahw73xko
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4MO7X92vcV
+name: '14. Андеррайтер: карточка заявки'
+description: |-
+  Что видит андеррайтер: данные заявки и компании, обогащение, скоринг обеих моделей, проверки 115-ФЗ, процесс. В `task` — его задача по заявке.
+
+  `task: null` — процесс ещё не дошёл до андеррайтера: отправьте шаг ещё раз.
+method: GET
+url: ${[ base_url ]}/bff/backoffice/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 14000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

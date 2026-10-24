@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_hZ6fvbp1fR
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_jSuhpwkwE4
+name: Дать согласия
+description: |-
+  Each type is a new consent row; the request's IP and User-Agent are kept with it.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/me/consents
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "types": [
+        "personal_data",
+        "credit_bureau_personal"
+      ]
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_OZsjvzVyXT
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Заявить документ
+description: |-
+  Announce a file and get a presigned URL: the browser PUTs it straight
+  to the storage, then calls /confirm.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/applications/:application_id/documents
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "type": "bank_statement",
+      "filename": "romashka.csv",
+      "content_type": "text/csv",
+      "size_bytes": 5767
+    }
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

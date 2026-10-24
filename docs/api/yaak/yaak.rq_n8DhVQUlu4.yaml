@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_n8DhVQUlu4
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Поток событий (SSE)
+description: |-
+  SSE: `feed_item` (id = stream position), `application_updated`, `heartbeat`.
+  The ticket is spent on connect: to reconnect, take a new ticket and pass the
+  last received id as `last_event_id` (or the Last-Event-ID header).
+
+  Поток не заканчивается сам: остановите запрос, когда насмотритесь. Билет одноразовый, новый берётся при каждой отправке.
+method: GET
+url: ${[ base_url ]}/feed/stream
+urlParameters:
+- enabled: true
+  name: ticket
+  value: ${[ response.body.path(request='rq_Olb5ukYUVq', behavior='always', path='$.ticket') ]}
+- enabled: false
+  name: last_event_id
+  value: ''
+headers: []
+bodyType: null
+body: {}
+sortPriority: 5000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

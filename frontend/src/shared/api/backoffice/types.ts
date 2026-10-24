@@ -3,6 +3,9 @@ import type {
   BusinessPlanDto,
   ClientStatus,
   ConsentsDto,
+  FounderPrescreenDto,
+  OrganizationDetailDto,
+  PreApprovedOfferDto,
   ProjectAssessmentDto,
 } from '../client/types'
 
@@ -41,6 +44,20 @@ export interface QueueItemDto {
   created_at: string
 }
 
+/** Заявка в списке всех заявок сотрудника (GET /applications): и черновики, и решённые автоматикой */
+export interface StaffApplicationDto {
+  id: string
+  number: string
+  organization_id: string
+  product_code: string
+  status: ApplicationStatusCode
+  client_stage: string | null
+  amount: string | null
+  term_months: number | null
+  updated_at: string
+  submitted_at: string | null
+}
+
 export interface QueuePageDto {
   items: QueueItemDto[]
   total: number
@@ -62,7 +79,18 @@ export interface UnderwriterApplicationDto {
   number: string
   organization_id: string
   product_code: string
-  product_terms: { code: string; amount_min: string; amount_max: string; term_min_months: number; term_max_months: number; rate_base: string; rate_max: string; auto_decision_limit: string }
+  product_terms: {
+    code: string
+    amount_min: string
+    amount_max: string
+    term_min_months: number
+    term_max_months: number
+    rate_base: string
+    rate_max: string
+    auto_decision_limit: string
+    /** Маршрут продукта: по нему схема строится ещё до процесса — у черновика */
+    workflow_code?: string
+  }
   request: { amount: string; term_months: number; purpose: string; purpose_comment: string | null } | null
   product_fields: Record<string, unknown>
   collateral: { type: string; description: string; declared_value: string; owner: string } | null
@@ -468,4 +496,13 @@ export interface BackofficeApi {
   process(applicationId: string): Promise<ProcessDto>
   /** Схема маршрута — BPMN 2.0 XML */
   workflowDiagram(code: string): Promise<string>
+  /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
+  applications(query?: { limit?: number; offset?: number }): Promise<StaffApplicationDto[]>
+  organization(organizationId: string): Promise<OrganizationDetailDto>
+  /** До заявки — предскоринг компании: предодобренные предложения, у стартапа — проверка учредителя и проектная оценка */
+  preApprovedOffers(organizationId: string): Promise<PreApprovedOfferDto[]>
+  /** 404 — проверки не было */
+  founderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
+  /** 404 — оценки не было */
+  projectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
 }

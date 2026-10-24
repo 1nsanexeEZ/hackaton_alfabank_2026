@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_pDVb17EumN
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AyvWxbeHqI
+name: Очередь андеррайтера
+description: |-
+  Underwriting Queue
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/bff/backoffice/queue
+urlParameters:
+- enabled: false
+  name: status
+  value: open
+- enabled: false
+  name: sort
+  value: due_at
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

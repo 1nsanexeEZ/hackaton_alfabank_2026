@@ -1,0 +1,32 @@
+type: http_request
+model: http_request
+id: rq_nJ5R38AYqO
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AEk4pZezSL
+name: 05. Подбор продукта
+description: Стартапу подходит только `STARTUP`.
+method: GET
+url: ${[ base_url ]}/bff/products/recommend
+urlParameters:
+- enabled: true
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: true
+  name: purpose
+  value: working_capital
+- enabled: true
+  name: amount
+  value: '3000000'
+- enabled: true
+  name: term_months
+  value: '36'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

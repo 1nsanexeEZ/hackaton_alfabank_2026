@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_Fv4ZHjrLTx
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Новости для компании
+description: |-
+  News picked for the company (industry, products, legal form), each with
+  the reasons in `relevance`. Without a company — general news only.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/news
+urlParameters:
+- enabled: false
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: false
+  name: limit
+  value: '20'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

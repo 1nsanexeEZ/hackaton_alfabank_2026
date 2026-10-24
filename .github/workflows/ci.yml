@@ -149,7 +149,6 @@ jobs:
       - name: Typecheck and build
         run: npm run build
 
-  images:
   stand:
     name: Stand starts like the jury runs it
     runs-on: ubuntu-latest

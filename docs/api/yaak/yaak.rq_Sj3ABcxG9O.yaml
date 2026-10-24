@@ -1,0 +1,21 @@
+type: http_request
+model: http_request
+id: rq_Sj3ABcxG9O
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Продукт
+description: Archived products are readable too (status `archived`).
+method: GET
+url: ${[ base_url ]}/products/:code
+urlParameters:
+- enabled: true
+  name: :code
+  value: UNSECURED
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,141 @@
+type: http_request
+model: http_request
+id: rq_BCQiLVY5IO
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Сохранить бизнес-план
+description: |-
+  The startup's project before an application: needs `edit_financials`. A new plan — 201,
+  a revised one — 200; the bank's assessment of an older revision stays until it is run
+  again (`POST /organizations/{id}/project-assessment`).
+
+  Токен: учредитель ООО «Старт».
+method: PUT
+url: ${[ base_url ]}/organizations/:organization_id/business-plan
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ startup_organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "summary": "Кофейня у метро: зерно от обжарщика, завтраки, доставка по району",
+      "financial_model": {
+        "months": [
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          }
+        ],
+        "own_funds": "1000000",
+        "collateral_description": "Поручительство учредителя",
+        "guarantee": "msp_corporation",
+        "guarantee_share": "0.5",
+        "loan_amount": "3000000",
+        "loan_term_months": 36
+      }
+    }
+sortPriority: 13000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

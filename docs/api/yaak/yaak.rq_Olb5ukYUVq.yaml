@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_Olb5ukYUVq
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Билет на поток событий
+description: |-
+  One-time ticket for GET /feed/stream (EventSource can't send the token).
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/feed/stream-ticket
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_NAtBw8UqJB
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_D4y4bxXgkd
+name: Подбор с предодобрением
+description: |-
+  With organization_id: eligibility of the company and pre-approved amounts.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/bff/products/recommend
+urlParameters:
+- enabled: true
+  name: purpose
+  value: working_capital
+- enabled: true
+  name: amount
+  value: '3000000'
+- enabled: true
+  name: term_months
+  value: '24'
+- enabled: false
+  name: organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
