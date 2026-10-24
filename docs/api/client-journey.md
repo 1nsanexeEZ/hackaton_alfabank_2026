@@ -532,7 +532,7 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 Клиент видит только итог: текст отказа без деталей источников. Если источник не ответил, решение уходит на ручную проверку (`ROUTE_SOURCES_FAILED`), и клиент читает, что заявку рассмотрит специалист. Нет согласия руководителя — его БКИ не запрашивается, проверка просрочки руководителя пропускается, решение идёт дальше.
 
-В external-mocks — `GET /gir-bo/{inn}`, `GET /kontur/{inn}`, `POST /bki/person-report` и `account_blocks` в `GET /fns/{inn}`; формы ответов — как в `frontend/mocks/external-sources.json`.
+В external-mocks — `GET /gir-bo/{inn}`, `GET /kontur/{inn}`, `POST /bki/person-report` и `account_blocks` в `GET /fns/{inn}`; формы ответов — в [`external-mocks/README.md`](../../external-mocks/README.md).
 
 ### 4.5. Договор перед подписью
 
@@ -650,22 +650,6 @@ decision: {
 
 ---
 
-## 5. Админка фронта на моках и бэк
+## 5. Админка фронта и бэк
 
-Это вне клиентского пути, но тоже контракт для фронта. С `VITE_API_MODE=real` обзор, очередь и карточка андеррайтера уже ходят в бэк (`frontend/src/shared/api/backoffice`). `creditApi` (`frontend/src/shared/api/credit/types.ts`) — на моке в любом режиме: на нём редакторы продуктов и скоринга, проверка по ИНН и страницы мок-режима. Его методы и ручки бэка:
-
-| Метод мока | Ручка бэка | Расхождение |
-|---|---|---|
-| `listApplications(filters)` | `GET /bff/backoffice/queue`, `GET /applications?status=` | мок — все заявки с поиском; бэк — очередь задач андеррайтера, поиска (`search`) нет |
-| `getApplication(id)` | `GET /bff/backoffice/applications/{id}` | `dossier` мока ≈ `enrichment` бэка; поля разные, ГИР БО и Контура нет (4.4) |
-| `assign(id)` | `POST /tasks/{task_id}/claim` | по задаче, а не по заявке |
-| `decide(id, input)` | `POST /tasks/{task_id}/complete` | по задаче; словарь исходов: мок `approved / counter_offer / info_requested / rejected` ↔ бэк `approve / counter_offer / request_info / reject` |
-| `transition(id, to_signing \| issue)` | — | переходы делают клиент (`accept`, `sign`) и процесс (выдача); у банка таких ручек нет |
-| `getDashboard()` | `GET /bff/backoffice/metrics` | у бэка нет `overdue`, `inProgress`, `approvedVolume`, `averageAmount`, `byStatus`, `byRisk`, `funnel` |
-| `rescore(id)` | — | ❌ |
-| `lookupInn(inn, amount)` | `POST /organizations/inn-check` | `{inn, ogrn?, kpp?, name?}` → `verdict` (`ok` / `warning` / `fail` / `not_found`), `checks`, данные ЕГРЮЛ, ФНС и Контура; суммы и предскоринга нет. Право `backoffice.read` — [clients.md](../modules/clients.md#проверка-по-инн-до-заявки) |
-| `listProducts()` / `updateProduct()` | `GET /products/all`, `POST /products`, `PUT /products/{code}`, `POST /products/{code}/activate`, `DELETE /products/{code}` | версии продукта: черновик → публикация → архив; права `credits.create` / `credits.update` / `credits.delete` (у админа). Поля — карточка продукта бэка, не `ProductSettings` мока — [products.md](../modules/products.md#ведение-каталога) |
-| `getScoringConfig()` / `updateScoringConfig()` / `previewScoring()` | `/scoring/models*` — версии PD-модели, `/decision/policies*` — версии кредитной политики | один `ScoringConfig` мока на бэке — два документа: модель и политика. Черновик-копия, правка документа целиком, примерка на прошлых заявках, активация и откат; читать и примерять — `scoring.read` (андеррайтер), менять — `scoring.update` (админ) — [scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа) |
-| `resetDemoData()` | — | только для мока |
-
-`rescore` на бэке нет: делать ли его, — отдельное решение. Там, где ручки есть, мок стоит перевести на них.
+Админка целиком работает на ручках бэка, мок-режима (`VITE_API_MODE=mock`) больше нет. Проверка компании по ИНН до заявки — `POST /organizations/inn-check` (#213). Версии PD-модели и кредитной политики на бэке ведутся ручками `/scoring/models*` и `/decision/policies*` ([scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа)), редактора для них во фронте пока нет; раздел «Скоринг» показывает, как модели оценили поданные заявки, по `GET /applications` и карточкам андеррайтера.
