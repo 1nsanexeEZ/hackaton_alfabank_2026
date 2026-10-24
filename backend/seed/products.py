@@ -6,6 +6,7 @@ Rates and limits are synthetic. Upsert by code and version: running the seed
 again leaves the same catalog.
 """
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -435,9 +436,13 @@ def catalog() -> tuple[CreditProduct, ...]:
 
 
 async def seed(context: "SeedContext") -> None:
-    """Idempotent: upsert by code and version."""
+    """Idempotent: upsert by code and version. A stored version keeps its status:
+    a product the bank took off sale (`DELETE /products/{code}`) stays archived."""
     async with context.session_factory() as session:
         repository = SqlAlchemyProductRepository(session)
         for product in catalog():
+            stored = await repository.get_version(product.code.value, product.version)
+            if stored is not None:
+                product = replace(product, status=stored.status)
             await repository.save(product)
         await session.commit()

@@ -10,6 +10,7 @@ from src.modules.process.application.use_cases.views import (
     GetTaskUseCase,
     ListOpenTasksUseCase,
 )
+from src.modules.process.application.use_cases.workflows import ListWorkflowsUseCase
 from src.modules.process.facade import ProcessFacade
 
 
@@ -19,10 +20,12 @@ class ProcessFacadeImpl(ProcessFacade):
         get_process_view: GetProcessViewUseCase,
         list_open_tasks: ListOpenTasksUseCase,
         get_task: GetTaskUseCase,
+        list_workflows: ListWorkflowsUseCase,
     ) -> None:
         self._get_process_view = get_process_view
         self._list_open_tasks = list_open_tasks
         self._get_task = get_task
+        self._list_workflows = list_workflows
 
     async def get_process_view(self, application_id: UUID) -> ProcessViewDTO | None:
         return await self._get_process_view.execute(application_id)
@@ -34,3 +37,6 @@ class ProcessFacadeImpl(ProcessFacade):
 
     async def get_task(self, task_id: UUID) -> UserTaskDTO | None:
         return await self._get_task.execute(task_id)
+
+    def workflow_codes(self) -> list[str]:
+        return [workflow.code for workflow in self._list_workflows.execute()]

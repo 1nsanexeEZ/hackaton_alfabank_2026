@@ -1,19 +1,22 @@
 """Catalog and calculator are public (the showcase before login); everything
-about a particular company needs a token and membership in that company."""
+about a particular company needs a token and membership in that company.
+Keeping the catalog needs `credits.create|update|delete`."""
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 
 from src.core.access.dependencies import require_permissions
 from src.core.access.permissions import Permissions
 from src.core.domain import Money
 from src.core.facades import use_facade
+from src.core.infrastructure.database.session import DbSession
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.modules.clients.facade import ClientsFacade
 from src.modules.products.api.dependencies import (
     BorrowerProfilesDep,
+    ProductCatalogDep,
     ProductServiceDep,
     ensure_can_view,
 )
@@ -22,6 +25,8 @@ from src.modules.products.api.schemas import (
     EligibilityRead,
     NeedBody,
     PaymentScheduleRead,
+    ProductBody,
+    ProductCreate,
     ProductRead,
     RecommendationRead,
     RecommendationsRead,
@@ -33,6 +38,9 @@ router = APIRouter(prefix="/products", tags=["products"])
 
 CreditsReader = Annotated[OpenSubTokenDTO, Depends(require_permissions(Permissions.CREDITS_READ))]
 Clients = Annotated[ClientsFacade, Depends(use_facade(ClientsFacade))]
+CanCreate = [Depends(require_permissions(Permissions.CREDITS_CREATE))]
+CanUpdate = [Depends(require_permissions(Permissions.CREDITS_UPDATE))]
+CanDelete = [Depends(require_permissions(Permissions.CREDITS_DELETE))]
 
 
 @router.get("", response_model=list[ProductRead])
@@ -41,6 +49,30 @@ async def list_products(
 ) -> list[ProductRead]:
     """Active products in catalog order, optionally for one purpose."""
     return [ProductRead.of(p) for p in await service.list_active(purpose)]
+
+
+@router.get("/all", response_model=list[ProductRead], dependencies=CanUpdate)
+async def list_all_products(catalog: ProductCatalogDep) -> list[ProductRead]:
+    """For keeping the catalog: every product in its latest version, drafts and archived
+    ones too, in catalog order."""
+    return [ProductRead.of(p) for p in await catalog.list_all()]
+
+
+@router.post(
+    "",
+    response_model=ProductRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=CanCreate,
+)
+async def create_product(
+    data: ProductCreate, catalog: ProductCatalogDep, session: DbSession
+) -> ProductRead:
+    """Version 1 at the end of the catalog, a draft unless `status: active`. 409 — the code
+    is taken; 422 `workflow_code` `unknown` — no such route (GET /workflows), `frontend_id`
+    `taken` — another product has this card."""
+    product = await catalog.create(data.product(data.code), publish=data.status == "active")
+    await session.commit()
+    return ProductRead.of(product)
 
 
 @router.post("/recommend", response_model=RecommendationsRead)
@@ -84,6 +116,36 @@ async def recommend_for_organization(
 async def get_product(code: str, service: ProductServiceDep) -> ProductRead:
     """Archived products are readable too (status `archived`)."""
     return ProductRead.of(await service.get(code))
+
+
+@router.put("/{code}", response_model=ProductRead, dependencies=CanUpdate)
+async def update_product(
+    code: str, data: ProductBody, catalog: ProductCatalogDep, session: DbSession
+) -> ProductRead:
+    """New terms. A draft changes in place; a published product gets a new active version
+    and the previous one goes to the archive, so an archived product comes back this way.
+    Applications keep the terms they were opened with."""
+    product = await catalog.update(data.product(code))
+    await session.commit()
+    return ProductRead.of(product)
+
+
+@router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT, dependencies=CanDelete)
+async def delete_product(code: str, catalog: ProductCatalogDep, session: DbSession) -> None:
+    """Off sale: a published product goes to the archive (old applications refer to it),
+    a draft is deleted. Already archived — 409 `invalid_transition`."""
+    await catalog.remove(code)
+    await session.commit()
+
+
+@router.post("/{code}/activate", response_model=ProductRead, dependencies=CanUpdate)
+async def activate_product(
+    code: str, catalog: ProductCatalogDep, session: DbSession
+) -> ProductRead:
+    """A draft goes to the catalog; anything else — 409 `invalid_transition`."""
+    product = await catalog.activate(code)
+    await session.commit()
+    return ProductRead.of(product)
 
 
 @router.post("/{code}/calculate", response_model=PaymentScheduleRead)

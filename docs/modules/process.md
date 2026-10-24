@@ -111,4 +111,4 @@ process/
 ## Фасад
 
 `ProcessFacade`: `get_process_view(application_id)`, `list_open_tasks(role, limit, offset)`,
-`get_task(task_id)`. Читают `bff` и `projector`.
+`get_task(task_id)`, `workflow_codes()`. Читают `bff` и `projector`; `workflow_codes` — `products`: маршрут нового или изменённого продукта должен быть среди загруженных BPMN.

@@ -14,7 +14,7 @@ urlParameters:
 headers: []
 bodyType: null
 body: {}
-sortPriority: 4000.0
+sortPriority: 6000.0
 authenticationType: none
 authentication: {}
 createdAt: '2026-10-24T00:00:00'

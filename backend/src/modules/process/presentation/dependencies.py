@@ -63,11 +63,14 @@ from src.modules.products.facade import ProductsFacade
 # --- facade --------------------------------------------------------------------
 
 
-def process_facade(session: AsyncSession) -> ProcessFacadeImpl:
+def process_facade(session: AsyncSession, workflows: WorkflowSource) -> ProcessFacadeImpl:
     processes = SqlAlchemyProcessRepository(session)
     tasks = SqlAlchemyTaskRepository(session)
     return ProcessFacadeImpl(
-        GetProcessViewUseCase(processes), ListOpenTasksUseCase(tasks), GetTaskUseCase(tasks)
+        GetProcessViewUseCase(processes),
+        ListOpenTasksUseCase(tasks),
+        GetTaskUseCase(tasks),
+        ListWorkflowsUseCase(workflows),
     )
 
 
