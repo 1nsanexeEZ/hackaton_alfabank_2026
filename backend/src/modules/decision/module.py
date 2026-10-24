@@ -23,10 +23,14 @@ from src.core.messaging.contracts.decision import (
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.clients.facade import ClientsFacade
-from src.modules.decision.api import router
+from src.modules.decision.api import policies_router, router
 from src.modules.decision.application.check_stop_factors import CheckStopFactorsUseCase
 from src.modules.decision.application.input_builder import DecisionInputBuilder
 from src.modules.decision.application.make_decision import MakeDecisionUseCase
+from src.modules.decision.application.policy_versions import (
+    ActivePolicyProvider,
+    PolicyProvider,
+)
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
 from src.modules.decision.application.record_manual_decision import RecordManualDecisionUseCase
 from src.modules.decision.application.refresh_pre_approved import (
@@ -35,11 +39,15 @@ from src.modules.decision.application.refresh_pre_approved import (
 from src.modules.decision.config import DecisionSettings
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.facade import DecisionFacade
-from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.config_loader import (
+    CreditPolicyDocuments,
+    default_policy,
+)
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyDecisionRepository,
     SqlAlchemyFounderPrescreenRepository,
+    SqlAlchemyPolicyVersionRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
 from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
@@ -53,24 +61,31 @@ NAME = "decision"
 
 @dataclass(frozen=True)
 class _Runtime:
-    policy: CreditPolicy
+    policies: PolicyProvider
     key_rate: Decimal
     settings: DecisionSettings
 
 
-# Политика грузится один раз на процесс (невалидный YAML → приложение не стартует),
-# ключевая ставка и ночной пакет — из DECISION_*.
+# Встроенная политика грузится один раз на процесс (невалидный YAML → приложение не стартует).
+# Решают активной версией админа из БД или встроенной: провайдер спрашивает БД на каждую команду,
+# событие и проход ночного пакета. Ключевая ставка и ночной пакет — из DECISION_*.
 _runtime: _Runtime | None = None
 
 
 def register(app: FastAPI) -> None:
+    """Pre-approved offers, the founder's prescreen and the project assessment; versions of
+    the credit policy for the admin."""
     app.include_router(router)
+    app.include_router(policies_router)
 
 
 def wire(app: FastAPI) -> None:
     global _runtime
     settings = DecisionSettings()
-    _runtime = _Runtime(default_policy(), settings.key_rate, settings)
+    default_policy()  # невалидный YAML → не стартуем
+    _runtime = _Runtime(ActivePolicyProvider(CreditPolicyDocuments()), settings.key_rate, settings)
+    # Ручкам — тот же провайдер: собранные версии кэшируются один раз на процесс.
+    app.state.decision_policies = _runtime.policies
     clock = app.state.clock
     app.state.facades.register(DecisionFacade, lambda session: DecisionFacadeImpl(session, clock))
 
@@ -84,8 +99,9 @@ async def startup(app: FastAPI) -> None:
     transactions = partial(
         SqlAlchemyPreApprovalTransaction, app.state.session_factory, app.state.facades, clock
     )
+    # Активную политику пакет берёт на каждом проходе, а не один раз при старте.
     use_case = RefreshExpiringPreApprovedUseCase(
-        transactions, current.policy, clock, current.key_rate
+        transactions, current.policies, clock, current.key_rate
     )
     stop = asyncio.Event()
     task = asyncio.create_task(
@@ -115,11 +131,16 @@ def _current() -> _Runtime:
     return _runtime
 
 
-def _pre_approval(ctx: HandlerContext) -> RecalculatePreApprovedUseCase:
+async def _policy(ctx: HandlerContext) -> CreditPolicy:
+    """Активная политика на эту команду или событие — один запрос в БД."""
+    return await _current().policies.active(SqlAlchemyPolicyVersionRepository(ctx.session))
+
+
+async def _pre_approval(ctx: HandlerContext) -> RecalculatePreApprovedUseCase:
     current = _current()
     return RecalculatePreApprovedUseCase(
         SqlAlchemyPreApprovedOfferRepository(ctx.session),
-        current.policy,
+        await _policy(ctx),
         ctx.facade(ClientsFacade),
         ctx.facade(ProductsFacade),
         ctx.facade(ScoringFacade),
@@ -143,26 +164,30 @@ async def _on_command(
     ctx: HandlerContext, payload: CheckStopFactors | MakeDecision | RecordManualDecision
 ) -> None:
     current = _current()
+    # Каждая команда — активной версией на момент обработки: если политику активировали между
+    # CheckStopFactors и MakeDecision одной заявки, они пройдут на разных версиях (она видна в
+    # `policy_version` результата).
+    policy = await _policy(ctx)
     repository = SqlAlchemyDecisionRepository(ctx.session)
     products = ctx.facade(ProductsFacade)
     event_id = ctx.envelope.event_id
     if isinstance(payload, CheckStopFactors):
         await CheckStopFactorsUseCase(
             repository,
-            current.policy,
-            _builder(ctx, current.policy),
+            policy,
+            _builder(ctx, policy),
             ctx.clock,
             current.key_rate,
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
     elif isinstance(payload, MakeDecision):
-        builder = _builder(ctx, current.policy)
+        builder = _builder(ctx, policy)
         await MakeDecisionUseCase(
-            repository, current.policy, builder, products, ctx.clock, current.key_rate
+            repository, policy, builder, products, ctx.clock, current.key_rate
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
     else:
         await RecordManualDecisionUseCase(
             repository,
-            current.policy,
+            policy,
             ctx.facade(ApplicationsFacade),
             products,
             ctx.clock,
@@ -174,7 +199,7 @@ async def _on_clients_event(
     ctx: HandlerContext,
     payload: FinancialReportSubmitted | OrganizationVerified | OrganizationVerificationMismatch,
 ) -> None:
-    await _pre_approval(ctx).on_event(
+    await (await _pre_approval(ctx)).on_event(
         payload.organization_id, event_id=ctx.envelope.event_id, outbox=ctx.outbox
     )
 

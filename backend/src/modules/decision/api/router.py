@@ -14,7 +14,11 @@ from src.core.infrastructure.database.session import DbSession
 from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.modules.clients.facade import ClientsFacade, OrgPermission
-from src.modules.decision.api.dependencies import ensure_can_view, sees_every_organization
+from src.modules.decision.api.dependencies import (
+    ActivePolicyDep,
+    ensure_can_view,
+    sees_every_organization,
+)
 from src.modules.decision.api.schemas import (
     FounderPrescreenRead,
     PreApprovedOfferRead,
@@ -23,7 +27,6 @@ from src.modules.decision.api.schemas import (
 from src.modules.decision.application.founder_prescreen import FounderPrescreenUseCase
 from src.modules.decision.application.project_assessment import AssessProjectUseCase
 from src.modules.decision.facade import DecisionFacade
-from src.modules.decision.infrastructure.config_loader import default_policy
 from src.modules.decision.infrastructure.mappers import prescreen_dto, project_dto
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyFounderPrescreenRepository,
@@ -110,6 +113,7 @@ async def run_project_assessment(
     clients: Clients,
     products: Products,
     scoring: Scoring,
+    policy: ActivePolicyDep,
 ) -> ProjectAssessmentRead:
     """The startup's project by its business plan from the cabinet: passed — a pre-approved
     STARTUP offer (`basis = project`) up to `max_amount`, also in `pre-approved-offers`.
@@ -122,7 +126,7 @@ async def run_project_assessment(
         SqlAlchemyProjectAssessmentRepository(session),
         SqlAlchemyPreApprovedOfferRepository(session),
         SqlAlchemyFounderPrescreenRepository(session),
-        default_policy(),
+        policy,
         clients,
         products,
         scoring,
