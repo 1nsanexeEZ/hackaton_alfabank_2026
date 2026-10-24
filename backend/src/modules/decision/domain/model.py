@@ -242,6 +242,8 @@ class ScoreInput:
     # ML-модель рядом с PD-моделью (policy_v5); грейд всегда на шкале A–J. None — оценки нет.
     ml_grade: Grade | None = None
     ml_pd_12m: Decimal | None = None
+    # Почему оценки ML нет: no_revenue — модель к компании без выручки не применяется.
+    ml_not_applicable: str | None = None
     # «Данные полные?» скоринга (policy_v7): degraded — решает человек. None — результат до неё.
     quality: Literal["ok", "degraded"] | None = None
     quality_reasons: tuple[str, ...] = ()

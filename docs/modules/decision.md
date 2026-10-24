@@ -312,7 +312,10 @@ red H–J (от 9%). **Матрица** (строка — PD-модель, ст�
 - **спорная** (`ROUTE_MODELS_DISAGREE`) — `MANUAL_REVIEW`, вид `dispute`;
 - **отказ** (`STOP_MODELS_HIGH_RISK`) — REJECT. Исключение: данные неполные (сбой источников) —
   модели посчитаны не на всём, решает человек (`dispute` по `ROUTE_SOURCES_FAILED`);
-- оценки ML нет (результат до `scoring_0003`) — `ROUTE_ML_UNAVAILABLE`, `dispute`.
+- оценки ML нет — `ROUTE_ML_UNAVAILABLE`, `dispute`: результат до `scoring_0003` или модель не
+  применяется — у компании нет выручки (`ml_not_applicable = "no_revenue"`, [scoring](scoring.md#ml-модель-ml_logreg_v1)).
+  В трассе: «ML-модель не применяется: у компании нет выручки, модель обучена на действующих
+  компаниях».
 
 **Поверх матрицы**, в прежнем порядке правил:
 1. стоп-факторы → REJECT при любых моделях;

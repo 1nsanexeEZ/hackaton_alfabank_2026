@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from src.modules.scoring.application.serialization import load_input
-from src.modules.scoring.domain.ml_model import ml_features
+from src.modules.scoring.domain.ml_model import ml_features, ml_not_applicable
 from src.modules.scoring.infrastructure.config_loader import load_pd_model
 from src.modules.scoring.infrastructure.ml_loader import (
     _FEATURES,
@@ -184,3 +184,21 @@ def test_industry_comes_from_the_model_yaml(tmp_path: Path) -> None:
     before = {f.code: f.bin for f in _MODEL.predict(SCENARIOS["romashka_s1"]).factors}
     after = {f.code: f.bin for f in model.predict(SCENARIOS["romashka_s1"]).factors}
     assert (before["industry_risk"], after["industry_risk"]) == ("high", "mid")
+
+
+def test_without_revenue_the_model_does_not_apply() -> None:
+    """Компаний без выручки в обучении не было — такую заявку модель не оценивает."""
+    base = SCENARIOS["romashka_s1"]
+    no_declared = replace(base, company=replace(base.company, declared_revenue=None))
+    startup = replace(no_declared, tax=replace(no_declared.tax, reported_revenue=Decimal(0)))
+    no_fns = replace(no_declared, tax=replace(no_declared.tax, reported_revenue=None))
+    assert ml_not_applicable(startup) == "no_revenue"
+    assert ml_not_applicable(no_fns) == "no_revenue"
+    # Выручка есть хотя бы в одном источнике — модель применима.
+    assert ml_not_applicable(no_declared) is None
+    assert ml_not_applicable(base) is None
+
+
+@pytest.mark.parametrize("name", sorted(SCENARIOS))
+def test_demo_scenarios_are_in_the_domain_of_the_model(name: str) -> None:
+    assert ml_not_applicable(SCENARIOS[name]) is None

@@ -545,6 +545,11 @@ _BASES = {
 
 
 _GROUPS = {"low": "низкая", "medium": "средняя", "high": "высокая"}
+# Почему ML-модель не оценивала заявку (скоринг, `ml_not_applicable`).
+_ML_NOT_APPLICABLE = {
+    "no_revenue": "ML-модель не применяется: у компании нет выручки, модель обучена на "
+    "действующих компаниях",
+}
 
 
 def _zsk(level: str | None) -> str:
@@ -1574,10 +1579,11 @@ class _Evaluation:
         pd_zone = self._c.model_zones[score.grade]
         pd_side = f"PD-модель: грейд {score.grade}{_pd_note(score.pd_12m)} — {_ZONE_NAMES[pd_zone]}"
         if score.ml_grade is None:
+            why = _ML_NOT_APPLICABLE.get(score.ml_not_applicable or "", "оценки ML-модели нет")
             self._hit(
                 "strategy.two_models",
                 True,
-                f"{pd_side}; оценки ML-модели нет → {_VERDICT_NAMES['dispute']}",
+                f"{pd_side}; {why} → {_VERDICT_NAMES['dispute']}",
             )
             return "dispute"
         ml_zone = self._c.model_zones[score.ml_grade]
