@@ -37,6 +37,16 @@ const money = (value: string | null | undefined) => (value === null || value ===
 const application = computed(() => props.card.application)
 const decision = computed(() => props.card.decision)
 const manual = computed(() => decision.value?.decided_by_type === 'underwriter')
+/** Кто решил: на этапе «Решение» — подпись к бейджу исхода, на «Отказе» — отдельной строкой */
+const decidedBy = computed(() =>
+  props.stage === 'decision'
+    ? manual.value
+      ? 'решил андеррайтер'
+      : 'автоматически'
+    : manual.value
+      ? 'Решил андеррайтер'
+      : 'Решила автоматика',
+)
 
 const documentTitle = (type: string) => DOCUMENT_TITLE[type] ?? type
 const documents = computed(() => application.value.documents.map((item) => documentTitle(item.type)).join(', '))
@@ -256,15 +266,23 @@ const models = computed(() => {
 
     <template v-else-if="stage === 'decision' || stage === 'rejected'">
       <template v-if="decision">
+        <!-- На этапе «Отказ» исход уже в заголовке — только кто решил, причины и текст клиенту -->
         <div class="flex flex-wrap items-center gap-2">
-          <BaseBadge :tone="OUTCOME_LABEL[decision.outcome]?.tone ?? 'neutral'">{{ OUTCOME_LABEL[decision.outcome]?.label ?? decision.outcome }}</BaseBadge>
-          <BaseBadge v-if="decision.review" :tone="REVIEW_LABEL[decision.review].tone">{{ REVIEW_LABEL[decision.review].label }}</BaseBadge>
-          <span class="text-xs text-ink-secondary">{{ manual ? 'решил андеррайтер' : 'автоматически' }} · {{ formatDateTime(decision.decided_at) }}</span>
+          <BaseBadge v-if="stage === 'decision'" :tone="OUTCOME_LABEL[decision.outcome]?.tone ?? 'neutral'">
+            {{ OUTCOME_LABEL[decision.outcome]?.label ?? decision.outcome }}
+          </BaseBadge>
+          <BaseBadge v-if="stage === 'decision' && decision.review" :tone="REVIEW_LABEL[decision.review].tone">
+            {{ REVIEW_LABEL[decision.review].label }}
+          </BaseBadge>
+          <span :class="stage === 'decision' ? 'text-xs text-ink-secondary' : 'text-ink'">
+            {{ decidedBy }} · {{ formatDateTime(decision.decided_at) }}
+          </span>
         </div>
         <ul v-if="decision.reason_codes.length" class="space-y-0.5 text-ink">
           <li v-for="code in decision.reason_codes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
         </ul>
-        <p v-if="decision.limits.final" class="text-ink-secondary">Итоговый лимит {{ money(decision.limits.final) }}</p>
+        <p v-if="stage === 'decision' && decision.limits.final" class="text-ink-secondary">Итоговый лимит {{ money(decision.limits.final) }}</p>
+        <p v-if="stage === 'rejected' && manual && decision.comment" class="text-ink-secondary">Комментарий андеррайтера: «{{ decision.comment }}»</p>
         <p v-if="stage === 'rejected' && decision.client_explanation" class="rounded-lg bg-white p-2.5 text-ink-secondary">
           Клиенту: «{{ decision.client_explanation }}»
         </p>

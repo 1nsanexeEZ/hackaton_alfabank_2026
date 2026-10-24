@@ -123,7 +123,8 @@ const STATE_BADGE: Record<StageState, { label: string; tone: BadgeTone }> = {
 }
 const FINALE_BADGE: Record<string, { label: string; tone: BadgeTone }> = {
   disbursement: { label: 'Кредит выдан', tone: 'success' },
-  rejected: { label: 'Отказ', tone: 'brand' },
+  // Заголовок этапа уже «Отказ» — бейдж говорит, что это конец маршрута
+  rejected: { label: 'Итог маршрута', tone: 'brand' },
   closed: { label: 'Клиент не принял предложение', tone: 'neutral' },
 }
 /** У этапов до подачи — свои слова: предскоринга могло не быть, проверка учредителя может быть не пройдена */
@@ -284,6 +285,11 @@ const STEP_KIND: Record<ProcessStepDto['kind'], string> = {
   stoppable: 'ждёт человека',
 }
 const nodeName = (nodeId: string) => graph.value?.workflow.nodes.get(nodeId)?.name ?? nodeId
+/** Один шаг с тем же названием, что у этапа («Отказ», «Скоринг»), ничего не добавляет: время уже показано выше */
+const showSteps = computed(() => {
+  const steps = shown.value?.progress.steps ?? []
+  return steps.length > 1 || (steps.length === 1 && nodeName(steps[0]!.node_id) !== shown.value?.stage.title)
+})
 const stepDuration = (step: ProcessStepDto) =>
   formatDuration(new Date(step.finished_at ?? now.value).getTime() - new Date(step.started_at).getTime())
 </script>
@@ -488,7 +494,7 @@ const stepDuration = (step: ProcessStepDto) =>
           :windows="shown.progress.windows"
         />
 
-        <details v-if="shown.progress.steps.length" class="mt-3 text-sm">
+        <details v-if="showSteps" class="mt-3 text-sm">
           <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">
             Шаги процесса ({{ shown.progress.steps.length }})
           </summary>
