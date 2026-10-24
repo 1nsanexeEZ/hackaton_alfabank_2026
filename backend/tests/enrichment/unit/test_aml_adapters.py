@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 import pytest
 
-from src.modules.enrichment.application.dto.aml import AmlSubjectDTO
+from src.modules.enrichment.application.dto.aml import AmlSubjectDTO, LicenseDTO
 from src.modules.enrichment.domain.exceptions import SourceUnavailable
 from src.modules.enrichment.infrastructure.adapters.aml_http import (
     PepHttpSource,
@@ -19,6 +19,7 @@ from src.modules.enrichment.infrastructure.adapters.aml_http import (
     ZskHttpSource,
 )
 from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpSource
+from src.modules.enrichment.infrastructure.adapters.licenses_http import LicensesHttpSource
 
 _SUBJECTS = (
     AmlSubjectDTO("company", "ООО «Северный ветер»", "7707115016"),
@@ -125,3 +126,70 @@ async def test_registry_corporate_founder() -> None:
         ("Дочкин Дмитрий Данилович", Decimal(20), None),
         ("ООО «Холдинг Восток»", Decimal(80), "7707115070"),
     ]
+
+
+def _registry_with(founders: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "ИНН": "7707115111",
+        "ОГРН": "1157707115114",
+        "НаимПолн": "ООО «Каспий-Трейд»",
+        "Статус": {"Код": "ACTIVE"},
+        "ДатаРег": "2022-10-23",
+        "ОКВЭДОсн": {"Код": "46.90"},
+        "Руководитель": {"ФИО": "Каспиев Карен Каренович", "Должность": "ГД"},
+        "Учредители": founders,
+        "Адрес": {"Полный": "г. Москва", "КодРегиона": "77"},
+        "МассовыйАдрес": False,
+        "ОрганизационнаяФорма": "ООО",
+    }
+
+
+async def test_registry_founder_country() -> None:
+    body = _registry_with(
+        [
+            {"ФИО": "Каспиев Карен Каренович", "Доля": 60, "Страна": "RU"},
+            {"ФИО": "Хоссейни Али Реза", "Доля": 40, "Страна": "ir"},
+        ]
+    )
+    dto = await EgrulHttpSource(_client(_answer(body)), backoff=()).fetch("7707115111")
+    assert [(f.name, f.country) for f in dto.founders] == [
+        ("Каспиев Карен Каренович", None),
+        ("Хоссейни Али Реза", "IR"),
+    ]
+
+
+async def test_registry_unknown_country_is_a_bad_response() -> None:
+    body = _registry_with([{"ФИО": "Хоссейни Али Реза", "Доля": 100, "Страна": "Иран"}])
+    with pytest.raises(SourceUnavailable) as exc:
+        await EgrulHttpSource(_client(_answer(body)), backoff=()).fetch("7707115111")
+    assert exc.value.kind == "bad_response"
+
+
+async def test_licenses_only_active() -> None:
+    body = {
+        "ИНН": "7707083893",
+        "Лицензии": [
+            {
+                "Номер": "Л041-01",
+                "ВидДеятельности": "Медицинская деятельность",
+                "ОКВЭД": "86.10",
+                "Статус": "ДЕЙСТВУЕТ",
+                "ДатаВыдачи": "2024-01-10",
+            },
+            {
+                "Номер": "Л041-02",
+                "ВидДеятельности": "Фармацевтическая деятельность",
+                "ОКВЭД": "47.73",
+                "Статус": "ПРИОСТАНОВЛЕНА",
+                "ДатаВыдачи": "2023-01-10",
+            },
+        ],
+    }
+    licenses = await LicensesHttpSource(_client(_answer(body)), backoff=()).fetch("7707083893")
+    assert licenses == (LicenseDTO("Л041-01", "Медицинская деятельность", "86.10"),)
+
+
+async def test_licenses_unexpected_answer() -> None:
+    with pytest.raises(SourceUnavailable) as exc:
+        await LicensesHttpSource(_client(_answer({"ИНН": "1"})), backoff=()).fetch("1")
+    assert exc.value.kind == "bad_response"

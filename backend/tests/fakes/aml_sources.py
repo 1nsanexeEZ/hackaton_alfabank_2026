@@ -1,4 +1,4 @@
-"""Фейки проверок по 115-ФЗ: перечни Росфинмониторинга, база ПДЛ, платформа ЗСК.
+"""Фейки проверок по 115-ФЗ: перечни Росфинмониторинга, база ПДЛ, платформа ЗСК, реестр лицензий.
 
 По умолчанию все чистые; `listed` / `pep` — кто в перечне или ПДЛ (по ФИО или ИНН),
 `fail` — источник не отвечает. `calls` — кого спрашивали: проверка идёт на каждой заявке.
@@ -11,6 +11,7 @@ from datetime import date
 from src.modules.enrichment.application.dto.aml import (
     AmlList,
     AmlSubjectDTO,
+    LicenseDTO,
     ListScreeningDTO,
     PepKind,
     PepScreeningDTO,
@@ -70,3 +71,18 @@ class FakeZsk:
         if self.fail:
             raise SourceUnavailable("unavailable", "ЗСК недоступна")
         return ZskRiskDTO(level=self.level, as_of=LISTS_DATE)
+
+
+class FakeLicenses:
+    """Действующие лицензии компании: по умолчанию нет ни одной."""
+
+    def __init__(self, okved: tuple[str, ...] = (), *, fail: bool = False) -> None:
+        self.okved = okved
+        self.fail = fail
+        self.calls: list[str] = []
+
+    async def fetch(self, inn: str) -> tuple[LicenseDTO, ...]:
+        self.calls.append(inn)
+        if self.fail:
+            raise SourceUnavailable("unavailable", "реестр лицензий недоступен")
+        return tuple(LicenseDTO(f"Л-{code}", "Вид деятельности", code) for code in self.okved)

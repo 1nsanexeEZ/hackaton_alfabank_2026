@@ -12,6 +12,8 @@ class FounderDTO:
     name: str
     share_percent: Decimal
     inn: str | None = None
+    # Страна места жительства или регистрации (ISO 3166-1 alpha-2), если не Россия.
+    country: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
