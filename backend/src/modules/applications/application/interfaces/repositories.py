@@ -5,7 +5,7 @@ from uuid import UUID
 
 from src.core.access.access_context import AccessContext
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.value_objects import ApplicationNumber
+from src.modules.applications.domain.value_objects import ApplicationNumber, DecidedBy
 
 
 class ApplicationRepository(Protocol):
@@ -32,6 +32,7 @@ class ApplicationRepository(Protocol):
         statuses: Sequence[str] | None,
         limit: int,
         offset: int,
+        decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]: ...
 
     async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]: ...

@@ -105,7 +105,9 @@ async def test_happy_path_to_disbursement() -> None:
     assert await d.score("B")
     assert await d.decide("APPROVE", offer=offer())
     assert d.command_types()[-1] == "PresentOffer"
-    assert d.last_command("PresentOffer").request.payload["offer"]["amount"] == Decimal("3000000")
+    presented = d.last_command("PresentOffer").request.payload
+    assert presented["offer"]["amount"] == Decimal("3000000")
+    assert presented["decided_by"] == "auto"
     assert d.process.waiting.kind is WaitKind.CLIENT_EVENT  # type: ignore[union-attr]
 
     assert await d.send(Trigger("OfferAccepted"))
@@ -216,8 +218,11 @@ async def test_manual_review_round_trip() -> None:
     assert command["outcome"] == "COUNTER_OFFER"
     assert command["terms"]["amount"] == 2_000_000
 
-    await d.decide("COUNTER_OFFER", offer=offer(), to="RecordManualDecision")
+    await d.decide(
+        "COUNTER_OFFER", offer=offer(), to="RecordManualDecision", decided_by="underwriter"
+    )
     assert d.command_types()[-1] == "PresentOffer"
+    assert d.last_command("PresentOffer").request.payload["decided_by"] == "underwriter"
 
 
 async def test_rejected_manual_decision_goes_back_to_review() -> None:
@@ -245,9 +250,9 @@ async def test_rejection() -> None:
     await d.score("E")
     await d.decide("REJECT", client_explanation="Компания ликвидируется")
     assert d.command_types()[-1] == "RejectApplication"
-    assert d.last_command("RejectApplication").request.payload["client_explanation"] == (
-        "Компания ликвидируется"
-    )
+    rejected = d.last_command("RejectApplication").request.payload
+    assert rejected["client_explanation"] == "Компания ликвидируется"
+    assert rejected["decided_by"] == "auto"
     assert d.process.status is ProcessStatus.COMPLETED
     assert d.events[-1].outcome == "rejected"
 

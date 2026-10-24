@@ -28,6 +28,7 @@ export const LANDING_NAV: readonly { label: string; section: SectionId }[] = [
 export const ROUTE_PATH = {
   home: '/',
   login: '/login',
+  profile: '/profile',
   admin: '/admin',
 } as const
 

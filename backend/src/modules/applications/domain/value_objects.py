@@ -335,14 +335,20 @@ class Offer:
         return hashlib.sha256(canonical.encode()).hexdigest()
 
 
+# Who made the decision: the automatic policy or an underwriter.
+DecidedBy = Literal["auto", "underwriter"]
+
+
 @dataclass(frozen=True, slots=True)
 class DecisionSummary:
-    """What the client sees about the decision: no reason codes, no score."""
+    """What the client sees about the decision: no reason codes, no score.
+    `decided_by` is for the bank's lists; None — the process did not say."""
 
     outcome: str
     client_explanation: str
     improvement_hints: tuple[str, ...] = ()
     alternative_product_code: str | None = None
+    decided_by: DecidedBy | None = None
 
 
 @dataclass(frozen=True, slots=True)

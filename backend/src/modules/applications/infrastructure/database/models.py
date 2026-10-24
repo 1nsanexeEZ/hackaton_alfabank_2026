@@ -66,6 +66,8 @@ class ApplicationRecord(UUIDPrimaryKeyMixin, OrganizationOwnedMixin, VersionMixi
     org_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     offer: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     decision_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
+    # decision_summary.decided_by lives here, not in the JSON: the bank's list filters by it.
+    decided_by: Mapped[str | None] = mapped_column(String(16))
     disbursement: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     # Copy of offer.expires_at: the expiry job finds overdue offers by an index.
     offer_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

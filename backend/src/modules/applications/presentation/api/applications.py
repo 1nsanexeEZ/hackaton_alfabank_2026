@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, status
 
+from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.applications.presentation.dependencies import (
     AcceptOfferDep,
     AnswerInfoRequestDep,
@@ -60,10 +61,15 @@ async def list_applications(
     use_case: ListApplicationsDep,
     organization_id: UUID | None = None,
     status_filter: Annotated[list[str] | None, Query(alias="status")] = None,
+    decided_by: DecidedBy | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ApplicationListItem]:
-    applications = await use_case.execute(access, organization_id, status_filter, limit, offset)
+    """Newest first. `decided_by=auto` — the decisions the client got from the automatic
+    policy without a person; combines with `status`."""
+    applications = await use_case.execute(
+        access, organization_id, status_filter, limit, offset, decided_by
+    )
     return [ApplicationListItem.model_validate(application) for application in applications]
 
 

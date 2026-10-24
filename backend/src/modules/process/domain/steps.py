@@ -488,6 +488,7 @@ async def _present_offer(step: StepInput) -> StepResult:
                 "client_explanation": decision["client_explanation"],
                 "improvement_hints": decision["improvement_hints"],
                 "alternative_product_code": decision["alternative_product_code"],
+                "decided_by": step.context.decided_by,
             },
         ),
     )
@@ -527,6 +528,7 @@ async def _reject(step: StepInput) -> StepResult:
                 or "К сожалению, банк не может одобрить заявку",
                 "improvement_hints": decision.get("improvement_hints", []),
                 "alternative_product_code": decision.get("alternative_product_code"),
+                "decided_by": step.context.decided_by,
             },
         ),
     )

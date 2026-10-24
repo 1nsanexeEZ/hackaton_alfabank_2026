@@ -114,6 +114,18 @@ applications/
 перечням на каждой заявке; решение — в `decision` (`policy_v8`). Подробно и пример запроса —
 [compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
 
+## Кто вынес решение
+
+`DecisionSummary.decided_by` — кто вынес решение, которое получил клиент: `auto` (политика
+`decision` без человека, в том числе отказ по стоп-фактору) или `underwriter`. Приходит в командах
+`PresentOffer` / `RejectApplication`: процесс берёт его из последнего `DecisionMade`. Пустое значение
+означает, что решения ещё нет или процесс его не передал.
+
+Хранится в отдельной колонке `decided_by`, не в JSON `decision_summary`, потому что по ней
+фильтрует список сотрудника. Миграция `applications_0004` заполнила уже решённые заявки по
+последнему итоговому решению из `decision_results`. Клиентская карточка это поле не отдаёт; список
+отдаёт его в каждой строке и фильтрует по `decided_by`.
+
 ## API
 
 Права — `requests.read` / `requests.create` / `requests.update`; клиент видит только заявки своих
@@ -123,7 +135,7 @@ applications/
 | Метод | Путь | Что |
 |---|---|---|
 | POST | `/applications` | черновик на компанию и продукт, реквизиты — из данных банка |
-| GET | `/applications` | список: `organization_id`, `status`, `limit`, `offset` |
+| GET | `/applications` | список, новые сверху: `organization_id`, `status` (можно несколько), `decided_by` (`auto` / `underwriter`), `limit`, `offset`; в строке есть `decided_by` |
 | GET | `/applications/{id}` | заявка с `available_actions` и `my_permissions` |
 | PATCH | `/applications/{id}` | автосохранение черновика по `version` |
 | GET | `/applications/{id}/completeness` | чего не хватает для подачи |

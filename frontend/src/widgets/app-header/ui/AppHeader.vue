@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Bell, Building2, ChevronDown, FileText, LogIn, LogOut, Menu, UserRound, X, type LucideIcon } from 'lucide-vue-next'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Bell, Building2, FileText, LogIn, LogOut, Menu, UserRound, X, type LucideIcon } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { customer, useCustomer } from '@/entities/customer'
@@ -27,12 +27,11 @@ const CABINET_LINKS: readonly { section: CabinetSection; label: string; icon: Lu
 const unread = computed(() => liveFeed.state.unread)
 
 function openSection(section: CabinetSection) {
-  closeAccount()
   closeMenu()
   emit('open', section)
 }
 
-const { me, isAuthenticated, name, logout } = useCustomer()
+const { isAuthenticated, name, logout } = useCustomer()
 
 const isMenuOpen = ref(false)
 const route = useRoute()
@@ -44,39 +43,10 @@ function closeMenu() {
   isMenuOpen.value = false
 }
 
-/*
- * Меню аккаунта: имя и «Выйти» в одной кнопке, чтобы шапка помещалась на 1024 px.
- * Имя на самой кнопке — с 1280 px, в раскрытом меню — всегда.
- */
-const isAccountOpen = ref(false)
-const account = ref<HTMLElement>()
-const contact = computed(() => me.value?.email ?? me.value?.phone ?? '')
-
-function closeAccount(returnFocus = false) {
-  if (!isAccountOpen.value) return
-  isAccountOpen.value = false
-  if (returnFocus) account.value?.querySelector<HTMLElement>('[aria-haspopup]')?.focus()
-}
-
-function toggleAccount() {
-  isAccountOpen.value = !isAccountOpen.value
-  if (isAccountOpen.value) void nextTick(() => account.value?.querySelector<HTMLElement>('[role=menuitem]')?.focus())
-}
-
 function signOut() {
-  closeAccount()
   closeMenu()
   logout()
 }
-
-function onPointerDownOutside(event: PointerEvent) {
-  if (!account.value?.contains(event.target as Node)) closeAccount()
-}
-
-watch(isAccountOpen, (isOpen) => {
-  if (isOpen) document.addEventListener('pointerdown', onPointerDownOutside)
-  else document.removeEventListener('pointerdown', onPointerDownOutside)
-})
 
 function apply() {
   closeMenu()
@@ -89,9 +59,7 @@ function login() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return
-  closeMenu()
-  closeAccount(true)
+  if (event.key === 'Escape') closeMenu()
 }
 
 // На десктопе мобильное меню не нужно: закрываем его, если окно расширили
@@ -108,16 +76,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
-  document.removeEventListener('pointerdown', onPointerDownOutside)
   desktopQuery?.removeEventListener('change', onDesktopChange)
 })
 
 watch(
   () => route.fullPath,
-  () => {
-    closeMenu()
-    closeAccount()
-  },
+  () => closeMenu(),
 )
 </script>
 
@@ -143,78 +107,28 @@ watch(
 
       <div class="flex items-center gap-2">
         <!-- max-*:hidden, а не hidden sm:inline-flex: у BaseButton свой display, обычный hidden его не перебьёт -->
-        <div v-if="isAuthenticated" ref="account" class="relative max-sm:hidden">
-          <BaseButton
-            variant="glass"
-            size="s"
-            aria-haspopup="menu"
-            aria-controls="account-menu"
-            :aria-expanded="isAccountOpen"
-            :aria-label="unread ? `Аккаунт: ${name}, новых уведомлений: ${unread}` : `Аккаунт: ${name}`"
-            @click="toggleAccount"
+        <!-- Колокольчик — уведомления, кнопка с именем — страница профиля; без выпадающего меню -->
+        <template v-if="isAuthenticated">
+          <button
+            type="button"
+            class="header-bell relative flex size-10 items-center justify-center rounded-lg bg-night-glass text-on-night transition-colors hover:bg-white/15 max-sm:hidden"
+            :aria-label="unread ? `Уведомления, новых: ${unread}` : 'Уведомления'"
+            @click="openSection('notifications')"
           >
-            <UserRound class="size-4 shrink-0" aria-hidden="true" />
-            <span class="max-w-40 truncate max-xl:hidden">{{ name }}</span>
+            <Bell class="header-bell__icon size-[18px]" :class="{ 'has-unread': unread > 0 }" aria-hidden="true" />
             <span
               v-if="unread"
-              class="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-white"
-              :aria-label="`Новых уведомлений: ${unread}`"
+              class="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-white ring-2 ring-night"
+              aria-hidden="true"
             >
               {{ unread > 99 ? '99+' : unread }}
             </span>
-            <ChevronDown
-              class="size-4 shrink-0 transition-transform duration-200"
-              :class="isAccountOpen && 'rotate-180'"
-              aria-hidden="true"
-            />
+          </button>
+          <BaseButton variant="glass" size="s" class="max-sm:hidden" :aria-label="`Профиль: ${name}`" @click="openSection('profile')">
+            <UserRound class="size-4 shrink-0" aria-hidden="true" />
+            <span class="max-w-40 truncate max-xl:hidden">{{ name }}</span>
           </BaseButton>
-          <Transition
-            enter-from-class="opacity-0 -translate-y-1"
-            enter-active-class="transition duration-150"
-            leave-to-class="opacity-0 -translate-y-1"
-            leave-active-class="transition duration-100"
-          >
-            <div
-              v-if="isAccountOpen"
-              id="account-menu"
-              role="menu"
-              aria-label="Аккаунт"
-              class="absolute top-full right-0 mt-2 w-64 rounded-2xl bg-white p-1.5 text-ink shadow-[0_1.25rem_3rem_rgb(18_18_19/0.18),0_0_0_1px_var(--color-line)]"
-            >
-              <div class="px-3.5 py-2.5">
-                <p class="truncate text-sm font-semibold">{{ name }}</p>
-                <p v-if="contact" class="truncate text-xs text-ink-secondary">{{ contact }}</p>
-              </div>
-              <button
-                v-for="link in CABINET_LINKS"
-                :key="link.section"
-                type="button"
-                role="menuitem"
-                class="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3.5 text-left text-sm font-medium transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
-                @click="openSection(link.section)"
-              >
-                <component :is="link.icon" class="size-4 text-ink-secondary" aria-hidden="true" />
-                <span class="flex-1">{{ link.label }}</span>
-                <span
-                  v-if="link.section === 'notifications' && unread"
-                  class="rounded-full bg-brand px-1.5 py-0.5 text-[11px] leading-none font-bold text-white"
-                >
-                  {{ unread }}
-                </span>
-              </button>
-              <div class="my-1 h-px bg-line" aria-hidden="true" />
-              <button
-                type="button"
-                role="menuitem"
-                class="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3.5 text-left text-sm font-medium transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
-                @click="signOut"
-              >
-                <LogOut class="size-4 text-ink-secondary" aria-hidden="true" />
-                Выйти
-              </button>
-            </div>
-          </Transition>
-        </div>
+        </template>
         <BaseButton v-else variant="glass" size="s" class="max-sm:hidden" @click="login">
           <LogIn class="size-4" aria-hidden="true" />
           Войти
@@ -287,3 +201,37 @@ watch(
     </Transition>
   </header>
 </template>
+
+<style scoped>
+/* Есть непрочитанные — колокольчик время от времени покачивается */
+.header-bell__icon.has-unread {
+  transform-origin: 50% 10%;
+  animation: header-bell 4s ease-in-out infinite;
+}
+
+.header-bell:hover .header-bell__icon {
+  animation: header-bell 0.8s ease-in-out;
+}
+
+@keyframes header-bell {
+  0%,
+  20%,
+  100% {
+    rotate: 0deg;
+  }
+  4%,
+  12% {
+    rotate: 14deg;
+  }
+  8%,
+  16% {
+    rotate: -12deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-bell__icon {
+    animation: none !important;
+  }
+}
+</style>

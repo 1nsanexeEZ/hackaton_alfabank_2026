@@ -220,3 +220,5 @@ class ApplicationSummaryDTO:
     client_stage: str | None
     updated_at: datetime
     submitted_at: datetime | None = None
+    # Who made the decision the client got: auto | underwriter; None — no decision yet.
+    decided_by: str | None = None
