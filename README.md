@@ -2,7 +2,7 @@
 
 Прототип цифрового кредитного конвейера для малого и микробизнеса: предприниматель выбирает продукт и подаёт заявку в личном кабинете, банк проверяет данные, обогащает их из внешних источников, оценивает риск и принимает решение, клиент видит статус и следующий шаг на каждом этапе. Кейс «Альфа Хак 2026», трек «Умный кредитный кабинет предпринимателя» (Альфа-Банк, Changellenge); команда battalion 404. Текст кейса и наше понимание — [`docs/case.md`](docs/case.md), ответы экспертов — [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md).
 
-> **Состояние версии.** В `develop` работает весь конвейер: платформа (Kafka, outbox/inbox, DLQ), вход и права, компании, каталог и подбор продуктов, заявки и документы, движок процесса по BPMN-маршрутам, обогащение из внешних источников и прогноз кассового разрыва, скоринг, кредитное решение, ветка стартапа, задачи андеррайтера, лента, модели чтения и BFF. Сценарии S-1…S-9 ниже проходят целиком в автотестах (`backend/tests/scenarios`); коллекция запросов для ручной проверки ещё готовится.
+> **Состояние версии.** В `develop` работает весь конвейер: платформа (Kafka, outbox/inbox, DLQ), вход и права, компании, каталог и подбор продуктов, заявки и документы, движок процесса по BPMN-маршрутам, обогащение из внешних источников и прогноз кассового разрыва, скоринг, кредитное решение, ветка стартапа, задачи андеррайтера, лента, модели чтения и BFF. Сценарии S-1…S-9 ниже проходят целиком в автотестах (`backend/tests/scenarios`) и вручную — по [коллекции запросов Yaak](#коллекция-запросов-yaak).
 
 ## Содержание
 
@@ -13,6 +13,7 @@
 - [Демо-данные и учётные записи](#демо-данные-и-учётные-записи)
 - [Смоделированные интеграции](#смоделированные-интеграции)
 - [Сценарии проверки S-1…S-9](#сценарии-проверки-s-1s-9)
+- [Коллекция запросов Yaak](#коллекция-запросов-yaak)
 - [Документация](#документация)
 - [Разработка](#разработка)
 - [Что вошло и что дальше](#что-вошло-и-что-дальше)
@@ -200,6 +201,16 @@ Compose читает `.env` из корня репозитория; в конт�
 
 Синтетические выписки для S-2 и S-5 лежат в `backend/seed/statements/` (`ivanov.csv`, `progress.csv` и выписки остальных демо-компаний); генератор — `uv run python -m scripts.generate_statements`.
 
+## Коллекция запросов Yaak
+
+[`docs/api/yaak/`](docs/api/yaak/) — коллекция для [Yaak](https://yaak.app): сценарии S-1…S-10 (S-10 — стартап через бизнес-план в кабинете и предодобрение) и справочник по всем ручкам API. Шаг сценария берёт id заявки, документа, задачи и хеш оферты из ответов прошлых шагов — вводить руками ничего не нужно.
+
+1. Yaak → **New Workspace → Open Folder** → `docs/api/yaak`. Папка синхронизируется с репозиторием: правки в Yaak попадают в файлы. Без синхронизации — **Import** файла [`docs/api/yaak.json`](docs/api/yaak.json).
+2. Выбрать окружение: `local` (`http://localhost:8080/api`, порт `HTTP_PORT` из compose) или `stand`.
+3. Открыть папку сценария и отправлять шаги по порядку. Решение банк принимает асинхронно: если шаг «Карточка» показывает ещё не тот статус, через пару секунд отправьте его снова. «Send All» на папке этого ожидания не делает.
+
+Токены ролей берутся сами: вход по паролю демо-учётки, повторно раз в 25 минут (на `stand` nginx пускает на вход 10 запросов в минуту). После смены окружения отправьте заново вход нужных ролей из папки «Токены ролей» — иначе до 25 минут будут уходить токены прошлого стенда. Сценарий доводит заявку до финального статуса, поэтому его можно пройти снова; ожидаемый ответ — в описании каждого шага. Коллекция собирается скриптом из `docs/api/openapi.json` и `backend/scripts/yaak/scenarios.py`: после изменения API или сценария — `uv run python -m scripts.export_yaak` из `backend/`.
+
 ## Документация
 
 | Что | Где |
@@ -207,7 +218,7 @@ Compose читает `.env` из корня репозитория; в конт�
 | Кейс, наше понимание, ответы организаторов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
 | Архитектура: модули, путь клиента, путь заявки через Kafka, модель принятия решения | [`docs/architecture/architecture.md`](docs/architecture/architecture.md) (схема draw.io — рядом), [`docs/platform.md`](docs/platform.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | Swagger UI `/docs`, [`docs/api/openapi.json`](docs/api/openapi.json); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
+| Описание API | Swagger UI `/docs`, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция запросов Yaak [`docs/api/yaak/`](docs/api/yaak/); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
 | Проверка клиента по 115-ФЗ на каждой заявке, автоматизированное решение (ст. 16 152-ФЗ) | [`docs/compliance-115.md`](docs/compliance-115.md) |
@@ -225,6 +236,7 @@ uv run pytest -m integration      # Postgres и Kafka в testcontainers, нуж�
 uv run ruff check . && uv run ruff format --check .
 uv run lint-imports               # границы модулей
 uv run python -m scripts.export_openapi   # обновить docs/api/openapi.json после изменения API
+uv run python -m scripts.export_yaak      # и коллекцию Yaak в docs/api/yaak/ (--check — свежая ли)
 ```
 
 Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков. Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.
