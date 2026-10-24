@@ -7,6 +7,7 @@ from src.modules.identity.facade import IdentityFacade
 from src.modules.process.domain.steps import (
     CollateralFact,
     CompletenessFact,
+    DeclaredOwnerFact,
     EnrichmentRequestFact,
     PersonFact,
     ProcessFacts,
@@ -44,6 +45,7 @@ class ApplicationFacts(ProcessFacts):
             head_bki_consent_at=head_consent_at,
             representative=await self._representative(data.applicant_account_id, head),
             third_parties=_third_parties(data),
+            declared_owners=_declared_owners(data),
         )
 
     async def collateral(self, application_id: UUID) -> CollateralFact | None:
@@ -82,8 +84,17 @@ def _third_parties(data: ScoringInputDTO) -> tuple[ThirdPartyFact, ...]:
     declaration = data.beneficiary
     if declaration is not None and declaration.beneficiary is not None:
         b = declaration.beneficiary
-        parties.append(ThirdPartyFact("beneficiary", b.kind, b.name, b.inn))
+        parties.append(ThirdPartyFact("beneficiary", b.kind, b.name, b.inn, b.country))
     owner = data.collateral.owner_party if data.collateral is not None else None
     if owner is not None:
-        parties.append(ThirdPartyFact("pledgor", owner.kind, owner.name, owner.inn))
+        parties.append(ThirdPartyFact("pledgor", owner.kind, owner.name, owner.inn, owner.country))
     return tuple(parties)
+
+
+def _declared_owners(data: ScoringInputDTO) -> tuple[DeclaredOwnerFact, ...] | None:
+    """The beneficial owners in the client's words; None — not answered."""
+    if data.beneficial_owners is None:
+        return None
+    return tuple(
+        DeclaredOwnerFact(o.name, o.basis, o.country) for o in data.beneficial_owners.owners
+    )

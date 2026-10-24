@@ -31,7 +31,7 @@ from src.modules.enrichment.facade import (
     TaxProfileDTO,
     TurnoverMonthDTO,
 )
-from tests.fakes.aml_sources import FakeAmlLists, FakePep, FakeZsk
+from tests.fakes.aml_sources import FakeAmlLists, FakeLicenses, FakePep, FakeZsk
 from tests.fakes.messaging import FakeOutboxWriter
 
 _CONSENT = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
@@ -210,6 +210,7 @@ def sources(
     zsk: object | None = None,
     bank_stop_list: object | None = None,
     bank_turnover: object | None = None,
+    licenses: object | None = None,
 ) -> Sources:
     """Все источники; не переданный — рабочий фейк."""
     return Sources(
@@ -224,6 +225,7 @@ def sources(
         zsk or FakeZsk(),  # type: ignore[arg-type]
         bank_stop_list or FakeBankStopList(),  # type: ignore[arg-type]
         bank_turnover or FakeBankTurnover(),  # type: ignore[arg-type]
+        licenses or FakeLicenses(),  # type: ignore[arg-type]
     )
 
 

@@ -14,6 +14,7 @@ from src.modules.applications.application.dto.applications import (
     DocumentDTO,
     InfoRequestDTO,
     OfferDTO,
+    OwnersDTO,
     StatusChangeDTO,
 )
 from src.modules.applications.application.dto.drafts import DraftRequestDTO
@@ -62,6 +63,8 @@ class ApplicationViewDTO:
     closed_at: datetime | None
     # The answer about the beneficiary (115-FZ); None — not answered.
     beneficiary: BeneficiaryDTO | None = None
+    # Beneficial owners named by the client (115-FZ); None — not answered.
+    beneficial_owners: OwnersDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

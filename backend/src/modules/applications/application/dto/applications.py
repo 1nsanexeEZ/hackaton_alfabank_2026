@@ -47,6 +47,7 @@ class ThirdPartyDTO:
     kind: Literal["person", "organization"]
     name: str
     inn: str | None = None
+    country: str | None = None  # ISO 3166-1 alpha-2, when not Russia
 
 
 BeneficiaryBasis = Literal["agency", "commission", "mandate", "trust_management"]
@@ -61,6 +62,25 @@ class BeneficiaryDTO:
     declared_at: datetime
     beneficiary: ThirdPartyDTO | None = None
     basis: BeneficiaryBasis | None = None
+
+
+OwnerBasis = Literal["ownership", "control"]
+
+
+@dataclass(frozen=True, slots=True)
+class DeclaredOwnerDTO:
+    name: str
+    basis: OwnerBasis
+    country: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OwnersDTO:
+    """The client's beneficial owners in its own words (115-FZ art. 6.1); empty — nobody."""
+
+    owners: tuple[DeclaredOwnerDTO, ...]
+    declared_by: UUID
+    declared_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +196,8 @@ class ApplicationCardDTO:
     disbursement_reference: str | None = None
     # The answer about the beneficiary (115-FZ); None — not answered.
     beneficiary: BeneficiaryDTO | None = None
+    # Beneficial owners named by the client (115-FZ); None — not answered.
+    beneficial_owners: OwnersDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,6 +228,8 @@ class ScoringInputDTO:
     automated_decision_consent_at: datetime | None = None
     # The answer about the beneficiary (115-FZ); None — not answered.
     beneficiary: BeneficiaryDTO | None = None
+    # Beneficial owners named by the client (115-FZ); None — not answered.
+    beneficial_owners: OwnersDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

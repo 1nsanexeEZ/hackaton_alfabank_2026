@@ -351,6 +351,12 @@ _ROLES = {
     "representative": "представитель",
     "beneficiary": "выгодоприобретатель",
     "pledgor": "залогодатель",
+    "founder": "учредитель",
+    "declared_owner": "бенефициар со слов клиента",
+}
+_DISCREPANCIES = {
+    "not_declared": "бенефициар по ЕГРЮЛ не назван клиентом",
+    "not_in_registry": "назван владельцем больше 25%, по ЕГРЮЛ — нет",
 }
 _LISTS = {
     "terrorism": "перечень причастных к экстремизму и терроризму",
@@ -386,6 +392,18 @@ def _aml_input(snapshot: EnrichmentSnapshotDTO | None) -> AmlInput:
         zsk_level=check.zsk.level,
         beneficial_owners=_owners(check),
         lists_date=check.lists_date.isoformat(),
+        foreign_participants=tuple(
+            dict.fromkeys(
+                (_who(s.role, s.name), s.country) for s in check.subjects if s.country is not None
+            )
+        ),
+        owners_declared=check.declared_owners is not None,
+        owner_discrepancies=tuple(
+            f"{d.name} — {_DISCREPANCIES[d.kind]}" for d in check.owner_discrepancies
+        ),
+        licensed_okved=None
+        if check.licenses is None
+        else tuple(item.okved for item in check.licenses),
     )
 
 

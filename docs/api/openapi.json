@@ -5421,6 +5421,42 @@
             "type": "array",
             "title": "Pep Hits",
             "default": []
+          },
+          "declared_owners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Owners"
+          },
+          "owner_discrepancies": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerDiscrepancyDTO"
+            },
+            "type": "array",
+            "title": "Owner Discrepancies",
+            "default": []
+          },
+          "licenses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LicenseDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Licenses"
           }
         },
         "type": "object",
@@ -5443,7 +5479,9 @@
               "founder_company",
               "representative",
               "beneficiary",
-              "pledgor"
+              "pledgor",
+              "founder",
+              "declared_owner"
             ],
             "title": "Role"
           },
@@ -5461,6 +5499,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -5667,6 +5716,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/BeneficiaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnersDTO"
               },
               {
                 "type": "null"
@@ -6048,6 +6107,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6270,6 +6339,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/BeneficiaryIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersIn"
               },
               {
                 "type": "null"
@@ -6528,6 +6607,46 @@
           "basis"
         ],
         "title": "BeneficialOwnerDTO"
+      },
+      "BeneficialOwnersIn": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerIn"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Owners"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners"
+        ],
+        "title": "BeneficialOwnersIn",
+        "description": "The client's beneficial owners (115-FZ art. 6.1, 7 p. 14). An empty list is an answer:\nnobody owns more than 25% or controls the company otherwise."
+      },
+      "BeneficialOwnersOut": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerOut"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_at"
+        ],
+        "title": "BeneficialOwnersOut"
       },
       "BeneficiaryDTO": {
         "properties": {
@@ -9017,6 +9136,73 @@
         ],
         "title": "DecisionTermsDTO"
       },
+      "DeclaredOwnerIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerIn",
+        "description": "ownership — owns more than 25% directly or through other companies; control — controls\nthe company otherwise, e.g. by an agreement (115-FZ art. 3)."
+      },
+      "DeclaredOwnerOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis",
+          "country"
+        ],
+        "title": "DeclaredOwnerOut"
+      },
       "DemoAccountRead": {
         "properties": {
           "login": {
@@ -10809,6 +10995,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -11235,6 +11432,30 @@
           "keys"
         ],
         "title": "JwksResponse"
+      },
+      "LicenseDTO": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "okved": {
+            "type": "string",
+            "title": "Okved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "activity",
+          "okved"
+        ],
+        "title": "LicenseDTO",
+        "description": "Действующая лицензия из реестра лицензий (ст. 7 п. 15 115-ФЗ)."
       },
       "LimitsDTO": {
         "properties": {
@@ -12823,6 +13044,57 @@
           "my_permissions"
         ],
         "title": "OrganizationSummaryRead"
+      },
+      "OwnerDiscrepancyDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "not_declared",
+              "not_in_registry"
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "OwnerDiscrepancyDTO"
+      },
+      "OwnersDTO": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/src__modules__applications__application__dto__applications__DeclaredOwnerDTO"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Declared By"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_by",
+          "declared_at"
+        ],
+        "title": "OwnersDTO",
+        "description": "The client's beneficial owners in its own words (115-FZ art. 6.1); empty — nobody."
       },
       "Payment": {
         "properties": {
@@ -17603,6 +17875,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17640,6 +17923,18 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17670,6 +17965,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -18381,6 +18687,73 @@
           "as_of"
         ],
         "title": "ZskRiskDTO"
+      },
+      "src__modules__applications__application__dto__applications__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO"
+      },
+      "src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO",
+        "description": "Бенефициар со слов клиента."
       }
     },
     "securitySchemes": {

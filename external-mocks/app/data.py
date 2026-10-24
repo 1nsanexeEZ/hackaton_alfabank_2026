@@ -77,6 +77,8 @@ class Company:
     bank_stop_list: str | None = None
     # Клиент банка столько дней (счёт открыт тогда); None — с регистрации.
     bank_client_days_ago: int | None = None
+    # Учредители-физлица не из России: ФИО → код страны места жительства (ISO 3166-1 alpha-2).
+    founder_countries: tuple[tuple[str, str], ...] = ()
 
 
 _RUB = 100  # копеек в рубле
@@ -353,6 +355,7 @@ def _clean(
     founders: tuple[tuple[str, int], ...] = (),
     corporate_founders: tuple[tuple[str, str, int], ...] = (),
     okved: str = "46.90",
+    founder_countries: tuple[tuple[str, str], ...] = (),
 ) -> Company:
     """Компания для сценариев ПОД/ФТ: финансы и кредитная история чистые, чтобы решение
     определяли только проверки по 115-ФЗ (`app/compliance.py`)."""
@@ -369,6 +372,7 @@ def _clean(
         head_position="Генеральный директор",
         founders=founders,
         corporate_founders=corporate_founders,
+        founder_countries=founder_countries,
         address="г. Москва, ул. Складочная, д. 1",
         region_code="77",
         mass_address=False,
@@ -455,6 +459,53 @@ AML_DEMO: dict[str, Company] = {
             "1157707115081",
             "Партнёров Павел Петрович",
             founders=tuple((f"Партнёр № {i}", 20) for i in range(1, 6)),
+        ),
+        # Учредитель с долей 20% — в перечне террористов. Бенефициаром он не является, но
+        # проверяется: юрлицо под контролем лица из перечня (ст. 7 п. 10 115-ФЗ).
+        _clean(
+            "7707115104",
+            "Малая доля",
+            "1157707115103",
+            "Долин Денис Дмитриевич",
+            founders=(("Долин Денис Дмитриевич", 80), ("Малодолев Мирон Миронович", 20)),
+        ),
+        # Учредитель с долей 40% живёт в государстве из «чёрного списка» ФАТФ — высокая группа
+        # риска по 115-ФЗ (ст. 6 п. 1 подп. 2).
+        _clean(
+            "7707115111",
+            "Каспий-Трейд",
+            "1157707115114",
+            "Каспиев Карен Каренович",
+            founders=(("Каспиев Карен Каренович", 60), ("Хоссейни Али Реза", 40)),
+            founder_countries=(("Хоссейни Али Реза", "IR"),),
+        ),
+        # Учредитель с долей 30% — резидент Германии: иностранный участник, средняя группа.
+        _clean(
+            "7707115129",
+            "Рейн-Логистик",
+            "1157707115125",
+            "Рейнов Роман Романович",
+            founders=(("Рейнов Роман Романович", 70), ("Шмидт Ганс", 30)),
+            founder_countries=(("Шмидт Ганс", "DE"),),
+        ),
+        # Розничная торговля ювелирными изделиями — вид деятельности повышенного риска по
+        # национальной оценке рисков: средняя группа.
+        _clean(
+            "7707115136",
+            "Золотой запас",
+            "1157707115136",
+            "Златов Захар Захарович",
+            founders=(("Златов Захар Захарович", 100),),
+            okved="47.77",
+        ),
+        # Медицинская деятельность без лицензии (ст. 7 п. 15 115-ФЗ): в реестре лицензий пусто.
+        _clean(
+            "7707115143",
+            "Клиника Здоровье",
+            "1157707115147",
+            "Лекарев Лев Леонидович",
+            founders=(("Лекарев Лев Леонидович", 100),),
+            okved="86.10",
         ),
     )
 }
@@ -604,6 +655,14 @@ def _head_date(company: Company) -> str:
 _UNRELIABLE = {"address": "Адрес", "head": "Руководитель", "founder": "Учредитель"}
 
 
+def _person_founder(company: Company, fio: str, share: int) -> dict:
+    founder: dict = {"ФИО": fio, "Доля": share}
+    country = dict(company.founder_countries).get(fio)
+    if country is not None:
+        founder["Страна"] = country
+    return founder
+
+
 def egrul_response(company: Company) -> dict:
     data: dict = {
         "ИНН": company.inn,
@@ -619,7 +678,7 @@ def egrul_response(company: Company) -> dict:
             "ДатаЗаписи": _head_date(company),
         },
         "Учредители": [
-            *({"ФИО": fio, "Доля": share} for fio, share in company.founders),
+            *(_person_founder(company, fio, share) for fio, share in company.founders),
             *(
                 {"Наим": name, "ИНН": inn, "Доля": share}
                 for name, inn, share in company.corporate_founders

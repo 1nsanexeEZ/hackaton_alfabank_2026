@@ -64,6 +64,8 @@ class ApplicationRecord(UUIDPrimaryKeyMixin, OrganizationOwnedMixin, VersionMixi
     consents: Mapped[dict[str, Any]] = mapped_column(JSONType)
     # The client's answer about the beneficiary (115-FZ); NULL — not answered.
     beneficiary: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
+    # Beneficial owners named by the client (115-FZ); NULL — not answered.
+    beneficial_owners: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     org_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     offer: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     decision_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONType)

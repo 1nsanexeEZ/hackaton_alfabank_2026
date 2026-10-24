@@ -86,3 +86,25 @@ def test_third_parties_from_the_application(client: TestClient) -> None:
     )
     assert person[0]["Перечень"] == "ЭКСТРЕМИЗМ_ТЕРРОРИЗМ"
     assert company[0]["Перечень"] == "МВК"
+
+
+def test_minority_founder_in_the_lists(client: TestClient) -> None:
+    """Учредитель с 20% — не бенефициар, но в перечне: банк проверяет всех учредителей."""
+    founders = client.get("/egrul/7707115104").json()["Учредители"]
+    assert {"ФИО": "Малодолев Мирон Миронович", "Доля": 20} in founders
+    [hits] = _screen(client, {"id": "f", "type": "FL", "name": "Малодолев Мирон Миронович"})
+    assert hits[0]["Перечень"] == "ЭКСТРЕМИЗМ_ТЕРРОРИЗМ"
+
+
+def test_foreign_founders_carry_the_country(client: TestClient) -> None:
+    founders = client.get("/egrul/7707115111").json()["Учредители"]
+    assert {"ФИО": "Хоссейни Али Реза", "Доля": 40, "Страна": "IR"} in founders
+    assert {"ФИО": "Каспиев Карен Каренович", "Доля": 60} in founders
+    assert {"ФИО": "Шмидт Ганс", "Доля": 30, "Страна": "DE"} in (
+        client.get("/egrul/7707115129").json()["Учредители"]
+    )
+
+
+@pytest.mark.parametrize("inn", DEMO_INNS)
+def test_demo_companies_have_no_foreign_founders(client: TestClient, inn: str) -> None:
+    assert all("Страна" not in f for f in client.get(f"/egrul/{inn}").json()["Учредители"])

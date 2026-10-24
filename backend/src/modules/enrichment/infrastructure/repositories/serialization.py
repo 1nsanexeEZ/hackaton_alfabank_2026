@@ -19,7 +19,10 @@ from src.modules.enrichment.application.dto.aml import (
     AmlCheckDTO,
     AmlSubjectDTO,
     BeneficialOwnerDTO,
+    DeclaredOwnerDTO,
+    LicenseDTO,
     ListHitDTO,
+    OwnerDiscrepancyDTO,
     PepHitDTO,
     ZskRiskDTO,
 )
@@ -135,7 +138,12 @@ def _registry_to_json(dto: RegistryExtractDTO) -> dict[str, Any]:
         "head_middle_name": dto.head_middle_name,
         "head_position": dto.head_position,
         "founders": [
-            {"name": f.name, "share_percent": str(f.share_percent), "inn": f.inn}
+            {
+                "name": f.name,
+                "share_percent": str(f.share_percent),
+                "inn": f.inn,
+                "country": f.country,
+            }
             for f in dto.founders
         ],
         "address": dto.address,
@@ -162,7 +170,12 @@ def _registry_from_json(raw: dict[str, Any]) -> RegistryExtractDTO:
         head_middle_name=raw["head_middle_name"],
         head_position=raw["head_position"],
         founders=tuple(
-            FounderDTO(name=f["name"], share_percent=Decimal(f["share_percent"]), inn=f.get("inn"))
+            FounderDTO(
+                name=f["name"],
+                share_percent=Decimal(f["share_percent"]),
+                inn=f.get("inn"),
+                country=f.get("country"),
+            )
             for f in raw["founders"]
         ),
         address=raw["address"],
@@ -389,11 +402,13 @@ def _cashflow_from_json(raw: dict[str, Any]) -> CashflowForecastDTO:
 
 
 def _subject_to_json(dto: AmlSubjectDTO) -> dict[str, Any]:
-    return {"role": dto.role, "name": dto.name, "inn": dto.inn}
+    return {"role": dto.role, "name": dto.name, "inn": dto.inn, "country": dto.country}
 
 
 def _subject_from_json(raw: dict[str, Any]) -> AmlSubjectDTO:
-    return AmlSubjectDTO(role=raw["role"], name=raw["name"], inn=raw.get("inn"))
+    return AmlSubjectDTO(
+        role=raw["role"], name=raw["name"], inn=raw.get("inn"), country=raw.get("country")
+    )
 
 
 def _aml_to_json(dto: AmlCheckDTO) -> dict[str, Any]:
@@ -418,6 +433,21 @@ def _aml_to_json(dto: AmlCheckDTO) -> dict[str, Any]:
         "pep_hits": [
             {"subject": _subject_to_json(hit.subject), "kind": hit.kind, "position": hit.position}
             for hit in dto.pep_hits
+        ],
+        "declared_owners": None
+        if dto.declared_owners is None
+        else [
+            {"name": owner.name, "basis": owner.basis, "country": owner.country}
+            for owner in dto.declared_owners
+        ],
+        "owner_discrepancies": [
+            {"name": item.name, "kind": item.kind} for item in dto.owner_discrepancies
+        ],
+        "licenses": None
+        if dto.licenses is None
+        else [
+            {"number": item.number, "activity": item.activity, "okved": item.okved}
+            for item in dto.licenses
         ],
     }
 
@@ -448,5 +478,22 @@ def _aml_from_json(raw: dict[str, Any]) -> AmlCheckDTO:
                 position=hit["position"],
             )
             for hit in raw["pep_hits"]
+        ),
+        # Снимки до policy_v9 хранились без бенефициаров со слов клиента и лицензий.
+        declared_owners=None
+        if raw.get("declared_owners") is None
+        else tuple(
+            DeclaredOwnerDTO(name=item["name"], basis=item["basis"], country=item["country"])
+            for item in raw["declared_owners"]
+        ),
+        owner_discrepancies=tuple(
+            OwnerDiscrepancyDTO(name=item["name"], kind=item["kind"])
+            for item in raw.get("owner_discrepancies", ())
+        ),
+        licenses=None
+        if raw.get("licenses") is None
+        else tuple(
+            LicenseDTO(number=item["number"], activity=item["activity"], okved=item["okved"])
+            for item in raw["licenses"]
         ),
     )
