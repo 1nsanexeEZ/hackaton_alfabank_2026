@@ -89,7 +89,8 @@ onBeforeUnmount(() => {
           :class="[
             'modal__panel flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
             wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
-            bare && 'overflow-hidden',
+            // Тонкая светлая обводка: край окна с тёмной шапкой виден и на тёмной странице
+            bare && 'overflow-hidden ring-1 ring-white/10',
           ]"
         >
           <slot v-if="bare" v-bind="{ close, titleId: `${id}-title` }" />

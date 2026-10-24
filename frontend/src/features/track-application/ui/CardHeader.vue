@@ -60,7 +60,16 @@ const BAR_CLASS: Record<StepState, string> = {
 </script>
 
 <template>
-  <header class="bg-night px-5 pt-5 pb-4 text-on-night sm:px-7 sm:pt-6 sm:pb-5">
+  <header class="relative isolate shrink-0 overflow-hidden bg-night-elevated px-5 pt-5 pb-4 text-on-night sm:px-7 sm:pt-6 sm:pb-5">
+    <!--
+      Абстрактный фон: красное свечение из угла, тонкие кольца и красная линия по низу. Без него тёмная
+      шапка сливалась с тёмными страницами (профиль, лендинг) под затемнением окна.
+    -->
+    <div class="card-header__decor pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+      <span class="card-header__ring card-header__ring--outer" />
+      <span class="card-header__ring card-header__ring--inner" />
+    </div>
+
     <div class="flex items-start gap-3.5">
       <span
         class="flex size-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-brand text-xl font-black text-white sm:size-11 sm:rounded-xl sm:text-2xl"
@@ -155,3 +164,43 @@ const BAR_CLASS: Record<StepState, string> = {
     </template>
   </header>
 </template>
+
+<style scoped>
+.card-header__decor {
+  background:
+    radial-gradient(70% 140% at 100% 0%, rgb(239 49 36 / 0.3), transparent 62%),
+    radial-gradient(50% 90% at 0% 100%, rgb(31 98 214 / 0.14), transparent 70%);
+}
+
+/* Красная линия по низу: отделяет шапку от белого тела окна и держит фирменный акцент */
+.card-header__decor::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-brand), rgb(239 49 36 / 0.25) 45%, transparent 75%);
+}
+
+.card-header__ring {
+  position: absolute;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 999px;
+}
+
+.card-header__ring--outer {
+  top: -22rem;
+  right: -12rem;
+  width: 34rem;
+  height: 34rem;
+}
+
+.card-header__ring--inner {
+  top: -13rem;
+  right: -5rem;
+  width: 20rem;
+  height: 20rem;
+  border-color: rgb(255 255 255 / 0.09);
+}
+</style>
