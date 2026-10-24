@@ -26,6 +26,14 @@ export const router = createRouter({
   routes: [
     { path: ROUTE_PATH.home, name: 'landing', component: LandingPage },
     {
+      // Публичная проверка договора по QR из PDF: без входа, без шапки сайта
+      path: `${ROUTE_PATH.verify}/:id`,
+      name: 'verify-contract',
+      props: true,
+      component: () => import('@/pages/verify-contract').then((module) => module.VerifyContractPage),
+      meta: { title: 'Проверка договора', bare: true },
+    },
+    {
       path: `${ROUTE_PATH.admin}/login`,
       name: ADMIN_ROUTE.login,
       component: () => import('@/pages/admin-login').then((module) => module.AdminLoginPage),
