@@ -23,7 +23,7 @@
 
 ```mermaid
 flowchart LR
-    Browser["Браузер: кабинет клиента и сотрудника банка"] --> Nginx["nginx :80"]
+    Browser["Браузер: кабинет клиента и сотрудника банка"] --> Nginx["nginx :8080<br/>(на стенде :443)"]
     Nginx --> Frontend["frontend (Vue)"]
     Nginx --> Backend["backend (FastAPI)<br/>модули: identity, clients, products,<br/>applications, process, enrichment,<br/>scoring, decision, notifications,<br/>projector, bff"]
     Nginx -->|presigned URL| MinIO[("MinIO<br/>документы")]
@@ -56,7 +56,7 @@ flowchart LR
 
 - Docker с Compose v2 (Docker Desktop на Windows/macOS или Docker Engine на Linux).
 - Машина с 12 ГБ оперативной памяти: стенд целиком занимает меньше 3 ГБ.
-- Около 2,5 ГБ диска под образы, свободные порты 80 и 443.
+- Около 2,5 ГБ диска под образы и свободный порт 8080 (другой порт — `HTTP_PORT`, см. ниже).
 - Интернет — только для первой сборки образов; дальше стенд запускается офлайн.
 - Для разработки без Docker: Python 3.12 и [uv](https://docs.astral.sh/uv/), Node.js 22+.
 
@@ -80,26 +80,31 @@ flowchart LR
 ```bash
 git clone https://github.com/1nsanexeEZ/hackaton_alfabank_2026.git
 cd hackaton_alfabank_2026
-cp .env.example .env
-docker compose up -d --build
+docker compose up -d --build --wait --wait-timeout 600
 ```
 
-`.env` необязателен: без него compose берёт значения по умолчанию. Из `.env.example` стоит взять хотя бы `DEMO_LOGIN_ENABLED=true` — вход в демо-учётки в один клик.
+Откройте **http://localhost:8080** и войдите в любую демо-учётку кнопкой, без пароля. На Windows то же самое делает двойной щелчок по [`start.cmd`](start.cmd): он проверит, что Docker запущен, поднимет стенд и откроет браузер.
 
-При старте backend сам применяет миграции, создаёт бакет MinIO, топики Kafka и DLQ, администратора и демо-данные. Первая сборка со скачиванием образов занимает несколько минут и зависит от сети; уже собранный стенд поднимается меньше чем за минуту (backend ждёт, пока Postgres, MinIO и Kafka пройдут healthcheck). Проверка:
+`.env` не нужен: значения по умолчанию в `docker-compose.yml` рассчитаны на локальную проверку (порт 8080, вход в один клик, демо-данные). Чтобы что-то поменять, скопируйте `.env.example` в `.env` и правьте его; если меняете `HTTP_PORT`, поменяйте под него и `MINIO_PUBLIC_ENDPOINT`, иначе не загрузятся документы.
+
+При старте backend сам применяет миграции, создаёт бакет MinIO, топики Kafka и DLQ, администратора и демо-данные. Первая сборка со скачиванием образов занимает 5–15 минут и зависит от сети; уже собранный стенд поднимается меньше чем за минуту. `--wait` возвращает управление, когда все сервисы прошли healthcheck. Проверка:
 
 ```bash
 docker compose ps
-curl http://localhost/ready
+curl http://localhost:8080/api/ready
 ```
 
-`/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. На свежем томе Kafka в первые секунды backend пишет в лог `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик offset'ов, это проходит само. Swagger UI — http://localhost/docs, OpenAPI — http://localhost/openapi.json и выгрузка в репозитории [`docs/api/openapi.json`](docs/api/openapi.json).
+`/api/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. На свежем томе Kafka в первые секунды backend пишет в лог `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик offset'ов, это проходит само. Swagger UI — http://localhost:8080/api/docs, OpenAPI — http://localhost:8080/openapi.json и выгрузка в репозитории [`docs/api/openapi.json`](docs/api/openapi.json). Все пути API снаружи начинаются с `/api/`.
 
-Первый вход:
+Вход по паролю из командной строки:
 
 ```bash
-curl -X POST http://localhost/auth/login -H "Content-Type: application/json" -d "{\"login\": \"owner@romashka.test\", \"password\": \"Demo-2026!\"}"
+curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d "{\"login\": \"owner@romashka.test\", \"password\": \"Demo-2026!\"}"
 ```
+
+**Если не стартует.** Порт 8080 занят — `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` в `.env`. Docker Desktop пишет «There was a problem with WSL» или сборка падает на `no space left on device` — кончилось место на диске, где лежат данные Docker: освободите место или перенесите их (Settings → Resources → Advanced → Disk image location). Что именно упало — `docker compose ps` и `docker compose logs --tail=100 <сервис>`.
+
+**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен. Это делает [`docker/deploy.sh`](docker/deploy.sh) по тегу версии `v*.*.*`; для локальной проверки добавка не нужна.
 
 **Офлайн.** Все зависимости ставятся при сборке образов (`uv sync --frozen`), в рантайме ничего не скачивается: ключи JWT генерируются при первом старте, топики и бакет создаёт backend, демо-данные лежат в репозитории. Чтобы запускать без интернета, один раз с интернетом выполните `docker compose pull` и `docker compose build`, дальше `docker compose up -d` работает офлайн.
 
@@ -120,12 +125,13 @@ Compose читает `.env` из корня репозитория; в конт�
 | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | `admin@example.com` / `Admin-2026!` | администратор, которого backend создаёт при первом старте |
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | учётка MinIO, общая для MinIO и backend |
 | `MINIO_BUCKET_NAME` | `credit-documents` | бакет документов; nginx проксирует путь `/credit-documents/` в MinIO |
-| `MINIO_PUBLIC_ENDPOINT` | `http://localhost` | адрес, на который подписываются presigned URL (то, что видит браузер) |
+| `HTTP_PORT` | `8080` | порт сайта на этой машине; на стенде nginx слушает 80 и 443 (`docker-compose.prod.yml`) |
+| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:8080` | адрес, на который подписываются presigned URL (то, что видит браузер); порт должен совпадать с `HTTP_PORT` |
 | `MESSAGING_MODE` | `kafka` | `kafka` — брокер из compose; `in_process` — без брокера, доставка внутри процесса (локальный запуск); `manual` — тесты |
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
-| `DEMO_LOGIN_ENABLED` | `false` (в `.env.example` — `true`) | вход в демо-учётку без пароля (`POST /auth/demo-login`); на публичном стенде выключен |
+| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля (`POST /api/auth/demo-login`); на публичном стенде выключен |
 | `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | адрес моков для подписания (ЭДО) и выдачи (АБС); без переменной (локальный запуск без моков) оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут запроса в секундах и число повторов (`backend/src/modules/enrichment/infrastructure/config.py`) |
 | `DECISION_KEY_RATE` | `16.50` | ключевая ставка Банка России, % годовых: от неё считается ставка предложения; на дату сдачи сверить с cbr.ru |
