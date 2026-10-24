@@ -4,14 +4,16 @@ import { computed, reactive, ref } from 'vue'
 
 import { DOCUMENT_TITLE } from '@/entities/application'
 import { useSession } from '@/entities/session'
-import { TASK_STATUS_LABEL } from '@/entities/underwriting'
+import { BUSINESS_PLAN_GRADE, TASK_STATUS_LABEL } from '@/entities/underwriting'
 import { backofficeApi, type TaskDecision, type UnderwriterCardDto, type UnderwriterTaskDto } from '@/shared/api'
 import { errorMessage, formatDateTime } from '@/shared/lib'
 import { BaseButton, CheckboxField, SegmentedControl, TextField } from '@/shared/ui'
 
 /**
  * Решение андеррайтера по задаче (POST /tasks/{id}/claim, /complete). Сначала задачу берут на себя,
- * потом выбирают исход. Условия по умолчанию — из решения движка и рамок продукта.
+ * потом выбирают исход. Условия по умолчанию — из решения движка и рамок продукта. Проектная оценка
+ * стартапа открывается с тем, что предложил бэкенд (card.startup.form): исход, сумма и срок по
+ * предодобрению, оценка бизнес-плана, обеспечение и господдержка из финмодели.
  */
 const props = defineProps<{ task: UnderwriterTaskDto; card: UnderwriterCardDto }>()
 
@@ -35,10 +37,12 @@ const REQUESTABLE = ['bank_statement', 'financial_report', 'tax_return', 'collat
 
 const suggested = props.card.decision?.terms
 const request = props.card.application.request
+const project = props.task.type === 'project_assessment' ? (props.card.startup?.form ?? null) : null
+const isProject = props.task.type === 'project_assessment'
 const form = reactive({
-  decision: 'approve' as TaskDecision,
-  amount: String(Number(suggested?.amount ?? request?.amount ?? 0)),
-  termMonths: String(suggested?.term_months ?? request?.term_months ?? ''),
+  decision: (project?.decision ?? 'approve') as TaskDecision,
+  amount: String(Number(project?.amount ?? suggested?.amount ?? request?.amount ?? 0)),
+  termMonths: String(project?.term_months ?? suggested?.term_months ?? request?.term_months ?? ''),
   rate: String(Number(suggested?.rate ?? props.card.application.product_terms.rate_base)),
   conditions: (suggested?.conditions ?? []).join('\n'),
   documents: { bank_statement: true, financial_report: false, tax_return: false, collateral_documents: false, other: false } as Record<
@@ -46,6 +50,9 @@ const form = reactive({
     boolean
   >,
   comment: '',
+  businessPlan: project?.business_plan ?? ('acceptable' as const),
+  collateral: project?.collateral ?? '',
+  supportProgram: project?.support_program ?? false,
 })
 
 const withTerms = computed(() => form.decision === 'approve' || form.decision === 'counter_offer')
@@ -92,6 +99,9 @@ async function complete() {
       conditions: withTerms.value ? form.conditions.split('\n').map((line) => line.trim()).filter(Boolean) : [],
       requested_documents: form.decision === 'request_info' ? documents : [],
       comment: form.comment.trim(),
+      ...(isProject
+        ? { business_plan: form.businessPlan, collateral: form.collateral.trim() || null, support_program: form.supportProgram }
+        : {}),
     })
     emit('decided')
   } catch (caught) {
@@ -137,6 +147,19 @@ async function complete() {
             placeholder="Например: поручительство собственника"
           />
         </label>
+
+        <fieldset v-if="isProject" class="space-y-3 rounded-xl bg-surface-soft p-3">
+          <legend class="sr-only">Проектная оценка</legend>
+          <p v-if="project" class="text-xs text-ink-secondary">
+            Предзаполнено по проектной оценке банка — подтвердите или поправьте.
+          </p>
+          <div>
+            <p class="mb-2 text-sm font-medium text-ink">Бизнес-план</p>
+            <SegmentedControl v-model="form.businessPlan" :options="BUSINESS_PLAN_GRADE" label="Оценка бизнес-плана" />
+          </div>
+          <TextField v-model="form.collateral" label="Обеспечение" placeholder="Например: поручительство учредителя" dense />
+          <CheckboxField v-model="form.supportProgram">Господдержка — льготная ставка по программе</CheckboxField>
+        </fieldset>
 
         <fieldset v-if="form.decision === 'request_info'" class="space-y-2">
           <legend class="mb-1 text-sm font-medium text-ink">Что запросить у клиента</legend>
