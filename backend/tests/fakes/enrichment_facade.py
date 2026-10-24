@@ -4,6 +4,7 @@ from uuid import UUID
 from src.core.exceptions.exceptions import InfrastructureError
 from src.modules.enrichment.facade import (
     CashflowForecastDTO,
+    CompanyLookupDTO,
     CreditHistoryDTO,
     EnrichmentSnapshotDTO,
     PersonDTO,
@@ -21,6 +22,13 @@ class FakeEnrichmentFacade:
         self.person_requests: list[tuple[PersonDTO, datetime]] = []
         # organization_id -> the latest cash flow forecast (by a bank statement).
         self.cashflows: dict[UUID, CashflowForecastDTO] = {}
+        # INN -> the company before any application (registry, tax, Kontur, stop list).
+        self.companies: dict[str, CompanyLookupDTO] = {}
+        self.registry_down = False
+
+    def add_company(self, company: CompanyLookupDTO) -> CompanyLookupDTO:
+        self.companies[company.registry.inn] = company
+        return company
 
     def add_snapshot(self, snapshot: EnrichmentSnapshotDTO) -> EnrichmentSnapshotDTO:
         self.snapshots[snapshot.application_id] = snapshot
@@ -44,6 +52,11 @@ class FakeEnrichmentFacade:
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         return self.registry.get(inn)
+
+    async def lookup_company(self, inn: str) -> CompanyLookupDTO | None:
+        if self.registry_down:
+            raise InfrastructureError("Реестр временно недоступен")
+        return self.companies.get(inn)
 
     async def lookup_person_bureau(
         self, person: PersonDTO, consent_at: datetime
