@@ -20,6 +20,7 @@ from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpS
 from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
 from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
 from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
+from src.modules.enrichment.infrastructure.adapters.licenses_http import LicensesHttpSource
 from src.modules.enrichment.infrastructure.config import EnrichmentSettings
 
 
@@ -38,6 +39,7 @@ def build_http_sources(config: EnrichmentSettings) -> Sources:
         aml_lists=RfmHttpSource(client, backoff=backoff),
         pep=PepHttpSource(client, backoff=backoff),
         zsk=ZskHttpSource(client, backoff=backoff),
+        licenses=LicensesHttpSource(client, backoff=backoff),
         bank_stop_list=BankStopListHttpSource(client, backoff=backoff),
         bank_turnover=BankTurnoverHttpSource(client, backoff=backoff),
     )

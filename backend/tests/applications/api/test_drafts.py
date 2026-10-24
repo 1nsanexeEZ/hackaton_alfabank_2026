@@ -287,3 +287,63 @@ def test_beneficiary_without_the_basis_is_rejected(world: World) -> None:
         headers=world.headers(world.director),
     )
     assert response.status_code == 422
+
+
+def test_beneficial_owners_answer(world: World) -> None:
+    """115-ФЗ, ст. 6.1: бенефициары со слов клиента; пустой список — ответ, null — снять."""
+    application = world.create()
+    url = f"/applications/{application['id']}"
+    headers = world.headers(world.director)
+    assert application["beneficial_owners"] is None
+
+    body = world.client.patch(
+        url,
+        json={
+            "version": 1,
+            "beneficial_owners": {
+                "owners": [
+                    {"name": "Смирнова Анна Сергеевна", "basis": "ownership"},
+                    {"name": "Теневой Тимур", "basis": "control", "country": "AE"},
+                ]
+            },
+            "beneficiary": {
+                "acts_for_third_party": True,
+                "beneficiary": {"kind": "person", "name": "Хоссейни Али Реза", "country": "IR"},
+                "basis": "agency",
+            },
+        },
+        headers=headers,
+    ).json()
+    assert body["beneficial_owners"]["owners"] == [
+        {"name": "Смирнова Анна Сергеевна", "basis": "ownership", "country": None},
+        {"name": "Теневой Тимур", "basis": "control", "country": "AE"},
+    ]
+    assert body["beneficiary"]["beneficiary"]["country"] == "IR"
+    assert (
+        world.client.get(url, headers=headers).json()["beneficial_owners"]
+        == body["beneficial_owners"]
+    )
+
+    nobody = world.client.patch(
+        url, json={"version": 2, "beneficial_owners": {"owners": []}}, headers=headers
+    ).json()
+    assert nobody["beneficial_owners"]["owners"] == []
+    withdrawn = world.client.patch(
+        url, json={"version": 3, "beneficial_owners": None}, headers=headers
+    ).json()
+    assert withdrawn["beneficial_owners"] is None
+
+
+def test_country_must_be_an_iso_code(world: World) -> None:
+    application = world.create()
+    response = world.client.patch(
+        f"/applications/{application['id']}",
+        json={
+            "version": 1,
+            "beneficial_owners": {
+                "owners": [{"name": "Теневой Тимур", "basis": "control", "country": "Эмираты"}]
+            },
+        },
+        headers=world.headers(world.director),
+    )
+    assert response.status_code == 422

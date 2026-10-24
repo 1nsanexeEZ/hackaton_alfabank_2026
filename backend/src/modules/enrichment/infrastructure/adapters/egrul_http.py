@@ -64,6 +64,19 @@ def _map(raw: dict[str, Any]) -> RegistryExtractDTO:
 def _founder(raw: dict[str, Any]) -> FounderDTO:
     """Физлицо — `ФИО`; юрлицо — `Наим` и `ИНН`."""
     share = Decimal(str(raw["Доля"]))
+    country = _country(raw.get("Страна"))
     if "ИНН" in raw:
-        return FounderDTO(name=str(raw["Наим"]), share_percent=share, inn=str(raw["ИНН"]))
-    return FounderDTO(name=str(raw["ФИО"]), share_percent=share)
+        return FounderDTO(
+            name=str(raw["Наим"]), share_percent=share, inn=str(raw["ИНН"]), country=country
+        )
+    return FounderDTO(name=str(raw["ФИО"]), share_percent=share, country=country)
+
+
+def _country(raw: Any) -> str | None:
+    """Код страны ISO 3166-1 alpha-2; Россия и пусто — None."""
+    if raw is None:
+        return None
+    code = str(raw).upper()
+    if len(code) != 2 or not code.isalpha():
+        raise ValueError(f"неизвестный код страны {raw!r}")
+    return None if code == "RU" else code

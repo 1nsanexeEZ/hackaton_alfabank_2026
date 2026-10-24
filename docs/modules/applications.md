@@ -111,7 +111,15 @@ applications/
 формате. После подачи ответ заморожен, как и остальной черновик.
 
 Подачу ответ не блокирует. Оба лица уходят в `FetchEnrichment.third_parties` и проверяются по
-перечням на каждой заявке; решение — в `decision` (`policy_v8`). Подробно и пример запроса —
+перечням на каждой заявке; решение — в `decision` (`policy_v8`). У третьего лица можно указать
+страну (`country`, ISO 3166-1 alpha-2, если не Россия): участник из государства, не выполняющего
+рекомендации ФАТФ, повышает группу риска (`policy_v9`).
+
+Бенефициары со слов клиента (ст. 6.1, ст. 7 п. 14 115-ФЗ): `CreditApplication.declare_owners`,
+`OwnersDeclaration` в JSON-колонке `beneficial_owners` (миграция `applications_0005`) — список
+`DeclaredOwner(name, basis: ownership | control, country)`, кто ответил и когда; пустой список —
+«никого». В API — `PATCH beneficial_owners: {owners: [...]}`, `null` снимает ответ. Ответ уходит в
+`FetchEnrichment.declared_owners`, enrichment сверяет его с ЕГРЮЛ. Подробно и пример запроса —
 [compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
 
 ## Кто вынес решение

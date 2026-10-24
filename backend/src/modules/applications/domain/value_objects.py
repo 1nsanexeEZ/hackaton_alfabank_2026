@@ -164,6 +164,13 @@ def _valid_inn(inn: str) -> bool:
 
 
 ThirdPartyKind = Literal["person", "organization"]
+_COUNTRY = re.compile(r"^[A-Z]{2}$")
+
+
+def _check_country(country: str | None, field_name: str) -> None:
+    """ISO 3166-1 alpha-2; None — Russia or not stated."""
+    if country is not None and not _COUNTRY.match(country):
+        raise _invalid(field_name, "unknown", "Country is a two-letter ISO code")
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,6 +181,9 @@ class ThirdParty:
     kind: ThirdPartyKind
     name: str
     inn: str | None = None
+    # Where the party lives or is registered when not in Russia: a state that does not follow
+    # the FATF recommendations raises the client's risk group (115-FZ art. 6 p. 1).
+    country: str | None = None
 
     def validate(self, prefix: str) -> None:
         if self.kind not in ("person", "organization"):
@@ -184,6 +194,7 @@ class ThirdParty:
             raise _invalid(f"{prefix}.inn", "missing", "INN of the company is required")
         if self.inn is not None and not _valid_inn(self.inn):
             raise _invalid(f"{prefix}.inn", "bad_checksum", "INN is wrong")
+        _check_country(self.country, f"{prefix}.country")
 
 
 # agency — агентский договор, commission — комиссия, mandate — поручение,
@@ -218,6 +229,45 @@ class BeneficiaryDeclaration:
         self.beneficiary.validate("beneficiary.beneficiary")
         if self.basis not in BENEFICIARY_BASES:
             raise _invalid("beneficiary.basis", "missing", "On what basis the client acts")
+
+
+# ownership — owns more than 25% directly or through others; control — controls the company
+# otherwise, e.g. by an agreement (115-FZ art. 3).
+OwnerBasis = Literal["ownership", "control"]
+OWNER_BASES: frozenset[str] = frozenset({"ownership", "control"})
+MAX_DECLARED_OWNERS = 20
+
+
+@dataclass(frozen=True, slots=True)
+class DeclaredOwner:
+    name: str
+    basis: OwnerBasis
+    country: str | None = None
+
+    def validate(self, prefix: str) -> None:
+        if not self.name.strip() or len(self.name) > 300:
+            raise _invalid(f"{prefix}.name", "invalid", "Name the owner")
+        if self.basis not in OWNER_BASES:
+            raise _invalid(f"{prefix}.basis", "unknown", "Unknown basis")
+        _check_country(self.country, f"{prefix}.country")
+
+
+@dataclass(frozen=True, slots=True)
+class OwnersDeclaration:
+    """The client's beneficial owners in its own words (115-FZ art. 6.1, 7 p. 14). An empty
+    list is an answer too: nobody owns more than 25% or controls the company otherwise — then
+    the head is the beneficial owner. The bank compares the answer with the registry."""
+
+    owners: tuple[DeclaredOwner, ...]
+    declared_by: UUID
+    declared_at: datetime
+
+    def __post_init__(self) -> None:
+        _require_aware(self.declared_at, "declared_at")
+        if len(self.owners) > MAX_DECLARED_OWNERS:
+            raise _invalid("beneficial_owners.owners", "too_many", "Too many owners")
+        for index, owner in enumerate(self.owners):
+            owner.validate(f"beneficial_owners.owners.{index}")
 
 
 @dataclass(frozen=True, slots=True)
