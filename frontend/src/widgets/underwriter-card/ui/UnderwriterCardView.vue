@@ -30,6 +30,7 @@ import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/s
 import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
 
+import { usePrelude } from '../model/usePrelude'
 import AmlCheckSection from './AmlCheckSection.vue'
 import BankDataSection from './BankDataSection.vue'
 import ProcessStageDetails from './ProcessStageDetails.vue'
@@ -49,6 +50,10 @@ const processMap = ref<{ refresh: () => Promise<void> } | null>(null)
 
 const { products } = useProductCatalog()
 const productTitle = (code: string) => products.value?.find((product) => product.code === code)?.title ?? code
+
+/** Этапы до подачи на схеме маршрута: согласия и предскоринг, у стартапа — проверка учредителя и проектная оценка */
+const isStartup = computed(() => Boolean(products.value?.find((product) => product.code === data.value?.application.product_code)?.startupOnly))
+const prelude = usePrelude(data, isStartup)
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 
 const REGISTRY_STATUS: Record<string, string> = {
@@ -191,9 +196,15 @@ const RATE_PARTS = [
 <template>
   <AsyncState :loading="card.loading.value && !data" :error="data ? null : card.error.value" @retry="card.reload">
     <div v-if="data" class="space-y-4">
-      <ProcessMap ref="processMap" :application-id="applicationId" @advance="card.reload">
+      <ProcessMap
+        ref="processMap"
+        :application-id="applicationId"
+        :prelude="prelude.stages.value"
+        :fallback-workflow="data.application.product_terms.workflow_code ?? null"
+        @advance="card.reload"
+      >
         <template #details="stage">
-          <ProcessStageDetails v-bind="stage" :card="data" />
+          <ProcessStageDetails v-bind="stage" :card="data" :pre="prelude.data.value" />
         </template>
         <template v-if="data.timeline.length" #footer>
           <details class="mt-4 text-sm">
