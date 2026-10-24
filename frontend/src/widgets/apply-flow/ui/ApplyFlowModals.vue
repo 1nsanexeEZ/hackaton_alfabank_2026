@@ -6,7 +6,7 @@ import { loanDraft, myApplications } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
 import { CustomerLoginDrawer } from '@/features/customer-login'
-import { ClientProfileForm, PersonalConsents } from '@/features/edit-client-profile'
+import { ClientProfileForm, CompanyConsents, PersonalConsents } from '@/features/edit-client-profile'
 import { CompanyPanel } from '@/features/manage-company'
 import { NotificationsPanel } from '@/features/read-notifications'
 import { ApplicationModal } from '@/features/submit-application'
@@ -121,6 +121,7 @@ function applyWith(
     <template v-if="profileOpen">
       <ClientProfileForm />
       <PersonalConsents class="mt-6" />
+      <CompanyConsents class="mt-6" />
     </template>
   </BaseModal>
 </template>

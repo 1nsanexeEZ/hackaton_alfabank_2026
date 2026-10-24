@@ -1,6 +1,6 @@
 import { reactive, readonly, watch } from 'vue'
 
-import { clientApi, type ConsentDto, type ConsentType } from '@/shared/api'
+import { clientApi, type ConsentDto, type ConsentStateDto, type ConsentType } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
 import { customer } from './session'
@@ -17,11 +17,31 @@ export interface ConsentReminder {
   organizationName: string
 }
 
-const state = reactive<{ items: ConsentDto[] | null; loading: boolean; error: string | null; reminders: ConsentReminder[] }>({
+/** Любое согласие до заявки: личные (на аккаунте) и согласие компании на запрос её кредитной истории */
+export type AnyConsentType = ConsentStateDto['type']
+
+/** Согласия до заявки по компании (Dashboard.consents): что дано и чего нет — личные и компании */
+export interface CompanyConsents {
+  organizationId: string
+  organizationName: string
+  /** Может ли пользователь давать согласия за компанию (право submit_application) */
+  canGive: boolean
+  consents: ConsentStateDto[]
+}
+
+const state = reactive<{
+  items: ConsentDto[] | null
+  loading: boolean
+  error: string | null
+  reminders: ConsentReminder[]
+  /** null — ещё не загружали */
+  overview: CompanyConsents[] | null
+}>({
   items: null,
   loading: false,
   error: null,
   reminders: [],
+  overview: null,
 })
 
 /** Для кого загружены согласия: сменился пользователь — список чужой */
@@ -37,6 +57,7 @@ watch(
     state.items = null
     state.error = null
     state.reminders = []
+    state.overview = null
     loadedFor = null
     registryHead.clear()
     if (id) void loadReminders()
@@ -76,8 +97,9 @@ async function give(types: ConsentType[]): Promise<void> {
 }
 
 /**
- * Пункты consent_required из Dashboard.todo по всем компаниям пользователя: бэк даёт их только руководителю
- * по реестру и только пока у компании есть заявка до решения. Компаний у клиента обычно одна-две.
+ * По всем компаниям пользователя — из их дашбордов: пункты consent_required из Dashboard.todo (бэк даёт их
+ * только руководителю по реестру и только пока у компании есть заявка до решения) и согласия до заявки
+ * (Dashboard.consents). Компаний у клиента обычно одна-две.
  */
 async function loadReminders(): Promise<void> {
   const id = customer.state.me?.id
@@ -91,9 +113,34 @@ async function loadReminders(): Promise<void> {
         .filter((todo) => todo.kind === 'consent_required')
         .map((todo) => ({ applicationId: todo.application_id, number: todo.number, organizationName: organizations[index]!.name })),
     )
+    state.overview = organizations.map((organization, index) => ({
+      organizationId: organization.id,
+      organizationName: organization.name,
+      canGive: organization.my_permissions.includes('submit_application'),
+      consents: dashboards[index]?.consents ?? [],
+    }))
   } catch {
-    // Напоминание — подсказка, а не блокер: не загрузилось — не показываем
+    // Напоминание и список согласий — подсказка, а не блокер: не загрузилось — не показываем
   }
+}
+
+/** Согласие компании на запрос её кредитной истории — до заявки; даёт любой представитель с правом подавать заявки */
+async function giveCompany(organizationId: string): Promise<void> {
+  await clientApi.giveOrganizationConsents(organizationId, ['credit_bureau_company'])
+  await loadReminders()
+}
+
+async function revokeCompany(organizationId: string): Promise<void> {
+  await clientApi.revokeOrganizationConsent(organizationId, 'credit_bureau_company')
+  await loadReminders()
+}
+
+/** Дать согласие любого вида: личное — за себя, компании — за выбранную компанию */
+async function giveAny(type: AnyConsentType, organizationId?: string): Promise<void> {
+  if (type === 'credit_bureau_company') {
+    if (!organizationId) throw new Error('Не выбрана компания')
+    await giveCompany(organizationId)
+  } else await give([type])
 }
 
 async function revoke(type: ConsentType): Promise<void> {
@@ -125,13 +172,16 @@ export const personalConsents = {
   load,
   active,
   give,
+  giveAny,
+  giveCompany,
   revoke,
+  revokeCompany,
   isRegistryHead,
   loadReminders,
 }
 
-/** Тексты согласий — та же редакция, что фиксирует бэкенд (identity: pd-2026-10, bki-fl-2026-10) */
-export const CONSENT_TEXT: Record<ConsentType, { title: string; validity: string; body: string }> = {
+/** Тексты согласий — та же редакция, что фиксирует бэкенд (identity: pd-2026-10, bki-fl-2026-10, bki-ul-2026-10) */
+export const CONSENT_TEXT: Record<AnyConsentType, { title: string; validity: string; body: string }> = {
   personal_data: {
     title: 'Обработка моих персональных данных',
     validity: 'бессрочно, до отзыва',
@@ -148,5 +198,14 @@ export const CONSENT_TEXT: Record<ConsentType, { title: string; validity: string
       'отчёт как физического лица в бюро кредитных историй, чтобы оценить платёжную дисциплину руководителя при ' +
       'рассмотрении заявок компании. Согласие действует 6 месяцев; его можно отозвать в профиле — запросы, ' +
       'уже сделанные по заявкам, отзыв не отменяет.',
+  },
+  credit_bureau_company: {
+    title: 'Запрос кредитной истории компании',
+    validity: '6 месяцев',
+    body:
+      'По ст. 6 Федерального закона № 218-ФЗ «О кредитных историях» я как представитель компании разрешаю банку ' +
+      'получить её кредитный отчёт (у индивидуального предпринимателя — его личный отчёт) в бюро кредитных историй, ' +
+      'чтобы оценить платёжную дисциплину и долговую нагрузку при рассмотрении заявок компании. Согласие действует ' +
+      '6 месяцев; отозвать его может любой представитель компании с правом подавать заявки.',
   },
 }

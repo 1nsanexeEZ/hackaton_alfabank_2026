@@ -28,10 +28,16 @@ export interface PersonalTerms {
   /** null — по продукту ничего не предодобрено */
   withinPreApproved: boolean | null
   eligible: boolean
-  /** Невыполненные условия: eligibility, сумма или срок сверх предодобренного */
+  /** Невыполненные условия: eligibility, сумма или срок сверх предодобренного или посильного */
   problems: EligibilityReasonDto[]
-  /** Запрос, урезанный до предодобренного */
+  /** Запрос, урезанный до посильного */
   suggestion: { amount: number; termMonths: number; monthlyPayment: number } | null
+  /** До какой суммы банк готов предложить на выбранный срок; null — предодобрения нет */
+  maxAffordable: number | null
+  /** Что ограничило: предодобрение, платёжеспособность по отчётности (40% свободного потока), проектная оценка стартапа */
+  affordableBy: 'pre_approved' | 'payment' | 'project' | null
+  /** Запрос больше посильного: заявку примут, решит специалист */
+  aboveAffordable: boolean
 }
 
 const DEBOUNCE_MS = 250
@@ -73,6 +79,9 @@ function toPersonal(result: PersonalScheduleDto): PersonalTerms {
           monthlyPayment: Number(result.suggestion.monthly_payment),
         }
       : null,
+    maxAffordable: result.max_affordable ? Number(result.max_affordable) : null,
+    affordableBy: result.affordable_by ?? null,
+    aboveAffordable: result.above_affordable ?? false,
   }
 }
 

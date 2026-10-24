@@ -2,10 +2,11 @@
  * Подписи для рабочего места андеррайтера. Коды — из модулей бэкенда: маршруты и стоп-факторы —
  * decision/infrastructure/config/explanations_ru.yaml, признаки — scoring/infrastructure/config/pd_model_v2.yaml
  * и ml_logreg_v1.yaml, флаги — scoring/domain/model.py RiskFlag. Неизвестный код показываем как есть.
- * Грейды — общая шкала A–J PD- и ML-модели, зоны — policy_v5.yaml (strategy.two_models).
+ * Грейды — общая шкала A–J PD- и ML-модели, зоны — policy_v7.yaml (strategy.two_models).
  */
 
 import type { Grade, ReviewKind } from '@/shared/api'
+import { formatPercent } from '@/shared/lib'
 
 type Tone = 'success' | 'info' | 'warning' | 'brand' | 'neutral'
 
@@ -41,6 +42,18 @@ export const REASON_LABEL: Record<string, string> = {
   STOP_RISK_MATRIX: 'Сумма выше допустимой для грейда',
   STOP_MODELS_HIGH_RISK: 'Обе модели в красной зоне',
   STOP_GRADE_E: 'Грейд E',
+  STOP_REORGANIZATION: 'Компания в процессе реорганизации',
+  STOP_EXCLUDED_FROM_REGISTRY: 'Исключена из ЕГРЮЛ',
+  STOP_UNRELIABLE_DATA: 'Отметка о недостоверности сведений в ЕГРЮЛ',
+  STOP_MASS_HEAD: 'Массовый руководитель',
+  STOP_BUSINESS_TOO_YOUNG: 'Бизнес младше срока для продукта',
+  STOP_BANK_STOP_LIST: 'Компания в стоп-листе банка',
+  STOP_AML_LISTED: 'Совпадение с перечнем Росфинмониторинга (115-ФЗ)',
+  STOP_ZSK_HIGH_RISK: 'Высокий уровень риска на платформе ЗСК',
+  ROUTE_AML_INCOMPLETE: 'Проверка по 115-ФЗ не выполнена',
+  ROUTE_PEP: 'Публичное должностное лицо среди проверенных',
+  ROUTE_ZSK_MEDIUM_RISK: 'Средний уровень риска на платформе ЗСК',
+  ROUTE_AUTOMATED_DECISION_CONSENT: 'ИП не дал согласия на автоматическое решение',
   INFO_REVENUE_NOT_CONFIRMED: 'Нужна выписка для подтверждения выручки',
   LIMIT_BY_PRODUCT: 'Лимит продукта',
   LIMIT_BY_REVENUE: 'Лимит по выручке',
@@ -114,6 +127,53 @@ export const SOURCE_LABEL: Record<string, string> = {
   gir_bo: 'ГИР БО',
   kontur: 'Контур',
   statement: 'Выписка по счёту',
+  aml: 'Проверка по 115-ФЗ',
+  bank_stop_list: 'Стоп-лист банка',
+  bank_turnover: 'Обороты по счёту в банке',
+}
+
+/** Проверка по 115-ФЗ (enrichment.aml, docs/compliance-115.md) */
+export const ZSK_LEVEL_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'brand' }> = {
+  low: { label: 'низкий', tone: 'success' },
+  medium: { label: 'средний', tone: 'warning' },
+  high: { label: 'высокий', tone: 'brand' },
+}
+export const AML_LIST_LABEL: Record<string, string> = {
+  terrorism: 'перечень по экстремизму и терроризму',
+  freeze: 'решение МВК о заморозке',
+  wmd: 'перечень ФРОМУ',
+}
+export const PEP_KIND_LABEL: Record<string, string> = {
+  foreign: 'иностранное ПДЛ',
+  russian: 'российское ПДЛ',
+  international: 'ПДЛ международной организации',
+}
+export const AML_ROLE_LABEL: Record<string, string> = {
+  company: 'компания',
+  founder_company: 'учредитель-юрлицо',
+  head: 'руководитель',
+  beneficial_owner: 'бенефициар',
+  representative: 'представитель',
+}
+export const BENEFICIAL_BASIS_LABEL: Record<string, string> = {
+  ownership: 'владение',
+  head_by_default: 'руководитель: владельцев больше 25% нет',
+  entrepreneur: 'ИП',
+}
+
+/** Отметки ЕГРЮЛ о недостоверности сведений */
+export const UNRELIABLE_LABEL: Record<string, string> = { address: 'адрес', head: 'руководитель', founder: 'учредитель' }
+
+/** Проектная оценка стартапа: оценка бизнес-плана андеррайтером и гарантия господдержки в финмодели */
+export const BUSINESS_PLAN_GRADE: readonly { value: 'strong' | 'acceptable' | 'weak'; label: string }[] = [
+  { value: 'strong', label: 'Сильный' },
+  { value: 'acceptable', label: 'Приемлемый' },
+  { value: 'weak', label: 'Слабый' },
+]
+export const GUARANTEE_LABEL: Record<string, string> = {
+  none: 'без гарантии',
+  msp_corporation: 'Корпорация МСП',
+  regional_fund: 'региональная гарантийная организация',
 }
 
 /** Лимиты движка (LimitsDTO) по ключу; binding называет один из них */
@@ -193,3 +253,11 @@ export const TASK_STATUS_LABEL: Record<string, string> = {
 }
 
 export const label = (dictionary: Record<string, string>, code: string) => dictionary[code] ?? code
+
+/** Почему данные скоринга неполные (quality_v1): source_failed:<источник>, completeness_below:<доля признаков с данными> */
+export function qualityReasonLabel(code: string): string {
+  const [kind, value = ''] = code.split(':')
+  if (kind === 'source_failed') return `не ответил источник «${SOURCE_LABEL[value] ?? value}»`
+  if (kind === 'completeness_below') return `данные есть только по ${formatPercent(Number(value) * 100)} признаков`
+  return code
+}

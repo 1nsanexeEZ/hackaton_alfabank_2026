@@ -11,9 +11,9 @@ import {
   type ProductCatalog,
   type ProductRecommendation,
 } from '@/entities/credit-product'
-import { FounderPrescreenPanel } from '@/entities/customer'
+import { founderPrescreen, FounderPrescreenPanel, projectApproved } from '@/entities/customer'
 import { clientApi, type LoanPurpose, type OrganizationDetailDto } from '@/shared/api'
-import { formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
+import { clamp, formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
 import { RangeField, SelectField, TextField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
@@ -62,10 +62,10 @@ const { items: recommended } = useRecommendations(() =>
 
 const productByCode = (code: string) => props.products.find((item) => item.code === code)
 
-/** Подходящие под цель — сначала те, что компании подходят */
+/** Подходящие под цель и под сегмент компании (стартапу — только продукты для стартапа) — сначала те, что ей подходят */
 const suggestions = computed(() =>
   (recommended.value ?? [])
-    .filter((item) => item.status !== 'unavailable' && productByCode(item.code))
+    .filter((item) => item.status !== 'unavailable' && allowedProducts.value.some((product) => product.code === item.code))
     .sort((a, b) => Number(b.eligible !== false) - Number(a.eligible !== false) || a.rank - b.rank)
     .slice(0, 4),
 )
@@ -116,6 +116,29 @@ const { schedule, personal, pending } = useLoanSchedule(() => ({
   termMonths: terms.termMonths,
   organizationId: terms.organizationId || null,
 }))
+
+/**
+ * До какой суммы банк готов предложить на этот срок: посильный максимум калькулятора (предодобрение,
+ * платёжеспособность по отчётности или проектная оценка стартапа), пока его нет — предодобрение из подбора
+ */
+const limit = computed(() => {
+  const value = personal.value
+  if (value && value.maxAffordable !== null) return { amount: value.maxAffordable, by: value.affordableBy ?? 'pre_approved' }
+  return preApprovedMax.value ? { amount: preApprovedMax.value, by: 'pre_approved' as const } : null
+})
+const LIMIT_TEXT: Record<string, string> = {
+  pre_approved: 'Предварительно одобрено до',
+  payment: 'По отчётности на этот срок компании посильно до',
+  project: 'По проектной оценке предодобрено до',
+}
+const takeLimit = () => {
+  if (limit.value) terms.amount = clamp(limit.value.amount, product.value.amount.min, product.value.amount.max)
+}
+
+/** Стартапу без действующей проектной оценки — подсказка: с ней банк заранее скажет сумму */
+const suggestProject = computed(
+  () => product.value.startupOnly && isStartup.value && terms.organizationId && !projectApproved(founderPrescreen.state[terms.organizationId]),
+)
 </script>
 
 <template>
@@ -197,6 +220,10 @@ const { schedule, personal, pending } = useLoanSchedule(() => ({
     </div>
 
     <FounderPrescreenPanel v-if="product.startupOnly && isStartup && terms.organizationId" :organization-id="terms.organizationId" />
+    <p v-if="suggestProject" class="rounded-xl bg-surface-soft p-3 text-sm text-ink-secondary">
+      Заявку можно подать и без проектной оценки, но с ней банк заранее скажет, до какой суммы готов дать кредит:
+      заполните бизнес-план и оцените проект в «Компании».
+    </p>
 
     <RangeField
       v-model="terms.amount"
@@ -206,19 +233,16 @@ const { schedule, personal, pending } = useLoanSchedule(() => ({
       :step="amountStep(product)"
       :format-value="formatMoney"
     />
-    <p
-      v-if="preApprovedMax"
-      class="-mt-3 flex items-start gap-2 text-sm"
-      :class="terms.amount > preApprovedMax ? 'text-warning' : 'text-success'"
-    >
-      <CircleAlert v-if="terms.amount > preApprovedMax" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+    <div v-if="limit" class="-mt-3 flex items-start gap-2 text-sm" :class="terms.amount > limit.amount ? 'text-warning' : 'text-success'">
+      <CircleAlert v-if="terms.amount > limit.amount" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <BadgeCheck v-else class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      {{
-        terms.amount > preApprovedMax
-          ? `Больше предварительно одобренных ${formatMoney(preApprovedMax)} — подать можно, но банк может предложить меньше`
-          : `Предварительно одобрено до ${formatMoney(preApprovedMax)}`
-      }}
-    </p>
+      <p>
+        {{ LIMIT_TEXT[limit.by] }} {{ formatMoney(limit.amount) }}<template v-if="terms.amount > limit.amount">
+          — подать больше можно, решение примет специалист.
+          <button type="button" class="font-medium underline underline-offset-2" @click="takeLimit">Взять {{ formatMoney(limit.amount) }}</button>
+        </template>
+      </p>
+    </div>
     <RangeField
       v-model="terms.termMonths"
       label="Срок"

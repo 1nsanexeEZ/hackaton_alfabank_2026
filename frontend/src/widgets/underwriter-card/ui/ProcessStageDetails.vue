@@ -9,6 +9,7 @@ import {
   gradeTone,
   label,
   OUTCOME_LABEL,
+  qualityReasonLabel,
   REASON_LABEL,
   REVIEW_LABEL,
   SOURCE_LABEL,
@@ -47,6 +48,9 @@ const events = computed(() => {
     ),
   )
 })
+
+/** Сработавшие стоп-факторы: с ними заявка идёт мимо скоринга на отказ (или к специалисту у ИП без согласия на авторешение) */
+const stopCodes = computed(() => decision.value?.reason_codes.filter((code) => code.startsWith('STOP_')) ?? [])
 
 const models = computed(() => {
   const scoring = props.card.scoring
@@ -127,6 +131,20 @@ const models = computed(() => {
       <p v-else class="text-ink-secondary">Данные ещё собираются.</p>
     </template>
 
+    <template v-else-if="stage === 'stop_factors'">
+      <template v-if="stopCodes.length">
+        <p class="font-medium text-brand">Сработали стоп-факторы — скоринг не нужен:</p>
+        <ul class="space-y-0.5 text-ink">
+          <li v-for="code in stopCodes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
+        </ul>
+      </template>
+      <p v-else-if="state === 'done'" class="text-ink-secondary">Стоп-факторов нет — заявка пошла дальше по маршруту.</p>
+      <p v-if="card.enrichment?.aml" class="text-xs text-ink-secondary">
+        115-ФЗ: совпадений с перечнями — {{ card.enrichment.aml.list_hits.length }}, ПДЛ — {{ card.enrichment.aml.pep_hits.length }}, риск
+        ЗСК — {{ { low: 'низкий', medium: 'средний', high: 'высокий' }[card.enrichment.aml.zsk.level] }}
+      </p>
+    </template>
+
     <template v-else-if="stage === 'collateral'">
       <p v-if="application.collateral" class="text-ink">
         {{ COLLATERAL_TYPE_LABEL[application.collateral.type] ?? application.collateral.type }},
@@ -148,6 +166,11 @@ const models = computed(() => {
         </div>
       </div>
       <p v-else class="text-ink-secondary">Скоринг ещё не посчитан.</p>
+      <p v-if="card.scoring?.quality === 'degraded'" class="rounded-lg bg-warning-soft p-2.5 text-ink">
+        Данные неполные — решение за специалистом<template v-if="card.scoring.quality_reasons?.length"
+          >: {{ card.scoring.quality_reasons.map(qualityReasonLabel).join(', ') }}</template
+        >
+      </p>
     </template>
 
     <template v-else-if="stage === 'decision' || stage === 'rejected'">

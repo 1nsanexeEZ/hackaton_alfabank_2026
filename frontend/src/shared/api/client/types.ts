@@ -186,9 +186,16 @@ export interface CollateralDto extends Omit<CollateralInput, 'declared_value'> {
   declared_value: string
 }
 
+/** Откуда согласие в заявке: application — галочка в черновике, profile — взято из профиля */
+export type ConsentSource = 'application' | 'profile'
+
 export interface ConsentsDto {
   personal_data_at: string | null
   credit_bureau_at: string | null
+  /** Согласие на решение только автоматикой (ст. 16 152-ФЗ) — важно только у ИП */
+  automated_decision_at?: string | null
+  personal_data_source?: ConsentSource | null
+  credit_bureau_source?: ConsentSource | null
 }
 
 export interface DocumentDto {
@@ -266,7 +273,7 @@ export interface ApplicationUpdateInput {
   /** Сливается с сохранённым, null удаляет ключ */
   product_fields?: Record<string, unknown>
   collateral?: CollateralInput | null
-  consents?: { personal_data: boolean; credit_bureau: boolean }
+  consents?: { personal_data: boolean; credit_bureau: boolean; automated_decision?: boolean }
 }
 
 export interface CompletenessDto {
@@ -379,10 +386,12 @@ export interface PreApprovedOfferDto {
   rate_from: string
   term_max_months: number
   valid_until: string
-  /** estimate — по заявленным данным, full — с проверками */
-  basis?: 'estimate' | 'full'
+  basis?: PreApprovalBasis
   note?: string
 }
+
+/** estimate — по заявленным данным, full — с проверками, project — по проектной оценке стартапа */
+export type PreApprovalBasis = 'estimate' | 'full' | 'project'
 
 export interface DashboardDto {
   /** true — у пользователя нет ни одной компании */
@@ -414,8 +423,89 @@ export interface DashboardDto {
   news: NewsDto[]
   /** Какие блоки не загрузились — показываем заглушку, а не ошибку */
   degraded: string[]
-  /** Только у стартапа: последний предскрининг учредителя или null, если его ещё не было */
-  startup?: { prescreen: FounderPrescreenSummaryDto | null } | null
+  /** Только у стартапа: предскрининг учредителя, ревизия бизнес-плана и проектная оценка; null — шага ещё не было */
+  startup?: {
+    prescreen: FounderPrescreenSummaryDto | null
+    business_plan_revision?: number | null
+    project?: ProjectAssessmentDto | null
+  } | null
+  /** Согласия, которые банк просит до заявки: что дано и чего нет */
+  consents?: ConsentStateDto[]
+}
+
+/** Согласие до заявки на дашборде: scope account — даёт сам пользователь, organization — представитель компании */
+export interface ConsentStateDto {
+  type: 'personal_data' | 'credit_bureau_company' | 'credit_bureau_personal'
+  scope: 'account' | 'organization'
+  title: string
+  purpose: string
+  /** Без него заявку не подать */
+  required: boolean
+  /** Действует сейчас: дано, не отозвано, не истекло */
+  given: boolean
+  given_at: string | null
+  valid_until: string | null
+}
+
+/** Согласие компании на запрос её кредитной истории; даёт и отзывает любой представитель с правом подавать заявки */
+export interface OrganizationConsentDto {
+  type: 'credit_bureau_company'
+  organization_id: string
+  given_at: string
+  given_by: string
+  valid_until: string | null
+  revoked_at: string | null
+  revoked_by: string | null
+  active: boolean
+  text_version: string
+}
+
+/** Месяц финмодели стартапа: операционные выручка и расходы, без платежей по кредиту */
+export interface PlanMonthDto {
+  revenue: string
+  expenses: string
+}
+
+/** Финмодель по шаблону банка: ровно 24 месяца от начала проекта */
+export interface FinancialModelDto {
+  months: PlanMonthDto[]
+  own_funds: string
+  collateral_value: string
+  collateral_description: string | null
+  /** none — без гарантии, msp_corporation — Корпорация МСП, regional_fund — региональная гарантийная организация */
+  guarantee: 'none' | 'msp_corporation' | 'regional_fund'
+  /** Доля гарантии, 0–1; без гарантии — 0 */
+  guarantee_share: string
+  loan_amount: string
+  loan_term_months: number
+}
+
+export interface BusinessPlanInput {
+  summary: string
+  financial_model: Omit<FinancialModelDto, 'months'> & { months: { revenue: string | number; expenses: string | number }[] }
+}
+
+/** Бизнес-план стартапа в кабинете компании; revision растёт с каждым уточнением */
+export interface BusinessPlanDto {
+  organization_id: string
+  summary: string
+  financial_model: FinancialModelDto
+  submitted_by: string | null
+  submitted_at: string
+  revision: number
+}
+
+/** Проектная оценка стартапа: passed — «вам предодобрен кредит до max_amount»; действует 30 дней */
+export interface ProjectAssessmentDto {
+  status: 'passed' | 'failed'
+  product_code: string
+  max_amount: string | null
+  /** По какой ревизии бизнес-плана оценивали: меньше текущей — план поменяли, стоит оценить заново */
+  plan_revision: number
+  checked_at: string
+  valid_until: string
+  valid: boolean
+  reasons: EligibilityReasonDto[]
 }
 
 export type CompanySegment = 'established' | 'startup'
@@ -436,6 +526,7 @@ export interface FounderPrescreenSummaryDto extends Omit<FounderPrescreenDto, 'f
   founder_name: string
 }
 
+/** Личные согласия на аккаунте; согласие компании — отдельно, через /organizations/{id}/consents */
 export type ConsentType = 'personal_data' | 'credit_bureau_personal'
 
 /** Личное согласие на аккаунте: ПДн бессрочно, БКИ физлица — 6 месяцев */
@@ -452,14 +543,20 @@ export interface ConsentDto {
 /** Калькулятор с учётом предодобрения компании (POST /bff/products/{code}/calculate) */
 export interface PersonalScheduleDto {
   schedule: PaymentScheduleDto
-  pre_approved: { max_amount: string; rate_from: string; term_max_months: number; valid_until: string; basis: 'estimate' | 'full' } | null
+  pre_approved: { max_amount: string; rate_from: string; term_max_months: number; valid_until: string; basis: PreApprovalBasis } | null
   /** null — по этому продукту ничего не предодобрено */
   within_pre_approved: boolean | null
   eligible: boolean
   /** Причины eligibility и amount_above_pre_approved / term_above_pre_approved */
   reasons: EligibilityReasonDto[]
-  /** Запрос, урезанный до предодобренного */
+  /** Запрос, урезанный до посильного */
   suggestion: { amount: string; term_months: number; monthly_payment: string } | null
+  /** Посильный максимум на выбранный срок; null — предодобрения нет */
+  max_affordable?: string | null
+  /** Что ограничило максимум: предодобрение, платёжеспособность по отчётности, проектная оценка */
+  affordable_by?: 'pre_approved' | 'payment' | 'project' | null
+  /** Запрос больше посильного: заявку примут, решит специалист */
+  above_affordable?: boolean
   degraded: string[]
 }
 
@@ -822,4 +919,19 @@ export interface ClientApi {
   runFounderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
   /** Последний предскрининг; 404 — ещё не было */
   founderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
+
+  /** Согласия компании: действующие и история, новые сверху */
+  organizationConsents(organizationId: string): Promise<OrganizationConsentDto[]>
+  giveOrganizationConsents(organizationId: string, types: OrganizationConsentDto['type'][]): Promise<OrganizationConsentDto[]>
+  /** Отзыв любым представителем с правом подавать заявки; повторный — тоже 204 */
+  revokeOrganizationConsent(organizationId: string, type: OrganizationConsentDto['type']): Promise<void>
+
+  /** Бизнес-план стартапа; 404 — ещё не заполнен */
+  businessPlan(organizationId: string): Promise<BusinessPlanDto>
+  /** 201 — новый, 200 — уточнён (revision +1); право edit_financials */
+  submitBusinessPlan(organizationId: string, input: BusinessPlanInput): Promise<BusinessPlanDto>
+  /** Последняя проектная оценка; 404 — ещё не было */
+  projectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
+  /** Оценить проект по текущему плану; 422 business_plan_required, product_not_eligible */
+  runProjectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
 }

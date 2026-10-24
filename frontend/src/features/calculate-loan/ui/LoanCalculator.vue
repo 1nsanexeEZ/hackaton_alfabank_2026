@@ -67,9 +67,15 @@ const { schedule, personal, pending, estimated } = useLoanSchedule(() => ({
 }))
 
 const preApproved = computed(() => personal.value?.preApproved ?? null)
-/** Причины, кроме «сумма/срок больше одобренного» — те объясняет блок предодобрения */
-const otherProblems = computed(
-  () => personal.value?.problems.filter((reason) => !reason.code.endsWith('_above_pre_approved')) ?? [],
+/** «Сумма/срок больше одобренного» и «больше посильного» объясняет блок предодобрения, остальное — отдельно */
+const isLimitReason = (code: string) => code.endsWith('_above_pre_approved') || code === 'amount_above_affordable'
+const otherProblems = computed(() => personal.value?.problems.filter((reason) => !isLimitReason(reason.code)) ?? [])
+const limitProblem = computed(() => personal.value?.problems.find((reason) => isLimitReason(reason.code)) ?? null)
+/** Запрос больше одобренного или больше посильного — подать можно, решит специалист */
+const overLimit = computed(() => personal.value?.withinPreApproved === false || Boolean(personal.value?.aboveAffordable))
+/** Посильная сумма ниже предодобренной — её ограничила платёжеспособность по отчётности */
+const paymentLimit = computed(() =>
+  personal.value?.affordableBy === 'payment' && personal.value.maxAffordable !== null ? personal.value.maxAffordable : null,
 )
 
 function takeSuggestion() {
@@ -106,17 +112,21 @@ function takeSuggestion() {
       <div
         v-if="company && preApproved"
         class="rounded-2xl p-4 text-sm"
-        :class="personal?.withinPreApproved === false ? 'bg-warning-soft' : 'bg-success-soft'"
+        :class="overLimit ? 'bg-warning-soft' : 'bg-success-soft'"
       >
         <p class="text-ink">
           Для {{ company.name }} предварительно одобрено до <b>{{ formatMoney(preApproved.maxAmount) }}</b> от
           {{ formatPercent(preApproved.rateFrom) }}, {{ formatTermLimit(preApproved.termMaxMonths) }} — до
           {{ formatDate(preApproved.validUntil) }}
         </p>
-        <template v-if="personal?.withinPreApproved === false">
+        <p v-if="paymentLimit !== null" class="mt-1 text-ink-secondary">
+          На этот срок по отчётности компания потянет кредит до {{ formatMoney(paymentLimit) }}: платёж не больше 40%
+          свободного денежного потока.
+        </p>
+        <template v-if="overLimit && personal">
           <p class="mt-2 text-ink-secondary">
-            {{ personal.problems.find((reason) => reason.code.endsWith('_above_pre_approved'))?.message }}. Подать заявку
-            можно, но банк может предложить меньше.
+            {{ limitProblem?.message ?? 'Запрос больше, чем банк готов предложить' }}. Подать заявку можно — решение
+            примет специалист, банк может предложить меньше.
           </p>
           <button
             v-if="personal.suggestion"
@@ -124,14 +134,14 @@ function takeSuggestion() {
             class="mt-2 text-left font-medium text-ink underline underline-offset-2"
             @click="takeSuggestion"
           >
-            Взять одобренные условия: {{ formatMoney(personal.suggestion.amount) }} на
+            Взять посильные условия: {{ formatMoney(personal.suggestion.amount) }} на
             {{ formatTerm(personal.suggestion.termMonths) }}, платёж {{ formatMoney(personal.suggestion.monthlyPayment) }}
           </button>
         </template>
       </div>
       <p v-else-if="company && segment === 'startup'" class="rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
-        У нового бизнеса предварительного одобрения нет: банк сначала проверяет учредителя, а условия назначает
-        после оценки бизнес-плана. Расчёт — по базовой ставке продукта.
+        Предварительного одобрения пока нет: пройдите проверку учредителя и оцените проект по бизнес-плану в
+        «Компании» — банк заранее скажет, до какой суммы готов дать кредит. Расчёт — по базовой ставке продукта.
       </p>
       <p v-else-if="company && personal && personal.withinPreApproved === null" class="rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
         Для {{ company.name }} по этому продукту предварительного одобрения нет — расчёт по базовой ставке продукта.

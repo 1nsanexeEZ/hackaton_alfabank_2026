@@ -71,7 +71,13 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   })
   const collateral = reactive<CollateralForm>({ type: '', description: '', declaredValue: '', owner: 'self' })
   const productFields = ref<FieldValues>({})
-  const consents = reactive({ personalData: false, creditBureau: false })
+  /**
+   * Галочки согласий. Действующие согласия из профиля (ПДн — личное, БКИ — компании) черновик берёт сам
+   * (consents.*_source = profile) — тогда галочка уже стоит. automatedDecision — согласие на решение только
+   * автоматикой (ст. 16 152-ФЗ): необязательное и важно только у ИП, без него отказ и встречное предложение
+   * принимает специалист.
+   */
+  const consents = reactive({ personalData: false, creditBureau: false, automatedDecision: false })
   /**
    * Личное согласие руководителя по реестру на запрос его кредитной истории (БКИ физлица). Не обязательно:
    * без него банк оценит заявку по данным компании. Даёт только сам руководитель — бухгалтеру видно пояснение.
@@ -89,6 +95,15 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   const product = computed(() => findProduct(products(), terms.productId))
   const organization = computed(() => organizations.value?.find((item) => item.id === terms.organizationId) ?? null)
   const legalForm = computed(() => organization.value?.legal_form ?? 'LLC')
+  const isEntrepreneur = computed(() => legalForm.value === 'IE')
+
+  // Согласия, которые уже есть в черновике (из профиля или отмеченные раньше), — сразу отмечены
+  watch(application, (current) => {
+    if (!current || current.status !== 'draft') return
+    if (current.consents.personal_data_at) consents.personalData = true
+    if (current.consents.credit_bureau_at) consents.creditBureau = true
+    if (current.consents.automated_decision_at) consents.automatedDecision = true
+  })
   const collateralNeeded = computed(() => needsCollateral(product.value, terms.amount))
   const withFields = computed(() => hasProductFields(product.value))
 
@@ -206,6 +221,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     error.value = null
     consents.personalData = false
     consents.creditBureau = false
+    consents.automatedDecision = false
     headConsent.give = false
     Object.assign(collateral, { description: '', declaredValue: '', owner: 'self' })
     terms.purposeComment = ''
@@ -454,7 +470,10 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     if (Object.keys(errors).length) return
 
     await run(async () => {
-      await patch({ consents: { personal_data: true, credit_bureau: true } })
+      // Уже данные согласия бэкенд не перезаписывает: момент и ссылка на профиль сохраняются
+      await patch({
+        consents: { personal_data: true, credit_bureau: true, automated_decision: isEntrepreneur.value && consents.automatedDecision },
+      })
       // Согласие руководителя — до подачи: проверка данных банком начнётся сразу после неё
       if (headConsent.isHead && !headConsent.alreadyGiven && headConsent.give) {
         await personalConsents.give(['credit_bureau_personal'])
@@ -525,6 +544,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     collateral,
     productFields,
     consents,
+    isEntrepreneur,
     headConsent,
     companyInfo,
     isStartup,
