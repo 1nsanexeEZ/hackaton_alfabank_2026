@@ -12,6 +12,7 @@ from src.modules.applications.application.dto.views import (
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
 from src.modules.applications.application.mappers.dto import summary_dto
 from src.modules.applications.application.use_cases.common import view, violations
+from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.clients.facade import ClientsFacade
 
 
@@ -36,9 +37,10 @@ class ListApplicationsUseCase:
         statuses: Sequence[str] | None,
         limit: int,
         offset: int,
+        decided_by: DecidedBy | None = None,
     ) -> list[ApplicationSummaryDTO]:
         applications = await self._repository.search(
-            access, organization_id, statuses, limit, offset
+            access, organization_id, statuses, limit, offset, decided_by
         )
         return [summary_dto(application) for application in applications]
 
