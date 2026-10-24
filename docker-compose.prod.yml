@@ -13,3 +13,4 @@ services:
   backend:
     environment:
       DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-false}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-https://alfa-hack.ru}
