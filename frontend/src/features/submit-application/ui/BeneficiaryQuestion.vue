@@ -3,13 +3,17 @@ import { BENEFICIARY_BASIS_LABEL } from '@/entities/application'
 import type { BeneficiaryBasis } from '@/shared/api'
 
 import type { BeneficiaryForm } from '../model/thirdParty'
+import type { DocumentSlot } from '../model/useApplicationWizard'
+import DocumentUploads from './DocumentUploads.vue'
 import ThirdPartyFields from './ThirdPartyFields.vue'
 
 /**
  * Вопрос о третьем лице: в чьих интересах клиент берёт кредит. Обязателен для всех заявок.
- * Ответ «да» — кто это и на каком основании.
+ * Ответ «да» — кто это, на каком основании и сам договор: без него заявку не отправить.
  */
-defineProps<{ errors: Record<string, string> }>()
+defineProps<{ contract: DocumentSlot; errors: Record<string, string>; disabled?: boolean }>()
+
+const emit = defineEmits<{ upload: [type: string, file: File]; remove: [documentId: string] }>()
 
 const beneficiary = defineModel<BeneficiaryForm>('beneficiary', { required: true })
 
@@ -78,6 +82,19 @@ function chooseBasis(value: BeneficiaryBasis) {
           </button>
         </div>
         <p v-if="errors['beneficiary.basis']" class="mt-1.5 text-sm text-brand">{{ errors['beneficiary.basis'] }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-ink">Договор</p>
+        <p class="mt-0.5 text-xs text-ink-secondary">Загрузите договор с третьим лицом — банк проверит его вместе с заявкой</p>
+        <DocumentUploads
+          class="mt-2"
+          :slots="[contract]"
+          :errors="errors"
+          :disabled="disabled"
+          @upload="(type, file) => emit('upload', type, file)"
+          @remove="(id) => emit('remove', id)"
+        />
       </div>
     </div>
   </section>
