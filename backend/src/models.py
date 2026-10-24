@@ -13,6 +13,7 @@ import src.modules.process.infrastructure.database.models  # noqa: F401
 import src.modules.products.infrastructure.models  # noqa: F401
 import src.modules.projector.infrastructure.database.models  # noqa: F401
 import src.modules.scoring.infrastructure.models  # noqa: F401
+import src.modules.support.infrastructure.database.models  # noqa: F401
 from src.core.infrastructure.database.base import Base
 
 metadata = Base.metadata

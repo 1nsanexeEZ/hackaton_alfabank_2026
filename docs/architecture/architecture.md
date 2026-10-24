@@ -165,6 +165,7 @@ flowchart TB
         Scoring["scoring<br/>PD model, ML model, Scorecard,<br/>Scoring results, Prescreen"]
         Decision["decision<br/>Credit policy, Decisions,<br/>Pre-approved offers"]
         Notifications["notifications<br/>Feed, Personal news, SSE"]
+        Support["support<br/>Tickets, Messages, Queue"]
         Projector["projector<br/>модели чтения"]
         Core["core (shared kernel)<br/>UoW, outbox relay, inbox, errors,<br/>access (RBAC + ABAC), settings, logging"]
     end
@@ -178,7 +179,7 @@ flowchart TB
     Applications -->|S3 API| MinIO
     Enrichment -->|HTTP| Mocks
     Applications -->|HTTP: ЭДО, АБС| Mocks
-    Clients & Applications & Process & Enrichment & Scoring & Decision -->|outbox| Kafka
+    Clients & Applications & Process & Enrichment & Scoring & Decision & Support -->|outbox| Kafka
     Kafka --> Process & Applications & Enrichment & Scoring & Decision & Clients & Notifications & Projector
     backend --> Postgres
 ```
@@ -195,6 +196,7 @@ flowchart TB
 | `scoring` | две оценки риска на шкале A–J: PD-модель на скоркартах и ML-модель (логистическая регрессия), коды причин; предскрин учредителя | [`scoring.md`](../modules/scoring.md) |
 | `decision` | кредитная политика: стоп-факторы, триггеры, матрица зон двух моделей, лимит, ставка, исход и объяснение; предодобрение | [`decision.md`](../modules/decision.md) |
 | `notifications` | лента событий и персональные новости, SSE | [`notifications.md`](../modules/notifications.md) |
+| `support` | обращения клиента в техподдержку, очередь сотрудников, взятие, переписка | [`support.md`](../modules/support.md) |
 | `projector` | денормализованные таблицы под списки, очередь и метрики | [`projector.md`](../modules/projector.md) |
 | `bff` | ответы под экраны кабинета клиента и бэк-офиса | [`client-journey.md`](../api/client-journey.md) |
 
@@ -206,7 +208,7 @@ flowchart TB
 - В MinIO один бакет документов заявок (`MINIO_BUCKET_NAME`, по умолчанию `credit-documents`); аватаров профиля нет.
 - В identity нет сессий: только access-токен без хранения, refresh нет.
 - Ошибки — `{code, message, details}` с HTTP-статусом, а не RFC 9457.
-- К Kafka на схеме подключены все модули. Публикуют `clients`, `applications`, `process`, `enrichment`, `scoring` и `decision`; топик `identity.events` создаётся, но identity в него пока ничего не пишет; `notifications` и `projector` только читают.
+- К Kafka на схеме подключены все модули. Публикуют `clients`, `applications`, `process`, `enrichment`, `scoring`, `decision` и `support`; топик `identity.events` создаётся, но identity в него пока ничего не пишет; `notifications` и `projector` только читают.
 
 ## Модели чтения
 
@@ -293,6 +295,7 @@ sequenceDiagram
 | `scoring.commands` / `scoring.events` | process / scoring | scoring / process |
 | `decision.commands` / `decision.events` | process / decision | decision / process, notifications, projector |
 | `clients.events` | clients | decision (предодобрение), notifications, projector |
+| `support.events` | support | notifications |
 | `identity.events` | — (создаётся на будущее) | — |
 
 У каждого топика есть `<topic>.dlq`. Контракты — `backend/src/core/messaging/contracts/`.

@@ -22,6 +22,7 @@ def test_every_module_is_wired() -> None:
         "scoring",
         "decision",
         "notifications",
+        "support",
         "projector",
         "bff",
     ]

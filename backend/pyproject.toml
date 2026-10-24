@@ -121,14 +121,14 @@ forbidden_modules = ["src.modules.*.presentation", "src.modules.*.api", "src.mod
 [[tool.importlinter.contracts]]
 name = "Layered modules: presentation -> infrastructure -> application -> domain"
 type = "layers"
-containers = ["src.modules.identity", "src.modules.enrichment", "src.modules.projector", "src.modules.notifications", "src.modules.clients", "src.modules.bff", "src.modules.process", "src.modules.applications"]
+containers = ["src.modules.identity", "src.modules.enrichment", "src.modules.projector", "src.modules.notifications", "src.modules.clients", "src.modules.bff", "src.modules.process", "src.modules.applications", "src.modules.support"]
 layers = ["module", "presentation", "infrastructure", "(facade)", "application", "domain"]
 
 [[tool.importlinter.contracts]]
 name = "Core does not know the modules"
 type = "forbidden"
 source_modules = ["src.core"]
-forbidden_modules = ["src.modules.identity", "src.modules.applications", "src.modules.process", "src.modules.products", "src.modules.clients", "src.modules.enrichment", "src.modules.scoring", "src.modules.decision", "src.modules.notifications", "src.modules.projector", "src.modules.bff", "src.main", "src.models"]
+forbidden_modules = ["src.modules.identity", "src.modules.applications", "src.modules.process", "src.modules.products", "src.modules.clients", "src.modules.enrichment", "src.modules.scoring", "src.modules.decision", "src.modules.notifications", "src.modules.projector", "src.modules.bff", "src.modules.support", "src.main", "src.models"]
 
 [[tool.importlinter.contracts]]
 name = "identity reads other modules only through their facade"
@@ -236,6 +236,16 @@ type = "forbidden"
 source_modules = ["src.modules.bff"]
 forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
 ignore_imports = ["src.modules.bff.** -> src.modules.bff.**", "src.modules.bff.** -> src.core.**"]
+# Empty modules have nothing to ignore yet.
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "support reads other modules only through their facade"
+type = "forbidden"
+source_modules = ["src.modules.support"]
+forbidden_modules = ["src.modules.*.domain", "src.modules.*.application", "src.modules.*.infrastructure", "src.modules.*.presentation", "src.modules.*.api", "src.modules.*.module"]
+ignore_imports = ["src.modules.support.** -> src.modules.support.**", "src.modules.support.** -> src.core.**"]
 # Empty modules have nothing to ignore yet.
 unmatched_ignore_imports_alerting = "none"
 allow_indirect_imports = true

@@ -27,7 +27,7 @@
 flowchart LR
     Browser["Браузер: кабинет клиента и сотрудника банка"] --> Nginx["nginx :8080<br/>(на стенде :443)"]
     Nginx --> Frontend["frontend (Vue)"]
-    Nginx --> Backend["backend (FastAPI)<br/>модули: identity, clients, products,<br/>applications, process, enrichment,<br/>scoring, decision, notifications,<br/>projector, bff"]
+    Nginx --> Backend["backend (FastAPI)<br/>модули: identity, clients, products,<br/>applications, process, enrichment,<br/>scoring, decision, notifications,<br/>support, projector, bff"]
     Nginx -->|presigned URL| MinIO[("MinIO<br/>документы")]
     Backend --> Postgres[("Postgres 16<br/>данные модулей,<br/>outbox, inbox")]
     Backend <-->|outbox → события и команды,<br/>консьюмеры с inbox, DLQ| Kafka[("Kafka 3.8, KRaft")]
@@ -45,6 +45,7 @@ flowchart LR
 | `scoring` | объяснимая оценка риска двумя моделями на шкале A–J: экспертная PD-модель на скоркартах и обученная ML-модель (логистическая регрессия), коды причин; предскрин учредителя — [`docs/modules/scoring.md`](docs/modules/scoring.md) | готов |
 | `decision` | кредитная политика: отказ по 115-ФЗ до скоринга, стоп-факторы, мягкие триггеры, решение по паре оценок (зона PD-модели × зона ML-модели), лимит, ставка от ключевой, исход и объяснение; неблагоприятное решение по ИП без согласия — человеку (ст. 16 152-ФЗ); предодобрение — [`docs/modules/decision.md`](docs/modules/decision.md) | готов |
 | `notifications` | лента событий и персональные новости под отрасль и форму бизнеса, живое обновление через SSE — [`docs/modules/notifications.md`](docs/modules/notifications.md) | готов |
+| `support` | чат клиента с техподдержкой: обращение, общая очередь андеррайтеров, взятие одним сотрудником с защитой от гонки, переписка, решение и закрытие — [`docs/modules/support.md`](docs/modules/support.md) | готов |
 | `projector` | модели чтения под экраны: список заявок, дашборд компании, очередь андеррайтера, лента заявки, метрики для SLA — [`docs/modules/projector.md`](docs/modules/projector.md) | готов |
 | `bff` | ответы под экраны кабинета клиента и бэк-офиса — [`docs/api/client-journey.md`](docs/api/client-journey.md) | готов |
 

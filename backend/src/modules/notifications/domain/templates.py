@@ -195,6 +195,29 @@ BANK_MANUAL_DECISION_REJECTED = Template(
     "Решение по заявке {number} не принято", "Причина: {reason}. Проверьте задачу ещё раз."
 )
 
+# --- support tickets --------------------------------------------------------------
+
+SUPPORT_REPLY = Template("Ответ по обращению {number}", "«{subject}»\n{preview}")
+SUPPORT_STATUS: dict[str, Template] = {
+    "in_progress": Template(
+        "Обращение {number} взято в работу", "«{subject}»: специалист банка уже разбирается."
+    ),
+    "resolved": Template(
+        "Обращение {number} решено",
+        "«{subject}». Если вопрос остался, напишите в обращение — оно вернётся в работу.",
+    ),
+    "closed": Template(
+        "Обращение {number} закрыто", "«{subject}». С новым вопросом создайте новое обращение."
+    ),
+}
+BANK_SUPPORT_OPENED = Template("Новое обращение {number}", "«{subject}»\n{organization}")
+BANK_SUPPORT_RETURNED = Template(
+    "Обращение {number} вернулось в очередь", "«{subject}»: его снова можно взять."
+)
+BANK_SUPPORT_CLIENT_WROTE = Template(
+    "Клиент написал в обращение {number}", "«{subject}»\n{preview}"
+)
+
 # --- client: advice and company -------------------------------------------------
 
 HINTS = Template("Как улучшить условия", "{hints}")

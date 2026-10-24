@@ -46,6 +46,9 @@ variables:
 - enabled: true
   name: contract_document_id
   value: ${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.id') ]}
+- enabled: true
+  name: ticket_id
+  value: ${[ response.body.path(request='rq_a0Fuaxyc7Z', behavior='smart', path='$.id') ]}
 color: null
 sortPriority: 1000.0
 createdAt: '2026-10-24T00:00:00'

@@ -41,14 +41,20 @@ from src.core.messaging.contracts.process import (
     UserTaskCompleted,
     UserTaskCreated,
 )
+from src.core.messaging.contracts.support import (
+    SupportMessagePosted,
+    SupportTicketOpened,
+    SupportTicketStatusChanged,
+)
 from src.modules.notifications.application.deliveries.applications import ApplicationDeliveries
 from src.modules.notifications.application.deliveries.clients import ClientDeliveries
 from src.modules.notifications.application.deliveries.context import DeliveryContext, Handlers
 from src.modules.notifications.application.deliveries.decision import DecisionDeliveries
 from src.modules.notifications.application.deliveries.process import ProcessDeliveries
+from src.modules.notifications.application.deliveries.support import SupportDeliveries
 from src.modules.notifications.application.interfaces.neighbours import Neighbours
 from src.modules.notifications.application.interfaces.repositories import FeedStore
-from src.modules.notifications.domain.feed import Delivery, task_group
+from src.modules.notifications.domain.feed import Delivery, support_queue_group, task_group
 
 HANDLED_MESSAGES: tuple[type[IntegrationMessage], ...] = (
     ApplicationSubmitted,
@@ -71,6 +77,9 @@ HANDLED_MESSAGES: tuple[type[IntegrationMessage], ...] = (
     MemberRemoved,
     MemberRoleChanged,
     FinancialReportSubmitted,
+    SupportTicketOpened,
+    SupportMessagePosted,
+    SupportTicketStatusChanged,
 )
 
 
@@ -88,6 +97,7 @@ class ProjectEventUseCase:
             **ProcessDeliveries(ctx).handlers(),
             **DecisionDeliveries(ctx).handlers(),
             **ClientDeliveries(ctx).handlers(),
+            **SupportDeliveries(ctx).handlers(),
         }
 
     async def execute(self, message: IntegrationMessage, event_id: UUID, now: datetime) -> int:
@@ -95,6 +105,9 @@ class ProjectEventUseCase:
         if isinstance(message, UserTaskCompleted):
             return await self._store.resolve_group(task_group(message.task_id), now)
         written = 0
+        if isinstance(message, SupportTicketStatusChanged) and message.from_status == "open":
+            # Taken or closed by the client: the queue entry needs no action anymore.
+            written += await self._store.resolve_group(support_queue_group(message.ticket_id), now)
         for delivery in await self.deliveries(message):
             if delivery.recipients:
                 written += await self._store.append(delivery, event_id, message.TYPE, now)

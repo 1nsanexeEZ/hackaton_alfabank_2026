@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_jOkFvq131c
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Закрыть своё обращение
+description: |-
+  The question is settled: nobody writes into the ticket anymore.
+
+  Закрытое обращение финально: в него больше не пишет никто. Для запросов очереди задайте новый вопрос.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/support/tickets/:ticket_id/close
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

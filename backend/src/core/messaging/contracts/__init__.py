@@ -8,6 +8,7 @@ from src.core.messaging.contracts import (  # noqa: F401  registers every contra
     identity,
     process,
     scoring,
+    support,
 )
 from src.core.messaging.contracts.base import (
     CONTRACTS,
