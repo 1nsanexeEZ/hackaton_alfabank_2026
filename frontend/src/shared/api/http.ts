@@ -53,7 +53,8 @@ export function currentToken(realm: AuthRealm = 'staff'): string | null {
   return providers[realm].getToken()
 }
 
-type Query = Record<string, string | number | undefined>
+/** Массив — повторяющийся параметр: `status=open&status=in_progress` */
+type Query = Record<string, string | number | readonly string[] | undefined>
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -73,7 +74,8 @@ export function apiUrl(path: string): string {
 function buildUrl(path: string, query?: Query): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined) params.set(key, String(value))
+    if (Array.isArray(value)) value.forEach((item) => params.append(key, item))
+    else if (value !== undefined) params.set(key, String(value))
   }
   const search = params.toString()
   return `${API_BASE_URL}${path}${search ? `?${search}` : ''}`

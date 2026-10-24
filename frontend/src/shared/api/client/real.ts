@@ -133,4 +133,10 @@ export const realClientApi: ClientApi = {
       throw new ApiError(response.status, 'upload_failed', 'Хранилище не приняло файл, попробуйте ещё раз')
     }
   },
+  supportTickets: (query = {}) =>
+    call('/support/tickets', { query: { status: query.status, limit: query.limit, offset: query.offset } }),
+  supportTicket: (id) => call(`/support/tickets/${id}`),
+  openSupportTicket: (input) => call('/support/tickets', { method: 'POST', body: input }),
+  postSupportMessage: (id, text) => call(`/support/tickets/${id}/messages`, { method: 'POST', body: { text } }),
+  closeSupportTicket: (id) => call(`/support/tickets/${id}/close`, { method: 'POST' }),
 }

@@ -29,6 +29,7 @@ export const ROUTE_PATH = {
   home: '/',
   login: '/login',
   profile: '/profile',
+  support: '/support',
   admin: '/admin',
   /** Публичная проверка договора по QR: /verify/<id документа> */
   verify: '/verify',
@@ -41,6 +42,8 @@ export const ADMIN_ROUTE = {
   applications: 'admin-applications',
   application: 'admin-application',
   innCheck: 'admin-inn-check',
+  support: 'admin-support',
+  supportTicket: 'admin-support-ticket',
   products: 'admin-products',
   scoring: 'admin-scoring',
   users: 'admin-users',

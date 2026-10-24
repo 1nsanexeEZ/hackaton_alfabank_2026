@@ -29,4 +29,12 @@ export const backofficeApi: BackofficeApi = {
   withdrawProduct: (code) => http(`/products/${code}`, { method: 'DELETE' }),
   workflows: () => http('/workflows'),
   innCheck: (input) => http('/organizations/inn-check', { method: 'POST', body: input }),
+  supportQueue: (query = {}) =>
+    http('/support/queue', { query: { status: query.status, scope: query.scope, limit: query.limit, offset: query.offset } }),
+  supportTicket: (id) => http(`/support/queue/${id}`),
+  takeSupportTicket: (id) => http(`/support/queue/${id}/take`, { method: 'POST' }),
+  releaseSupportTicket: (id) => http(`/support/queue/${id}/release`, { method: 'POST' }),
+  replySupportTicket: (id, text) => http(`/support/queue/${id}/messages`, { method: 'POST', body: { text } }),
+  resolveSupportTicket: (id) => http(`/support/queue/${id}/resolve`, { method: 'POST' }),
+  closeSupportTicketByStaff: (id) => http(`/support/queue/${id}/close`, { method: 'POST' }),
 }

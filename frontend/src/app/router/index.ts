@@ -39,6 +39,24 @@ export const router = createRouter({
       meta: { title: 'Профиль' },
     },
     {
+      path: ROUTE_PATH.support,
+      name: 'support',
+      component: () => import('@/pages/client-support').then((module) => module.ClientSupportPage),
+      meta: { title: 'Поддержка' },
+    },
+    {
+      path: `${ROUTE_PATH.support}/:id`,
+      name: 'support-ticket',
+      props: true,
+      component: () => import('@/pages/client-support').then((module) => module.ClientSupportPage),
+      meta: { title: 'Поддержка' },
+    },
+    // Записи ленты банка ведут на /backoffice/support/{id} — это карточка обращения в рабочем месте
+    {
+      path: '/backoffice/support/:id',
+      redirect: (to) => ({ name: ADMIN_ROUTE.supportTicket, params: { id: to.params.id } }),
+    },
+    {
       path: `${ROUTE_PATH.admin}/login`,
       name: ADMIN_ROUTE.login,
       component: () => import('@/pages/admin-login').then((module) => module.AdminLoginPage),
@@ -74,6 +92,19 @@ export const router = createRouter({
           name: ADMIN_ROUTE.innCheck,
           component: () => import('@/pages/admin-inn-check').then((module) => module.AdminInnCheckPage),
           meta: { title: 'Проверка по ИНН', permission: 'backoffice.read' },
+        },
+        {
+          path: 'support',
+          name: ADMIN_ROUTE.support,
+          component: () => import('@/pages/admin-support').then((module) => module.AdminSupportPage),
+          meta: { title: 'Поддержка', permission: 'support.manage' },
+        },
+        {
+          path: 'support/:id',
+          name: ADMIN_ROUTE.supportTicket,
+          props: true,
+          component: () => import('@/pages/admin-support').then((module) => module.AdminSupportTicketPage),
+          meta: { title: 'Обращение', permission: 'support.manage' },
         },
         {
           path: 'products',

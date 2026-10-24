@@ -32,6 +32,9 @@ export type Permission =
   | 'decisions.read'
   | 'backoffice.read'
   | 'feed.read'
+  | 'support.read'
+  | 'support.create'
+  | 'support.manage'
 
 /** org_member — только компании, где пользователь участник, и их заявки */
 export type Policy = 'not_deleted' | 'own_only' | 'org_member'

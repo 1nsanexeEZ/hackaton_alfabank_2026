@@ -998,6 +998,63 @@ export interface ProfileInput {
   position?: string | null
 }
 
+/* ---------- Техподдержка: обращения клиента и переписка (модуль support, #210) ---------- */
+
+/** open — ждёт, кто возьмёт; in_progress — ведёт сотрудник; resolved — решено, ответ клиента вернёт в работу; closed — закрыто */
+export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
+export type SupportSide = 'client' | 'staff'
+
+export interface SupportMessageDto {
+  id: string
+  author_id: string
+  author_name: string | null
+  side: SupportSide
+  text: string
+  created_at: string
+}
+
+/** Обращение в списке */
+export interface SupportTicketListItemDto {
+  id: string
+  /** ТП-2026-000001 */
+  number: string
+  subject: string
+  status: SupportTicketStatus
+  author_id: string
+  organization_id: string | null
+  application_id: string | null
+  /** Сотрудник, который взял обращение */
+  assignee_id: string | null
+  taken_at: string | null
+  resolved_at: string | null
+  closed_at: string | null
+  message_count: number
+  last_message_at: string | null
+  /** client в незакрытом обращении — банк должен ответить */
+  last_message_side: SupportSide | null
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+/** Обращение с перепиской — так отвечают все ручки, кроме списков */
+export interface SupportTicketDto extends SupportTicketListItemDto {
+  author_name: string | null
+  assignee_name: string | null
+  messages: SupportMessageDto[]
+}
+
+export interface SupportTicketInput {
+  /** До 200 символов */
+  subject: string
+  /** Первое сообщение, до 4000 символов */
+  text: string
+  /** Компания вопроса — клиент её участник */
+  organization_id?: string | null
+  /** Заявка вопроса: её компания станет компанией обращения */
+  application_id?: string | null
+}
+
 export interface ClientApi {
   /** Вход клиента по email или телефону и паролю */
   login(login: string, password: string): Promise<TokenResponse>
@@ -1116,4 +1173,12 @@ export interface ClientApi {
   projectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
   /** Оценить проект по текущему плану; 422 business_plan_required, product_not_eligible */
   runProjectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
+  /** Мои обращения в поддержку, свежие сверху */
+  supportTickets(query?: { status?: SupportTicketStatus[]; limit?: number; offset?: number }): Promise<SupportTicketListItemDto[]>
+  /** Чужое — 404 */
+  supportTicket(id: string): Promise<SupportTicketDto>
+  openSupportTicket(input: SupportTicketInput): Promise<SupportTicketDto>
+  /** В закрытое — 409 ticket_closed; решённое возвращается в работу */
+  postSupportMessage(id: string, text: string): Promise<SupportTicketDto>
+  closeSupportTicket(id: string): Promise<SupportTicketDto>
 }

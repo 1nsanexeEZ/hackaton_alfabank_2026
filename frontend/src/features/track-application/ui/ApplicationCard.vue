@@ -44,6 +44,8 @@ const emit = defineEmits<{
   applyProduct: [code: string]
   back: []
   close: []
+  /** Вопрос в поддержку по этой заявке */
+  ask: [applicationId: string]
 }>()
 
 const SIGN_FORM_ID = 'application-sign-form'
@@ -536,14 +538,23 @@ const footerHint = computed(() => {
       <div v-else class="flex flex-wrap items-center gap-x-5 gap-y-3">
         <div class="min-w-0 flex-1 basis-56 space-y-1">
           <p v-if="footerHint" class="text-[0.8125rem] leading-snug text-ink-secondary">{{ footerHint }}</p>
-          <button
-            v-if="can('cancel')"
-            type="button"
-            class="text-sm font-medium text-ink-secondary underline underline-offset-2 hover:text-brand"
-            @click="askConfirm('cancel')"
-          >
-            Отменить заявку
-          </button>
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            <button
+              v-if="can('cancel')"
+              type="button"
+              class="text-sm font-medium text-ink-secondary underline underline-offset-2 hover:text-brand"
+              @click="askConfirm('cancel')"
+            >
+              Отменить заявку
+            </button>
+            <button
+              type="button"
+              class="text-sm font-medium text-ink-secondary underline underline-offset-2 hover:text-brand"
+              @click="emit('ask', card.id)"
+            >
+              Вопрос поддержке
+            </button>
+          </div>
         </div>
 
         <div class="flex flex-wrap gap-2.5 max-sm:w-full max-sm:*:flex-1">

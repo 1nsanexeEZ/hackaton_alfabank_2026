@@ -2,6 +2,7 @@ import {
   FileSearch,
   Inbox,
   LayoutDashboard,
+  MessagesSquare,
   Package,
   ShieldCheck,
   SlidersHorizontal,
@@ -32,6 +33,7 @@ export const ADMIN_NAVIGATION: readonly NavGroup[] = [
       { route: ADMIN_ROUTE.dashboard, label: 'Обзор', icon: LayoutDashboard, permission: 'requests.read' },
       { route: ADMIN_ROUTE.applications, label: 'Заявки', icon: Inbox, permission: 'requests.read' },
       { route: ADMIN_ROUTE.innCheck, label: 'Проверка по ИНН', icon: FileSearch, permission: 'backoffice.read' },
+      { route: ADMIN_ROUTE.support, label: 'Поддержка', icon: MessagesSquare, permission: 'support.manage' },
     ],
   },
   {
