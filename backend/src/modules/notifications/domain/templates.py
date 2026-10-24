@@ -256,6 +256,7 @@ DOCUMENT_TITLES: dict[str, str] = {
     "purchase_contract": "договор купли-продажи",
     "existing_loans_statement": "справка о текущих кредитах",
     "tax_certificate": "справка об отсутствии налоговой задолженности",
+    "beneficiary_contract": "договор с третьим лицом, в интересах которого вы действуете",
 }
 
 ROLE_TITLES: dict[str, str] = {
