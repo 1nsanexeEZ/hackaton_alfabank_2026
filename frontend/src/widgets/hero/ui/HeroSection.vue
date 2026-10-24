@@ -21,14 +21,8 @@ const stats = computed(() => heroStats(props.products))
 <template>
   <section class="hero relative flex flex-col justify-center overflow-hidden bg-night text-on-night">
     <PatternBackground />
-    <div
-      class="pointer-events-none absolute -top-48 right-[-40%] size-[28rem] rounded-full bg-brand/15 blur-[120px] lg:-top-40 lg:right-0 lg:size-[36rem] lg:bg-brand/25"
-      aria-hidden="true"
-    />
-    <div
-      class="pointer-events-none absolute bottom-0 left-[-10%] size-[28rem] rounded-full bg-info/15 blur-[120px]"
-      aria-hidden="true"
-    />
+    <div class="hero__glow hero__glow--brand pointer-events-none absolute" aria-hidden="true" />
+    <div class="hero__glow hero__glow--info pointer-events-none absolute" aria-hidden="true" />
 
     <BaseContainer class="relative pt-8 pb-20 lg:pt-16 lg:pb-32">
       <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-16">
@@ -99,6 +93,41 @@ const stats = computed(() => heroStats(props.products))
   .hero {
     --r: var(--radius-sheet);
     --header: 4.5rem;
+  }
+}
+
+/*
+ * Цветные пятна. Раньше это были круги с filter: blur(120px) — огромная область размытия, которую
+ * браузер пересчитывал при каждой перерисовке страницы. Радиальный градиент даёт то же мягкое
+ * пятно без фильтра; блок на 12rem шире круга с каждой стороны — столько занимало размытие.
+ */
+.hero__glow {
+  border-radius: 999px;
+}
+
+.hero__glow--brand {
+  top: -24rem;
+  right: calc(-40% - 12rem);
+  width: 52rem;
+  height: 52rem;
+  background: radial-gradient(closest-side, rgb(239 49 36 / 0.13), rgb(239 49 36 / 0.06) 50%, transparent);
+}
+
+.hero__glow--info {
+  bottom: -12rem;
+  left: calc(-10% - 12rem);
+  width: 52rem;
+  height: 52rem;
+  background: radial-gradient(closest-side, rgb(31 98 214 / 0.13), rgb(31 98 214 / 0.06) 50%, transparent);
+}
+
+@media (width >= 64rem) {
+  .hero__glow--brand {
+    top: -22rem;
+    right: -12rem;
+    width: 60rem;
+    height: 60rem;
+    background: radial-gradient(closest-side, rgb(239 49 36 / 0.22), rgb(239 49 36 / 0.1) 50%, transparent);
   }
 }
 </style>
