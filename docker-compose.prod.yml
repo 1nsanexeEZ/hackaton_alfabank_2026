@@ -1,0 +1,15 @@
+# Добавка для стенда alfa-hack.ru: HTTPS, сертификаты Let's Encrypt, Basic Auth, порты 80 и 443.
+# Подключает docker/deploy.sh. Для локального запуска не нужна.
+services:
+  nginx:
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+  backend:
+    environment:
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-false}

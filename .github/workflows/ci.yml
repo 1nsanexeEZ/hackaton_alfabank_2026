@@ -150,7 +150,8 @@ jobs:
         run: npm run build
 
   images:
-    name: Docker images build
+  stand:
+    name: Stand starts like the jury runs it
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -158,8 +159,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compose file is valid
-        run: docker compose config --quiet
+      - name: Compose files are valid
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
 
-      - name: Build images
-        run: docker compose build
+      - name: Start the stand
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Smoke checks
+        run: |
+          set -e
+          B=http://localhost:8080
+          curl -fsS -o /dev/null "$B/"
+          curl -fsS "$B/api/ready"
+          curl -fsS -o /dev/null "$B/api/products"
+          TOKEN=$(curl -fsS -X POST "$B/api/auth/demo-login" -H 'Content-Type: application/json' \
+            -d '{"login":"owner@romashka.test"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+          curl -fsS -o /dev/null "$B/api/bff/dashboard" -H "Authorization: Bearer $TOKEN"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v
