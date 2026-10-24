@@ -26,27 +26,34 @@ applications/
 │   ├── statuses.py           # таблица переходов TRANSITIONS, FINAL/ACTIVE_STATUSES
 │   ├── actions.py            # какие кнопки доступны: статус + права внутри компании
 │   ├── events.py             # доменные события заявки
-│   └── enums.py              # ApplicationStatus, DocumentStatus, InfoRequestStatus
+│   ├── enums.py              # ApplicationStatus, DocumentStatus, InfoRequestStatus
+│   ├── contract_documents.py # PDF договора, УИд сделки (758-П), журнал подписания с хеш-цепочкой
+│   └── esign_rules.py        # Правила электронного взаимодействия (соглашение о ПЭП)
 ├── application/
 │   ├── dto/                  # applications (фасад), drafts (автосохранение, UNSET),
 │   │                         # views (ответы API), common (UNSET)
 │   ├── interfaces/           # repositories, storage (DocumentStorage), edo (EdoClient),
+│   │                         # contracts (ContractRenderer, ContractSealer, ContractArchive),
 │   │                         # abs (AbsClient), outbox (MessageOutbox),
 │   │                         # transactions (ApplicationTransaction для фоновой задачи)
 │   ├── mappers/              # dto: домен ↔ DTO (свои и соседей); messages: события → контракты,
 │   │                         # команды процесса → оффер и решение
 │   └── use_cases/            # applications (чтение для API), drafts, documents, submission,
-│                             # offers, contracts (договор и подпись), commands (команды процесса,
+│                             # offers, contracts (договор и подпись), contract_documents (PDF,
+│                             # подпись банка, проверка), commands (команды процесса,
 │                             # метка этапа, истечение оффера), expiry (фоновая задача),
 │                             # cards (фасад); common — доступ, сохранение с событиями, экран заявки
 ├── infrastructure/
 │   ├── adapters/             # applications_facade, document_storage (MinIO), edo_client, abs_client,
+│   │                         # contract_archive (MinIO с Object Lock), contract_sealer (pyHanko, PAdES),
 │   │                         # application_unit_of_work, application_transaction
 │   ├── config.py             # ApplicationsSettings (APPLICATIONS_*)
+│   ├── contract_pdf/         # печатная форма договора (fpdf2) и шрифты PT Sans, PT Mono (OFL)
 │   ├── database/             # models
 │   └── repositories/         # applications, mappers
 └── presentation/
-    ├── api/                  # applications — один роутер /applications
+    ├── api/                  # applications — роутер /applications; contracts — /esign/rules и
+    │                         # публичная проверка /contracts/verify
     ├── schemas/              # applications, documents, contracts
     ├── consumers.py          # команды процесса и метки этапа из process.events
     ├── expiry.py             # фоновая задача: просроченные предложения → EXPIRED
@@ -57,6 +64,12 @@ applications/
   получают через `DocumentStorage`, `EdoClient`, `AbsClient`. Пока не задан
   `APPLICATIONS_EXTERNAL_MOCKS_URL`, подпись и выдача идут через `SimulatedEdoClient` и
   `SimulatedAbsClient`, ответы помечены `simulated: true`.
+- **Договор как документ.** PDF-проект делается при первом открытии договора, итоговый — сразу
+  после подписи клиента: тот же договор со штампами подписей, подписанный банком (PAdES с меткой
+  времени). Файлы лежат в бакете `APPLICATIONS_CONTRACTS_BUCKET` с Object Lock
+  (`APPLICATIONS_CONTRACTS_RETENTION_DAYS`, по умолчанию 5 лет), строки документов и журнала только
+  добавляются. Ключи демо-УЦ — рядом с JWT-ключами, создаются при первой подписи. Адрес в QR-коде —
+  `MINIO_PUBLIC_ENDPOINT` (то, что видит браузер) + `/verify/{id}`.
 - **Use case возвращает DTO.** Схемы ответа собираются через `model_validate(dto)` с
   `from_attributes=True`; белый список полей для клиента — по-прежнему pydantic-схемы.
 - **Автосохранение черновика.** `ApplicationUpdate.to_dto()` отличает «не прислали» (`UNSET`) от
@@ -154,8 +167,12 @@ applications/
 | POST | `/applications/{id}/submit` | подать: снимок компании замораживается в заявке |
 | POST | `/applications/{id}/info-requests/{info_request_id}/answer` | ответить на запрос банка |
 | POST | `/applications/{id}/offer/accept`, `/offer/decline` | принять или отклонить предложение |
-| GET | `/applications/{id}/contract` | договор: заёмщик, условия, график, подписанты, `offer_hash` |
-| POST | `/applications/{id}/sign` | подпись: пароль ещё раз и `offer_hash` из договора |
+| GET | `/applications/{id}/contract` | договор: заёмщик, условия, график, подписанты, `offer_hash`, `uid`, текущий PDF в `document` |
+| GET | `/applications/{id}/contract/document` | сам PDF: `kind=draft` или `signed`, по умолчанию последний |
+| POST | `/applications/{id}/sign` | простая ЭП: пароль ещё раз, `offer_hash`, `document_hash` проекта, `rules_version`; затем подпись банка |
+| GET | `/esign/rules` | Правила электронного взаимодействия, без входа |
+| GET | `/contracts/verify/{document_id}` | проверка по QR-коду, без входа: подписи, сертификат, метка времени, целостность журнала |
+| POST | `/contracts/verify` | проверка загруженного PDF: подпись банка и совпадение с архивом |
 | POST | `/applications/{id}/cancel` | отозвать заявку |
 
 ## Kafka

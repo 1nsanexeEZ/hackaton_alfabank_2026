@@ -24,6 +24,7 @@ FOLDERS: list[tuple[str, str, str]] = [
         "Каталог, подбор по потребности, калькулятор, применимость; ведение каталога.",
     ),
     ("applications", "Заявки", "Черновик, документы, подача, предложение, договор, подпись."),
+    ("contracts", "Договор: правила и проверка", "Правила ЭП и публичная проверка договора."),
     ("process", "Процесс и задачи", "BPMN-процессы и задачи андеррайтера."),
     ("decision", "Предодобрение и стартапы", "Предодобрения, проверка учредителя, проект."),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
@@ -96,6 +97,10 @@ NAMES: dict[str, str] = {
     "GET /applications/{application_id}/contract": "Договор перед подписанием",
     "POST /applications/{application_id}/sign": "Подписать договор",
     "POST /applications/{application_id}/cancel": "Отменить заявку",
+    "GET /applications/{application_id}/contract/document": "Договор (PDF)",
+    "GET /esign/rules": "Правила электронного взаимодействия",
+    "GET /contracts/verify/{document_id}": "Проверка договора по QR",
+    "POST /contracts/verify": "Проверка файла договора",
     "GET /tasks": "Очередь задач",
     "GET /tasks/{task_id}": "Задача",
     "POST /tasks/{task_id}/claim": "Взять задачу",
@@ -200,6 +205,14 @@ NOTES: dict[str, str] = {
     "GET /tasks/{task_id}": _TASK,
     "POST /tasks/{task_id}/claim": _TASK,
     "POST /tasks/{task_id}/complete": f"{_TASK} {_CAREFUL}",
+    "POST /contracts/verify": (
+        "Файл выбирается в Yaak: Body → Multipart Form, поле `file` — PDF договора. Ответ "
+        "скажет, цела ли подпись банка и совпадает ли файл с экземпляром в архиве."
+    ),
+    "GET /contracts/verify/{document_id}": (
+        "Без входа: страница, куда ведёт QR-код договора. Документ — PDF договора самой новой "
+        "заявки Ромашки (`contract_document_id`)."
+    ),
     "GET /feed/stream": (
         "Поток не заканчивается сам: остановите запрос, когда насмотритесь. Билет одноразовый, "
         "новый берётся при каждой отправке."
@@ -336,6 +349,8 @@ def _bodies() -> dict[str, Any]:
         f"POST {application}/sign": {
             "password": var("demo_password"),
             "offer_hash": answer(ref("GET", f"{application}/contract"), "$.offer_hash"),
+            "document_hash": answer(ref("GET", f"{application}/contract"), "$.document.sha256"),
+            "rules_version": answer(ref("GET", "/esign/rules"), "$.version"),
         },
         f"POST {application}/cancel": {"reason": "Передумали"},
         "POST /tasks/{task_id}/complete": {
@@ -371,6 +386,9 @@ def reference_variables() -> dict[str, str]:
         "feed_item_id": answer(ref("GET", "/feed"), "$.items[0].id"),
         "news_id": answer(ref("GET", "/news"), "$[0].id"),
         "workflow_code": answer(ref("GET", "/workflows"), "$[0].code"),
+        "contract_document_id": answer(
+            ref("GET", "/applications/{application_id}/contract"), "$.document.id"
+        ),
     }
 
 
@@ -405,6 +423,8 @@ def _path_value(method: str, path: str, param: str) -> str:
         return var("new_account_id" if path.startswith("/accounts") else "member_account_id")
     if param == "role_id":
         return var("new_role_id")
+    if path.startswith("/contracts/") and param == "document_id":
+        return var("contract_document_id")
     if param == "item_id":
         return var("feed_item_id")
     if param == "code":
@@ -524,4 +544,6 @@ def add_reference(collection: Collection, openapi: dict[str, Any]) -> None:
 def _empty_body(operation: dict[str, Any]) -> Any:
     """A required body with no example gets `{}`: the 422 tells what it misses."""
     body = operation.get("requestBody")
-    return {} if body and body.get("required") else None
+    if not body or not body.get("required") or "multipart/form-data" in body.get("content", {}):
+        return None  # a file is picked in Yaak itself
+    return {}

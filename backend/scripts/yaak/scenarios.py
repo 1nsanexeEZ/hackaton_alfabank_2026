@@ -274,8 +274,30 @@ class Scenario:
             "/applications/{application_id}/contract",
             who=who,
             note=(
-                "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — "
-                "отпечаток условий, подпись идёт именно под ними."
+                "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки "
+                "(`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток "
+                "условий, `document.sha256` — хеш проекта: подпись идёт именно под ними."
+            ),
+        )
+        self.step(
+            f"draft{suffix}",
+            "Договор: PDF-проект",
+            "GET",
+            "/applications/{application_id}/contract/document",
+            who=who,
+            query={"kind": "draft"},
+            note="200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        )
+        rules = f"rules{suffix}"
+        self.step(
+            rules,
+            "Правила электронного взаимодействия",
+            "GET",
+            "/esign/rules",
+            who="",
+            note=(
+                "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его "
+                "`version` клиент принимает при подписании."
             ),
         )
         self.step(
@@ -285,13 +307,52 @@ class Scenario:
             "/applications/{application_id}/sign",
             who=who,
             note=(
-                "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, "
-                "`simulated: true`). Деньги выдаёт АБС, тоже мок."
+                "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта "
+                "и версия правил. Сразу после неё банк подписывает итоговый PDF своей "
+                "подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок."
             ),
             body={
                 "password": var("demo_password"),
                 "offer_hash": self.answer(contract, "$.offer_hash"),
+                "document_hash": self.answer(contract, "$.document.sha256"),
+                "rules_version": self.answer(rules, "$.version"),
             },
+        )
+        sealed = f"sealed{suffix}"
+        self.step(
+            sealed,
+            "Договор после подписи",
+            "GET",
+            "/applications/{application_id}/contract",
+            who=who,
+            note=(
+                "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) "
+                "и `verify_url` — куда ведёт QR-код договора."
+            ),
+        )
+        self.step(
+            f"signed_pdf{suffix}",
+            "Договор: подписанный PDF",
+            "GET",
+            "/applications/{application_id}/contract/document",
+            who=who,
+            query={"kind": "signed"},
+            note=(
+                "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. "
+                "Подпись банка видна в панели подписей программы просмотра PDF."
+            ),
+        )
+        self.step(
+            f"verify{suffix}",
+            "Проверка договора по QR",
+            "GET",
+            "/contracts/verify/{document_id}",
+            who="",
+            params={"document_id": self.answer(sealed, "$.document.id")},
+            note=(
+                "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат "
+                "и метка времени банка, `log_intact` — журнал подписания не разорван."
+            ),
         )
 
     def disbursed(self) -> None:

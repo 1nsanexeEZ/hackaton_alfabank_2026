@@ -25,6 +25,7 @@ from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade, RequiredDocumentDTO
 from tests.fakes import builders, install
 from tests.fakes.clients_facade import FakeClientsFacade
+from tests.fakes.contract_archive import FakeContractArchive
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.fakes.identity_facade import FakeIdentityFacade
 from tests.fakes.products_facade import FakeProductsFacade
@@ -188,6 +189,7 @@ def world(settings: Settings) -> Iterator[World]:
     install(app, ProductsFacade, products)
     install(app, IdentityFacade, identity)
     app.state.document_storage = storage
+    app.state.contract_archive = FakeContractArchive()
 
     create_schema(settings.database_url)
     with TestClient(app) as client:

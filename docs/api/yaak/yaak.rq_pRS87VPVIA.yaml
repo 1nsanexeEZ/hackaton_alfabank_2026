@@ -3,8 +3,8 @@ model: http_request
 id: rq_pRS87VPVIA
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_rgp4VZHY1e
-name: 25. Подписать договор
-description: '200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.'
+name: 27. Подписать договор
+description: '200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.'
 method: POST
 url: ${[ base_url ]}/applications/:application_id/sign
 urlParameters:
@@ -20,9 +20,11 @@ body:
   text: |-
     {
       "password": "${[ demo_password ]}",
-      "offer_hash": "${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.offer_hash') ]}"
+      "offer_hash": "${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.offer_hash') ]}",
+      "document_hash": "${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.document.sha256') ]}",
+      "rules_version": "${[ response.body.path(request='rq_BFRNhxgns9', behavior='smart', path='$.version') ]}"
     }
-sortPriority: 25000.0
+sortPriority: 27000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

@@ -17,6 +17,12 @@ from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.core.messaging.subscriber import HandlerContext
 from src.core.uow import UnitOfWork
 from src.modules.applications.application.interfaces.abs import AbsClient
+from src.modules.applications.application.interfaces.contracts import (
+    ContractArchive,
+    ContractDocumentRepository,
+    ContractRenderer,
+    ContractSealer,
+)
 from src.modules.applications.application.interfaces.edo import EdoClient
 from src.modules.applications.application.interfaces.outbox import MessageOutbox
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
@@ -38,6 +44,14 @@ from src.modules.applications.application.use_cases.cards import (
 from src.modules.applications.application.use_cases.commands import (
     HandleCommandUseCase,
     SetClientStageUseCase,
+)
+from src.modules.applications.application.use_cases.contract_documents import (
+    ContractDocuments,
+    DownloadContractDocumentUseCase,
+    GetContractViewUseCase,
+    SealContractUseCase,
+    VerifyContractDocumentUseCase,
+    VerifyContractFileUseCase,
 )
 from src.modules.applications.application.use_cases.contracts import (
     GetContractUseCase,
@@ -74,6 +88,9 @@ from src.modules.applications.infrastructure.adapters.applications_facade import
 )
 from src.modules.applications.infrastructure.repositories.applications import (
     SqlAlchemyApplicationRepository,
+)
+from src.modules.applications.infrastructure.repositories.contract_documents import (
+    SqlAlchemyContractDocumentRepository,
 )
 from src.modules.clients.facade import ClientsFacade
 from src.modules.identity.facade import IdentityFacade
@@ -159,6 +176,23 @@ def get_edo(request: Request) -> EdoClient:
     return request.app.state.edo_client
 
 
+def get_contract_documents_repository(session: DbSession) -> ContractDocumentRepository:
+    return SqlAlchemyContractDocumentRepository(session)
+
+
+def get_contract_archive(request: Request) -> ContractArchive:
+    # Read per request: tests replace it with a fake after create_app().
+    return request.app.state.contract_archive
+
+
+def get_contract_renderer(request: Request) -> ContractRenderer:
+    return request.app.state.contract_renderer
+
+
+def get_contract_sealer(request: Request) -> ContractSealer:
+    return request.app.state.contract_sealer
+
+
 ClockDep = Annotated[Clock, Depends(get_clock)]
 Uow = Annotated[UnitOfWork, Depends(get_uow)]
 Repository = Annotated[ApplicationRepository, Depends(get_repository)]
@@ -168,6 +202,10 @@ Edo = Annotated[EdoClient, Depends(get_edo)]
 Clients = Annotated[ClientsFacade, Depends(use_facade(ClientsFacade))]
 Products = Annotated[ProductsFacade, Depends(use_facade(ProductsFacade))]
 Identity = Annotated[IdentityFacade, Depends(use_facade(IdentityFacade))]
+ContractStore = Annotated[ContractDocumentRepository, Depends(get_contract_documents_repository)]
+Archive = Annotated[ContractArchive, Depends(get_contract_archive)]
+Sealer = Annotated[ContractSealer, Depends(get_contract_sealer)]
+Renderer = Annotated[ContractRenderer, Depends(get_contract_renderer)]
 
 
 # --- reading -------------------------------------------------------------------
@@ -189,6 +227,66 @@ def get_get_contract(
     repository: Repository, clients: Clients, products: Products, identity: Identity, edo: Edo
 ) -> GetContractUseCase:
     return GetContractUseCase(repository, clients, products, identity, edo)
+
+
+def get_contract_documents(
+    request: Request,
+    uow: Uow,
+    repository: Repository,
+    store: ContractStore,
+    products: Products,
+    archive: Archive,
+    sealer: Sealer,
+    renderer: Renderer,
+    clock: ClockDep,
+) -> ContractDocuments:
+    return ContractDocuments(
+        uow,
+        repository,
+        store,
+        products,
+        renderer,
+        sealer,
+        archive,
+        clock,
+        request.app.state.public_base_url,
+    )
+
+
+Documents = Annotated[ContractDocuments, Depends(get_contract_documents)]
+Contracts = Annotated[GetContractUseCase, Depends(get_get_contract)]
+
+
+def get_contract_view(
+    repository: Repository, contracts: Contracts, documents: Documents
+) -> GetContractViewUseCase:
+    return GetContractViewUseCase(repository, contracts, documents)
+
+
+def get_download_contract(
+    repository: Repository,
+    contracts: Contracts,
+    documents: Documents,
+    store: ContractStore,
+    archive: Archive,
+) -> DownloadContractDocumentUseCase:
+    return DownloadContractDocumentUseCase(repository, contracts, documents, store, archive)
+
+
+def get_seal_contract(
+    repository: Repository, contracts: Contracts, documents: Documents
+) -> SealContractUseCase:
+    return SealContractUseCase(repository, contracts, documents)
+
+
+def get_verify_contract(
+    repository: Repository, contracts: Contracts, store: ContractStore
+) -> VerifyContractDocumentUseCase:
+    return VerifyContractDocumentUseCase(repository, contracts, store)
+
+
+def get_verify_contract_file(store: ContractStore, sealer: Sealer) -> VerifyContractFileUseCase:
+    return VerifyContractFileUseCase(store, sealer)
 
 
 def get_download_url(repository: Repository, storage: Storage) -> GetDownloadUrlUseCase:
@@ -292,8 +390,9 @@ def get_sign(
     identity: Identity,
     edo: Edo,
     clock: ClockDep,
+    store: ContractStore,
 ) -> SignApplicationUseCase:
-    return SignApplicationUseCase(uow, repository, outbox, clients, identity, edo, clock)
+    return SignApplicationUseCase(uow, repository, outbox, clients, identity, edo, clock, store)
 
 
 def get_cancel(
@@ -317,4 +416,9 @@ AnswerInfoRequestDep = Annotated[AnswerInfoRequestUseCase, Depends(get_answer_in
 AcceptOfferDep = Annotated[AcceptOfferUseCase, Depends(get_accept_offer)]
 DeclineOfferDep = Annotated[DeclineOfferUseCase, Depends(get_decline_offer)]
 SignDep = Annotated[SignApplicationUseCase, Depends(get_sign)]
+ContractViewDep = Annotated[GetContractViewUseCase, Depends(get_contract_view)]
+DownloadContractDep = Annotated[DownloadContractDocumentUseCase, Depends(get_download_contract)]
+SealContractDep = Annotated[SealContractUseCase, Depends(get_seal_contract)]
+VerifyContractDep = Annotated[VerifyContractDocumentUseCase, Depends(get_verify_contract)]
+VerifyContractFileDep = Annotated[VerifyContractFileUseCase, Depends(get_verify_contract_file)]
 CancelDep = Annotated[CancelApplicationUseCase, Depends(get_cancel)]

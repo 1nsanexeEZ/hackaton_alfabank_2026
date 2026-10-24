@@ -1,0 +1,21 @@
+type: http_request
+model: http_request
+id: rq_tTYE2wP0vN
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tp4nOiyJyx
+name: 23. Проверка договора по QR
+description: '200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.'
+method: GET
+url: ${[ base_url ]}/contracts/verify/:document_id
+urlParameters:
+- enabled: true
+  name: :document_id
+  value: ${[ response.body.path(request='rq_UsHdHXwBcf', behavior='smart', path='$.document.id') ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 23000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -4,7 +4,7 @@ id: rq_ZYqTuqbPle
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_AEk4pZezSL
 name: 21. Договор
-description: '200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.'
+description: '200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.'
 method: GET
 url: ${[ base_url ]}/applications/:application_id/contract
 urlParameters:
