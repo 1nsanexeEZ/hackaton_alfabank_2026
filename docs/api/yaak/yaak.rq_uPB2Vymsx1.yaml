@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_uPB2Vymsx1
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Опубликовать черновик
+description: |-
+  A draft goes to the catalog; anything else — 409 `invalid_transition`.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/products/:code/activate
+urlParameters:
+- enabled: true
+  name: :code
+  value: YAAK_DEMO
+headers: []
+bodyType: null
+body: {}
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

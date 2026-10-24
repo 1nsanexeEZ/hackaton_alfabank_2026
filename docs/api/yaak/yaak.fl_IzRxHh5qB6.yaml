@@ -4,7 +4,7 @@ id: fl_IzRxHh5qB6
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_LRnXWnQzgy
 name: Продукты
-description: Каталог, подбор по потребности, калькулятор, применимость.
+description: Каталог, подбор по потребности, калькулятор, применимость; ведение каталога.
 sortPriority: 5000.0
 authenticationType: null
 authentication: {}

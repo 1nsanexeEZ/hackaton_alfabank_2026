@@ -690,7 +690,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "Продукты",
-        "description": "Каталог, подбор по потребности, калькулятор, применимость.",
+        "description": "Каталог, подбор по потребности, калькулятор, применимость; ведение каталога.",
         "sortPriority": 5000.0,
         "authenticationType": null,
         "authentication": {},
@@ -6506,6 +6506,58 @@
       },
       {
         "model": "http_request",
+        "id": "rq_nb2kFVLhSs",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_IzRxHh5qB6",
+        "name": "Добавить продукт",
+        "description": "Version 1 at the end of the catalog, a draft unless `status: active`. 409 — the code\nis taken; 422 `workflow_code` `unknown` — no such route (GET /workflows), `frontend_id`\n`taken` — another product has this card.\n\nСоздаёт черновик `YAAK_DEMO`: правка, публикация и снятие с продажи работают с ним, демо-каталог не меняется. Повторный запуск — 409: код уже занят.\n\nТокен: администратор.",
+        "method": "POST",
+        "url": "${[ base_url ]}/products",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"code\": \"YAAK_DEMO\",\n  \"frontend_id\": \"yaak-demo\",\n  \"name\": \"Факторинг (Yaak)\",\n  \"short_description\": \"Продукт из коллекции Yaak: деньги под отсрочку платежа покупателей\",\n  \"purposes\": [\n    \"working_capital\",\n    \"cash_gap\"\n  ],\n  \"facility\": \"credit_line_revolving\",\n  \"repayment_options\": [\n    \"interest_only\",\n    \"annuity\"\n  ],\n  \"amount_min\": \"500000\",\n  \"amount_max\": \"20000000\",\n  \"term_min_months\": 3,\n  \"term_max_months\": 12,\n  \"rate_base\": \"21\",\n  \"rate_max\": \"27\",\n  \"min_business_age_months\": 6,\n  \"min_annual_revenue\": \"5000000\",\n  \"required_documents\": [\n    {\n      \"type\": \"receivables_register\",\n      \"title\": \"Реестр дебиторской задолженности\"\n    }\n  ],\n  \"workflow_code\": \"standard_v2\",\n  \"auto_decision_limit\": \"5000000\"\n}"
+        },
+        "sortPriority": 2000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_cmQ2Ty434I",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_IzRxHh5qB6",
+        "name": "Все продукты с черновиками и архивом",
+        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order.\n\nТокен: администратор.",
+        "method": "GET",
+        "url": "${[ base_url ]}/products/all",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_ZCS4LXqOJF",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_IzRxHh5qB6",
@@ -6525,7 +6577,7 @@
         "body": {
           "text": "{\n  \"purpose\": \"working_capital\",\n  \"amount\": \"3000000\",\n  \"term_months\": 24\n}"
         },
-        "sortPriority": 2000.0,
+        "sortPriority": 4000.0,
         "authenticationType": "none",
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -6558,7 +6610,7 @@
         "body": {
           "text": "{\n  \"purpose\": \"working_capital\",\n  \"amount\": \"3000000\",\n  \"term_months\": 24\n}"
         },
-        "sortPriority": 3000.0,
+        "sortPriority": 5000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -6586,9 +6638,73 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 4000.0,
+        "sortPriority": 6000.0,
         "authenticationType": "none",
         "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_znmr706IDe",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_IzRxHh5qB6",
+        "name": "Новые условия продукта",
+        "description": "New terms. A draft changes in place; a published product gets a new active version\nand the previous one goes to the archive, so an archived product comes back this way.\nApplications keep the terms they were opened with.\n\nЧерновик `YAAK_DEMO` меняется на месте; опубликованный или архивный продукт получает новую активную версию.\n\nТокен: администратор.",
+        "method": "PUT",
+        "url": "${[ base_url ]}/products/:code",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":code",
+            "value": "YAAK_DEMO"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"frontend_id\": \"yaak-demo\",\n  \"name\": \"Факторинг (Yaak)\",\n  \"short_description\": \"Продукт из коллекции Yaak: деньги под отсрочку платежа покупателей\",\n  \"purposes\": [\n    \"working_capital\",\n    \"cash_gap\"\n  ],\n  \"facility\": \"credit_line_revolving\",\n  \"repayment_options\": [\n    \"interest_only\",\n    \"annuity\"\n  ],\n  \"amount_min\": \"500000\",\n  \"amount_max\": \"20000000\",\n  \"term_min_months\": 3,\n  \"term_max_months\": 12,\n  \"rate_base\": \"20\",\n  \"rate_max\": \"27\",\n  \"min_business_age_months\": 6,\n  \"min_annual_revenue\": \"5000000\",\n  \"required_documents\": [\n    {\n      \"type\": \"receivables_register\",\n      \"title\": \"Реестр дебиторской задолженности\"\n    }\n  ],\n  \"workflow_code\": \"standard_v2\",\n  \"auto_decision_limit\": \"5000000\"\n}"
+        },
+        "sortPriority": 7000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_uPB2Vymsx1",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_IzRxHh5qB6",
+        "name": "Опубликовать черновик",
+        "description": "A draft goes to the catalog; anything else — 409 `invalid_transition`.\n\nТокен: администратор.",
+        "method": "POST",
+        "url": "${[ base_url ]}/products/:code/activate",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":code",
+            "value": "YAAK_DEMO"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 8000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
         "createdAt": "2026-10-24T00:00:00",
         "updatedAt": "2026-10-24T00:00:00"
       },
@@ -6619,7 +6735,7 @@
         "body": {
           "text": "{\n  \"amount\": \"3000000\",\n  \"term_months\": 24\n}"
         },
-        "sortPriority": 5000.0,
+        "sortPriority": 9000.0,
         "authenticationType": "none",
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -6649,7 +6765,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 6000.0,
+        "sortPriority": 10000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -8571,6 +8687,34 @@
         "bodyType": null,
         "body": {},
         "sortPriority": 10000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Vk5r30aSpQ",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_IzRxHh5qB6",
+        "name": "Снять продукт с продажи",
+        "description": "Off sale: a published product goes to the archive (old applications refer to it),\na draft is deleted. Already archived — 409 `invalid_transition`.\n\nОпубликованный `YAAK_DEMO` уходит в архив, черновик удаляется.\n\nТокен: администратор.",
+        "method": "DELETE",
+        "url": "${[ base_url ]}/products/:code",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":code",
+            "value": "YAAK_DEMO"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 11000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_admin ]}",

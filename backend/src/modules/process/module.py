@@ -26,7 +26,7 @@ def wire(app: FastAPI) -> None:
     app.state.workflows = catalog
     # Module-private port for the Kafka handlers.
     app.state.facades.register(WorkflowSource, lambda _session: catalog)
-    app.state.facades.register(ProcessFacade, process_facade)
+    app.state.facades.register(ProcessFacade, lambda session: process_facade(session, catalog))
 
 
 async def startup(app: FastAPI) -> None:

@@ -1,10 +1,12 @@
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain import Money
+from src.core.exceptions.exceptions import ConflictError
 from src.modules.products.domain.product import CreditProduct, ProductStatus
 from src.modules.products.domain.value_objects import (
     LEGAL_FORMS,
@@ -44,10 +46,26 @@ class SqlAlchemyProductRepository:
         record = await self._record(code, version)
         return None if record is None else to_domain(record)
 
-    async def list_active(self) -> list[CreditProduct]:
+    async def get_latest(self, code: str) -> CreditProduct | None:
         stmt = (
             select(CreditProductRecord)
-            .where(CreditProductRecord.status == ProductStatus.ACTIVE.value)
+            .where(CreditProductRecord.code == code)
+            .order_by(CreditProductRecord.version.desc())
+            .limit(1)
+        )
+        record = (await self._session.scalars(stmt)).first()
+        return None if record is None else to_domain(record)
+
+    async def list_active(self) -> list[CreditProduct]:
+        return await self._list_latest(CreditProductRecord.status == ProductStatus.ACTIVE.value)
+
+    async def list_latest(self) -> list[CreditProduct]:
+        return await self._list_latest()
+
+    async def _list_latest(self, *where: ColumnElement[bool]) -> list[CreditProduct]:
+        stmt = (
+            select(CreditProductRecord)
+            .where(*where)
             .order_by(
                 CreditProductRecord.sort_order,
                 CreditProductRecord.code,
@@ -65,7 +83,20 @@ class SqlAlchemyProductRepository:
             record = CreditProductRecord(code=product.code.value, version=product.version)
             self._session.add(record)
         write(record, product)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError:
+            # UNIQUE (code, version): another request saved this version first.
+            raise ConflictError(
+                "The product has just been changed, reload it",
+                details={"code": product.code.value, "version": product.version},
+            ) from None
+
+    async def delete(self, product: CreditProduct) -> None:
+        record = await self._record(product.code.value, product.version)
+        if record is not None:
+            await self._session.delete(record)
+            await self._session.flush()
 
     async def _record(self, code: str, version: int) -> CreditProductRecord | None:
         stmt = select(CreditProductRecord).where(

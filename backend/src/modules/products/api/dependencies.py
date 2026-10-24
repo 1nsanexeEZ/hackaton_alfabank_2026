@@ -6,11 +6,13 @@ from fastapi import Depends, Request
 from src.core.access.permissions import Permissions
 from src.core.access.policies import Policies
 from src.core.exceptions.exceptions import NotFoundError, PermissionDeniedError
-from src.core.facades import get_facade_registry
+from src.core.facades import get_facade_registry, use_facade
 from src.core.infrastructure.database.session import DbSession
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.process.facade import ProcessFacade
 from src.modules.products.application.borrowers import BorrowerProfiles
+from src.modules.products.application.catalog import ProductCatalog
 from src.modules.products.application.services import ProductService
 from src.modules.products.infrastructure.facade_impl import borrower_profiles
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
@@ -20,11 +22,18 @@ def get_product_service(session: DbSession) -> ProductService:
     return ProductService(SqlAlchemyProductRepository(session))
 
 
+def get_product_catalog(
+    session: DbSession, process: Annotated[ProcessFacade, Depends(use_facade(ProcessFacade))]
+) -> ProductCatalog:
+    return ProductCatalog(SqlAlchemyProductRepository(session), process.workflow_codes())
+
+
 def get_borrower_profiles(request: Request, session: DbSession) -> BorrowerProfiles:
     return borrower_profiles(get_facade_registry(request), session)
 
 
 ProductServiceDep = Annotated[ProductService, Depends(get_product_service)]
+ProductCatalogDep = Annotated[ProductCatalog, Depends(get_product_catalog)]
 BorrowerProfilesDep = Annotated[BorrowerProfiles, Depends(get_borrower_profiles)]
 
 
