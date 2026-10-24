@@ -1,5 +1,7 @@
 import type {
   ApplicationStatusCode,
+  BeneficialOwnerInput,
+  BeneficialOwnersDto,
   BeneficiaryDto,
   BusinessPlanDto,
   ClientStatus,
@@ -101,6 +103,8 @@ export interface UnderwriterApplicationDto {
   collateral: { type: string; description: string; declared_value: string; owner: string; owner_party?: ThirdPartyDto | null } | null
   /** Ответ клиента о третьем лице (выгодоприобретателе); null — не ответил */
   beneficiary?: BeneficiaryDto | null
+  /** Бенефициары со слов клиента (115-ФЗ); null — не ответил */
+  beneficial_owners?: BeneficialOwnersDto | null
   /** Согласия заявки: когда даны и откуда — галочка в черновике или из профиля */
   consents?: (ConsentsDto & { given_by?: string | null }) | null
   org_snapshot: {
@@ -195,9 +199,21 @@ export interface CounterpartyRiskDto {
  * выгодоприобретатель и залогодатель — третье лицо
  */
 export interface AmlSubjectDto {
-  role: 'company' | 'founder_company' | 'head' | 'beneficial_owner' | 'representative' | 'beneficiary' | 'pledgor'
+  /** founder — учредитель-физлицо с любой долей, declared_owner — бенефициар со слов клиента (policy_v9) */
+  role:
+    | 'company'
+    | 'founder_company'
+    | 'head'
+    | 'beneficial_owner'
+    | 'representative'
+    | 'beneficiary'
+    | 'pledgor'
+    | 'founder'
+    | 'declared_owner'
   name: string
   inn: string | null
+  /** Страна: у учредителей — из ЕГРЮЛ, у третьих лиц и названных бенефициаров — со слов клиента */
+  country?: string | null
 }
 
 /** Проверка по 115-ФЗ: бенефициары, перечни Росфинмониторинга, публичные должностные лица, риск ЗСК */
@@ -208,6 +224,12 @@ export interface AmlCheckDto {
   subjects: AmlSubjectDto[]
   list_hits: { subject: AmlSubjectDto; list: 'terrorism' | 'freeze' | 'wmd'; record: string }[]
   pep_hits: { subject: AmlSubjectDto; kind: 'foreign' | 'russian' | 'international'; position: string }[]
+  /** Бенефициары со слов клиента; null — клиент не ответил */
+  declared_owners?: (BeneficialOwnerInput & { country: string | null })[] | null
+  /** Сверка с ЕГРЮЛ: not_declared — клиент не назвал владельца по реестру, not_in_registry — назвал, а в реестре его нет */
+  owner_discrepancies?: { name: string; kind: 'not_declared' | 'not_in_registry' }[]
+  /** Действующие лицензии (ст. 7 п. 15 115-ФЗ); null — реестр лицензий не ответил */
+  licenses?: { number: string; activity: string; okved: string }[] | null
 }
 
 /** Обороты по расчётному счёту в банке (АБС) за 24 месяца */
@@ -231,7 +253,7 @@ export interface EnrichmentDto {
     head_first_name: string
     head_middle_name: string | null
     head_position: string
-    founders: { name: string; share_percent: string; inn?: string | null }[]
+    founders: { name: string; share_percent: string; inn?: string | null; country?: string | null }[]
     address: string
     mass_address: boolean
     kpp?: string | null

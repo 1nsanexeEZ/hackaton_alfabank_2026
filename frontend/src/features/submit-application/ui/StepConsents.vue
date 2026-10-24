@@ -7,6 +7,7 @@ import { formatDate, formatMoney, formatPercent, formatTerm } from '@/shared/lib
 import { CheckboxField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
+import BeneficialOwnersQuestion from './BeneficialOwnersQuestion.vue'
 import BeneficiaryQuestion from './BeneficiaryQuestion.vue'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
@@ -17,6 +18,7 @@ const {
   product,
   consents,
   beneficiary,
+  owners,
   contractSlot,
   isEntrepreneur,
   headConsent,
@@ -75,6 +77,7 @@ const summary = computed(() => [
       @upload="wizard.uploadDocument"
       @remove="wizard.removeDocument"
     />
+    <BeneficialOwnersQuestion :owners="owners" :errors="fieldErrors" />
 
     <!-- Тексты согласий — по docs/personal-data.md: что обрабатываем, зачем, как отозвать -->
     <div class="space-y-4">

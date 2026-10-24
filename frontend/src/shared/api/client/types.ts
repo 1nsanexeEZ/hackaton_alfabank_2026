@@ -200,12 +200,15 @@ export interface ThirdPartyInput {
   name: string
   /** Обязателен у организации, у физлица — по желанию */
   inn?: string | null
+  /** Страна, если не Россия: ISO 3166-1 alpha-2 */
+  country?: string | null
 }
 
 export interface ThirdPartyDto {
   kind: 'person' | 'organization'
   name: string
   inn: string | null
+  country?: string | null
 }
 
 export interface CollateralInput {
@@ -237,6 +240,24 @@ export interface BeneficiaryDto {
   acts_for_third_party: boolean
   beneficiary: ThirdPartyDto | null
   basis: BeneficiaryBasis | null
+  declared_by?: string
+  declared_at: string
+}
+
+/**
+ * Бенефициар со слов клиента (115-ФЗ ст. 6.1): ownership — владеет больше 25% прямо или через другие компании,
+ * control — иначе контролирует действия компании, например по договору
+ */
+export interface BeneficialOwnerInput {
+  name: string
+  basis: 'ownership' | 'control'
+  /** Страна, если не Россия: ISO 3166-1 alpha-2 */
+  country?: string | null
+}
+
+/** Ответ о бенефициарах; пустой список — тоже ответ: больше 25% ни у кого и никто не контролирует компанию иначе */
+export interface BeneficialOwnersDto {
+  owners: (BeneficialOwnerInput & { country: string | null })[]
   declared_by?: string
   declared_at: string
 }
@@ -296,6 +317,8 @@ export interface ApplicationDto {
   collateral: CollateralDto | null
   /** Ответ о третьем лице; null — клиент ещё не ответил */
   beneficiary?: BeneficiaryDto | null
+  /** Ответ о бенефициарах; null — клиент ещё не ответил, подачу это не блокирует */
+  beneficial_owners?: BeneficialOwnersDto | null
   consents: ConsentsDto
   product_terms: ProductTermsDto
   documents: DocumentDto[]
@@ -332,6 +355,8 @@ export interface ApplicationUpdateInput {
   collateral?: CollateralInput | null
   /** null — отозвать ответ; не передано — ответ не меняется */
   beneficiary?: BeneficiaryInput | null
+  /** Бенефициары со слов клиента; null — снять ответ, не передано — не меняется */
+  beneficial_owners?: { owners: BeneficialOwnerInput[] } | null
   consents?: { personal_data: boolean; credit_bureau: boolean; automated_decision?: boolean }
 }
 

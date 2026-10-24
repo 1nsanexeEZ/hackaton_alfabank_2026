@@ -4,7 +4,15 @@ export { uploadApplicationDocument } from './model/documents'
 export { loanDraft } from './model/draft'
 export { isActiveApplication, myApplications, type MyApplication } from './model/myApplications'
 export { clientStages } from './model/stages'
-export { BENEFICIARY_BASIS_LABEL, beneficiaryLine, collateralOwnerLine, thirdPartyLine } from './model/thirdParty'
+export { COUNTRY_LABEL, countryName } from './model/countries'
+export {
+  BENEFICIARY_BASIS_LABEL,
+  beneficialOwnersLine,
+  beneficiaryLine,
+  collateralOwnerLine,
+  OWNER_BASIS_LABEL,
+  thirdPartyLine,
+} from './model/thirdParty'
 export {
   ACTION_REQUIRED_LABEL,
   APPLICATION_STATUS_META,

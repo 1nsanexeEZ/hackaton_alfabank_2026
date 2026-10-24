@@ -19,13 +19,16 @@ const FIELD_LABEL: Record<string, string> = {
   'beneficiary.beneficiary.name': 'в чьих интересах вы действуете',
   'beneficiary.beneficiary.inn': 'ИНН того, в чьих интересах вы действуете',
   'beneficiary.basis': 'основание действовать в интересах третьего лица',
+  'beneficiary.beneficiary.country': 'страна того, в чьих интересах вы действуете',
+  'collateral.owner_party.country': 'страна владельца залога',
+  beneficial_owners: 'бенефициары компании',
   'consents.personal_data': 'согласие на обработку персональных данных',
   'consents.credit_bureau': 'согласие на запрос в бюро кредитных историй',
 }
 
 function stepOf(field: string): ViolationView['step'] {
   if (field.startsWith('request.') || field === 'product_code') return 'terms'
-  if (field.startsWith('consents.') || field.startsWith('beneficiary')) return 'consents'
+  if (field.startsWith('consents.') || field.startsWith('beneficiary') || field.startsWith('beneficial_owners')) return 'consents'
   return 'details'
 }
 
