@@ -20,8 +20,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+      start_period: 30s
     networks:
       - alfa_network
 
@@ -41,8 +42,10 @@ services:
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
-      timeout: 3s
-      retries: 5
+      timeout: 5s
+      retries: 12
+      # на загруженном VPS MinIO с данными поднимается дольше 25 с; пока идёт start_period, неудачи не считаются
+      start_period: 60s
     networks:
       - alfa_network
 

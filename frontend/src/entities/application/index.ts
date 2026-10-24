@@ -12,6 +12,7 @@ export { uploadApplicationDocument } from './model/documents'
 export { loanDraft } from './model/draft'
 export { isActiveApplication, myApplications, type MyApplication } from './model/myApplications'
 export { clientStages } from './model/stages'
+export { BENEFICIARY_BASIS_LABEL, beneficiaryLine, collateralOwnerLine, thirdPartyLine } from './model/thirdParty'
 export {
   ACTION_REQUIRED_LABEL,
   APPLICATION_STATUS_META,

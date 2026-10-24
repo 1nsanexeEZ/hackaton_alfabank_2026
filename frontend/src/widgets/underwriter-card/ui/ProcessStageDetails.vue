@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
+import { CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL } from '@/entities/credit-product'
 import type { StageKey, StageState, StageWindow } from '@/entities/process'
 import {
@@ -240,7 +240,7 @@ const models = computed(() => {
       <p v-if="application.collateral" class="text-ink">
         {{ COLLATERAL_TYPE_LABEL[application.collateral.type] ?? application.collateral.type }},
         {{ money(application.collateral.declared_value) }} — {{ application.collateral.description }}
-        <span class="text-ink-secondary">(собственник: {{ application.collateral.owner }})</span>
+        <span class="text-ink-secondary">(собственник: {{ collateralOwnerLine(application.collateral) }})</span>
       </p>
       <p v-else class="text-ink-secondary">Залог в заявке не указан.</p>
     </template>
