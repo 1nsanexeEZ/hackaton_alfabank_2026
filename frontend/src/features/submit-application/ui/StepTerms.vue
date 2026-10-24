@@ -62,10 +62,10 @@ const { items: recommended } = useRecommendations(() =>
 
 const productByCode = (code: string) => props.products.find((item) => item.code === code)
 
-/** Подходящие под цель — сначала те, что компании подходят */
+/** Подходящие под цель и под сегмент компании (стартапу — только продукты для стартапа) — сначала те, что ей подходят */
 const suggestions = computed(() =>
   (recommended.value ?? [])
-    .filter((item) => item.status !== 'unavailable' && productByCode(item.code))
+    .filter((item) => item.status !== 'unavailable' && allowedProducts.value.some((product) => product.code === item.code))
     .sort((a, b) => Number(b.eligible !== false) - Number(a.eligible !== false) || a.rank - b.rank)
     .slice(0, 4),
 )
@@ -128,7 +128,7 @@ const limit = computed(() => {
 })
 const LIMIT_TEXT: Record<string, string> = {
   pre_approved: 'Предварительно одобрено до',
-  payment: 'По отчётности компания потянет платёж по кредиту до',
+  payment: 'По отчётности на этот срок компании посильно до',
   project: 'По проектной оценке предодобрено до',
 }
 const takeLimit = () => {

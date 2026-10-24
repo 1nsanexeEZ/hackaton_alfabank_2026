@@ -15,6 +15,7 @@ const props = defineProps<{ project: StartupProjectDto }>()
 
 const money = (value: string | number | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 const share = (value: string) => formatPercent(Number(value) * 100)
+const ratio = (value: string | null) => (value === null ? '—' : Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2 }))
 
 const assessment = computed(() => props.project.assessment)
 const figures = computed(() => assessment.value.figures)
@@ -66,7 +67,7 @@ const years = computed(() => {
       </div>
       <div class="rounded-lg bg-surface-soft p-2">
         <dt class="text-xs text-ink-secondary">DSCR</dt>
-        <dd class="font-semibold tabular-nums">{{ figures.dscr ?? '—' }}</dd>
+        <dd class="font-semibold tabular-nums">{{ ratio(figures.dscr) }}</dd>
         <dd class="text-xs text-ink-secondary">поток {{ money(figures.cash_flow) }} / платежи {{ money(figures.debt_service) }} за 24 мес.</dd>
       </div>
       <div class="rounded-lg bg-surface-soft p-2">
