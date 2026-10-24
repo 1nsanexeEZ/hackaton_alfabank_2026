@@ -1118,7 +1118,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -1137,7 +1137,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_mpokfzMPQh', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_mpokfzMPQh', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -1410,7 +1410,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_tp4nOiyJyx",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -1429,7 +1429,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_euA4gkvCba', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"5000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_euA4gkvCba', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"5000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -1986,7 +1986,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_WpoGHiYheT",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2005,7 +2005,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_VeakSQQyOu', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"10000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_VeakSQQyOu', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"10000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -2382,7 +2382,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_NQa6xbcnQA",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2401,7 +2401,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_9F62BWMwnJ', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"2000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_9F62BWMwnJ', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"2000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -2554,7 +2554,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4MO7X92vcV",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2573,7 +2573,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_vHdNYaSMBA', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"8000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_vHdNYaSMBA', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"8000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -3191,7 +3191,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_iO1WBCosT3",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -3210,7 +3210,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_IwIaHx2Fev', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_IwIaHx2Fev', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -3455,7 +3455,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_rgp4VZHY1e",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -3474,7 +3474,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_k74JjUxGX3', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"30000000\",\n    \"term_months\": 120,\n    \"purpose\": \"real_estate\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"collateral\": {\n    \"type\": \"real_estate\",\n    \"description\": \"Офис, г. Москва, ул. Тверская, д. 10\",\n    \"declared_value\": \"50000000\",\n    \"owner\": \"self\"\n  },\n  \"product_fields\": {\n    \"property_address\": \"г. Москва, ул. Тверская, д. 10\",\n    \"property_type\": \"office\",\n    \"price\": 50000000\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_k74JjUxGX3', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"30000000\",\n    \"term_months\": 120,\n    \"purpose\": \"real_estate\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  },\n  \"collateral\": {\n    \"type\": \"real_estate\",\n    \"description\": \"Офис, г. Москва, ул. Тверская, д. 10\",\n    \"declared_value\": \"50000000\",\n    \"owner\": \"self\"\n  },\n  \"product_fields\": {\n    \"property_address\": \"г. Москва, ул. Тверская, д. 10\",\n    \"property_type\": \"office\",\n    \"price\": 50000000\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -4247,7 +4247,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_Q3lRWImQlK",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -4266,7 +4266,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_d9YZY0q4J5', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_d9YZY0q4J5', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -4704,7 +4704,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_AEk4pZezSL",
         "name": "07. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -4723,7 +4723,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_etJWLEY8df', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_etJWLEY8df', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 7000.0,
         "authenticationType": "bearer",
@@ -5458,7 +5458,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_JamWtX6KID",
         "name": "09. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -5477,7 +5477,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_bhrrb6cADa', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_bhrrb6cADa', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 9000.0,
         "authenticationType": "bearer",
@@ -7257,7 +7257,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"cash_gap\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"cash_gap\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 4000.0,
         "authenticationType": "bearer",

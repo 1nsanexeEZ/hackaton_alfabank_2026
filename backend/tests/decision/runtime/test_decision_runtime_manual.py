@@ -26,7 +26,7 @@ from tests.decision.unit.decision_world import NOW, DecisionWorld, build_world
 
 async def _reviewed(sessions: Sessions, name: str = "s3_vector") -> tuple[DecisionWorld, str]:
     """Заявка, которую автоматика отдала андеррайтеру; возвращает мир и id авторешения."""
-    world = await build_world(name)
+    world = await build_world(name, acts_for_itself=True)
     [auto] = (await make_decision(sessions, world)).of_type(DecisionMade)
     assert auto.outcome == "MANUAL_REVIEW"
     return world, str(auto.decision_id)

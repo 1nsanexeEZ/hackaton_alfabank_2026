@@ -22,7 +22,7 @@ from tests.decision.unit.decision_world import NOW, build_world
 
 
 async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -> None:
-    world = await build_world("s1_romashka")
+    world = await build_world("s1_romashka", acts_for_itself=True)
     event_id = uuid4()
 
     outbox = await make_decision(session_factory, world, event_id)
@@ -52,7 +52,7 @@ async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -
 
     stored = await decision(session_factory, world.application_id)
     assert stored is not None and stored.id == made.decision_id
-    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v9"
+    assert stored.key_rate == KEY_RATE and stored.policy_version == "policy_v10"
     assert stored.decided_by_type == "auto" and stored.override_of is None
     assert stored.terms is not None and stored.terms.monthly_payment == offer.monthly_payment
     assert stored.limits.by_revenue is not None and stored.limits.by_capacity is not None
@@ -74,7 +74,7 @@ async def test_s1_romashka_is_approved_as_requested(session_factory: Sessions) -
 async def test_outcome_reaches_the_reply(
     session_factory: Sessions, name: str, outcome: str, with_offer: bool
 ) -> None:
-    world = await build_world(name)
+    world = await build_world(name, acts_for_itself=True)
 
     outbox = await make_decision(session_factory, world)
 
@@ -97,7 +97,7 @@ async def test_outcome_reaches_the_reply(
 async def test_manual_review_is_a_check_or_a_dispute(
     session_factory: Sessions, name: str, review: str, reason: str
 ) -> None:
-    world = await build_world(name)
+    world = await build_world(name, acts_for_itself=True)
 
     await make_decision(session_factory, world)
 
@@ -109,7 +109,7 @@ async def test_manual_review_is_a_check_or_a_dispute(
 async def test_s2_counter_offer_names_the_overdraft(session_factory: Sessions) -> None:
     """policy_v4: Иванов (грейд E) — встречное предложение; в policy_v5 обе модели в жёлтой
     зоне, и его проверяет андеррайтер."""
-    world = await build_world("s2_ivanov")
+    world = await build_world("s2_ivanov", acts_for_itself=True)
 
     outbox = await make_decision(session_factory, world, policy=load_policy("policy_v4"))
     [made] = outbox.of_type(DecisionMade)
@@ -122,7 +122,7 @@ async def test_s2_counter_offer_names_the_overdraft(session_factory: Sessions) -
 
 
 async def test_s5a_requests_the_bank_statement(session_factory: Sessions) -> None:
-    world = await build_world("s5a_progress")
+    world = await build_world("s5a_progress", acts_for_itself=True)
 
     [made] = (await make_decision(session_factory, world)).of_type(DecisionMade)
 
@@ -134,7 +134,7 @@ async def test_s5a_requests_the_bank_statement(session_factory: Sessions) -> Non
 
 
 async def test_repeated_command_returns_the_same_decision(session_factory: Sessions) -> None:
-    world = await build_world("s1_romashka")
+    world = await build_world("s1_romashka", acts_for_itself=True)
     event_id = uuid4()
 
     first = await make_decision(session_factory, world, event_id)
@@ -150,7 +150,7 @@ async def test_repeated_command_returns_the_same_decision(session_factory: Sessi
 async def test_new_command_adds_a_decision_and_it_becomes_the_latest(
     session_factory: Sessions,
 ) -> None:
-    world = await build_world("s5a_progress")
+    world = await build_world("s5a_progress", acts_for_itself=True)
     first_event, second_event = uuid4(), uuid4()
     await make_decision(session_factory, world, first_event)
 

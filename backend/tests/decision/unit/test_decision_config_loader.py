@@ -48,7 +48,7 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v9"
+    assert policy.version == "policy_v10"
     assert policy.config.screen_before_scoring
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
@@ -308,3 +308,9 @@ def test_v9_is_v8_with_the_aml_risk_group_and_licensing() -> None:
         )
         == v8
     )
+
+
+def test_v10_is_v9_requiring_answers_about_third_parties() -> None:
+    v9, v10 = load_policy("policy_v9").config, load_policy("policy_v10").config
+    assert not v9.third_party_answers_required and v10.third_party_answers_required
+    assert replace(v10, version=v9.version, third_party_answers_required=False) == v9
