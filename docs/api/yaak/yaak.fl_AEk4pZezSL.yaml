@@ -1,0 +1,15 @@
+type: folder
+model: folder
+id: fl_AEk4pZezSL
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PKvrC4MM6R
+name: 'S-9. Старт: предскрин учредителя и проектная оценка'
+description: |-
+  Стартап без оборотов, «Кредит на запуск бизнеса» 3 млн ₽ на 36 месяцев: вместо предодобрения — проверка учредителя → заявка с бизнес-планом и финмоделью → проектная оценка андеррайтером → предложение под 17% → подпись → выдача.
+
+  Входит учредитель ООО «Старт» (`owner@start.test`). Шаги отправляются по порядку.
+sortPriority: 9000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

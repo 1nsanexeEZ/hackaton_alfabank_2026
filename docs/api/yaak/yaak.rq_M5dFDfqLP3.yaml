@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_M5dFDfqLP3
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_6Z3Dg12WRC
+name: Вход по паролю
+description: |-
+  Exchange email or phone + password for an access token. No refresh:
+  log in again when the token expires.
+method: POST
+url: ${[ base_url ]}/auth/login
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "login": "owner@romashka.test",
+      "password": "${[ demo_password ]}"
+    }
+sortPriority: 1000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

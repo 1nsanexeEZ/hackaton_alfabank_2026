@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_JSZdAX6q1k
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PfNW2aqqEA
+name: Закрыть задачу решением
+description: |-
+  Only the assignee closes the task; the process moves on in the same transaction.
+
+  Первая задача очереди. Очередь пуста — пройдите сценарий до шага «у специалиста» (S-2, S-3, S-5, S-6, S-7). Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, вернуть всё — пересоздать базу (`docker compose down -v`).
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/tasks/:task_id/complete
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ task_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "decision": "approve",
+      "amount": "3000000",
+      "term_months": 24,
+      "rate": "24",
+      "comment": "Решение из справочника коллекции"
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,41 @@
+type: http_request
+model: http_request
+id: rq_SqHMOSYTKF
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Выдать доверенность
+description: |-
+  Issued by the head confirmed by the registry; replaces the previous one.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/members/:account_id/poa
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+- enabled: true
+  name: :account_id
+  value: ${[ member_account_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "number": "77 АА 0000001",
+      "issued_at": "2026-10-01",
+      "valid_until": "2027-10-01",
+      "scope": [
+        "submit_application"
+      ]
+    }
+sortPriority: 9000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

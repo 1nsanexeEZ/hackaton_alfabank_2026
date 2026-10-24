@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_bvR0JQiKYm
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_6Z3Dg12WRC
+name: Демо-вход без пароля
+description: |-
+  One-click login into a demo account, without a password. Only with
+  DEMO_LOGIN_ENABLED=true (off on a public stand) and only for the accounts
+  from `GET /auth/demo-accounts`, otherwise 404.
+method: POST
+url: ${[ base_url ]}/auth/demo-login
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "login": "owner@romashka.test"
+    }
+sortPriority: 2000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

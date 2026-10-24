@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_wWvxMhOBQ9
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AyvWxbeHqI
+name: Метрики бэк-офиса
+description: |-
+  By days and products; the last 30 days by default.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/bff/backoffice/metrics
+urlParameters:
+- enabled: false
+  name: date_from
+  value: ''
+- enabled: false
+  name: date_to
+  value: ''
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

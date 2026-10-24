@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_pu1MXlGnOD
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_jSuhpwkwE4
+name: Изменить профиль
+description: |-
+  Update My Profile
+
+  Токен: директор ООО «Ромашка».
+method: PATCH
+url: ${[ base_url ]}/me/profile
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "position": "Генеральный директор"
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

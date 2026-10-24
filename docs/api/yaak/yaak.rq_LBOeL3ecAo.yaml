@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_LBOeL3ecAo
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 02. Дать личные согласия
+description: '201: согласия учредителя на обработку данных и запрос его кредитной истории. Без них проверка учредителя — 422 `consent_required`.'
+method: POST
+url: ${[ base_url ]}/me/consents
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "types": [
+        "personal_data",
+        "credit_bureau_personal"
+      ]
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

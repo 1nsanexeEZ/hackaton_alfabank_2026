@@ -1,0 +1,25 @@
+type: http_request
+model: http_request
+id: rq_ULNS7QTnsE
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Компании
+description: |-
+  My companies with my role and rights; the bank sees every company.
+
+  Под андеррайтером: банк видит все компании. Отсюда переменные справочника `organization_id` (Ромашка) и `startup_organization_id` (Старт).
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/organizations
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

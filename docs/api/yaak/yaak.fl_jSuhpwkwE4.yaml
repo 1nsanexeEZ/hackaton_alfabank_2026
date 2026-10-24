@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_jSuhpwkwE4
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Профиль и согласия
+description: Профиль представителя и его личные согласия (152-ФЗ).
+sortPriority: 3000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,136 @@
+type: http_request
+model: http_request
+id: rq_CMS2NrN7qi
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 04. Сохранить бизнес-план
+description: '201 — первая версия, 200 — новая ревизия: кофейня, выручка 1 млн и расходы 800 тыс. в месяц, гарантия Корпорации МСП на половину кредита.'
+method: PUT
+url: ${[ base_url ]}/organizations/:organization_id/business-plan
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "summary": "Кофейня у метро: зерно от обжарщика, завтраки, доставка по району",
+      "financial_model": {
+        "months": [
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          },
+          {
+            "revenue": "1000000",
+            "expenses": "800000"
+          }
+        ],
+        "own_funds": "1000000",
+        "collateral_description": "Поручительство учредителя",
+        "guarantee": "msp_corporation",
+        "guarantee_share": "0.5",
+        "loan_amount": "3000000",
+        "loan_term_months": 36
+      }
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

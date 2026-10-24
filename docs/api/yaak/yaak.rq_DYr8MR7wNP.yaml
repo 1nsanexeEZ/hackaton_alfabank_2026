@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_DYr8MR7wNP
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_D4y4bxXgkd
+name: Заявки компании
+description: |-
+  List Applications
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/bff/applications
+urlParameters:
+- enabled: true
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: false
+  name: status
+  value: ''
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

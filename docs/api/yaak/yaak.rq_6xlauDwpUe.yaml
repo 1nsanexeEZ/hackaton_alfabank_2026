@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_6xlauDwpUe
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Сверить с реестрами
+description: |-
+  Check against ЕГРЮЛ/ЕГРИП, past the cache. Name, address, KPP, OKVED
+  and the registry status follow the registry (`updated_fields`); a
+  different head is a discrepancy and the check ends in `mismatch`. A
+  member of the company or bank staff; unknown INN — 422
+  `registry_not_found`; the registry did not answer — 503, nothing changes.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/verification
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

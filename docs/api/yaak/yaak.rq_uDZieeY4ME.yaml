@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_uDZieeY4ME
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: '17. Карточка: проектная оценка'
+description: |-
+  Ожидаем: статус `in_review`, этап «Проектная оценка»; процесс `startup_v2`.
+
+  Решение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.
+method: GET
+url: ${[ base_url ]}/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 17000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

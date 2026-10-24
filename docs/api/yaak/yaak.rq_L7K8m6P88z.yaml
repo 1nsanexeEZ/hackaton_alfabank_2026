@@ -1,0 +1,44 @@
+type: http_request
+model: http_request
+id: rq_L7K8m6P88z
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_P85dkFhpWD
+name: Создать роль
+description: |-
+  `policies` maps a permission to the row-level policies applied with it,
+  e.g. `{"requests.read": ["own_only", "not_deleted"]}`. Every key must be
+  listed in `permissions`.
+
+  Создаёт свою роль: следующие запросы папки работают с ней.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/roles
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "name": "yaak-${[ uuid.v4() ]}",
+      "description": "Роль из коллекции Yaak",
+      "permissions": [
+        "feed.read",
+        "requests.read"
+      ],
+      "policies": {
+        "requests.read": [
+          "own_only"
+        ]
+      }
+    }
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

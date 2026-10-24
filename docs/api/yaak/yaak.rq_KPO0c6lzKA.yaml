@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_KPO0c6lzKA
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Лента событий
+description: |-
+  The viewer's feed, newest first: own records and, for bank staff, the
+  back office records (`role:underwriter`).
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/feed
+urlParameters:
+- enabled: false
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: false
+  name: application_id
+  value: ''
+- enabled: false
+  name: unread_only
+  value: ''
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

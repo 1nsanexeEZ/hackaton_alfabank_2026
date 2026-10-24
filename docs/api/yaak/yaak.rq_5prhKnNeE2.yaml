@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_5prhKnNeE2
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PfNW2aqqEA
+name: BPMN-схема процесса
+description: |-
+  BPMN XML for bpmn-js; highlight `visited_node_ids` from /processes.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/workflows/:code/diagram
+urlParameters:
+- enabled: true
+  name: :code
+  value: ${[ workflow_code ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

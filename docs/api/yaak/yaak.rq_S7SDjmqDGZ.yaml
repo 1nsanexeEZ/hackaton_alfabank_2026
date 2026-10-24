@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_S7SDjmqDGZ
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Мои заявки
+description: |-
+  List Applications
+
+  Отсюда `application_id` справочника: самая новая заявка Ромашки.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/applications
+urlParameters:
+- enabled: false
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: false
+  name: status
+  value: ''
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

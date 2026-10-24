@@ -1,0 +1,38 @@
+type: http_request
+model: http_request
+id: rq_7MqNfApwJp
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_D4y4bxXgkd
+name: Калькулятор по предодобренной ставке
+description: |-
+  Schedule at the pre-approved rate and how the request fits the pre-approved
+  terms. Above them is a reason and a suggestion, not an error.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/bff/products/:code/calculate
+urlParameters:
+- enabled: true
+  name: :code
+  value: UNSECURED
+- enabled: true
+  name: organization_id
+  value: ${[ organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "amount": "3000000",
+      "term_months": 24
+    }
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

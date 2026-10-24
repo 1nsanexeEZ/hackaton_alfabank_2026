@@ -1,0 +1,49 @@
+type: environment
+model: environment
+id: ev_LRnXWnQzgy
+workspaceId: wk_6MYZUPM7tf
+name: Переменные справочника
+public: true
+parentModel: folder
+parentId: fl_LRnXWnQzgy
+variables:
+- enabled: true
+  name: organization_id
+  value: ${[ response.body.path(request='rq_ULNS7QTnsE', behavior='smart', path='$[?(@.inn=="7701158817")].id') ]}
+- enabled: true
+  name: startup_organization_id
+  value: ${[ response.body.path(request='rq_ULNS7QTnsE', behavior='smart', path='$[?(@.inn=="7706123455")].id') ]}
+- enabled: true
+  name: application_id
+  value: ${[ response.body.path(request='rq_S7SDjmqDGZ', behavior='smart', path='$[0].id') ]}
+- enabled: true
+  name: document_id
+  value: ${[ response.body.path(request='rq_OZsjvzVyXT', behavior='smart', path='$.document.id') ]}
+- enabled: true
+  name: info_request_id
+  value: ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.info_requests[?(@.status=="open")].id') ]}
+- enabled: true
+  name: task_id
+  value: ${[ response.body.path(request='rq_ZmMRqFsoJm', behavior='smart', path='$[0].id') ]}
+- enabled: true
+  name: new_account_id
+  value: ${[ response.body.path(request='rq_YsQQhYEBP4', behavior='smart', path='$.id') ]}
+- enabled: true
+  name: new_role_id
+  value: ${[ response.body.path(request='rq_L7K8m6P88z', behavior='smart', path='$.id') ]}
+- enabled: true
+  name: member_account_id
+  value: ${[ response.body.path(request='rq_WVKeBv77wI', behavior='smart', path='$.account_id') ]}
+- enabled: true
+  name: feed_item_id
+  value: ${[ response.body.path(request='rq_KPO0c6lzKA', behavior='smart', path='$.items[0].id') ]}
+- enabled: true
+  name: news_id
+  value: ${[ response.body.path(request='rq_Fv4ZHjrLTx', behavior='smart', path='$[0].id') ]}
+- enabled: true
+  name: workflow_code
+  value: ${[ response.body.path(request='rq_25BRmtdb5P', behavior='smart', path='$[0].code') ]}
+color: null
+sortPriority: 1000.0
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

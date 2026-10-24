@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_ZCpCDysTf5
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_7SKPEIQejF
+name: Бухгалтер ООО «Ромашка»
+description: '200 и `access_token` на 30 минут: переменная `token_accountant`.'
+method: POST
+url: ${[ base_url ]}/auth/login
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "login": "accountant@romashka.test",
+      "password": "${[ demo_password ]}"
+    }
+sortPriority: 2000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

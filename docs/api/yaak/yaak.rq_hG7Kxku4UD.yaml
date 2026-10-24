@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_hG7Kxku4UD
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_jSuhpwkwE4
+name: Мой профиль
+description: |-
+  Get Me
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/me
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

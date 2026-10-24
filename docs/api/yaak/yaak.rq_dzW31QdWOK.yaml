@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_dzW31QdWOK
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Согласия компании
+description: |-
+  Company consents in force and the history, newest first. Needs `view` in the company.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/organizations/:organization_id/consents
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

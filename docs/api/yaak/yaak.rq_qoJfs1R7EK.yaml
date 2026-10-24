@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_qoJfs1R7EK
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 09. Заполнить черновик
+description: '200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.'
+method: PATCH
+url: ${[ base_url ]}/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "version": ${[ response.body.path(request='rq_bhrrb6cADa', behavior='smart', path='$.version') ]},
+      "request": {
+        "amount": "3000000",
+        "term_months": 36,
+        "purpose": "working_capital"
+      },
+      "consents": {
+        "personal_data": true,
+        "credit_bureau": true
+      }
+    }
+sortPriority: 9000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

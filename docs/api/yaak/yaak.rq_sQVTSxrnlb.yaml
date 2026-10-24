@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_sQVTSxrnlb
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Бизнес-план стартапа
+description: |-
+  404 — not filled in yet.
+
+  Токен: учредитель ООО «Старт».
+method: GET
+url: ${[ base_url ]}/organizations/:organization_id/business-plan
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ startup_organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 12000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

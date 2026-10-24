@@ -1,0 +1,22 @@
+type: http_request
+model: http_request
+id: rq_IrMfwz82MW
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tp4nOiyJyx
+name: '05. Документ tax_return: загрузить в хранилище'
+description: '200 от MinIO: файл идёт прямо в хранилище по ссылке из прошлого шага, без токена.'
+method: PUT
+url: ${[ response.body.path(request='rq_bxCIEhonNR', behavior='smart', path='$.upload.url') ]}
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/pdf
+bodyType: application/pdf
+body:
+  text: '%PDF-1.4 demo'
+sortPriority: 5000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

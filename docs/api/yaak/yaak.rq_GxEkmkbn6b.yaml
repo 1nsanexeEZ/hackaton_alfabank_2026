@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_GxEkmkbn6b
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_rgp4VZHY1e
+name: '20. Андеррайтер: взять задачу'
+description: '200: задача назначена на андеррайтера, закрыть её может только он.'
+method: POST
+url: ${[ base_url ]}/tasks/:task_id/claim
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ response.body.path(request='rq_JF9x0lLRtE', behavior='smart', path='$.task.id') ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 20000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

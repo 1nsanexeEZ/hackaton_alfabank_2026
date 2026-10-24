@@ -1,0 +1,16 @@
+type: environment
+model: environment
+id: ev_ZIIGTo6sCj
+workspaceId: wk_6MYZUPM7tf
+name: stand
+public: true
+parentModel: environment
+parentId: ev_4WIp6LalIA
+variables:
+- enabled: true
+  name: base_url
+  value: https://alfa-hack.ru/api
+color: '#ef4444'
+sortPriority: 2000.0
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
