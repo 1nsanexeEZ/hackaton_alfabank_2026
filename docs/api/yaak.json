@@ -7134,7 +7134,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_jSuhpwkwE4",
         "name": "Изменить профиль",
-        "description": "Update My Profile\n\nТокен: директор ООО «Ромашка».",
+        "description": "Own profile. The name needs `profile.update_name` as well: clients don't have it,\ntheir name is confirmed by the bank — a changed name is 422 `identity_locked` with the\n`fields`; the same name sent again is accepted.\n\nТокен: директор ООО «Ромашка».",
         "method": "PATCH",
         "url": "${[ base_url ]}/me/profile",
         "urlParameters": [],
