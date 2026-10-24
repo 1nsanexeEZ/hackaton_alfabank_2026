@@ -74,7 +74,7 @@ class CodeNameRead(_Read):
     name: str = Field(description="Как это называется в тексте для клиента")
 
 
-class ReasonRead(_Read):
+class PolicyReasonRead(_Read):
     code: str
     text: str = Field(description="Что клиент увидит в решении")
     hint: str | None = Field(description="Что клиент может сделать")
@@ -87,7 +87,7 @@ class PolicyCatalogRead(_Read):
         description="Шкала `grades` PD-модели; зоны двух моделей покрывают её всегда"
     )
     outcomes: list[CodeNameRead] = Field(description="Исходы решения с текстом для клиента")
-    reasons: list[ReasonRead] = Field(
+    reasons: list[PolicyReasonRead] = Field(
         description="Коды причин с текстами из explanations_ru.yaml; только их можно ставить в "
         "`stop_factors.registry_statuses` и `routing.flags`, тексты здесь не правятся"
     )
@@ -118,7 +118,7 @@ class VerdictRead(_Read):
     policy_version: str
 
 
-class PreviewItemRead(_Read):
+class PolicyPreviewItemRead(_Read):
     application_id: UUID
     result_id: UUID = Field(description="Сохранённое автоматическое решение")
     decided_at: datetime
@@ -142,7 +142,7 @@ class OutcomeShiftRead(BaseModel):
         )
 
 
-class PreviewRead(BaseModel):
+class PolicyPreviewRead(BaseModel):
     version: str
     total: int = Field(description="Сколько заявок решено заново")
     changed: int = Field(description="Другой исход или другие коды причин")
@@ -151,10 +151,10 @@ class PreviewRead(BaseModel):
     transitions: list[OutcomeShiftRead] = Field(
         description="Переходы исходов «было → стало», только непустые"
     )
-    items: list[PreviewItemRead]
+    items: list[PolicyPreviewItemRead]
 
     @classmethod
-    def of(cls, preview: Preview) -> PreviewRead:
+    def of(cls, preview: Preview) -> PolicyPreviewRead:
         return cls(
             version=preview.version,
             total=len(preview.items),
@@ -166,8 +166,8 @@ class PreviewRead(BaseModel):
         )
 
 
-def _item(item: PreviewItem) -> PreviewItemRead:
-    return PreviewItemRead(
+def _item(item: PreviewItem) -> PolicyPreviewItemRead:
+    return PolicyPreviewItemRead(
         application_id=item.application_id,
         result_id=item.result_id,
         decided_at=item.decided_at,

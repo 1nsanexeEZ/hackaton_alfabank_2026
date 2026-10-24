@@ -21,9 +21,9 @@ from src.modules.decision.api.policy_schemas import (
     DraftCreate,
     DraftUpdate,
     PolicyCatalogRead,
+    PolicyPreviewRead,
     PolicyVersionRead,
     PolicyVersionSummaryRead,
-    PreviewRead,
 )
 
 router = APIRouter(prefix="/decision/policies", tags=["decision"])
@@ -112,7 +112,7 @@ async def activate_version(
     return PolicyVersionRead.of(activated)
 
 
-@router.post("/{version}/preview", response_model=PreviewRead, dependencies=CanRead)
+@router.post("/{version}/preview", response_model=PolicyPreviewRead, dependencies=CanRead)
 async def preview_version(
     version: str,
     versions: PolicyVersionsDep,
@@ -120,7 +120,7 @@ async def preview_version(
     inputs: InputBuildersDep,
     key_rate: KeyRateDep,
     limit: Annotated[int, Query(ge=1, le=PREVIEW_LIMIT)] = 50,
-) -> PreviewRead:
+) -> PolicyPreviewRead:
     """A try-on, not an exact replay: the latest `limit` applications with an automatic
     decision are decided again by this version — stop factors first, then the decision,
     as the process does. The input is gathered anew from the current data (the
@@ -130,4 +130,4 @@ async def preview_version(
     decision and its `policy_version`) and after, and how the outcomes moved. Nothing is
     written; an application whose input cannot be gathered any more is counted in
     `skipped`."""
-    return PreviewRead.of(await versions.preview(version, limit, history, inputs, key_rate))
+    return PolicyPreviewRead.of(await versions.preview(version, limit, history, inputs, key_rate))
