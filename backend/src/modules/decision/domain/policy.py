@@ -69,7 +69,16 @@ policy_v8 — v7 и третьи лица по 115-ФЗ. Выгодоприоб�
 (STOP_AML_LISTED, как у всех). Клиент действует к выгоде третьего лица → ручная проверка
 (ROUTE_THIRD_PARTY_BENEFICIARY). Нет ответа о выгодоприобретателе или залог третьего лица без
 владельца → ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN) — правило включается ключом
-`require_answers`, когда форма заявки задаёт вопрос; пока выключено, факт пишется в трассу.
+`require_answers`, когда форма заявки задаёт вопрос; в v8 и v9 выключено, факт пишется в трассу.
+
+policy_v9 — v8 и группа риска клиента по 115-ФЗ (ст. 7 п. 1 подп. 3.1): низкая, средняя, высокая
+по факторам (перечни, ЗСК, ПДЛ, участники из государств ФАТФ, иностранные участники, расхождение
+названных клиентом бенефициаров с ЕГРЮЛ, выгодоприобретатель, ОКВЭД повышенного риска); высокая →
+ручная проверка (ROUTE_AML_HIGH_RISK). Лицензируемая деятельность без лицензии — отказ
+(STOP_UNLICENSED_ACTIVITY, ст. 7 п. 15).
+
+policy_v10 — v9 с `require_answers`: форма заявки спрашивает о третьих лицах, без ответа —
+ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN).
 
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
@@ -536,6 +545,11 @@ _BASES = {
 
 
 _GROUPS = {"low": "низкая", "medium": "средняя", "high": "высокая"}
+# Почему ML-модель не оценивала заявку (скоринг, `ml_not_applicable`).
+_ML_NOT_APPLICABLE = {
+    "no_revenue": "ML-модель не применяется: у компании нет выручки, модель обучена на "
+    "действующих компаниях",
+}
 
 
 def _zsk(level: str | None) -> str:
@@ -1565,10 +1579,11 @@ class _Evaluation:
         pd_zone = self._c.model_zones[score.grade]
         pd_side = f"PD-модель: грейд {score.grade}{_pd_note(score.pd_12m)} — {_ZONE_NAMES[pd_zone]}"
         if score.ml_grade is None:
+            why = _ML_NOT_APPLICABLE.get(score.ml_not_applicable or "", "оценки ML-модели нет")
             self._hit(
                 "strategy.two_models",
                 True,
-                f"{pd_side}; оценки ML-модели нет → {_VERDICT_NAMES['dispute']}",
+                f"{pd_side}; {why} → {_VERDICT_NAMES['dispute']}",
             )
             return "dispute"
         ml_zone = self._c.model_zones[score.ml_grade]

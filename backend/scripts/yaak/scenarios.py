@@ -131,6 +131,8 @@ class Scenario:
             "version": Raw(self.answer("create", "$.version")),
             "request": {"amount": amount, "term_months": term, "purpose": purpose},
             "consents": {"personal_data": True, "credit_bureau": True},
+            # 115-ФЗ: клиент действует к своей выгоде (вопрос формы заявки).
+            "beneficiary": {"acts_for_third_party": False},
         }
         if collateral is not None:
             body["collateral"] = collateral
@@ -141,7 +143,10 @@ class Scenario:
             "Заполнить черновик",
             "PATCH",
             "/applications/{application_id}",
-            note="200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+            note=(
+                "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что "
+                "клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек)."
+            ),
             body=body,
         )
 

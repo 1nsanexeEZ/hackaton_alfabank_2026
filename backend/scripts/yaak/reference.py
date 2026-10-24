@@ -337,6 +337,7 @@ def _bodies() -> dict[str, Any]:
             "version": Raw(answer(ref("GET", application), "$.version", behavior="always")),
             "request": {"amount": "1000000", "term_months": 12, "purpose": "cash_gap"},
             "consents": {"personal_data": True, "credit_bureau": True},
+            "beneficiary": {"acts_for_third_party": False},
         },
         f"POST {application}/documents": {
             "type": "bank_statement",

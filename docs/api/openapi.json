@@ -16906,6 +16906,18 @@
             "type": "array",
             "title": "Quality Reasons",
             "default": []
+          },
+          "ml_not_applicable": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "no_revenue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Not Applicable"
           }
         },
         "type": "object",

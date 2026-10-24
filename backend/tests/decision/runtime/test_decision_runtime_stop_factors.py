@@ -29,7 +29,7 @@ def liquidate(world: DecisionWorld) -> None:
 
 
 async def test_clean_company_goes_on_to_scoring(session_factory: Sessions) -> None:
-    world = await build_world("s1_romashka")
+    world = await build_world("s1_romashka", acts_for_itself=True)
     event_id = uuid4()
 
     outbox = await check_stop_factors(session_factory, world, event_id)
@@ -42,7 +42,7 @@ async def test_clean_company_goes_on_to_scoring(session_factory: Sessions) -> No
 
 
 async def test_stop_factor_is_a_decision_without_the_model(session_factory: Sessions) -> None:
-    world = await build_world("s1_romashka")
+    world = await build_world("s1_romashka", acts_for_itself=True)
     liquidate(world)
     event_id = uuid4()
 
@@ -55,7 +55,7 @@ async def test_stop_factor_is_a_decision_without_the_model(session_factory: Sess
     assert staged.causation_id == event_id
     stored = await decision(session_factory, world.application_id)
     assert stored is not None and stored.id == made.decision_id
-    assert stored.policy_version == "policy_v9"
+    assert stored.policy_version == "policy_v10"
     assert stored.reason_codes == ("STOP_LIQUIDATION",)
     assert not any(hit.rule.startswith("strategy.") for hit in stored.rule_trace)
     record = await by_command(session_factory, event_id)

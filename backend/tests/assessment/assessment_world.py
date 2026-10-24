@@ -241,6 +241,8 @@ class Assessment:
             "version": version,
             "request": {"amount": amount, "term_months": term, "purpose": purpose},
             "consents": {"personal_data": True, "credit_bureau": True},
+            # 115-ФЗ: вопрос формы заявки; без ответа policy_v10 отдаёт заявку человеку.
+            "beneficiary": {"acts_for_third_party": False},
         }
         if collateral is not None:
             body["collateral"] = collateral

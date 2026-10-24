@@ -25,7 +25,7 @@ _INTERNAL_FIELDS = {"reason_codes", "rule_trace", "limits", "comment", "key_rate
 
 
 async def test_bank_view_explains_the_decision(session_factory: Sessions) -> None:
-    world = await build_world("s3_vector")
+    world = await build_world("s3_vector", acts_for_itself=True)
     await make_decision(session_factory, world)
 
     bank = await decision(session_factory, world.application_id)
@@ -39,7 +39,7 @@ async def test_bank_view_explains_the_decision(session_factory: Sessions) -> Non
 
 
 async def test_client_view_has_no_internal_data(session_factory: Sessions) -> None:
-    world = await build_world("s3_vector")
+    world = await build_world("s3_vector", acts_for_itself=True)
     await make_decision(session_factory, world)
     comment = "Внутренняя пометка: проверить связь с ООО «Рога»"
     await record_manual(
@@ -64,7 +64,7 @@ async def test_client_view_has_no_internal_data(session_factory: Sessions) -> No
 
 
 async def test_client_view_of_the_automatic_decision(session_factory: Sessions) -> None:
-    world = await build_world("s4_zakat")
+    world = await build_world("s4_zakat", acts_for_itself=True)
     await make_decision(session_factory, world)
 
     view = await client_view(session_factory, world.application_id)

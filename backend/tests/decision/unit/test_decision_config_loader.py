@@ -48,7 +48,7 @@ def _load(
 
 def test_default_policy_loads() -> None:
     policy = default_policy()
-    assert policy.version == "policy_v9"
+    assert policy.version == "policy_v10"
     assert policy.config.screen_before_scoring
     assert policy.config.startup_products == frozenset({"STARTUP"})
     assert policy.config.key_rate_reference == Decimal("16.50")
@@ -308,3 +308,23 @@ def test_v9_is_v8_with_the_aml_risk_group_and_licensing() -> None:
         )
         == v8
     )
+
+
+def test_v10_is_v9_requiring_answers_about_third_parties() -> None:
+    v9, v10 = load_policy("policy_v9").config, load_policy("policy_v10").config
+    assert not v9.third_party_answers_required and v10.third_party_answers_required
+    assert replace(v10, version=v9.version, third_party_answers_required=False) == v9
+
+
+def test_repeated_key_is_an_error(tmp_path: Path) -> None:
+    """Обычный YAML молча берёт последний из повторяющихся ключей — загрузчик так не делает."""
+    texts = (_CONFIG / "explanations_ru.yaml").read_text(encoding="utf-8")
+    texts = texts.replace(
+        "  STOP_AML_LISTED:\n",
+        '  STOP_AML_LISTED:\n    hint: "Лишняя подсказка."\n    hint: "Ещё одна."\n',
+        1,
+    )
+    path = tmp_path / "explanations.yaml"
+    path.write_text(texts, encoding="utf-8")
+    with pytest.raises(PolicyConfigError, match="повторяется"):
+        load_policy_files(_CONFIG / "policy_v10.yaml", path)

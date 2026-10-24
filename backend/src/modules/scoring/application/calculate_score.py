@@ -10,7 +10,8 @@
 - «Данные полные?»: не ответил критичный источник или мало признаков с данными → `quality =
   degraded`; модели всё равно посчитаны (их видит андеррайтер), решение отдаёт заявку человеку;
 - scoring ничего не знает про ставки и лимиты и не меняет статусы;
-- ScoreCalculated несёт оценку PD-модели и качество данных; ML-оценку decision читает из результата.
+- ScoreCalculated несёт оценку PD-модели и качество данных; ML-оценку decision читает из результата;
+- ML-модель не оценивает компанию без выручки (`ml_not_applicable`): в результате — почему.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from src.modules.scoring.application.ports import (
 )
 from src.modules.scoring.application.serialization import dump_input, input_hash
 from src.modules.scoring.domain.client_features import FeatureSnapshot
+from src.modules.scoring.domain.ml_model import ml_not_applicable
 from src.modules.scoring.domain.model import ScoringResult
 
 
@@ -90,6 +92,8 @@ class CalculateScoreUseCase:
             if self._quality is not None
             else None
         )
+        # ML-модель не оценивает заявку вне своей области (нет выручки) — её зоне не верят.
+        not_applicable = ml_not_applicable(scoring_input)
         stored = dump_input(scoring_input)
         if stored_features is not None:
             # Откуда признаки клиента; только с хранилищем — старые снимки хешируются, как раньше.
@@ -111,7 +115,10 @@ class CalculateScoreUseCase:
             scorecard=output.scorecard,
             pd_12m=output.pd_12m,
             reason_codes=output.reason_codes,
-            ml=self._ml_model.predict(scoring_input) if self._ml_model is not None else None,
+            ml=self._ml_model.predict(scoring_input)
+            if self._ml_model is not None and not_applicable is None
+            else None,
+            ml_not_applicable=not_applicable if self._ml_model is not None else None,
             quality=quality.level if quality is not None else None,
             quality_reasons=quality.reasons if quality is not None else (),
         )
