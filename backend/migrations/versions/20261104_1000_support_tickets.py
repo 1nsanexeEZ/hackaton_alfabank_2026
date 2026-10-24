@@ -1,8 +1,8 @@
 """support: tickets of clients and their messages
 
 Revision ID: support_0001
-Revises: applications_0003
-Create Date: 2026-10-31 10:00:00
+Revises: applications_0006
+Create Date: 2026-11-04 10:00:00
 """
 
 from collections.abc import Sequence
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.schema import CreateSequence, DropSequence
 
 revision: str = "support_0001"
-down_revision: str | None = "applications_0003"
+down_revision: str | None = "applications_0006"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
