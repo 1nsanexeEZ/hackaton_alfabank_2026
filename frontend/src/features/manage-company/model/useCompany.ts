@@ -39,6 +39,7 @@ export function useCompany() {
   const can = (permission: string) => detail.value?.my_permissions.includes(permission as never) ?? false
   const canEditFinancials = computed(() => can('edit_financials'))
   const canManageMembers = computed(() => can('manage_members'))
+  const canSubmit = computed(() => can('submit_application'))
 
   async function loadOrganizations() {
     loading.value = true
@@ -187,6 +188,7 @@ export function useCompany() {
     notice,
     verification,
     canEditFinancials,
+    canSubmit,
     canManageMembers,
     loadOrganizations,
     loadCompany,

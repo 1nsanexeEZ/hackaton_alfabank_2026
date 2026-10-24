@@ -5,8 +5,11 @@ import type { PreApprovedOfferDto } from '@/shared/api'
 import { formatDate, formatMoney, formatPercent, formatTermLimit } from '@/shared/lib'
 import { BaseButton } from '@/shared/ui'
 
-/** Предварительное одобрение: до какой суммы и под какую ставку банк готов дать без долгой проверки */
-defineProps<{ offers: PreApprovedOfferDto[]; productTitle: (code: string) => string }>()
+/**
+ * Предварительное одобрение: до какой суммы и под какую ставку банк готов дать без долгой проверки.
+ * Только компаниям, сверенным с ЕГРЮЛ: при расхождении с реестром предложения снимаются.
+ */
+defineProps<{ offers: PreApprovedOfferDto[]; productTitle: (code: string) => string; verified: boolean }>()
 
 const emit = defineEmits<{ apply: [code: string, maxAmount: number] }>()
 </script>
@@ -17,7 +20,10 @@ const emit = defineEmits<{ apply: [code: string, maxAmount: number] }>()
     <p class="mt-0.5 text-sm text-ink-secondary">
       Оценка по данным банка, без бюро кредитных историй и выписок. Окончательное решение — после заявки.
     </p>
-    <p v-if="!offers.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
+    <p v-if="!offers.length && !verified" class="mt-3 rounded-2xl bg-warning-soft p-4 text-sm text-ink">
+      Предложения появятся после сверки компании с ЕГРЮЛ — проверьте реквизиты выше и сверьте их с реестром
+    </p>
+    <p v-else-if="!offers.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
       Пока нет — подайте финансовую отчётность, и банк пересчитает предложение
     </p>
     <ul v-else class="mt-3 grid gap-2 sm:grid-cols-2">
