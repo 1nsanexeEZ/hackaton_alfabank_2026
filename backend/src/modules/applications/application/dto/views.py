@@ -94,9 +94,23 @@ class ContractSignatureDTO:
 
 
 @dataclass(frozen=True, slots=True)
+class ContractDocumentDTO:
+    """The current PDF of the contract: the draft while signing, then the sealed copy."""
+
+    id: UUID | None
+    kind: Literal["draft", "signed"]
+    status: Literal["pending", "ready", "failed"]
+    sha256: str | None
+    created_at: datetime | None
+    filename: str | None
+    # The public check page the QR code of the sealed copy leads to.
+    verify_url: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ContractDTO:
     """What the client signs: the offer, the schedule it gives and who may
-    sign. Rendered by the frontend from these fields."""
+    sign, and the PDF of the contract once it is made."""
 
     number: str
     offer_hash: str
@@ -106,6 +120,9 @@ class ContractDTO:
     terms: OfferDTO
     schedule: PaymentScheduleDTO
     signature: ContractSignatureDTO | None
+    # Unique identifier of the deal for the credit history (218-FZ).
+    uid: str | None = None
+    document: ContractDocumentDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

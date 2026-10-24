@@ -13,6 +13,7 @@ from sqlalchemy import (
     Sequence,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
@@ -161,3 +162,48 @@ class SignatureRecord(Base):
     ip: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(512))
     edo_document_id: Mapped[str | None] = mapped_column(String(128))
+    # SHA-256 of the contract draft the client saw and the rules of electronic
+    # interaction it accepted; empty for signatures made by the terms only.
+    document_hash: Mapped[str | None] = mapped_column(String(64))
+    rules_version: Mapped[str | None] = mapped_column(String(32))
+
+
+class ContractDocumentRecord(Base):
+    """A PDF of the contract in the archive: the draft or the copy sealed by the bank."""
+
+    __tablename__ = "applications_contract_documents"
+    __table_args__ = (UniqueConstraint("application_id", "kind", "offer_hash"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    application_id: Mapped[UUID] = mapped_column(
+        ForeignKey("applications_applications.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    offer_hash: Mapped[str] = mapped_column(String(64))
+    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    size: Mapped[int] = mapped_column(Integer)
+    storage_key: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # The bank's signature of a sealed copy: certificate and time.
+    seal: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
+
+
+class ContractEventRecord(Base):
+    """The signing log of a contract: each entry carries the hash of the previous one."""
+
+    __tablename__ = "applications_contract_events"
+    __table_args__ = (UniqueConstraint("application_id", "seq"),)
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    application_id: Mapped[UUID] = mapped_column(
+        ForeignKey("applications_applications.id", ondelete="CASCADE")
+    )
+    seq: Mapped[int] = mapped_column(Integer)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    kind: Mapped[str] = mapped_column(String(32))
+    actor: Mapped[str] = mapped_column(String(255))
+    details: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    prev_hash: Mapped[str] = mapped_column(String(64))
+    hash: Mapped[str] = mapped_column(String(64))
