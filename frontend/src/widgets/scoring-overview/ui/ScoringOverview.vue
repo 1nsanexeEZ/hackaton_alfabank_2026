@@ -223,6 +223,9 @@ const pd = (value: string | null | undefined) => (value ? formatProbability(Numb
                       PD {{ pd(item.card.scoring.ml.pd_12m) }}{{ disagree(item) ? ' · зоны расходятся' : '' }}
                     </p>
                   </template>
+                  <span v-else-if="item.card.scoring?.ml_not_applicable === 'no_revenue'" class="text-xs text-ink-secondary">
+                    не применяется — нет выручки
+                  </span>
                   <span v-else class="text-xs text-ink-secondary">—</span>
                 </td>
                 <td class="px-4 py-3 text-xs">

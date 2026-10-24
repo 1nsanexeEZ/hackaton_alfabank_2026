@@ -631,6 +631,9 @@ const RATE_PARTS = [
             <p v-if="modelsVerdict" class="mb-3 text-sm font-semibold" :class="modelsAgree ? 'text-ink' : 'text-warning'">
               {{ modelsVerdict }}
             </p>
+            <p v-else-if="data.scoring.ml_not_applicable === 'no_revenue'" class="mb-3 text-xs text-ink-secondary">
+              ML-модель не применяется: у компании нет выручки ни в заявке, ни по ФНС, а модель обучена на действующих компаниях
+            </p>
             <p v-else class="mb-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
 
             <div class="grid grid-cols-2 gap-3">
