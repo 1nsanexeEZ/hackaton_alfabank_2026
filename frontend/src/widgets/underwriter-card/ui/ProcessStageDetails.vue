@@ -266,7 +266,7 @@ const models = computed(() => {
 
     <template v-else-if="stage === 'decision' || stage === 'rejected'">
       <template v-if="decision">
-        <!-- На этапе «Отказ» исход уже в заголовке — только кто решил, причины и текст клиенту -->
+        <!-- На этапе «Отказ» исход уже в заголовке — только кто решил, причины и комментарий андеррайтера -->
         <div class="flex flex-wrap items-center gap-2">
           <BaseBadge v-if="stage === 'decision'" :tone="OUTCOME_LABEL[decision.outcome]?.tone ?? 'neutral'">
             {{ OUTCOME_LABEL[decision.outcome]?.label ?? decision.outcome }}
@@ -283,9 +283,6 @@ const models = computed(() => {
         </ul>
         <p v-if="stage === 'decision' && decision.limits.final" class="text-ink-secondary">Итоговый лимит {{ money(decision.limits.final) }}</p>
         <p v-if="stage === 'rejected' && manual && decision.comment" class="text-ink-secondary">Комментарий андеррайтера: «{{ decision.comment }}»</p>
-        <p v-if="stage === 'rejected' && decision.client_explanation" class="rounded-lg bg-white p-2.5 text-ink-secondary">
-          Клиенту: «{{ decision.client_explanation }}»
-        </p>
       </template>
       <p v-else class="text-ink-secondary">Решения ещё нет.</p>
     </template>
