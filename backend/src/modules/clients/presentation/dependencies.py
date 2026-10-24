@@ -27,6 +27,7 @@ from src.modules.clients.application.use_cases.business_plan import (
     GetBusinessPlanUseCase,
     SubmitBusinessPlanUseCase,
 )
+from src.modules.clients.application.use_cases.inn_check import CheckInnUseCase
 from src.modules.clients.application.use_cases.members import (
     AddMemberUseCase,
     ChangeMemberRoleUseCase,
@@ -56,6 +57,9 @@ from src.modules.clients.application.use_cases.verification import (
     VerifyOrganizationUseCase,
 )
 from src.modules.clients.infrastructure.adapters.clients_facade import ClientsFacadeImpl
+from src.modules.clients.infrastructure.adapters.enrichment_company_check import (
+    EnrichmentCompanyCheck,
+)
 from src.modules.clients.infrastructure.adapters.enrichment_registry import (
     EnrichmentRegistryLookup,
 )
@@ -143,6 +147,10 @@ ReadAccess = Annotated[
 UpdateAccess = Annotated[
     AccessContext, Depends(get_access_context_for(Permissions.ORGANIZATIONS_UPDATE))
 ]
+# Bank staff only: the check by INN before an application.
+BackofficeAccess = Annotated[
+    AccessContext, Depends(get_access_context_for(Permissions.BACKOFFICE_READ))
+]
 
 
 # --- organizations -------------------------------------------------------------
@@ -169,6 +177,12 @@ def get_verify_organization(
     return VerifyOrganizationUseCase(
         uow, organizations, outbox, clock, EnrichmentRegistryLookup(enrichment), identity
     )
+
+
+def get_check_inn(
+    organizations: Organizations, clock: ClockDep, enrichment: EnrichmentDep
+) -> CheckInnUseCase:
+    return CheckInnUseCase(EnrichmentCompanyCheck(enrichment), organizations, clock)
 
 
 # --- members -------------------------------------------------------------------
@@ -235,6 +249,7 @@ def get_submit_business_plan(
 ListOrganizationsDep = Annotated[ListOrganizationsUseCase, Depends(get_list_organizations)]
 GetOrganizationDep = Annotated[GetOrganizationUseCase, Depends(get_get_organization)]
 VerifyOrganizationDep = Annotated[VerifyOrganizationUseCase, Depends(get_verify_organization)]
+CheckInnDep = Annotated[CheckInnUseCase, Depends(get_check_inn)]
 ListMembersDep = Annotated[ListMembersUseCase, Depends(get_list_members)]
 AddMemberDep = Annotated[AddMemberUseCase, Depends(get_add_member)]
 ChangeMemberRoleDep = Annotated[ChangeMemberRoleUseCase, Depends(get_change_member_role)]
