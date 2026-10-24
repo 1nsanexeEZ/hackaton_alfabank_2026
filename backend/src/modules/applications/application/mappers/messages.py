@@ -78,4 +78,5 @@ def decision_of(
         client_explanation=command.client_explanation,
         improvement_hints=tuple(command.improvement_hints),
         alternative_product_code=command.alternative_product_code,
+        decided_by=command.decided_by,
     )

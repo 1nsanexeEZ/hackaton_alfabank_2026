@@ -12,7 +12,7 @@ from src.modules.applications.application.interfaces.repositories import Applica
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.enums import ApplicationStatus
 from src.modules.applications.domain.statuses import FINAL_STATUSES
-from src.modules.applications.domain.value_objects import ApplicationNumber
+from src.modules.applications.domain.value_objects import ApplicationNumber, DecidedBy
 from src.modules.applications.infrastructure.database.models import (
     NUMBER_SEQUENCE,
     ApplicationRecord,
@@ -88,6 +88,7 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
         statuses: Sequence[str] | None,
         limit: int,
         offset: int,
+        decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]:
         stmt = select(ApplicationRecord)
         if access is not None:
@@ -96,6 +97,8 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
             stmt = stmt.where(ApplicationRecord.organization_id == organization_id)
         if statuses:
             stmt = stmt.where(ApplicationRecord.status.in_(list(statuses)))
+        if decided_by is not None:
+            stmt = stmt.where(ApplicationRecord.decided_by == decided_by)
         stmt = stmt.order_by(ApplicationRecord.updated_at.desc(), ApplicationRecord.id)
         records = (await self._session.scalars(stmt.limit(limit).offset(offset))).all()
         return [to_domain(record) for record in records]

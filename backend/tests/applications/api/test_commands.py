@@ -130,12 +130,14 @@ def test_offer_is_presented(world: World) -> None:
             client_explanation="Одобрили меньшую сумму: выручка подтверждает 2,5 млн",
             improvement_hints=["Подтвердите выручку выпиской"],
             alternative_product_code="OVERDRAFT",
+            decided_by="auto",
         ),
     )
     body = card(world, application_id)
     assert body["status"] == "offer_ready"
     assert body["offer"]["amount"] == "2500000.00"
     assert body["offer"]["kind"] == "counter"
+    # who decided is for the bank's list, the client's card does not carry it
     assert body["decision_summary"] == {
         "outcome": "COUNTER_OFFER",
         "client_explanation": "Одобрили меньшую сумму: выручка подтверждает 2,5 млн",
@@ -159,6 +161,61 @@ def test_rejection(world: World) -> None:
     assert body["status"] == "rejected"
     assert body["decision_summary"]["outcome"] == "REJECT"
     assert body["closed_at"] is not None
+
+
+def test_staff_list_tells_who_decided(world: World) -> None:
+    def reject(decided_by: str | None) -> str:
+        application_id = submitted(world)
+        send(world, StartReview(application_id=UUID(application_id)))
+        send(
+            world,
+            RejectApplication(
+                application_id=UUID(application_id),
+                decision_id=uuid4(),
+                client_explanation="Отказ",
+                decided_by=decided_by,  # type: ignore[arg-type]
+            ),
+        )
+        return application_id
+
+    by_policy, by_underwriter, unknown = reject("auto"), reject("underwriter"), reject(None)
+    offered = submitted(world)
+    send(world, StartReview(application_id=UUID(offered)))
+    send(
+        world,
+        PresentOffer(
+            application_id=UUID(offered),
+            decision_id=uuid4(),
+            offer=offer_terms(world),
+            client_explanation="Одобрено",
+            decided_by="auto",
+        ),
+    )
+    draft = world.create(product_code="OVERDRAFT")["id"]
+    # the next save of the application keeps who decided
+    world.client.post(
+        f"/applications/{offered}/offer/accept", headers=world.headers(world.director)
+    )
+
+    def listed(**params: str) -> dict[str, str | None]:
+        response = world.client.get("/applications", params=params, headers=world.underwriter())
+        assert response.status_code == 200, response.text
+        return {item["id"]: item["decided_by"] for item in response.json()}
+
+    assert listed() == {
+        by_policy: "auto",
+        by_underwriter: "underwriter",
+        unknown: None,
+        offered: "auto",
+        draft: None,
+    }
+    assert listed(decided_by="auto") == {by_policy: "auto", offered: "auto"}
+    assert listed(decided_by="auto", status="rejected") == {by_policy: "auto"}
+    assert listed(decided_by="underwriter") == {by_underwriter: "underwriter"}
+    response = world.client.get(
+        "/applications", params={"decided_by": "robot"}, headers=world.underwriter()
+    )
+    assert response.status_code == 422
 
 
 def test_command_after_cancel_is_acknowledged(world: World) -> None:

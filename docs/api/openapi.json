@@ -2207,6 +2207,7 @@
           "applications"
         ],
         "summary": "List Applications",
+        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`.",
         "operationId": "list_applications_applications_get",
         "security": [
           {
@@ -2248,6 +2249,26 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "decided_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "underwriter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Decided By"
             }
           },
           {
@@ -5640,6 +5661,21 @@
               }
             ],
             "title": "Submitted At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "underwriter"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
           }
         },
         "type": "object",
@@ -5653,7 +5689,8 @@
           "amount",
           "term_months",
           "updated_at",
-          "submitted_at"
+          "submitted_at",
+          "decided_by"
         ],
         "title": "ApplicationListItem"
       },

@@ -334,6 +334,7 @@ def summary_dto(application: CreditApplication) -> ApplicationSummaryDTO:
         client_stage=application.client_stage,
         updated_at=application.updated_at,
         submitted_at=application.submitted_at,
+        decided_by=summary.decided_by if (summary := application.decision_summary) else None,
     )
 
 
