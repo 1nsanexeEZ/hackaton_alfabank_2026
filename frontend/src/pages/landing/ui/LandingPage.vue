@@ -15,7 +15,6 @@ import { FaqSection } from '@/widgets/faq'
 import { HeroSection } from '@/widgets/hero'
 import { LoanCalculatorSection } from '@/widgets/loan-calculator'
 import { ProcessSteps } from '@/widgets/process-steps'
-import { ProductPickerSection } from '@/widgets/product-picker'
 import { ProductsCatalog } from '@/widgets/products-catalog'
 
 // Каталог — из GET /products; параметры кредита общие для каталога, калькулятора и модалки заявки
@@ -51,7 +50,7 @@ function applyForProduct(productId: string) {
 }
 
 /**
- * Компании вошедшего клиента: калькулятор считает по ставке предодобрения выбранной
+ * Компании вошедшего клиента: подбор проверяет выбранную, калькулятор считает по ставке её предодобрения
  * (POST /bff/products/{code}/calculate), а «Оформить» открывает заявку от неё же
  */
 const companies = shallowRef<{ id: string; name: string }[] | null>(null)
@@ -75,34 +74,10 @@ watch(
   { immediate: true },
 )
 
-function applyFromCalculator() {
-  if (calculatorCompany.value) loanDraft.organizationId = calculatorCompany.value
+/** Подбор и расчёт: сумма и срок уже подогнаны под выбранный продукт — переносим их в заявку как есть */
+function applyFromCalculator(params: { productId: string; amount: number; termMonths: number; purpose: LoanPurpose; organizationId: string }) {
+  Object.assign(loanDraft, { ...params, organizationId: params.organizationId || undefined })
   void startApplication()
-}
-
-/** Подбор под задачу: условия подогнаны под продукт — переносим их в заявку или калькулятор как есть */
-function pickedProduct(code: string) {
-  return products.value?.find((product) => product.code === code)
-}
-
-function applyPicked(params: { productCode: string; amount: number; termMonths: number; purpose: LoanPurpose; organizationId?: string }) {
-  const product = pickedProduct(params.productCode)
-  if (!product) return
-  Object.assign(loanDraft, {
-    productId: product.id,
-    amount: params.amount,
-    termMonths: params.termMonths,
-    purpose: params.purpose,
-    organizationId: params.organizationId,
-  })
-  void startApplication()
-}
-
-function calculatePicked(params: { productCode: string; amount: number; termMonths: number }) {
-  const product = pickedProduct(params.productCode)
-  if (!product) return
-  Object.assign(loanDraft, { productId: product.id, amount: params.amount, termMonths: params.termMonths })
-  scrollToSection(SECTION_ID.calculator)
 }
 
 /** «Продолжить заявку» на карточке первого экрана: мастер откроется с компанией и условиями черновика */
@@ -116,17 +91,17 @@ function continueApplication(draft: ApplicationDraft) {
   <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" @open="openApplicationCard" />
   <BenefitsSection />
   <template v-if="products">
-    <ProductPickerSection :products="products" @apply="applyPicked" @calculate="calculatePicked" />
-    <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
     <LoanCalculatorSection
       v-model:product-id="loanDraft.productId"
       v-model:amount="loanDraft.amount"
       v-model:term-months="loanDraft.termMonths"
+      v-model:purpose="loanDraft.purpose"
       v-model:organization-id="calculatorCompany"
       :products="products"
       :companies="companies"
       @apply="applyFromCalculator"
     />
+    <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
   </template>
   <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->
   <section v-else :id="SECTION_ID.products" class="py-16 lg:py-24">
