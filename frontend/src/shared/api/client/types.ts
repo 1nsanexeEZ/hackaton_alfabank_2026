@@ -1,3 +1,4 @@
+import type { DownloadedFile } from '../http'
 import type { MeDto, TokenResponse } from '../identity/types'
 
 /**
@@ -659,12 +660,33 @@ export interface ContractPaymentDto {
 }
 
 /**
+ * PDF договора. draft — проект до подписи, signed — итоговый: с листом подписания и подписью банка.
+ * Пока документ формируется (pending), id и sha256 — null; при сбое (failed) бэкенд может прислать только status.
+ */
+export interface ContractDocumentDto {
+  id?: string | null
+  kind?: 'draft' | 'signed'
+  status: 'pending' | 'ready' | 'failed'
+  /** SHA-256 файла; у проекта это document_hash для подписи */
+  sha256?: string | null
+  created_at?: string | null
+  filename?: string | null
+  /** Публичная страница проверки — только у подписанного и готового */
+  verify_url?: string | null
+}
+
+/**
  * Договор перед подписью (GET /applications/{id}/contract), с этапа signing и дальше.
- * PDF нет — договор рендерим из полей; offer_hash уходит обратно в подпись.
+ * Условия рендерим из полей; offer_hash уходит обратно в подпись. Поля uid и document есть
+ * только у бэкенда с PDF договора — со старым бэкендом их нет, и подпись идёт как раньше.
  */
 export interface ContractDto {
   /** Номер заявки: отдельной нумерации договоров нет */
   number: string
+  /** УИд договора (218-ФЗ): UUID и контрольный символ */
+  uid?: string
+  /** PDF договора; null — ещё не начали формировать, поля нет — бэкенд без PDF */
+  document?: ContractDocumentDto | null
   offer_hash: string
   status: 'unsigned' | 'signed'
   borrower: { name: string; inn: string; ogrn: string; kpp: string | null; legal_form: string; head_name: string | null }
@@ -682,6 +704,72 @@ export interface ContractDto {
     payments: ContractPaymentDto[]
   }
   signature: { signed_by: string; signed_at: string; edo_document_id: string | null; simulated: boolean } | null
+}
+
+/** Правила электронного взаимодействия (GET /esign/rules) — соглашение о простой электронной подписи */
+export interface EsignRulesDto {
+  version: string
+  title: string
+  effective_from: string
+  /** Обычный текст абзацами, без разметки */
+  paragraphs: string[]
+}
+
+export interface ContractSignatureDto {
+  party: 'client' | 'bank'
+  /** simple — простая (пароль от кабинета), advanced — усиленная (ключ банка) */
+  type: 'simple' | 'advanced'
+  signer: string
+  role: string | null
+  /** registry — полномочие по ЕГРЮЛ, power_of_attorney — по доверенности */
+  authority: 'registry' | 'power_of_attorney' | null
+  signed_at: string
+  /** password — пароль от кабинета, pades — подпись внутри PDF */
+  method: string
+  rules_version: string | null
+  /** Метка времени к подписи банка */
+  timestamp_at: string | null
+  certificate: { serial: string; subject: string; issuer: string; valid_from: string; valid_to: string } | null
+}
+
+/** Публичная проверка по QR (GET /contracts/verify/{document_id}) */
+export interface ContractVerificationDto {
+  document_id: string
+  number: string
+  uid: string
+  kind: 'draft' | 'signed'
+  sha256: string
+  created_at: string
+  borrower: string
+  signatures: ContractSignatureDto[]
+  /** Ключ банка — демо-стенда, не квалифицированный */
+  demo: boolean
+}
+
+export type FileVerificationProblem =
+  | 'not_in_archive'
+  | 'no_signature'
+  | 'signature_broken'
+  | 'untrusted_certificate'
+  | 'draft_not_signed'
+
+/** Проверка загруженного PDF (POST /contracts/verify) */
+export interface FileVerificationDto {
+  /** Итог: подпись цела, сертификат доверенный, файл совпал с архивом */
+  valid: boolean
+  /** null — файла нет в архиве */
+  document_id: string | null
+  matches_archive: boolean
+  signature: {
+    present: boolean
+    /** Файл не менялся после подписи */
+    intact: boolean
+    trusted: boolean
+    signer: string | null
+    signed_at: string | null
+    timestamp_at: string | null
+  }
+  problems: (FileVerificationProblem | string)[]
 }
 
 /** Подбор по потребности (POST /products/recommend), без входа */
@@ -872,9 +960,20 @@ export interface ClientApi {
   contract(id: string): Promise<ContractDto>
   /**
    * Подпись: пароль аккаунта ещё раз (step-up), неверный — 422 invalid_password.
-   * offerHash — из договора: если предложение изменилось после открытия договора — 409 offer_changed
+   * offerHash — из договора: если предложение изменилось после открытия договора — 409 offer_changed.
+   * documentHash — SHA-256 проекта PDF, который видел клиент (пересобран — 422 document_changed, ещё не готов —
+   * 409 document_pending); rulesVersion — принятая редакция Правил ЭП (устарела — 422 rules_outdated).
+   * Со старым бэкендом оба не передаём
    */
-  sign(id: string, password: string, offerHash: string): Promise<SignResultDto>
+  sign(id: string, password: string, offerHash: string, documentHash?: string, rulesVersion?: string): Promise<SignResultDto>
+  /** PDF договора; kind не задан — последний готовый. Не готов — 409 document_pending */
+  downloadContractDocument(id: string, kind?: 'draft' | 'signed'): Promise<DownloadedFile>
+  /** Правила электронного взаимодействия — без входа */
+  esignRules(): Promise<EsignRulesDto>
+  /** Публичная проверка договора по QR; нет в архиве — 404 document_not_found */
+  verifyContract(documentId: string): Promise<ContractVerificationDto>
+  /** Проверка загруженного PDF; не PDF — 422 not_a_pdf, больше 10 МБ — 413 file_too_large */
+  verifyContractFile(file: File): Promise<FileVerificationDto>
   answerInfoRequest(id: string, infoRequestId: string): Promise<ApplicationDto>
   downloadDocument(id: string, documentId: string): Promise<{ url: string }>
 
