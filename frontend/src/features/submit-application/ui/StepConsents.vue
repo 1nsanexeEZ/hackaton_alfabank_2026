@@ -10,7 +10,14 @@ import type { ApplicationWizard } from '../model/useApplicationWizard'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
 
-const { terms, organization, product, consents, headConsent, documents, fieldErrors } = props.wizard
+const { terms, organization, product, consents, isEntrepreneur, headConsent, documents, fieldErrors, application } = props.wizard
+
+/** Согласие взято из профиля — когда его дали там, чтобы клиент видел, откуда галочка */
+const fromProfile = (kind: 'personal_data' | 'credit_bureau') => {
+  const value = application.value?.consents
+  const at = value?.[`${kind}_at`]
+  return value?.[`${kind}_source`] === 'profile' && at ? formatDate(at) : null
+}
 
 const { schedule, personal } = useLoanSchedule(() => ({
   product: product.value,
@@ -52,6 +59,9 @@ const summary = computed(() => [
         <CheckboxField v-model="consents.personalData" :error="fieldErrors['consents.personal_data']">
           Согласен на обработку персональных данных
         </CheckboxField>
+        <p v-if="fromProfile('personal_data') && consents.personalData" class="mt-1 ml-8 text-xs text-ink-secondary">
+          Дано в профиле {{ fromProfile('personal_data') }}
+        </p>
         <details class="mt-1 ml-8 text-xs text-ink-secondary">
           <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Текст согласия</summary>
           <p class="mt-2">
@@ -67,12 +77,35 @@ const summary = computed(() => [
         <CheckboxField v-model="consents.creditBureau" :error="fieldErrors['consents.credit_bureau']">
           Согласен на запрос кредитной истории компании в бюро кредитных историй
         </CheckboxField>
+        <p v-if="fromProfile('credit_bureau') && consents.creditBureau" class="mt-1 ml-8 text-xs text-ink-secondary">
+          Компания дала согласие {{ fromProfile('credit_bureau') }} — действует 6 месяцев
+        </p>
         <details class="mt-1 ml-8 text-xs text-ink-secondary">
           <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Текст согласия</summary>
           <p class="mt-2">
             По ст. 6 Федерального закона № 218-ФЗ «О кредитных историях» я разрешаю банку получить кредитный отчёт
             компании (у индивидуального предпринимателя — его личный отчёт) в бюро кредитных историй, чтобы оценить
             платёжную дисциплину и долговую нагрузку. Без этого согласия банк в бюро не обращается.
+          </p>
+        </details>
+      </div>
+
+      <!-- Ст. 16 152-ФЗ: решение только автоматикой по ИП — с его согласия; у ООО и АО субъекта ПДн нет -->
+      <div v-if="isEntrepreneur">
+        <CheckboxField v-model="consents.automatedDecision">
+          Согласен, чтобы решение по заявке принималось автоматически
+          <span class="font-normal text-ink-secondary">— необязательно</span>
+        </CheckboxField>
+        <p class="mt-1 ml-8 text-xs text-ink-secondary">
+          Без согласия одобрение на запрошенных условиях придёт так же быстро, а отказ или встречное предложение
+          подготовит специалист — это может занять больше времени.
+        </p>
+        <details class="mt-1 ml-8 text-xs text-ink-secondary">
+          <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Текст согласия</summary>
+          <p class="mt-2">
+            По ст. 16 Федерального закона № 152-ФЗ «О персональных данных» я даю согласие на принятие банком решения
+            по моей кредитной заявке на основании исключительно автоматизированной обработки моих персональных
+            данных. Я могу заявить возражение против такого решения — тогда заявку рассмотрит специалист банка.
           </p>
         </details>
       </div>
