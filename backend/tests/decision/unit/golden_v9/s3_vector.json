@@ -1,0 +1,319 @@
+{
+  "policy_version": "policy_v9",
+  "key_rate": "16.50",
+  "outcome": "MANUAL_REVIEW",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "ROUTE_VERIFICATION_MISMATCH",
+    "ROUTE_RISK_MATRIX",
+    "ROUTE_MODELS_CHECK"
+  ],
+  "client_explanation": "Заявку рассмотрит специалист банка, обычно это занимает до двух рабочих дней. Данные компании в кабинете расходятся с государственным реестром, специалист их сверит. Заявку на такую сумму при текущем финансовом положении компании рассмотрит специалист. Специалист банка посмотрит заявку перед решением.",
+  "improvement_hints": [
+    "Проверьте сведения о руководителе в профиле компании.",
+    "Со свежей отчётностью или выпиской по счёту специалист решит быстрее.",
+    "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+    "Данные компании расходятся с реестром — проверьте профиль."
+  ],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "aml.lists",
+      "matched": false,
+      "detail": "совпадений с перечнями нет (перечни на 2026-10-21); бенефициары: Сидоров Сергей Сергеевич — 100.00%"
+    },
+    {
+      "rule": "aml.zsk_stop",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "aml.license",
+      "matched": false,
+      "detail": "ОКВЭД 41.20: лицензия не нужна"
+    },
+    {
+      "rule": "aml.risk_group",
+      "matched": false,
+      "detail": "группа риска по 115-ФЗ: низкая — факторов риска нет; бенефициаров клиент не называл"
+    },
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "максимальная просрочка 0 дн., порог > 90"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": false,
+      "detail": "текущая просрочка компании 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": false,
+      "detail": "руководитель по реестру не найден среди участников — проверка не выполнена"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": false,
+      "detail": "решений о приостановлении операций по счетам: 0"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": false,
+      "detail": "недоимка 0, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": false,
+      "detail": "исполнительные производства 0, порог > 0.1 × выручка 29 000 000 (ГИР БО за 2025) = 2 900 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": false,
+      "detail": "иски к компании 450 000, порог > 0.2 × выручка 29 000 000 (ГИР БО за 2025) = 5 800 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": false,
+      "detail": "собственный капитал за 2025: 5 900 000"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 41.20 — не в стоп-листе"
+    },
+    {
+      "rule": "stop.unreliable_data",
+      "matched": false,
+      "detail": "отметок о недостоверности сведений в ЕГРЮЛ нет"
+    },
+    {
+      "rule": "stop.mass_head",
+      "matched": false,
+      "detail": "руководитель не массовый"
+    },
+    {
+      "rule": "stop.business_age",
+      "matched": false,
+      "detail": "срок работы 48 мес., минимум продукта 12 мес."
+    },
+    {
+      "rule": "stop.bank_stop_list",
+      "matched": false,
+      "detail": "во внутреннем стоп-листе банка компании нет"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": false,
+      "detail": "выручка не расходится с ФНС и выпиской"
+    },
+    {
+      "rule": "pricing.funding",
+      "matched": true,
+      "detail": "фондирование: ключевая 16.50% + спред 1.00% = 17.50%"
+    },
+    {
+      "rule": "pricing.expected_loss",
+      "matched": true,
+      "detail": "ожидаемые потери: PD 0.0421 × LGD 0.45 = 1.89% (залога нет)"
+    },
+    {
+      "rule": "pricing.capital",
+      "matched": true,
+      "detail": "стоимость капитала 2.00%"
+    },
+    {
+      "rule": "pricing.margin",
+      "matched": true,
+      "detail": "маржа 3.50%"
+    },
+    {
+      "rule": "pricing.corridor",
+      "matched": false,
+      "detail": "24.89% в коридоре продукта [22.00%; 28.00%] → 24.89%"
+    },
+    {
+      "rule": "limits.product",
+      "matched": false,
+      "detail": "максимум продукта 50 000 000"
+    },
+    {
+      "rule": "limits.revenue",
+      "matched": true,
+      "detail": "k(F) 0.2 × выручка 29 000 000 (меньшая из заявленной и ФНС) = 5 800 000"
+    },
+    {
+      "rule": "limits.free_cash_flow",
+      "matched": true,
+      "detail": "по отчёту: (30 000 000 − 26 000 000) / 12 − платежи по кредитам 340 000 = -6 666,67 в месяц"
+    },
+    {
+      "rule": "limits.payment_capacity",
+      "matched": true,
+      "detail": "платёж ≤ 0 в месяц: при 24 мес. и 24.89% сумма до 0"
+    },
+    {
+      "rule": "limits.turnover",
+      "matched": false,
+      "detail": "k 0.5 × обороты по счёту за год (АБС) 28 501 124,11 = 14 250 562,05"
+    },
+    {
+      "rule": "limits.grade",
+      "matched": false,
+      "detail": "максимум для грейда F: 10 000 000"
+    },
+    {
+      "rule": "limits.group",
+      "matched": false,
+      "detail": "потолок на группу 100 000 000 − долг по кредитам 6 000 000 = 94 000 000"
+    },
+    {
+      "rule": "limits.final",
+      "matched": true,
+      "detail": "лимит 0: минимум — by_capacity"
+    },
+    {
+      "rule": "route.aml_incomplete",
+      "matched": false,
+      "detail": "проверка по 115-ФЗ выполнена"
+    },
+    {
+      "rule": "route.pep",
+      "matched": false,
+      "detail": "ПДЛ нет"
+    },
+    {
+      "rule": "route.zsk",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "route.beneficiary",
+      "matched": false,
+      "detail": "клиент не ответил, действует ли к выгоде третьего лица"
+    },
+    {
+      "rule": "route.third_parties_unknown",
+      "matched": false,
+      "detail": "ответа о выгодоприобретателе нет — правило выключено, пока форма заявки не спрашивает"
+    },
+    {
+      "rule": "route.data_quality",
+      "matched": false,
+      "detail": "данные полные"
+    },
+    {
+      "rule": "route.auto_decision_limit",
+      "matched": false,
+      "detail": "сумма 10 000 000, лимит автоматического решения 10 000 000"
+    },
+    {
+      "rule": "route.verification_mismatch",
+      "matched": true,
+      "detail": "флаг verification_mismatch"
+    },
+    {
+      "rule": "route.revenue_mismatch",
+      "matched": false,
+      "detail": "флага revenue_mismatch нет"
+    },
+    {
+      "rule": "route.bureau_unavailable",
+      "matched": false,
+      "detail": "флага bureau_unavailable нет"
+    },
+    {
+      "rule": "route.mass_address",
+      "matched": false,
+      "detail": "флага mass_address нет"
+    },
+    {
+      "rule": "route.thin_file",
+      "matched": false,
+      "detail": "нет"
+    },
+    {
+      "rule": "trigger.tax_arrears",
+      "matched": false,
+      "detail": "недоимка по налогам 0"
+    },
+    {
+      "rule": "trigger.head_change",
+      "matched": false,
+      "detail": "руководитель по ЕГРЮЛ не менялся с регистрации"
+    },
+    {
+      "rule": "trigger.turnover_spike",
+      "matched": false,
+      "detail": "поступления (АБС) за последние 3 мес. в среднем 2 352 222,22 против 2 388 758,79 раньше: ×0.98, порог > ×1.5"
+    },
+    {
+      "rule": "strategy.risk_matrix",
+      "matched": true,
+      "detail": "грейд F (корзина F–G), сумма 10 000 000: автоматика до 5 000 000, ручная до 20 000 000 → ручная проверка"
+    },
+    {
+      "rule": "strategy.two_models",
+      "matched": true,
+      "detail": "PD-модель: грейд F (PD 4.21%) — жёлтая; ML-модель: грейд F (PD 4.33%) — жёлтая → проверка андеррайтером"
+    },
+    {
+      "rule": "cash_gap.forecast",
+      "matched": false,
+      "detail": "кассовый разрыв не прогнозируется"
+    }
+  ],
+  "limits": {
+    "by_product": "50000000.00",
+    "by_revenue": "5800000.00",
+    "by_ltv": null,
+    "by_capacity": "0",
+    "final": "0",
+    "by_turnover": "14250562.05",
+    "by_grade": "10000000.00",
+    "by_group": "94000000.00",
+    "binding": "by_capacity"
+  },
+  "rate": "24.89",
+  "triggers": [],
+  "rate_breakdown": {
+    "funding": "17.50",
+    "expected_loss": "1.89",
+    "capital": "2.0",
+    "margin": "3.5",
+    "total": "24.89"
+  },
+  "scoring": {
+    "score": 630,
+    "grade": "F",
+    "flags": [
+      "verification_mismatch"
+    ],
+    "ml": {
+      "grade": "F",
+      "pd_12m": "0.0433"
+    }
+  },
+  "review": "dispute"
+}

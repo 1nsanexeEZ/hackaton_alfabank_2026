@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.enrichment import (
+    DeclaredOwnerRef,
     EnrichmentCompleted,
     FetchEnrichment,
     PersonRef,
@@ -21,6 +22,9 @@ from src.modules.enrichment.application.dto.aml import (
     AmlCheckDTO,
     AmlSubjectDTO,
     BeneficialOwnerDTO,
+    DeclaredOwnerDTO,
+    LicenseDTO,
+    OwnerDiscrepancyDTO,
 )
 from src.modules.enrichment.application.dto.registry import FounderDTO, RegistryExtractDTO
 from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
@@ -31,7 +35,7 @@ from src.modules.enrichment.infrastructure.repositories.serialization import (
     data_to_json,
 )
 from tests.enrichment.unit.test_fetch_enrichment import InMemoryRepo, sources
-from tests.fakes.aml_sources import FakeAmlLists, FakePep, FakeZsk
+from tests.fakes.aml_sources import FakeAmlLists, FakeLicenses, FakePep, FakeZsk
 from tests.fakes.messaging import FakeOutboxWriter
 
 _INN = "7707115062"
@@ -218,6 +222,7 @@ async def test_any_screening_source_down_means_no_check() -> None:
         {"aml_lists": FakeAmlLists(fail=True)},
         {"pep": FakePep(fail=True)},
         {"zsk": FakeZsk(fail=True)},
+        {"licenses": FakeLicenses(fail=True)},
     ]
     for fakes in down:
         snapshot, _ = await _run(**fakes)
@@ -304,3 +309,162 @@ async def test_third_parties_are_screened_on_every_application() -> None:
         )
         await use_case.execute(command, command_event_id=uuid4(), outbox=outbox)
     assert [s[-1].role for s in lists.calls] == ["beneficiary", "beneficiary"]
+
+
+# --- policy_v9: учредители, страны, бенефициары со слов клиента, лицензии ------------------
+
+_TWO_FOUNDERS = (
+    FounderDTO("Дочкин Дмитрий Данилович", Decimal(80)),
+    FounderDTO("Малодолев Мирон Миронович", Decimal(20)),
+)
+
+
+def _owners_command(*owners: DeclaredOwnerRef) -> FetchEnrichment:
+    return FetchEnrichment(
+        application_id=uuid4(),
+        organization_id=uuid4(),
+        inn=_INN,
+        sources=["egrul", "aml"],
+        declared_owners=list(owners),
+    )
+
+
+async def test_minority_founder_is_screened() -> None:
+    """Учредитель с 20% — не бенефициар, но юрлицо под контролем лица из перечня (ст. 7 п. 10)."""
+    lists = FakeAmlLists({"Малодолев Мирон Миронович": "terrorism"})
+    snapshot, _ = await _run(
+        registry=Registry(_extract(founders=_TWO_FOUNDERS, head=("Главов", "Глеб", None))),
+        aml_lists=lists,
+    )
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert [(s.role, s.name) for s in check.subjects] == [
+        ("company", f"ООО {_INN}"),
+        ("head", "Главов Глеб"),
+        ("beneficial_owner", "Дочкин Дмитрий Данилович"),
+        ("founder", "Малодолев Мирон Миронович"),
+    ]
+    [hit] = check.list_hits
+    assert (hit.subject.role, hit.list) == ("founder", "terrorism")
+
+
+async def test_founder_country_comes_from_the_registry() -> None:
+    founders = (
+        FounderDTO("Дочкин Дмитрий Данилович", Decimal(60)),
+        FounderDTO("Хоссейни Али Реза", Decimal(40), country="IR"),
+    )
+    snapshot, _ = await _run(registry=Registry(_extract(founders=founders)))
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert AmlSubjectDTO("beneficial_owner", "Хоссейни Али Реза", country="IR") in check.subjects
+
+
+async def test_third_party_country_is_kept() -> None:
+    command = FetchEnrichment(
+        application_id=uuid4(),
+        organization_id=uuid4(),
+        inn=_INN,
+        sources=["egrul", "aml"],
+        third_parties=[
+            ThirdPartyRef(role="beneficiary", kind="person", name="Агент Ахмад", country="ir"),
+            ThirdPartyRef(role="pledgor", kind="person", name="Залогов Иван", country="RU"),
+        ],
+    )
+    snapshot, _ = await _run(command)
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert AmlSubjectDTO("beneficiary", "Агент Ахмад", country="IR") in check.subjects
+    assert AmlSubjectDTO("pledgor", "Залогов Иван") in check.subjects
+
+
+async def test_owners_not_named_by_the_client() -> None:
+    """Клиент не ответил — сверять не с чем; ответил — сверяем с ЕГРЮЛ."""
+    snapshot, _ = await _run(registry=Registry(_extract(founders=_TWO_FOUNDERS)))
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert check.declared_owners is None and check.owner_discrepancies == ()
+
+
+async def test_owners_named_by_the_client_match_the_registry() -> None:
+    command = _owners_command(DeclaredOwnerRef(name="Дочкин Дмитрий Данилович", basis="ownership"))
+    snapshot, _ = await _run(command, registry=Registry(_extract(founders=_TWO_FOUNDERS)))
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert check.declared_owners == (DeclaredOwnerDTO("Дочкин Дмитрий Данилович", "ownership"),)
+    assert check.owner_discrepancies == ()
+
+
+async def test_owners_named_by_the_client_differ_from_the_registry() -> None:
+    command = _owners_command(DeclaredOwnerRef(name="Номиналов Никита", basis="ownership"))
+    snapshot, _ = await _run(command, registry=Registry(_extract(founders=_TWO_FOUNDERS)))
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert check.owner_discrepancies == (
+        OwnerDiscrepancyDTO("Дочкин Дмитрий Данилович", "not_declared"),
+        OwnerDiscrepancyDTO("Номиналов Никита", "not_in_registry"),
+    )
+    # Названный клиентом — тоже в перечнях и базе ПДЛ.
+    assert AmlSubjectDTO("declared_owner", "Номиналов Никита") in check.subjects
+
+
+async def test_control_without_a_share_is_screened_but_not_a_discrepancy() -> None:
+    command = _owners_command(
+        DeclaredOwnerRef(name="Дочкин Дмитрий Данилович", basis="ownership"),
+        DeclaredOwnerRef(name="Теневой Тимур", basis="control", country="AE"),
+    )
+    lists = FakeAmlLists({"Теневой Тимур": "freeze"})
+    snapshot, _ = await _run(
+        command, registry=Registry(_extract(founders=_TWO_FOUNDERS)), aml_lists=lists
+    )
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert check.owner_discrepancies == ()
+    [hit] = check.list_hits
+    assert hit.subject == AmlSubjectDTO("declared_owner", "Теневой Тимур", country="AE")
+
+
+async def test_entrepreneur_owners_are_not_compared() -> None:
+    extract = _extract(founders=(), legal_form="ИП", head=("Иванов", "Иван", "Иванович"))
+    command = _owners_command(DeclaredOwnerRef(name="Иванов Иван Иванович", basis="ownership"))
+    snapshot, _ = await _run(command, registry=Registry(extract))
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None and check.owner_discrepancies == ()
+
+
+async def test_licenses_are_requested_on_every_application() -> None:
+    licenses = FakeLicenses(("86.10",))
+    snapshot, _ = await _run(licenses=licenses)
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None
+    assert check.licenses == (LicenseDTO("Л-86.10", "Вид деятельности", "86.10"),)
+    assert licenses.calls == [_INN]
+
+
+async def test_new_fields_survive_storage() -> None:
+    founders = (*_TWO_FOUNDERS[:1], FounderDTO("Шмидт Ганс", Decimal(20), country="DE"))
+    command = _owners_command(DeclaredOwnerRef(name="Шмидт Ганс", basis="control", country="DE"))
+    snapshot, _ = await _run(
+        command, registry=Registry(_extract(founders=founders)), licenses=FakeLicenses(("86",))
+    )
+    check = snapshot.data_of("aml", AmlCheckDTO)
+    assert check is not None and check.licenses and check.declared_owners
+    assert data_from_json("aml", data_to_json("aml", check)) == check
+    egrul = snapshot.data_of("egrul", RegistryExtractDTO)
+    assert egrul is not None and data_from_json("egrul", data_to_json("egrul", egrul)) == egrul
+
+
+def test_snapshot_before_v9_reads() -> None:
+    """Снимок до policy_v9: без бенефициаров со слов клиента, лицензий и стран."""
+    raw = {
+        "lists_date": "2026-10-21",
+        "zsk": {"level": "low", "as_of": "2026-10-21"},
+        "beneficial_owners": [],
+        "subjects": [{"role": "head", "name": "Дочкин Дмитрий Данилович", "inn": None}],
+        "list_hits": [],
+        "pep_hits": [],
+    }
+    check = data_from_json("aml", raw)
+    assert isinstance(check, AmlCheckDTO)
+    assert check.declared_owners is None and check.licenses is None
+    assert check.owner_discrepancies == ()
+    assert check.subjects == (AmlSubjectDTO("head", "Дочкин Дмитрий Данилович"),)

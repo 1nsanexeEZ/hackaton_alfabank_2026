@@ -1,0 +1,323 @@
+{
+  "policy_version": "policy_v10",
+  "key_rate": "16.50",
+  "outcome": "MANUAL_REVIEW",
+  "terms": null,
+  "alternative_product_code": null,
+  "reason_codes": [
+    "ROUTE_MODELS_CHECK"
+  ],
+  "client_explanation": "Заявку рассмотрит специалист банка, обычно это занимает до двух рабочих дней. Специалист банка посмотрит заявку перед решением.",
+  "improvement_hints": [
+    "Со свежей отчётностью или выпиской по счёту специалист решит быстрее.",
+    "Высокая долговая нагрузка — рассмотрите меньшую сумму или больший срок.",
+    "Сумма велика относительно годовой выручки — попробуйте меньшую.",
+    "По выписке возможен кассовый разрыв — удобнее овердрафт или кредитная линия."
+  ],
+  "requested_info": null,
+  "rule_trace": [
+    {
+      "rule": "aml.lists",
+      "matched": false,
+      "detail": "совпадений с перечнями нет (перечни на 2026-10-21); бенефициары: Иванов Иван Иванович (ИП)"
+    },
+    {
+      "rule": "aml.zsk_stop",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "aml.license",
+      "matched": false,
+      "detail": "ОКВЭД 62.01: лицензия не нужна"
+    },
+    {
+      "rule": "aml.risk_group",
+      "matched": false,
+      "detail": "группа риска по 115-ФЗ: низкая — факторов риска нет; бенефициаров клиент не называл"
+    },
+    {
+      "rule": "stop.registry_status",
+      "matched": false,
+      "detail": "статус по ЕГРЮЛ: active"
+    },
+    {
+      "rule": "stop.disqualified_head",
+      "matched": false,
+      "detail": "руководитель не дисквалифицирован"
+    },
+    {
+      "rule": "stop.overdue",
+      "matched": false,
+      "detail": "максимальная просрочка 0 дн., порог > 90"
+    },
+    {
+      "rule": "stop.current_overdue",
+      "matched": false,
+      "detail": "текущая просрочка компании 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.head_overdue",
+      "matched": false,
+      "detail": "текущая просрочка руководителя 0 дн., порог ≥ 30"
+    },
+    {
+      "rule": "stop.account_blocks",
+      "matched": false,
+      "detail": "решений о приостановлении операций по счетам: 0"
+    },
+    {
+      "rule": "stop.tax_arrears",
+      "matched": false,
+      "detail": "недоимка 0, порог > 300 000"
+    },
+    {
+      "rule": "stop.bankruptcy_messages",
+      "matched": false,
+      "detail": "сообщений о банкротстве: 0"
+    },
+    {
+      "rule": "stop.enforcement",
+      "matched": false,
+      "detail": "исполнительные производства 0, порог > 0.1 × выручка 5 900 000 (ФНС) = 590 000"
+    },
+    {
+      "rule": "stop.lawsuits",
+      "matched": false,
+      "detail": "иски к компании 0, порог > 0.2 × выручка 5 900 000 (ФНС) = 1 180 000"
+    },
+    {
+      "rule": "stop.negative_equity",
+      "matched": false,
+      "detail": "отчётности в ГИР БО нет — проверка не выполнена"
+    },
+    {
+      "rule": "stop.mass_address",
+      "matched": false,
+      "detail": "адрес не массовый"
+    },
+    {
+      "rule": "stop.okved",
+      "matched": false,
+      "detail": "основной ОКВЭД 62.01 — не в стоп-листе"
+    },
+    {
+      "rule": "stop.unreliable_data",
+      "matched": false,
+      "detail": "отметок о недостоверности сведений в ЕГРЮЛ нет"
+    },
+    {
+      "rule": "stop.mass_head",
+      "matched": false,
+      "detail": "руководитель не массовый"
+    },
+    {
+      "rule": "stop.business_age",
+      "matched": false,
+      "detail": "срок работы 8 мес., минимум продукта 6 мес."
+    },
+    {
+      "rule": "stop.bank_stop_list",
+      "matched": false,
+      "detail": "во внутреннем стоп-листе банка компании нет"
+    },
+    {
+      "rule": "info.revenue_confirmation",
+      "matched": false,
+      "detail": "выручка не расходится с ФНС и выпиской"
+    },
+    {
+      "rule": "pricing.funding",
+      "matched": true,
+      "detail": "фондирование: ключевая 16.50% + спред 1.00% = 17.50%"
+    },
+    {
+      "rule": "pricing.expected_loss",
+      "matched": true,
+      "detail": "ожидаемые потери: PD 0.0345 × LGD 0.45 = 1.55% (залога нет)"
+    },
+    {
+      "rule": "pricing.capital",
+      "matched": true,
+      "detail": "стоимость капитала 2.00%"
+    },
+    {
+      "rule": "pricing.margin",
+      "matched": true,
+      "detail": "маржа 3.50%"
+    },
+    {
+      "rule": "pricing.corridor",
+      "matched": false,
+      "detail": "24.55% в коридоре продукта [23.50%; 30.00%] → 24.55%"
+    },
+    {
+      "rule": "limits.product",
+      "matched": false,
+      "detail": "максимум продукта 30 000 000"
+    },
+    {
+      "rule": "limits.revenue",
+      "matched": true,
+      "detail": "k(E) 0.25 × выручка 5 900 000 (меньшая из заявленной и ФНС) = 1 475 000"
+    },
+    {
+      "rule": "limits.free_cash_flow",
+      "matched": true,
+      "detail": "по выписке: средний чистый поток 100 000 − платежи по кредитам 0 = 100 000 в месяц"
+    },
+    {
+      "rule": "limits.payment_capacity",
+      "matched": true,
+      "detail": "платёж ≤ 40 000 в месяц: при 24 мес. и 24.55% сумма до 752 643,59"
+    },
+    {
+      "rule": "limits.turnover",
+      "matched": true,
+      "detail": "k 0.5 × обороты по счёту за год 6 000 000 = 3 000 000"
+    },
+    {
+      "rule": "limits.grade",
+      "matched": false,
+      "detail": "максимум для грейда E: 20 000 000"
+    },
+    {
+      "rule": "limits.group",
+      "matched": false,
+      "detail": "потолок на группу 100 000 000 − долг по кредитам 0 = 100 000 000"
+    },
+    {
+      "rule": "limits.final",
+      "matched": true,
+      "detail": "лимит 752 643,59: минимум — by_capacity"
+    },
+    {
+      "rule": "route.aml_incomplete",
+      "matched": false,
+      "detail": "проверка по 115-ФЗ выполнена"
+    },
+    {
+      "rule": "route.pep",
+      "matched": false,
+      "detail": "ПДЛ нет"
+    },
+    {
+      "rule": "route.zsk",
+      "matched": false,
+      "detail": "уровень риска ЗСК: низкий"
+    },
+    {
+      "rule": "route.beneficiary",
+      "matched": false,
+      "detail": "клиент действует к своей выгоде"
+    },
+    {
+      "rule": "route.third_parties_unknown",
+      "matched": false,
+      "detail": "сведения о третьих лицах есть"
+    },
+    {
+      "rule": "route.data_quality",
+      "matched": false,
+      "detail": "данные полные"
+    },
+    {
+      "rule": "route.auto_decision_limit",
+      "matched": false,
+      "detail": "сумма 5 000 000, лимит автоматического решения 5 000 000"
+    },
+    {
+      "rule": "route.verification_mismatch",
+      "matched": false,
+      "detail": "флага verification_mismatch нет"
+    },
+    {
+      "rule": "route.revenue_mismatch",
+      "matched": false,
+      "detail": "флага revenue_mismatch нет"
+    },
+    {
+      "rule": "route.bureau_unavailable",
+      "matched": false,
+      "detail": "флага bureau_unavailable нет"
+    },
+    {
+      "rule": "route.mass_address",
+      "matched": false,
+      "detail": "флага mass_address нет"
+    },
+    {
+      "rule": "route.thin_file",
+      "matched": false,
+      "detail": "тонкое досье не маршрутизирует"
+    },
+    {
+      "rule": "trigger.tax_arrears",
+      "matched": false,
+      "detail": "недоимка по налогам 0"
+    },
+    {
+      "rule": "trigger.head_change",
+      "matched": false,
+      "detail": "руководитель по ЕГРЮЛ не менялся с регистрации"
+    },
+    {
+      "rule": "trigger.turnover_spike",
+      "matched": false,
+      "detail": "поступления за последние 3 мес. в среднем 400 000 против 533 333,33 раньше: ×0.75, порог > ×1.5"
+    },
+    {
+      "rule": "strategy.risk_matrix",
+      "matched": false,
+      "detail": "грейд E (корзина D–E), сумма 5 000 000: автоматика до 15 000 000, ручная до 50 000 000 → автоматическое решение"
+    },
+    {
+      "rule": "strategy.two_models",
+      "matched": true,
+      "detail": "PD-модель: грейд E (PD 3.45%) — жёлтая; ML-модель: грейд E (PD 2.76%) — жёлтая → проверка андеррайтером"
+    },
+    {
+      "rule": "cash_gap.forecast",
+      "matched": true,
+      "detail": "по выписке прогнозируется разрыв в 2026-11; альтернатива: OVERDRAFT"
+    },
+    {
+      "rule": "consent.automated_decision",
+      "matched": false,
+      "detail": "исход MANUAL_REVIEW, согласие на автоматизированное решение не дано"
+    }
+  ],
+  "limits": {
+    "by_product": "30000000.00",
+    "by_revenue": "1475000.00",
+    "by_ltv": null,
+    "by_capacity": "752643.59",
+    "final": "752643.59",
+    "by_turnover": "3000000.00",
+    "by_grade": "20000000.00",
+    "by_group": "100000000.00",
+    "binding": "by_capacity"
+  },
+  "rate": "24.55",
+  "triggers": [],
+  "rate_breakdown": {
+    "funding": "17.50",
+    "expected_loss": "1.55",
+    "capital": "2.0",
+    "margin": "3.5",
+    "total": "24.55"
+  },
+  "scoring": {
+    "score": 565,
+    "grade": "E",
+    "flags": [
+      "thin_file",
+      "cash_gap"
+    ],
+    "ml": {
+      "grade": "E",
+      "pd_12m": "0.0276"
+    }
+  },
+  "review": "check"
+}

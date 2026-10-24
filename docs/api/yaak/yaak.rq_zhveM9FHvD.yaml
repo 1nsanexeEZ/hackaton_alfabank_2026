@@ -31,6 +31,9 @@ body:
       "consents": {
         "personal_data": true,
         "credit_bureau": true
+      },
+      "beneficiary": {
+        "acts_for_third_party": false
       }
     }
 sortPriority: 4000.0

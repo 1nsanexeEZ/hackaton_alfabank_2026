@@ -176,15 +176,51 @@ export interface LoanRequestDto {
   purpose_comment: string | null
 }
 
+/** Третье лицо в сделке: физлицо — ФИО, организация или ИП — наименование и ИНН */
+export interface ThirdPartyInput {
+  kind: 'person' | 'organization'
+  name: string
+  /** Обязателен у организации, у физлица — по желанию */
+  inn?: string | null
+}
+
+export interface ThirdPartyDto {
+  kind: 'person' | 'organization'
+  name: string
+  inn: string | null
+}
+
 export interface CollateralInput {
   type: CollateralType
   description: string
   declared_value: number
   owner: 'self' | 'third_party'
+  /** Владелец залога — только при owner = third_party, при self бэкенд вернёт ошибку */
+  owner_party?: ThirdPartyInput | null
 }
 
-export interface CollateralDto extends Omit<CollateralInput, 'declared_value'> {
+export interface CollateralDto extends Omit<CollateralInput, 'declared_value' | 'owner_party'> {
   declared_value: string
+  owner_party?: ThirdPartyDto | null
+}
+
+/** Основание действовать в интересах третьего лица: агентский договор, поручение, комиссия, доверительное управление */
+export type BeneficiaryBasis = 'agency' | 'mandate' | 'commission' | 'trust_management'
+
+/** Ответ клиента: действует ли он в интересах третьего лица (выгодоприобретателя); «нет» — тоже ответ */
+export interface BeneficiaryInput {
+  acts_for_third_party: boolean
+  /** При true обязательны beneficiary и basis */
+  beneficiary?: ThirdPartyInput | null
+  basis?: BeneficiaryBasis | null
+}
+
+export interface BeneficiaryDto {
+  acts_for_third_party: boolean
+  beneficiary: ThirdPartyDto | null
+  basis: BeneficiaryBasis | null
+  declared_by?: string
+  declared_at: string
 }
 
 /** Откуда согласие в заявке: application — галочка в черновике, profile — взято из профиля */
@@ -240,6 +276,8 @@ export interface ApplicationDto {
   request: LoanRequestDto
   product_fields: Record<string, unknown>
   collateral: CollateralDto | null
+  /** Ответ о третьем лице; null — клиент ещё не ответил */
+  beneficiary?: BeneficiaryDto | null
   consents: ConsentsDto
   product_terms: ProductTermsDto
   documents: DocumentDto[]
@@ -274,6 +312,8 @@ export interface ApplicationUpdateInput {
   /** Сливается с сохранённым, null удаляет ключ */
   product_fields?: Record<string, unknown>
   collateral?: CollateralInput | null
+  /** null — отозвать ответ; не передано — ответ не меняется */
+  beneficiary?: BeneficiaryInput | null
   consents?: { personal_data: boolean; credit_bureau: boolean; automated_decision?: boolean }
 }
 

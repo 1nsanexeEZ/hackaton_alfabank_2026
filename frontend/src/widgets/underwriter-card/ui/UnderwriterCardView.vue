@@ -2,7 +2,7 @@
 import { CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
+import { beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import { ProcessMap } from '@/entities/process'
 import {
@@ -288,6 +288,14 @@ const RATE_PARTS = [
                 <dd class="font-medium text-ink">
                   {{ COLLATERAL_TYPE_LABEL[data.application.collateral.type] ?? data.application.collateral.type }},
                   {{ money(data.application.collateral.declared_value) }} — {{ data.application.collateral.description }}
+                  <span class="font-normal text-ink-secondary">· собственник: {{ collateralOwnerLine(data.application.collateral) }}</span>
+                </dd>
+              </div>
+              <!-- Ответ клиента о третьем лице (115-ФЗ): по нему выгодоприобретатель проверяется вместе с остальными -->
+              <div class="sm:col-span-2">
+                <dt class="text-ink-secondary">Выгодоприобретатель</dt>
+                <dd class="font-medium" :class="data.application.beneficiary?.acts_for_third_party ? 'text-warning' : 'text-ink'">
+                  {{ data.application.beneficiary ? beneficiaryLine(data.application.beneficiary) : 'Клиент не ответил' }}
                 </dd>
               </div>
               <div v-if="data.application.submitted_at">

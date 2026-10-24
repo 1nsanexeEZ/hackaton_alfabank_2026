@@ -14,10 +14,12 @@ from src.modules.applications.application.dto.applications import (
     ConsentsDTO,
     ConsentSource,
     DecisionSummaryDTO,
+    DeclaredOwnerDTO,
     DocumentDTO,
     InfoRequestDTO,
     LoanRequestDTO,
     OfferDTO,
+    OwnersDTO,
     ScoringInputDTO,
     StatusChangeDTO,
     ThirdPartyDTO,
@@ -39,10 +41,12 @@ from src.modules.applications.domain.value_objects import (
     CollateralDeclaration,
     Consents,
     DecisionSummary,
+    DeclaredOwner,
     DocumentRequirement,
     LoanRequest,
     Offer,
     OrganizationSnapshot,
+    OwnersDeclaration,
     ProductTerms,
     ProfileConsent,
     ThirdParty,
@@ -153,13 +157,30 @@ def collateral_declaration(dto: CollateralDTO) -> CollateralDeclaration:
 def third_party(dto: ThirdPartyDTO | None) -> ThirdParty | None:
     if dto is None:
         return None
-    return ThirdParty(kind=dto.kind, name=dto.name, inn=dto.inn)
+    return ThirdParty(kind=dto.kind, name=dto.name, inn=dto.inn, country=dto.country)
 
 
 def third_party_dto(party: ThirdParty | None) -> ThirdPartyDTO | None:
     if party is None:
         return None
-    return ThirdPartyDTO(kind=party.kind, name=party.name, inn=party.inn)
+    return ThirdPartyDTO(kind=party.kind, name=party.name, inn=party.inn, country=party.country)
+
+
+def declared_owners(owners: tuple[DeclaredOwnerDTO, ...]) -> tuple[DeclaredOwner, ...]:
+    return tuple(DeclaredOwner(name=o.name, basis=o.basis, country=o.country) for o in owners)
+
+
+def owners_dto(declaration: OwnersDeclaration | None) -> OwnersDTO | None:
+    if declaration is None:
+        return None
+    return OwnersDTO(
+        owners=tuple(
+            DeclaredOwnerDTO(name=o.name, basis=o.basis, country=o.country)
+            for o in declaration.owners
+        ),
+        declared_by=declaration.declared_by,
+        declared_at=declaration.declared_at,
+    )
 
 
 def beneficiary_dto(declaration: BeneficiaryDeclaration | None) -> BeneficiaryDTO | None:
@@ -318,6 +339,7 @@ def card(application: CreditApplication) -> ApplicationCardDTO:
         if application.disbursement
         else None,
         beneficiary=beneficiary_dto(application.beneficiary),
+        beneficial_owners=owners_dto(application.beneficial_owners),
     )
 
 
@@ -334,6 +356,7 @@ def summary_dto(application: CreditApplication) -> ApplicationSummaryDTO:
         client_stage=application.client_stage,
         updated_at=application.updated_at,
         submitted_at=application.submitted_at,
+        decided_by=summary.decided_by if (summary := application.decision_summary) else None,
     )
 
 
@@ -359,6 +382,7 @@ def scoring_input(application: CreditApplication) -> ScoringInputDTO:
         applicant_account_id=application.applicant_account_id,
         automated_decision_consent_at=application.consents.automated_decision_at,
         beneficiary=beneficiary_dto(application.beneficiary),
+        beneficial_owners=owners_dto(application.beneficial_owners),
     )
 
 
@@ -417,6 +441,7 @@ def application_view(
         submitted_at=application.submitted_at,
         closed_at=application.closed_at,
         beneficiary=beneficiary_dto(application.beneficiary),
+        beneficial_owners=owners_dto(application.beneficial_owners),
     )
 
 

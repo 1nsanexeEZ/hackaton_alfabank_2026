@@ -111,8 +111,28 @@ applications/
 формате. После подачи ответ заморожен, как и остальной черновик.
 
 Подачу ответ не блокирует. Оба лица уходят в `FetchEnrichment.third_parties` и проверяются по
-перечням на каждой заявке; решение — в `decision` (`policy_v8`). Подробно и пример запроса —
+перечням на каждой заявке; решение — в `decision` (`policy_v8`). У третьего лица можно указать
+страну (`country`, ISO 3166-1 alpha-2, если не Россия): участник из государства, не выполняющего
+рекомендации ФАТФ, повышает группу риска (`policy_v9`).
+
+Бенефициары со слов клиента (ст. 6.1, ст. 7 п. 14 115-ФЗ): `CreditApplication.declare_owners`,
+`OwnersDeclaration` в JSON-колонке `beneficial_owners` (миграция `applications_0005`) — список
+`DeclaredOwner(name, basis: ownership | control, country)`, кто ответил и когда; пустой список —
+«никого». В API — `PATCH beneficial_owners: {owners: [...]}`, `null` снимает ответ. Ответ уходит в
+`FetchEnrichment.declared_owners`, enrichment сверяет его с ЕГРЮЛ. Подробно и пример запроса —
 [compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
+
+## Кто вынес решение
+
+`DecisionSummary.decided_by` — кто вынес решение, которое получил клиент: `auto` (политика
+`decision` без человека, в том числе отказ по стоп-фактору) или `underwriter`. Приходит в командах
+`PresentOffer` / `RejectApplication`: процесс берёт его из последнего `DecisionMade`. Пустое значение
+означает, что решения ещё нет или процесс его не передал.
+
+Хранится в отдельной колонке `decided_by`, не в JSON `decision_summary`, потому что по ней
+фильтрует список сотрудника. Миграция `applications_0004` заполнила уже решённые заявки по
+последнему итоговому решению из `decision_results`. Клиентская карточка это поле не отдаёт; список
+отдаёт его в каждой строке и фильтрует по `decided_by`.
 
 ## API
 
@@ -123,7 +143,7 @@ applications/
 | Метод | Путь | Что |
 |---|---|---|
 | POST | `/applications` | черновик на компанию и продукт, реквизиты — из данных банка |
-| GET | `/applications` | список: `organization_id`, `status`, `limit`, `offset` |
+| GET | `/applications` | список, новые сверху: `organization_id`, `status` (можно несколько), `decided_by` (`auto` / `underwriter`), `limit`, `offset`; в строке есть `decided_by` |
 | GET | `/applications/{id}` | заявка с `available_actions` и `my_permissions` |
 | PATCH | `/applications/{id}` | автосохранение черновика по `version` |
 | GET | `/applications/{id}/completeness` | чего не хватает для подачи |

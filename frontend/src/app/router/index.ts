@@ -34,6 +34,12 @@ export const router = createRouter({
       meta: { title: 'Проверка договора', bare: true },
     },
     {
+      path: ROUTE_PATH.profile,
+      name: 'profile',
+      component: () => import('@/pages/client-profile').then((module) => module.ClientProfilePage),
+      meta: { title: 'Профиль' },
+    },
+    {
       path: `${ROUTE_PATH.admin}/login`,
       name: ADMIN_ROUTE.login,
       component: () => import('@/pages/admin-login').then((module) => module.AdminLoginPage),

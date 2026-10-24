@@ -45,10 +45,12 @@ from src.modules.applications.domain.value_objects import (
     CollateralDeclaration,
     Consents,
     DecisionSummary,
+    DeclaredOwner,
     Disbursement,
     LoanRequest,
     Offer,
     OrganizationSnapshot,
+    OwnersDeclaration,
     ProductTerms,
     ProfileConsent,
     Signature,
@@ -77,6 +79,7 @@ class CreditApplication:
         collateral: CollateralDeclaration | None = None,
         consents: Consents | None = None,
         beneficiary: BeneficiaryDeclaration | None = None,
+        beneficial_owners: OwnersDeclaration | None = None,
         org_snapshot: OrganizationSnapshot | None = None,
         documents: list[Document] | None = None,
         info_requests: list[InfoRequest] | None = None,
@@ -102,6 +105,8 @@ class CreditApplication:
         self.consents = consents or Consents()
         # None — the client has not answered whether it acts for a third party (115-FZ).
         self.beneficiary = beneficiary
+        # None — the client has not named its beneficial owners (115-FZ art. 6.1).
+        self.beneficial_owners = beneficial_owners
         self.org_snapshot = org_snapshot
         self.documents: list[Document] = list(documents or [])
         self.info_requests: list[InfoRequest] = list(info_requests or [])
@@ -252,6 +257,21 @@ class CreditApplication:
     def withdraw_beneficiary(self, now: datetime) -> None:
         self._ensure_editable("beneficiary")
         self.beneficiary = None
+        self.updated_at = now
+
+    def declare_owners(
+        self, owners: tuple[DeclaredOwner, ...], *, account_id: UUID, now: datetime
+    ) -> None:
+        """The client's beneficial owners (115-FZ art. 6.1); a new answer replaces the old."""
+        self._ensure_editable("beneficial_owners")
+        self.beneficial_owners = OwnersDeclaration(
+            owners=owners, declared_by=account_id, declared_at=now
+        )
+        self.updated_at = now
+
+    def withdraw_owners(self, now: datetime) -> None:
+        self._ensure_editable("beneficial_owners")
+        self.beneficial_owners = None
         self.updated_at = now
 
     def set_consents(

@@ -14,6 +14,8 @@ from src.core.messaging.contracts.base import ContractModel, IntegrationMessage
 
 # --- shared parts -----------------------------------------------------------
 
+DecidedBy = Literal["auto", "underwriter"]
+
 
 class OfferTerms(ContractModel):
     kind: Literal["as_requested", "counter"]
@@ -135,6 +137,8 @@ class PresentOffer(IntegrationMessage):
     client_explanation: str
     improvement_hints: list[str] = []
     alternative_product_code: str | None = None
+    # Who made the decision: the automatic policy or an underwriter.
+    decided_by: DecidedBy | None = None
 
 
 class RejectApplication(IntegrationMessage):
@@ -146,6 +150,7 @@ class RejectApplication(IntegrationMessage):
     client_explanation: str
     improvement_hints: list[str] = []
     alternative_product_code: str | None = None
+    decided_by: DecidedBy | None = None
 
 
 class MarkDisbursed(IntegrationMessage):

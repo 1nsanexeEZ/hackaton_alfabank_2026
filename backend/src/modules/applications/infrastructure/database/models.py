@@ -63,9 +63,13 @@ class ApplicationRecord(UUIDPrimaryKeyMixin, OrganizationOwnedMixin, VersionMixi
     consents: Mapped[dict[str, Any]] = mapped_column(JSONType)
     # The client's answer about the beneficiary (115-FZ); NULL — not answered.
     beneficiary: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
+    # Beneficial owners named by the client (115-FZ); NULL — not answered.
+    beneficial_owners: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     org_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     offer: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     decision_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
+    # decision_summary.decided_by lives here, not in the JSON: the bank's list filters by it.
+    decided_by: Mapped[str | None] = mapped_column(String(16))
     disbursement: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     # Copy of offer.expires_at: the expiry job finds overdue offers by an index.
     offer_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

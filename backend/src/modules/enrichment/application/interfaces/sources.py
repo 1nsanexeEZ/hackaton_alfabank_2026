@@ -10,6 +10,7 @@ from typing import Protocol
 from src.modules.enrichment.application.dto.accounting import AccountingReportsDTO
 from src.modules.enrichment.application.dto.aml import (
     AmlSubjectDTO,
+    LicenseDTO,
     ListScreeningDTO,
     PepScreeningDTO,
     ZskRiskDTO,
@@ -69,6 +70,12 @@ class ZskSource(Protocol):
     async def fetch(self, inn: str) -> ZskRiskDTO: ...
 
 
+class LicenseSource(Protocol):
+    """Реестр лицензий: действующие лицензии компании (ст. 7 п. 15 115-ФЗ)."""
+
+    async def fetch(self, inn: str) -> tuple[LicenseDTO, ...]: ...
+
+
 class BankStopListSource(Protocol):
     """Внутренний стоп-лист банка (АБС): собственные данные банка, согласия не требуют."""
 
@@ -95,3 +102,4 @@ class Sources:
     zsk: ZskSource
     bank_stop_list: BankStopListSource
     bank_turnover: BankTurnoverSource
+    licenses: LicenseSource

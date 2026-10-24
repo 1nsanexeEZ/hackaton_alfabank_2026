@@ -103,7 +103,7 @@ class App:
 
 @pytest.fixture
 def app(settings: Settings) -> Iterator[App]:
-    world = asyncio.run(build_world("s1_romashka"))
+    world = asyncio.run(build_world("s1_romashka", acts_for_itself=True))
     clients = FakeClientsFacade()
     clients.add_organization(
         builders.organization_snapshot("romashka", organization_id=world.organization_id)

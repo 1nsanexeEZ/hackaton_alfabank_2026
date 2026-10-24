@@ -6,7 +6,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.types import SafeString
-from src.modules.applications.application.dto.applications import CollateralDTO, ThirdPartyDTO
+from src.modules.applications.application.dto.applications import (
+    CollateralDTO,
+    DeclaredOwnerDTO,
+    ThirdPartyDTO,
+)
 from src.modules.applications.application.dto.common import UNSET
 from src.modules.applications.application.dto.drafts import (
     BeneficiaryChoiceDTO,
@@ -14,9 +18,12 @@ from src.modules.applications.application.dto.drafts import (
     DraftChangesDTO,
     DraftRequestDTO,
 )
+from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.applications.presentation.schemas.documents import DocumentOut
 
 Amount = Annotated[Decimal, Field(gt=0, max_digits=15, decimal_places=2)]
+# ISO 3166-1 alpha-2 country code, e.g. "DE".
+Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
 
 
 # --- input --------------------------------------------------------------------
@@ -48,9 +55,30 @@ class ThirdPartyIn(BaseModel):
     kind: Literal["person", "organization"]
     name: Annotated[SafeString, Field(min_length=1, max_length=300)]
     inn: Annotated[str, Field(pattern=r"^\d{10}(\d{2})?$")] | None = None
+    # Where the party lives or is registered, ISO 3166-1 alpha-2; omit for Russia.
+    country: Country | None = None
 
     def to_dto(self) -> ThirdPartyDTO:
-        return ThirdPartyDTO(kind=self.kind, name=self.name, inn=self.inn)
+        return ThirdPartyDTO(kind=self.kind, name=self.name, inn=self.inn, country=self.country)
+
+
+class DeclaredOwnerIn(BaseModel):
+    """ownership — owns more than 25% directly or through other companies; control — controls
+    the company otherwise, e.g. by an agreement (115-FZ art. 3)."""
+
+    name: Annotated[SafeString, Field(min_length=1, max_length=300)]
+    basis: Literal["ownership", "control"]
+    country: Country | None = None
+
+    def to_dto(self) -> DeclaredOwnerDTO:
+        return DeclaredOwnerDTO(name=self.name, basis=self.basis, country=self.country)
+
+
+class BeneficialOwnersIn(BaseModel):
+    """The client's beneficial owners (115-FZ art. 6.1, 7 p. 14). An empty list is an answer:
+    nobody owns more than 25% or controls the company otherwise."""
+
+    owners: Annotated[list[DeclaredOwnerIn], Field(max_length=20)]
 
 
 class CollateralIn(BaseModel):
@@ -105,6 +133,8 @@ class ApplicationUpdate(BaseModel):
     consents: ConsentsIn | None = None
     # null withdraws the answer.
     beneficiary: BeneficiaryIn | None = None
+    # null withdraws the answer.
+    beneficial_owners: BeneficialOwnersIn | None = None
 
     def to_dto(self) -> DraftChangesDTO:
         """Fields that weren't sent are UNSET; null stays None."""
@@ -128,6 +158,13 @@ class ApplicationUpdate(BaseModel):
             consents=consents if "consents" in sent else UNSET,
             beneficiary=(self.beneficiary.to_dto() if self.beneficiary else None)
             if "beneficiary" in sent
+            else UNSET,
+            beneficial_owners=(
+                tuple(o.to_dto() for o in self.beneficial_owners.owners)
+                if self.beneficial_owners
+                else None
+            )
+            if "beneficial_owners" in sent
             else UNSET,
         )
 
@@ -154,6 +191,7 @@ class ThirdPartyOut(BaseModel):
     kind: str
     name: str
     inn: str | None
+    country: str | None = None
 
 
 class CollateralOut(BaseModel):
@@ -173,6 +211,21 @@ class BeneficiaryOut(BaseModel):
     declared_at: datetime
     beneficiary: ThirdPartyOut | None
     basis: str | None
+
+
+class DeclaredOwnerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    basis: str
+    country: str | None
+
+
+class BeneficialOwnersOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    owners: list[DeclaredOwnerOut]
+    declared_at: datetime
 
 
 class ConsentsOut(BaseModel):
@@ -318,6 +371,8 @@ class ApplicationOut(BaseModel):
     closed_at: datetime | None
     # Whether the client acts to the benefit of a third party (115-FZ); null — not answered.
     beneficiary: BeneficiaryOut | None = None
+    # Beneficial owners named by the client (115-FZ); null — not answered.
+    beneficial_owners: BeneficialOwnersOut | None = None
 
 
 class ApplicationListItem(BaseModel):
@@ -333,6 +388,9 @@ class ApplicationListItem(BaseModel):
     term_months: int | None
     updated_at: datetime
     submitted_at: datetime | None
+    # Who made the decision the client got: the automatic policy or an underwriter;
+    # null — no decision yet.
+    decided_by: DecidedBy | None
 
 
 class ViolationOut(BaseModel):

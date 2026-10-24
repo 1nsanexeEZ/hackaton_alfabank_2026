@@ -9,7 +9,13 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.core.messaging.contracts.enrichment import FetchEnrichment, PersonRef
-from src.modules.applications.facade import BeneficiaryDTO, CollateralDTO, ThirdPartyDTO
+from src.modules.applications.facade import (
+    BeneficiaryDTO,
+    CollateralDTO,
+    DeclaredOwnerDTO,
+    OwnersDTO,
+    ThirdPartyDTO,
+)
 from src.modules.process.application.mappers.messages import command_contract
 from src.modules.process.domain.enums import NodeType
 from src.modules.process.domain.steps import STEPS, PersonFact, StepInput
@@ -184,17 +190,41 @@ async def test_third_parties_go_to_the_check(world: World) -> None:
             "Станок",
             Decimal("2000000"),
             "third_party",
-            ThirdPartyDTO("person", "Залогов Иван Иванович"),
+            ThirdPartyDTO("person", "Залогов Иван Иванович", country="KZ"),
         ),
     )
 
     command = await _command(world)
 
-    assert [(p.role, p.kind, p.name, p.inn) for p in command.third_parties] == [
-        ("beneficiary", "organization", "ООО «Транзитный агент»", "7707115094"),
-        ("pledgor", "person", "Залогов Иван Иванович", None),
+    assert [(p.role, p.kind, p.name, p.inn, p.country) for p in command.third_parties] == [
+        ("beneficiary", "organization", "ООО «Транзитный агент»", "7707115094", None),
+        ("pledgor", "person", "Залогов Иван Иванович", None, "KZ"),
     ]
 
 
 async def test_no_third_parties_by_default(world: World) -> None:
-    assert (await _command(world)).third_parties == []
+    command = await _command(world)
+    assert command.third_parties == [] and command.declared_owners is None
+
+
+async def test_owners_named_by_the_client_go_to_the_check(world: World) -> None:
+    """115-FZ art. 6.1: the owners in the client's words are compared with the registry."""
+    world.applications.scoring_inputs[world.application_id] = builders.scoring_input(
+        world.applications.cards[world.application_id],
+        beneficial_owners=OwnersDTO(
+            owners=(
+                DeclaredOwnerDTO("Смирнова Анна Сергеевна", "ownership"),
+                DeclaredOwnerDTO("Теневой Тимур", "control", "AE"),
+            ),
+            declared_by=uuid4(),
+            declared_at=NOW,
+        ),
+    )
+
+    command = await _command(world)
+
+    assert command.declared_owners is not None
+    assert [(o.name, o.basis, o.country) for o in command.declared_owners] == [
+        ("Смирнова Анна Сергеевна", "ownership", None),
+        ("Теневой Тимур", "control", "AE"),
+    ]
