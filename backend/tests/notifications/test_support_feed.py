@@ -121,7 +121,9 @@ async def test_client_message_goes_to_the_employee_who_took_it(
     assert row.title == "Клиент написал в обращение ТП-2026-000001"
 
 
-async def test_what_the_client_did_is_not_told_back_to_them(feed: FeedHarness, world: World) -> None:
+async def test_what_the_client_did_is_not_told_back_to_them(
+    feed: FeedHarness, world: World
+) -> None:
     await feed.deliver(status(world, "resolved", "in_progress", "client", assignee_id=ANNA))
     await feed.deliver(status(world, "in_progress", "closed", "client", assignee_id=ANNA))
 
