@@ -111,7 +111,7 @@ curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/
 
 **Внешние моки.** Сервис `external-mocks` входит в `docker-compose.yml`, наружу порт не открыт; backend стартует после его healthcheck и ходит к нему по `http://external-mocks:8100`: обогащение (ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и руководителя, ГИР БО, Контур, проверка по 115-ФЗ: перечни Росфинмониторинга, ПДЛ, ЗСК), подписание (ЭДО) и выдача (АБС). Для демо «хаос» выключен: задержка 100–400 мс, без случайных `503`; чтобы показать ретраи и деградацию, поднимите `MOCK_FAILURE_RATE` в `.env` (например, `0.1`). БКИ по ООО «Сбой» недоступно всегда — сценарий S-6.
 
-**Фронтенд** собирается в compose (сервис `frontend`). Для разработки его запускают отдельно: `cd frontend && npm ci && npm run dev` → http://localhost:5173. Сайт для клиентов всегда ходит в backend, рабочее место сотрудника (`/admin`) по умолчанию работает на синтетических данных в браузере (`VITE_API_MODE=mock`); подробно — [`frontend/README.md`](frontend/README.md).
+**Фронтенд** собирается в compose (сервис `frontend`). Для разработки его запускают отдельно: `cd frontend && npm ci && npm run dev` → http://localhost:5173. В сборке из compose весь сайт, включая рабочее место сотрудника (`/admin`), работает с настоящим backend. Только в `npm run dev` рабочее место сотрудника по умолчанию берёт синтетические данные в браузере (`VITE_API_MODE=mock`), сайт для клиентов и там ходит в backend; подробно — [`frontend/README.md`](frontend/README.md).
 
 Остановить стенд — `docker compose down`; удалить ещё и данные (БД, документы, Kafka, ключи JWT) — `docker compose down -v`.
 
@@ -224,7 +224,7 @@ Compose читает `.env` из корня репозитория; в конт�
 | Кейс, наше понимание, ответы организаторов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
 | Архитектура: модули, путь клиента, путь заявки через Kafka, модель принятия решения | [`docs/architecture/architecture.md`](docs/architecture/architecture.md) (схема draw.io — рядом), [`docs/platform.md`](docs/platform.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | Swagger UI `/docs`, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция запросов Yaak [`docs/api/yaak/`](docs/api/yaak/); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
+| Описание API | Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция запросов Yaak [`docs/api/yaak/`](docs/api/yaak/); клиентский путь по шагам схемы и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md); ручки модулей — в их документах |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
 | Проверка клиента по 115-ФЗ на каждой заявке, автоматизированное решение (ст. 16 152-ФЗ) | [`docs/compliance-115.md`](docs/compliance-115.md) |
@@ -245,7 +245,7 @@ uv run python -m scripts.export_openapi   # обновить docs/api/openapi.js
 uv run python -m scripts.export_yaak      # и коллекцию Yaak в docs/api/yaak/ (--check — свежая ли)
 ```
 
-Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков. Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.
+Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков, сборка фронтенда и подъём всего стенда так, как его запускает жюри (`docker compose up --wait` и проверка сайта, API, входа и кабинета). Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.
 
 ## Что вошло и что дальше
 
@@ -261,8 +261,6 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak в docs/a
 
 **Дальше:**
 
-- коллекция запросов по S-1…S-9 и прогон сценариев на поднятом стенде;
-- в `docker-compose.yml`: healthcheck backend, фиксированные теги образов `minio` и `nginx`;
 - AI-ассистент — необязательный слой только на моделях с открытыми весами, основной сценарий от него не зависит.
 
 Идентификатор проверяемой версии — git-тег на `main`, проставляется при сдаче.
