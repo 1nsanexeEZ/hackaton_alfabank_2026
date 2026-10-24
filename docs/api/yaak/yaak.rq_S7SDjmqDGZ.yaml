@@ -5,7 +5,8 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_XaejLZxLdI
 name: Мои заявки
 description: |-
-  List Applications
+  Newest first. `decided_by=auto` — the decisions the client got from the automatic
+  policy without a person; combines with `status`.
 
   Отсюда `application_id` справочника: самая новая заявка Ромашки.
 
@@ -19,6 +20,9 @@ urlParameters:
 - enabled: false
   name: status
   value: ''
+- enabled: false
+  name: decided_by
+  value: auto
 - enabled: false
   name: limit
   value: '20'

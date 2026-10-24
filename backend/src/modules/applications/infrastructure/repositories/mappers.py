@@ -3,7 +3,7 @@ as strings and datetimes in ISO format, so nothing loses precision."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from src.core.domain import Money
@@ -21,6 +21,7 @@ from src.modules.applications.domain.value_objects import (
     BeneficiaryDeclaration,
     CollateralDeclaration,
     Consents,
+    DecidedBy,
     DecisionSummary,
     Disbursement,
     DocumentRequirement,
@@ -339,7 +340,8 @@ def summary_out(summary: DecisionSummary | None) -> dict[str, Any] | None:
     }
 
 
-def summary_in(data: dict[str, Any] | None) -> DecisionSummary | None:
+def summary_in(data: dict[str, Any] | None, decided_by: str | None) -> DecisionSummary | None:
+    """`decided_by` is a column of its own, see ApplicationRecord."""
     if data is None:
         return None
     return DecisionSummary(
@@ -347,6 +349,7 @@ def summary_in(data: dict[str, Any] | None) -> DecisionSummary | None:
         client_explanation=data["client_explanation"],
         improvement_hints=tuple(data["improvement_hints"]),
         alternative_product_code=data.get("alternative_product_code"),
+        decided_by=cast(DecidedBy | None, decided_by),
     )
 
 
@@ -388,7 +391,7 @@ def to_domain(record: ApplicationRecord) -> CreditApplication:
         documents=[_document_in(d) for d in record.documents],
         info_requests=[_info_request_in(r) for r in record.info_requests],
         offer=offer_in(record.offer),
-        decision_summary=summary_in(record.decision_summary),
+        decision_summary=summary_in(record.decision_summary, record.decided_by),
         signature=_signature_in(record.signature),
         disbursement=disbursement_in(record.disbursement),
         client_stage=record.client_stage,
@@ -430,6 +433,8 @@ def apply(application: CreditApplication, record: ApplicationRecord) -> None:
     record.org_snapshot = snapshot_out(application.org_snapshot)
     record.offer = offer_out(application.offer)
     record.decision_summary = summary_out(application.decision_summary)
+    summary = application.decision_summary
+    record.decided_by = summary.decided_by if summary else None
     record.disbursement = disbursement_out(application.disbursement)
     record.offer_expires_at = application.offer.expires_at if application.offer else None
     record.updated_at = application.updated_at

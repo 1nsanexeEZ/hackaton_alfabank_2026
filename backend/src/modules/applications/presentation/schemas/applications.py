@@ -14,6 +14,7 @@ from src.modules.applications.application.dto.drafts import (
     DraftChangesDTO,
     DraftRequestDTO,
 )
+from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.applications.presentation.schemas.documents import DocumentOut
 
 Amount = Annotated[Decimal, Field(gt=0, max_digits=15, decimal_places=2)]
@@ -333,6 +334,9 @@ class ApplicationListItem(BaseModel):
     term_months: int | None
     updated_at: datetime
     submitted_at: datetime | None
+    # Who made the decision the client got: the automatic policy or an underwriter;
+    # null — no decision yet.
+    decided_by: DecidedBy | None
 
 
 class ViolationOut(BaseModel):
