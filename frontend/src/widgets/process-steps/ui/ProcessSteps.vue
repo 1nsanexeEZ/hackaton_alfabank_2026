@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { CircleCheck } from 'lucide-vue-next'
+
 import { SECTION_ID } from '@/shared/config'
-import { BaseBadge, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseBadge, BaseContainer, PeekSticker, SectionHeader } from '@/shared/ui'
 
 type Actor = 'client' | 'bank'
 
@@ -38,7 +40,23 @@ const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
 <template>
   <section :id="SECTION_ID.process" class="py-16 lg:py-24">
     <BaseContainer class="relative">
-      <DecorSticker class="absolute -top-10 right-16" burst tone="sun" title="Одобрено!" caption="кредит" :tilt="-12" />
+      <!-- Чем заканчивается путь: уведомление о решении, как его покажет кабинет -->
+      <div
+        class="decision-card pointer-events-none absolute -top-6 right-8 hidden w-76 items-start gap-3 rounded-2xl bg-white p-4 shadow-[0_1.25rem_2.5rem_-1rem_rgb(20_20_30/0.25)] ring-1 ring-line select-none lg:flex"
+        aria-hidden="true"
+      >
+        <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+          <CircleCheck class="size-5" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="flex items-center justify-between gap-2 text-xs text-ink-secondary">
+            Решение по заявке
+            <span>только что</span>
+          </p>
+          <p class="mt-0.5 font-semibold text-ink">Кредит одобрен</p>
+          <p class="mt-0.5 text-sm text-ink-secondary">5 000 000 ₽ · 36 мес. · от 18,9%</p>
+        </div>
+      </div>
       <SectionHeader
         title="Как проходит заявка"
         description="Каждый этап отражается в кабинете — вы всегда знаете, где заявка и что будет дальше."
@@ -69,3 +87,22 @@ const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
     </BaseContainer>
   </section>
 </template>
+
+<style scoped>
+/* Карточка решения слегка покачивается на месте — без наклонов и вспышек */
+.decision-card {
+  animation: decision-float 6s ease-in-out infinite;
+}
+
+@keyframes decision-float {
+  50% {
+    translate: 0 -0.375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .decision-card {
+    animation: none;
+  }
+}
+</style>
