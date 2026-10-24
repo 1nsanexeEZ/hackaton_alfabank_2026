@@ -3,7 +3,7 @@ model: http_request
 id: rq_dOMfADWbnJ
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_rgp4VZHY1e
-name: '26. Карточка: выдача'
+name: '31. Карточка: выдача'
 description: |-
   Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.
 
@@ -17,7 +17,7 @@ urlParameters:
 headers: []
 bodyType: null
 body: {}
-sortPriority: 26000.0
+sortPriority: 31000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

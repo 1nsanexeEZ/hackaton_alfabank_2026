@@ -8,14 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.access.access_context import AccessContext
 from src.core.access.apply_helper import apply_access_context
 from src.core.exceptions.exceptions import NotFoundError
-from src.modules.applications.application.interfaces.repositories import ApplicationRepository
+from src.modules.applications.application.interfaces.repositories import (
+    ApplicationRepository,
+    SignatureDetails,
+)
 from src.modules.applications.domain.application import CreditApplication
 from src.modules.applications.domain.enums import ApplicationStatus
 from src.modules.applications.domain.statuses import FINAL_STATUSES
-from src.modules.applications.domain.value_objects import ApplicationNumber
+from src.modules.applications.domain.value_objects import ApplicationNumber, DecidedBy
 from src.modules.applications.infrastructure.database.models import (
     NUMBER_SEQUENCE,
     ApplicationRecord,
+    SignatureRecord,
 )
 from src.modules.applications.infrastructure.repositories.mappers import (
     apply,
@@ -88,6 +92,7 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
         statuses: Sequence[str] | None,
         limit: int,
         offset: int,
+        decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]:
         stmt = select(ApplicationRecord)
         if access is not None:
@@ -96,6 +101,8 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
             stmt = stmt.where(ApplicationRecord.organization_id == organization_id)
         if statuses:
             stmt = stmt.where(ApplicationRecord.status.in_(list(statuses)))
+        if decided_by is not None:
+            stmt = stmt.where(ApplicationRecord.decided_by == decided_by)
         stmt = stmt.order_by(ApplicationRecord.updated_at.desc(), ApplicationRecord.id)
         records = (await self._session.scalars(stmt.limit(limit).offset(offset))).all()
         return [to_domain(record) for record in records]
@@ -136,6 +143,8 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
         ip: str | None,
         user_agent: str | None,
         edo_document_id: str | None,
+        document_hash: str | None = None,
+        rules_version: str | None = None,
     ) -> None:
         signature = self._records[application_id].signature
         if signature is None:
@@ -143,7 +152,21 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
         signature.ip = ip[:64] if ip else None
         signature.user_agent = user_agent[:512] if user_agent else None
         signature.edo_document_id = edo_document_id
+        signature.document_hash = document_hash
+        signature.rules_version = rules_version
         await self._session.flush()
+
+    async def signature_details(self, application_id: UUID) -> SignatureDetails | None:
+        row = await self._session.get(SignatureRecord, application_id)
+        if row is None:
+            return None
+        return SignatureDetails(
+            ip=row.ip,
+            user_agent=row.user_agent,
+            edo_document_id=row.edo_document_id,
+            document_hash=row.document_hash,
+            rules_version=row.rules_version,
+        )
 
     def _remember(self, application: CreditApplication, record: ApplicationRecord) -> None:
         self._records[application.id] = record

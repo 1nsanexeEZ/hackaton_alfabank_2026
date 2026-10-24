@@ -24,6 +24,16 @@ class ThirdPartyRef(ContractModel):
     kind: str  # person | organization
     name: str
     inn: str | None = None
+    # ISO 3166-1 alpha-2, when not Russia (a participant from a FATF-listed state raises the risk).
+    country: str | None = None
+
+
+class DeclaredOwnerRef(ContractModel):
+    """A beneficial owner as named by the client (115-FZ art. 6.1, 7 p. 14)."""
+
+    name: str
+    basis: str  # ownership — more than 25%; control — controls the company otherwise
+    country: str | None = None
 
 
 class FetchEnrichment(IntegrationMessage):
@@ -62,6 +72,8 @@ class FetchEnrichment(IntegrationMessage):
     representative: PersonRef | None = None
     # The beneficiary and the pledgor declared in the application (115-FZ).
     third_parties: list[ThirdPartyRef] = []
+    # Beneficial owners as named by the client; None — the client has not answered.
+    declared_owners: list[DeclaredOwnerRef] | None = None
 
 
 class EnrichmentCompleted(IntegrationMessage):

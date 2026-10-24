@@ -7,6 +7,8 @@ name: Договор перед подписанием
 description: |-
   The loan contract to show before signing: borrower, terms, schedule
   and who may sign. From `signing` on; before that 409 `contract_not_ready`.
+  `document` is its PDF: the draft until the client signs, then the copy
+  sealed by the bank; `uid` — the deal identifier of the credit history.
 
   Появляется, когда предложение принято.
 

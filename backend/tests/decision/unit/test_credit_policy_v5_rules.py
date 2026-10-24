@@ -118,6 +118,18 @@ def test_without_the_ml_estimate_the_application_is_disputed() -> None:
     )
 
 
+def test_model_that_does_not_apply_says_why() -> None:
+    """Компания без выручки: ML-модель не применяется — заявка спорная, в трассе почему."""
+    score = replace(models("green", None), ml_not_applicable="no_revenue")
+    decision = decide(v5(score=score))
+    assert decision.reason_codes == (ReasonCode.ROUTE_ML_UNAVAILABLE,)
+    assert review(decision) == "dispute"
+    assert hit(decision, "strategy.two_models").detail == (
+        "PD-модель: грейд B (PD 0.80%) — зелёная; ML-модель не применяется: у компании нет "
+        "выручки, модель обучена на действующих компаниях → спорная заявка — решает андеррайтер"
+    )
+
+
 def test_both_red_on_incomplete_data_goes_to_a_person() -> None:
     decision = decide(v5(score=models("red", "red"), sources_failed=("kontur",)))
     assert decision.outcome == "MANUAL_REVIEW"

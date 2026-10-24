@@ -1,0 +1,25 @@
+type: http_request
+model: http_request
+id: rq_QGEL9WxRBv
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PjjuPyjjDA
+name: Проверка договора по QR
+description: |-
+  The document by the QR code: who signed it and when, whether the signing
+  log is intact. 404 `document_not_found`.
+
+  Без входа: страница, куда ведёт QR-код договора. Документ — PDF договора самой новой заявки Ромашки (`contract_document_id`).
+method: GET
+url: ${[ base_url ]}/contracts/verify/:document_id
+urlParameters:
+- enabled: true
+  name: :document_id
+  value: ${[ contract_document_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -454,6 +454,11 @@
             "enabled": true,
             "name": "workflow_code",
             "value": "${[ response.body.path(request='rq_25BRmtdb5P', behavior='smart', path='$[0].code') ]}"
+          },
+          {
+            "enabled": true,
+            "name": "contract_document_id",
+            "value": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.id') ]}"
           }
         ],
         "color": null,
@@ -712,12 +717,25 @@
       },
       {
         "model": "folder",
+        "id": "fl_PjjuPyjjDA",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_LRnXWnQzgy",
+        "name": "Договор: правила и проверка",
+        "description": "Правила ЭП и публичная проверка договора.",
+        "sortPriority": 7000.0,
+        "authenticationType": null,
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "folder",
         "id": "fl_PfNW2aqqEA",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "Процесс и задачи",
         "description": "BPMN-процессы и задачи андеррайтера.",
-        "sortPriority": 7000.0,
+        "sortPriority": 8000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -730,7 +748,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Предодобрение и стартапы",
         "description": "Предодобрения, проверка учредителя, проект.",
-        "sortPriority": 8000.0,
+        "sortPriority": 9000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -743,7 +761,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Лента и новости",
         "description": "События по заявкам, поток SSE, персональные новости.",
-        "sortPriority": 9000.0,
+        "sortPriority": 10000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -756,7 +774,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF клиента",
         "description": "Экраны кабинета клиента одним запросом.",
-        "sortPriority": 10000.0,
+        "sortPriority": 11000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -769,7 +787,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF бэк-офиса",
         "description": "Очередь, карточка андеррайтера, метрики.",
-        "sortPriority": 11000.0,
+        "sortPriority": 12000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -782,7 +800,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Администрирование",
         "description": "Аккаунты и роли: создаём свои и на них пробуем.",
-        "sortPriority": 12000.0,
+        "sortPriority": 13000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -1118,7 +1136,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -1137,7 +1155,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_mpokfzMPQh', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_mpokfzMPQh', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -1238,7 +1256,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
         "name": "07. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -1262,11 +1280,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_7K74YpSK1J",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_MUo8HeVGMW",
+        "name": "08. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 8000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_i0kVEkVrF7",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_MUo8HeVGMW",
+        "name": "09. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 9000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_2PpaAwSyhm",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
-        "name": "08. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "10. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -1285,9 +1355,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_mDBV3TBjGf', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_mDBV3TBjGf', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_mDBV3TBjGf', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_i0kVEkVrF7', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 8000.0,
+        "sortPriority": 10000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -1298,10 +1368,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_tRWSCSx7yu",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_MUo8HeVGMW",
+        "name": "11. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 11000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_wbFsozbY78",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_MUo8HeVGMW",
+        "name": "12. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 12000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Dg2WKr3b3H",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_MUo8HeVGMW",
+        "name": "13. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_tRWSCSx7yu', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 13000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_vqknLQkWew",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
-        "name": "09. Карточка: выдача",
+        "name": "14. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -1315,7 +1471,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 9000.0,
+        "sortPriority": 14000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -1329,7 +1485,7 @@
         "id": "rq_x30PwVHl39",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_MUo8HeVGMW",
-        "name": "10. Процесс по заявке",
+        "name": "15. Процесс по заявке",
         "description": "`completed`; в `visited_node_ids` нет `underwriter_review`: человек не участвовал.",
         "method": "GET",
         "url": "${[ base_url ]}/processes/:application_id",
@@ -1343,7 +1499,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 10000.0,
+        "sortPriority": 15000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_underwriter ]}",
@@ -1410,7 +1566,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_tp4nOiyJyx",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -1429,7 +1585,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_euA4gkvCba', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"5000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_euA4gkvCba', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"5000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -1842,7 +1998,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_tp4nOiyJyx",
         "name": "17. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -1866,11 +2022,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_3dxEufu7PI",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tp4nOiyJyx",
+        "name": "18. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 18000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_ivanov ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_jzslQnaDoU",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tp4nOiyJyx",
+        "name": "19. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 19000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_ck5xAe6E0K",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_tp4nOiyJyx",
-        "name": "18. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "20. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -1889,9 +2097,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_YDaYDBxk7d', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_YDaYDBxk7d', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_YDaYDBxk7d', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_jzslQnaDoU', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 18000.0,
+        "sortPriority": 20000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_ivanov ]}",
@@ -1902,10 +2110,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_UsHdHXwBcf",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tp4nOiyJyx",
+        "name": "21. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 21000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_ivanov ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_VROF2f32yF",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tp4nOiyJyx",
+        "name": "22. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 22000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_ivanov ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_tTYE2wP0vN",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_tp4nOiyJyx",
+        "name": "23. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_UsHdHXwBcf', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 23000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_XYxJ4hiG7l",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_tp4nOiyJyx",
-        "name": "19. Карточка: выдача",
+        "name": "24. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -1919,7 +2213,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 19000.0,
+        "sortPriority": 24000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_ivanov ]}",
@@ -1986,7 +2280,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_WpoGHiYheT",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2005,7 +2299,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_VeakSQQyOu', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"10000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_VeakSQQyOu', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"10000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -2382,7 +2676,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_NQa6xbcnQA",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2401,7 +2695,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_9F62BWMwnJ', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"2000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_9F62BWMwnJ', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"2000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -2554,7 +2848,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4MO7X92vcV",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -2573,7 +2867,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_vHdNYaSMBA', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"8000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_vHdNYaSMBA', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"8000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -3047,7 +3341,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4MO7X92vcV",
         "name": "19. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -3071,11 +3365,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_o3i1qnstZF",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4MO7X92vcV",
+        "name": "20. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 20000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_progress ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_dwctrKvp43",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4MO7X92vcV",
+        "name": "21. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 21000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_IUnYAGpG3m",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4MO7X92vcV",
-        "name": "20. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "22. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -3094,9 +3440,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_pCCnF4LwXO', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_pCCnF4LwXO', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_pCCnF4LwXO', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_dwctrKvp43', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 20000.0,
+        "sortPriority": 22000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_progress ]}",
@@ -3107,10 +3453,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_ij41LBk05x",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4MO7X92vcV",
+        "name": "23. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 23000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_progress ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_rpTd7wrSYh",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4MO7X92vcV",
+        "name": "24. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 24000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_progress ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_0GLBTYspJi",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4MO7X92vcV",
+        "name": "25. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_ij41LBk05x', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 25000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_ES9WGchijC",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4MO7X92vcV",
-        "name": "21. Карточка: выдача",
+        "name": "26. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -3124,7 +3556,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 21000.0,
+        "sortPriority": 26000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_progress ]}",
@@ -3191,7 +3623,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_iO1WBCosT3",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -3210,7 +3642,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_IwIaHx2Fev', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_IwIaHx2Fev', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -3455,7 +3887,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_rgp4VZHY1e",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -3474,7 +3906,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_k74JjUxGX3', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"30000000\",\n    \"term_months\": 120,\n    \"purpose\": \"real_estate\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"collateral\": {\n    \"type\": \"real_estate\",\n    \"description\": \"Офис, г. Москва, ул. Тверская, д. 10\",\n    \"declared_value\": \"50000000\",\n    \"owner\": \"self\"\n  },\n  \"product_fields\": {\n    \"property_address\": \"г. Москва, ул. Тверская, д. 10\",\n    \"property_type\": \"office\",\n    \"price\": 50000000\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_k74JjUxGX3', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"30000000\",\n    \"term_months\": 120,\n    \"purpose\": \"real_estate\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  },\n  \"collateral\": {\n    \"type\": \"real_estate\",\n    \"description\": \"Офис, г. Москва, ул. Тверская, д. 10\",\n    \"declared_value\": \"50000000\",\n    \"owner\": \"self\"\n  },\n  \"product_fields\": {\n    \"property_address\": \"г. Москва, ул. Тверская, д. 10\",\n    \"property_type\": \"office\",\n    \"price\": 50000000\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -4103,7 +4535,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_rgp4VZHY1e",
         "name": "24. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -4127,11 +4559,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_QjAlD7k3V6",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_rgp4VZHY1e",
+        "name": "25. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 25000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_BFRNhxgns9",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_rgp4VZHY1e",
+        "name": "26. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 26000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_pRS87VPVIA",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_rgp4VZHY1e",
-        "name": "25. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "27. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -4150,9 +4634,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_762wXVBpHO', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_BFRNhxgns9', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 25000.0,
+        "sortPriority": 27000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -4163,10 +4647,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_U2vDMywCoR",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_rgp4VZHY1e",
+        "name": "28. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 28000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_WMfzjjBRMd",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_rgp4VZHY1e",
+        "name": "29. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 29000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Jv5dB6y6zc",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_rgp4VZHY1e",
+        "name": "30. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_U2vDMywCoR', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 30000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_dOMfADWbnJ",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_rgp4VZHY1e",
-        "name": "26. Карточка: выдача",
+        "name": "31. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -4180,7 +4750,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 26000.0,
+        "sortPriority": 31000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -4247,7 +4817,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_Q3lRWImQlK",
         "name": "03. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -4266,7 +4836,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_d9YZY0q4J5', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_d9YZY0q4J5', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 24,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 3000.0,
         "authenticationType": "bearer",
@@ -4431,7 +5001,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_Q3lRWImQlK",
         "name": "09. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -4455,11 +5025,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_y9qVBIhLUZ",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_Q3lRWImQlK",
+        "name": "10. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 10000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_jHPMcQPbBN",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_Q3lRWImQlK",
+        "name": "11. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 11000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_mTKg7TRTyb",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_Q3lRWImQlK",
-        "name": "10. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "12. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -4478,9 +5100,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_IbMadV7riW', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_IbMadV7riW', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_IbMadV7riW', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_jHPMcQPbBN', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 10000.0,
+        "sortPriority": 12000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -4491,10 +5113,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_7wLW8lzau1",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_Q3lRWImQlK",
+        "name": "13. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 13000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_04Tcew9pBj",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_Q3lRWImQlK",
+        "name": "14. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 14000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_RcCe8qxkYB",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_Q3lRWImQlK",
+        "name": "15. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_7wLW8lzau1', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 15000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_plDPCrrTlI",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_Q3lRWImQlK",
-        "name": "11. Карточка: выдача",
+        "name": "16. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -4508,7 +5216,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 11000.0,
+        "sortPriority": 16000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -4704,7 +5412,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_AEk4pZezSL",
         "name": "07. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -4723,7 +5431,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_etJWLEY8df', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_etJWLEY8df', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 7000.0,
         "authenticationType": "bearer",
@@ -5136,7 +5844,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_AEk4pZezSL",
         "name": "21. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -5160,11 +5868,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_kb02wig0Zq",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AEk4pZezSL",
+        "name": "22. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 22000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_71guusU13V",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AEk4pZezSL",
+        "name": "23. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 23000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_8wwiyYiFlK",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_AEk4pZezSL",
-        "name": "22. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "24. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -5183,9 +5943,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_ZYqTuqbPle', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_ZYqTuqbPle', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_ZYqTuqbPle', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_71guusU13V', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 22000.0,
+        "sortPriority": 24000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -5196,10 +5956,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_U3QRFXZ3lS",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AEk4pZezSL",
+        "name": "25. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 25000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_PNJ7oLTmNq",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AEk4pZezSL",
+        "name": "26. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 26000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_6nMF8NYygh",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AEk4pZezSL",
+        "name": "27. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_U3QRFXZ3lS', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 27000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_rqZfIXCaKj",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_AEk4pZezSL",
-        "name": "23. Карточка: выдача",
+        "name": "28. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -5213,7 +6059,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 23000.0,
+        "sortPriority": 28000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -5458,7 +6304,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_JamWtX6KID",
         "name": "09. Заполнить черновик",
-        "description": "200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.",
+        "description": "200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).",
         "method": "PATCH",
         "url": "${[ base_url ]}/applications/:application_id",
         "urlParameters": [
@@ -5477,7 +6323,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_bhrrb6cADa', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_bhrrb6cADa', behavior='smart', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"3000000\",\n    \"term_months\": 36,\n    \"purpose\": \"working_capital\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 9000.0,
         "authenticationType": "bearer",
@@ -5890,7 +6736,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_JamWtX6KID",
         "name": "23. Договор",
-        "description": "200, договор `unsigned`: заёмщик, условия, график платежей. `offer_hash` — отпечаток условий, подпись идёт именно под ними.",
+        "description": "200, договор `unsigned`: заёмщик, условия, график платежей, УИд сделки (`uid`) и PDF-проект в `document` (`kind: draft`). `offer_hash` — отпечаток условий, `document.sha256` — хеш проекта: подпись идёт именно под ними.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -5914,11 +6760,63 @@
       },
       {
         "model": "http_request",
+        "id": "rq_41I2bj7RqQ",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_JamWtX6KID",
+        "name": "24. Договор: PDF-проект",
+        "description": "200 `application/pdf`: проект договора с плашкой «Проект», УИд и QR-кодом.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 24000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_8UjNUMHxtI",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_JamWtX6KID",
+        "name": "25. Правила электронного взаимодействия",
+        "description": "200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 25000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_kRCNzPHub7",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_JamWtX6KID",
-        "name": "24. Подписать договор",
-        "description": "200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.",
+        "name": "26. Подписать договор",
+        "description": "200: простая электронная подпись — пароль ещё раз (step-up), хеш проекта и версия правил. Сразу после неё банк подписывает итоговый PDF своей подписью (PAdES с меткой времени). Деньги выдаёт АБС, это мок.",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -5937,9 +6835,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_UrHc34LSio', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_UrHc34LSio', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_UrHc34LSio', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_8UjNUMHxtI', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 24000.0,
+        "sortPriority": 26000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -5950,10 +6848,96 @@
       },
       {
         "model": "http_request",
+        "id": "rq_NseGeqTFCQ",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_JamWtX6KID",
+        "name": "27. Договор после подписи",
+        "description": "200, договор `signed`; в `document` — итоговый PDF (`kind: signed`) и `verify_url` — куда ведёт QR-код договора.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 27000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_AvD4FuWEWi",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_JamWtX6KID",
+        "name": "28. Договор: подписанный PDF",
+        "description": "200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": "kind",
+            "value": "signed"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 28000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_start ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Ie1aHO4XnM",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_JamWtX6KID",
+        "name": "29. Проверка договора по QR",
+        "description": "200 без входа: кто и когда подписал (клиент — с инициалами), сертификат и метка времени банка, `log_intact` — журнал подписания не разорван.",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ response.body.path(request='rq_NseGeqTFCQ', behavior='smart', path='$.document.id') ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 29000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_YxUYJkvWLy",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_JamWtX6KID",
-        "name": "25. Карточка: выдача",
+        "name": "30. Карточка: выдача",
         "description": "Ожидаем: статус `disbursed`, в `disbursement` — `simulated: true`.\n\nРешение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id",
@@ -5967,7 +6951,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 25000.0,
+        "sortPriority": 30000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_start ]}",
@@ -7162,7 +8146,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_XaejLZxLdI",
         "name": "Мои заявки",
-        "description": "List Applications\n\nОтсюда `application_id` справочника: самая новая заявка Ромашки.\n\nТокен: директор ООО «Ромашка».",
+        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`.\n\nОтсюда `application_id` справочника: самая новая заявка Ромашки.\n\nТокен: директор ООО «Ромашка».",
         "method": "GET",
         "url": "${[ base_url ]}/applications",
         "urlParameters": [
@@ -7175,6 +8159,11 @@
             "enabled": false,
             "name": "status",
             "value": ""
+          },
+          {
+            "enabled": false,
+            "name": "decided_by",
+            "value": "auto"
           },
           {
             "enabled": false,
@@ -7252,7 +8241,7 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"version\": ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"cash_gap\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  }\n}"
+          "text": "{\n  \"version\": ${[ response.body.path(request='rq_Q9qx9hHdOf', behavior='always', path='$.version') ]},\n  \"request\": {\n    \"amount\": \"1000000\",\n    \"term_months\": 12,\n    \"purpose\": \"cash_gap\"\n  },\n  \"consents\": {\n    \"personal_data\": true,\n    \"credit_bureau\": true\n  },\n  \"beneficiary\": {\n    \"acts_for_third_party\": false\n  }\n}"
         },
         "sortPriority": 4000.0,
         "authenticationType": "bearer",
@@ -7551,7 +8540,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_XaejLZxLdI",
         "name": "Договор перед подписанием",
-        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.\n\nПоявляется, когда предложение принято.\n\nТокен: директор ООО «Ромашка».",
+        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.\n`document` is its PDF: the draft until the client signs, then the copy\nsealed by the bank; `uid` — the deal identifier of the credit history.\n\nПоявляется, когда предложение принято.\n\nТокен: директор ООО «Ромашка».",
         "method": "GET",
         "url": "${[ base_url ]}/applications/:application_id/contract",
         "urlParameters": [
@@ -7575,11 +8564,44 @@
       },
       {
         "model": "http_request",
+        "id": "rq_vhlpbS8GyI",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_XaejLZxLdI",
+        "name": "Договор (PDF)",
+        "description": "The contract PDF: `kind` = draft or signed, by default the latest one.\n409 `contract_not_ready` before the offer is accepted, `document_pending`\nwhile it is being made.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/applications/:application_id/contract/document",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":application_id",
+            "value": "${[ application_id ]}"
+          },
+          {
+            "enabled": false,
+            "name": "kind",
+            "value": "draft"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 15000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_8QzZtCLZ9Y",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_XaejLZxLdI",
         "name": "Подписать договор",
-        "description": "Simulated signature: the password is asked once more (step-up), the\ndocument goes through the EDO mock; the response says `simulated: true`.\n`offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.\n\nРаботает после «Принять предложение».\n\nТокен: директор ООО «Ромашка».",
+        "description": "The client's simple electronic signature: the password once more\n(step-up), `offer_hash` and `document_hash` of the draft it read, the\nversion of the rules it accepted. A changed offer — 409 `offer_changed`, a\nchanged draft — 422 `document_changed`, old rules — 422 `rules_outdated`.\nRight after it the bank seals the contract PDF with its signature.\n\nРаботает после «Принять предложение».\n\nТокен: директор ООО «Ромашка».",
         "method": "POST",
         "url": "${[ base_url ]}/applications/:application_id/sign",
         "urlParameters": [
@@ -7598,9 +8620,9 @@
         ],
         "bodyType": "application/json",
         "body": {
-          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.offer_hash') ]}\"\n}"
+          "text": "{\n  \"password\": \"${[ demo_password ]}\",\n  \"offer_hash\": \"${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.offer_hash') ]}\",\n  \"document_hash\": \"${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.sha256') ]}\",\n  \"rules_version\": \"${[ response.body.path(request='rq_XCd8C7N0m7', behavior='smart', path='$.version') ]}\"\n}"
         },
-        "sortPriority": 15000.0,
+        "sortPriority": 16000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
@@ -7636,12 +8658,75 @@
         "body": {
           "text": "{\n  \"reason\": \"Передумали\"\n}"
         },
-        "sortPriority": 16000.0,
+        "sortPriority": 17000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
           "prefix": "Bearer"
         },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_XCd8C7N0m7",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_PjjuPyjjDA",
+        "name": "Правила электронного взаимодействия",
+        "description": "Rules of electronic interaction: what the client accepts when it signs\n(`version` goes into `POST /applications/{id}/sign` as `rules_version`).",
+        "method": "GET",
+        "url": "${[ base_url ]}/esign/rules",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 1000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_QGEL9WxRBv",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_PjjuPyjjDA",
+        "name": "Проверка договора по QR",
+        "description": "The document by the QR code: who signed it and when, whether the signing\nlog is intact. 404 `document_not_found`.\n\nБез входа: страница, куда ведёт QR-код договора. Документ — PDF договора самой новой заявки Ромашки (`contract_document_id`).",
+        "method": "GET",
+        "url": "${[ base_url ]}/contracts/verify/:document_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":document_id",
+            "value": "${[ contract_document_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 2000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_39a4WZztpx",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_PjjuPyjjDA",
+        "name": "Проверка файла договора",
+        "description": "A PDF someone has: the bank's signature intact and trusted, the file\nthe same as the sealed copy in the archive. Up to 10 MB.\n\nФайл выбирается в Yaak: Body → Multipart Form, поле `file` — PDF договора. Ответ скажет, цела ли подпись банка и совпадает ли файл с экземпляром в архиве.",
+        "method": "POST",
+        "url": "${[ base_url ]}/contracts/verify",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 3000.0,
+        "authenticationType": "none",
+        "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
         "updatedAt": "2026-10-24T00:00:00"
       },
@@ -8780,7 +9865,7 @@
         "headers": [],
         "bodyType": null,
         "body": {},
-        "sortPriority": 17000.0,
+        "sortPriority": 18000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",

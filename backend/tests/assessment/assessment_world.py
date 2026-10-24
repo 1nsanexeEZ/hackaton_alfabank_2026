@@ -53,6 +53,7 @@ from src.modules.enrichment.infrastructure.adapters.egrul_http import EgrulHttpS
 from src.modules.enrichment.infrastructure.adapters.fns_http import FnsHttpSource
 from src.modules.enrichment.infrastructure.adapters.gir_bo_http import GirBoHttpSource
 from src.modules.enrichment.infrastructure.adapters.kontur_http import KonturHttpSource
+from src.modules.enrichment.infrastructure.adapters.licenses_http import LicensesHttpSource
 from src.modules.identity.infrastructure.database.models import AccountModel
 from src.modules.process.domain.steps import ENRICHMENT_SOURCES
 from tests.fakes.document_storage import FakeDocumentStorage
@@ -129,6 +130,7 @@ def mock_sources() -> Sources:
         zsk=ZskHttpSource(client, backoff=backoff),
         bank_stop_list=BankStopListHttpSource(client, backoff=backoff),
         bank_turnover=BankTurnoverHttpSource(client, backoff=backoff),
+        licenses=LicensesHttpSource(client, backoff=backoff),
     )
 
 
@@ -149,6 +151,9 @@ def _aml_answer(request: httpx.Request) -> httpx.Response | None:
         inn = path.removeprefix("/zsk/")
         body = {"ИНН": inn, "Уровень": "НИЗКИЙ", "ДатаАктуальности": "2026-10-21"}
         return httpx.Response(200, json=body)
+    if path.startswith("/licenses/"):
+        # Основные виды деятельности демо-компаний лицензии не требуют.
+        return httpx.Response(200, json={"ИНН": path.removeprefix("/licenses/"), "Лицензии": []})
     return None
 
 
@@ -236,6 +241,8 @@ class Assessment:
             "version": version,
             "request": {"amount": amount, "term_months": term, "purpose": purpose},
             "consents": {"personal_data": True, "credit_bureau": True},
+            # 115-ФЗ: вопрос формы заявки; без ответа policy_v10 отдаёт заявку человеку.
+            "beneficiary": {"acts_for_third_party": False},
         }
         if collateral is not None:
             body["collateral"] = collateral

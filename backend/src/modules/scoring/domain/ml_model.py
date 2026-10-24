@@ -11,8 +11,15 @@ Python на `Decimal`, воспроизводимый бит в бит.
 баллам, недобранным до лучшей корзины.
 
 Признаки считает `ml_features` — одна функция и для обучения, и для прода: обучение и
-инференс не могут разъехаться. Справочник отраслей (секции ОКВЭД низкого и высокого риска) —
-в YAML модели: на нём посчитаны WoE, и правка конфига PD-модели его не меняет.
+инференс не могут разъехаться.
+
+Модель применима не ко всем: она обучена на компаниях с выручкой (`ml/population.py`). Без
+выручки признаки «сумма к выручке» и «платежи к выручке» — пропуски с нейтральным весом, а «нет
+кредитной истории» модель считает плюсом, и пустой профиль стартапа получает PD средней компании.
+Такую заявку модель не оценивает (`ml_not_applicable`) — решает PD-модель и человек.
+
+Справочник отраслей (секции ОКВЭД низкого и высокого риска) — в YAML модели: на нём посчитаны
+WoE, и правка конфига PD-модели его не меняет.
 """
 
 from __future__ import annotations
@@ -20,7 +27,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
-from src.modules.scoring.domain.model import Direction, Factor, Grade, MlScore, ScoringInput
+from src.modules.scoring.domain.model import (
+    Direction,
+    Factor,
+    Grade,
+    MlNotApplicable,
+    MlScore,
+    ScoringInput,
+)
 from src.modules.scoring.domain.scorecard import estimated_payment, okved_section
 
 FeatureValue = Decimal | str | None
@@ -71,6 +85,15 @@ class MlConfig:
     pdo: Decimal  # на сколько баллов растёт скор при удвоении шансов
     grade_bands: tuple[tuple[Grade, Decimal], ...]  # грейд и верхняя граница PD (не включительно)
     industry: IndustrySections
+
+
+def ml_not_applicable(inp: ScoringInput) -> MlNotApplicable | None:
+    """Почему модель не оценивает эту заявку; None — оценивает. Выручки нет ни в заявке, ни по
+    ФНС — компании без выручки в обучении не было."""
+    revenue = inp.company.declared_revenue or inp.tax.reported_revenue
+    if revenue is None or revenue <= 0:
+        return "no_revenue"
+    return None
 
 
 def ml_features(inp: ScoringInput, industry: IndustrySections) -> dict[str, FeatureValue]:

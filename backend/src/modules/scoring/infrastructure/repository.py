@@ -17,6 +17,7 @@ from src.modules.scoring.domain.model import (
     Direction,
     Factor,
     Grade,
+    MlNotApplicable,
     MlScore,
     RiskFlag,
     ScoringResult,
@@ -129,6 +130,7 @@ def _to_record(result: ScoringResult, input_snapshot: dict[str, Any]) -> Scoring
         ml=_ml_to_json(result.ml) if result.ml is not None else None,
         quality=result.quality,
         quality_reasons=list(result.quality_reasons) if result.quality is not None else None,
+        ml_not_applicable=result.ml_not_applicable,
     )
 
 
@@ -153,6 +155,7 @@ def _to_domain(record: ScoringResultRecord) -> ScoringResult:
         ml=_ml_from_json(record.ml) if record.ml is not None else None,
         quality=cast(QualityLevel | None, record.quality),
         quality_reasons=tuple(record.quality_reasons or ()),
+        ml_not_applicable=cast(MlNotApplicable | None, record.ml_not_applicable),
     )
 
 

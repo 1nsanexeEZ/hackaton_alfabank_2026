@@ -1,8 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Literal
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Query, Request, Response, status
 
+from src.modules.applications.domain.contract_documents import ContractDocumentKind
+from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.applications.presentation.dependencies import (
     AcceptOfferDep,
     AnswerInfoRequestDep,
@@ -12,14 +15,16 @@ from src.modules.applications.presentation.dependencies import (
     CanUpdate,
     CheckCompletenessDep,
     ConfirmUploadDep,
+    ContractViewDep,
     CreateDraftDep,
     DeclineOfferDep,
     DeleteDocumentDep,
+    DownloadContractDep,
     DownloadUrlDep,
     GetApplicationDep,
-    GetContractDep,
     ListApplicationsDep,
     RequestUploadDep,
+    SealContractDep,
     SignDep,
     SubmitDep,
     UpdateDraftDep,
@@ -60,10 +65,15 @@ async def list_applications(
     use_case: ListApplicationsDep,
     organization_id: UUID | None = None,
     status_filter: Annotated[list[str] | None, Query(alias="status")] = None,
+    decided_by: DecidedBy | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ApplicationListItem]:
-    applications = await use_case.execute(access, organization_id, status_filter, limit, offset)
+    """Newest first. `decided_by=auto` — the decisions the client got from the automatic
+    policy without a person; combines with `status`."""
+    applications = await use_case.execute(
+        access, organization_id, status_filter, limit, offset, decided_by
+    )
     return [ApplicationListItem.model_validate(application) for application in applications]
 
 
@@ -162,19 +172,55 @@ async def decline_offer(
 
 
 @router.get("/{application_id}/contract", response_model=ContractOut)
-async def contract(application_id: UUID, access: CanRead, use_case: GetContractDep) -> ContractOut:
+async def contract(application_id: UUID, access: CanRead, use_case: ContractViewDep) -> ContractOut:
     """The loan contract to show before signing: borrower, terms, schedule
-    and who may sign. From `signing` on; before that 409 `contract_not_ready`."""
+    and who may sign. From `signing` on; before that 409 `contract_not_ready`.
+    `document` is its PDF: the draft until the client signs, then the copy
+    sealed by the bank; `uid` — the deal identifier of the credit history."""
     return ContractOut.model_validate(await use_case.execute(access, application_id))
+
+
+@router.get(
+    "/{application_id}/contract/document",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}, "description": "The PDF itself"}},
+)
+async def contract_document(
+    application_id: UUID,
+    access: CanRead,
+    use_case: DownloadContractDep,
+    kind: Annotated[Literal["draft", "signed"] | None, Query()] = None,
+) -> Response:
+    """The contract PDF: `kind` = draft or signed, by default the latest one.
+    409 `contract_not_ready` before the offer is accepted, `document_pending`
+    while it is being made."""
+    document = await use_case.execute(
+        access, application_id, ContractDocumentKind(kind) if kind else None
+    )
+    return Response(
+        content=document.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(document.filename)}",
+            "X-Content-SHA256": document.sha256,
+        },
+    )
 
 
 @router.post("/{application_id}/sign", response_model=SignOut)
 async def sign(
-    application_id: UUID, data: SignIn, request: Request, access: CanUpdate, use_case: SignDep
+    application_id: UUID,
+    data: SignIn,
+    request: Request,
+    access: CanUpdate,
+    use_case: SignDep,
+    seal: SealContractDep,
 ) -> SignOut:
-    """Simulated signature: the password is asked once more (step-up), the
-    document goes through the EDO mock; the response says `simulated: true`.
-    `offer_hash` comes from the contract; a changed offer — 409 `offer_changed`."""
+    """The client's simple electronic signature: the password once more
+    (step-up), `offer_hash` and `document_hash` of the draft it read, the
+    version of the rules it accepted. A changed offer — 409 `offer_changed`, a
+    changed draft — 422 `document_changed`, old rules — 422 `rules_outdated`.
+    Right after it the bank seals the contract PDF with its signature."""
     result = await use_case.execute(
         access,
         application_id,
@@ -182,7 +228,10 @@ async def sign(
         data.offer_hash,
         client_ip(request),
         request.headers.get("user-agent"),
+        data.document_hash,
+        data.rules_version,
     )
+    await seal.execute(application_id)
     return SignOut.model_validate(result)
 
 

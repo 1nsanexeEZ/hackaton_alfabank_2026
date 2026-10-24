@@ -1,11 +1,24 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from src.core.access.access_context import AccessContext
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.value_objects import ApplicationNumber
+from src.modules.applications.domain.value_objects import ApplicationNumber, DecidedBy
+
+
+@dataclass(frozen=True, slots=True)
+class SignatureDetails:
+    """Where the client signed from and what exactly: kept next to the signature."""
+
+    ip: str | None
+    user_agent: str | None
+    edo_document_id: str | None
+    # SHA-256 of the contract draft the client saw; None when signed by the terms only.
+    document_hash: str | None
+    rules_version: str | None
 
 
 class ApplicationRepository(Protocol):
@@ -32,6 +45,7 @@ class ApplicationRepository(Protocol):
         statuses: Sequence[str] | None,
         limit: int,
         offset: int,
+        decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]: ...
 
     async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]: ...
@@ -49,4 +63,8 @@ class ApplicationRepository(Protocol):
         ip: str | None,
         user_agent: str | None,
         edo_document_id: str | None,
+        document_hash: str | None = None,
+        rules_version: str | None = None,
     ) -> None: ...
+
+    async def signature_details(self, application_id: UUID) -> SignatureDetails | None: ...

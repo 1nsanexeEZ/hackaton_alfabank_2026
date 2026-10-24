@@ -1,4 +1,4 @@
-import { http } from '../http'
+import { http, httpFile } from '../http'
 import type { BackofficeApi } from './types'
 
 /** Рабочее место андеррайтера: запросы подписываются токеном сотрудника */
@@ -12,6 +12,7 @@ export const backofficeApi: BackofficeApi = {
   complete: (taskId, input) => http(`/tasks/${taskId}/complete`, { method: 'POST', body: input }),
   metrics: (query = {}) => http('/bff/backoffice/metrics', { query: { date_from: query.dateFrom, date_to: query.dateTo } }),
   downloadDocument: (applicationId, documentId) => http(`/applications/${applicationId}/documents/${documentId}/download`),
+  contractDocument: (applicationId, kind) => httpFile(`/applications/${applicationId}/contract/document`, { query: { kind } }),
   process: (applicationId) => http(`/processes/${applicationId}`),
   workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
   applications: (query = {}) => http('/applications', { query: { limit: query.limit, offset: query.offset } }),

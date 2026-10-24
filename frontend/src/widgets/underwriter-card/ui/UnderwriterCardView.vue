@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { CircleCheck, CircleX, Download, Waves } from 'lucide-vue-next'
+import { CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
+import { beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import { ProcessMap } from '@/entities/process'
 import {
@@ -27,8 +27,18 @@ import {
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
 import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
-import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
-import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
+import {
+  errorMessage,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatPercent,
+  formatProbability,
+  formatTerm,
+  saveFile,
+  useAsyncData,
+} from '@/shared/lib'
+import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 
 import { usePrelude } from '../model/usePrelude'
 import AmlCheckSection from './AmlCheckSection.vue'
@@ -102,6 +112,24 @@ async function refreshAfterDecision() {
 async function download(documentId: string) {
   const { url } = await backofficeApi.downloadDocument(props.applicationId, documentId)
   window.open(url, '_blank', 'noopener')
+}
+
+/** Договор в PDF — после подписи клиента: итоговый с подписью банка или, пока его нет, последний готовый */
+const contractSigned = computed(() => data.value?.application.status === 'signed' || data.value?.application.status === 'disbursed')
+const contractBusy = ref(false)
+const contractError = ref<string | null>(null)
+
+async function downloadContract() {
+  contractBusy.value = true
+  contractError.value = null
+  try {
+    const file = await backofficeApi.contractDocument(props.applicationId)
+    saveFile(file.blob, file.filename ?? `Договор ${data.value?.application.number ?? ''}.pdf`)
+  } catch (caught) {
+    contractError.value = errorMessage(caught)
+  } finally {
+    contractBusy.value = false
+  }
 }
 
 /**
@@ -260,6 +288,14 @@ const RATE_PARTS = [
                 <dd class="font-medium text-ink">
                   {{ COLLATERAL_TYPE_LABEL[data.application.collateral.type] ?? data.application.collateral.type }},
                   {{ money(data.application.collateral.declared_value) }} — {{ data.application.collateral.description }}
+                  <span class="font-normal text-ink-secondary">· собственник: {{ collateralOwnerLine(data.application.collateral) }}</span>
+                </dd>
+              </div>
+              <!-- Ответ клиента о третьем лице (115-ФЗ): по нему выгодоприобретатель проверяется вместе с остальными -->
+              <div class="sm:col-span-2">
+                <dt class="text-ink-secondary">Выгодоприобретатель</dt>
+                <dd class="font-medium" :class="data.application.beneficiary?.acts_for_third_party ? 'text-warning' : 'text-ink'">
+                  {{ data.application.beneficiary ? beneficiaryLine(data.application.beneficiary) : 'Клиент не ответил' }}
                 </dd>
               </div>
               <div v-if="data.application.submitted_at">
@@ -297,6 +333,14 @@ const RATE_PARTS = [
                   </button>
                 </li>
               </ul>
+            </div>
+
+            <div v-if="contractSigned" class="mt-5 flex flex-wrap items-center gap-3">
+              <BaseButton size="s" variant="secondary" :loading="contractBusy" @click="downloadContract">
+                <FileText class="size-4" aria-hidden="true" />
+                Договор (PDF)
+              </BaseButton>
+              <p v-if="contractError" class="text-sm text-brand" role="alert">{{ contractError }}</p>
             </div>
           </PanelCard>
 

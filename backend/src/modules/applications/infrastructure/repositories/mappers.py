@@ -3,7 +3,7 @@ as strings and datetimes in ISO format, so nothing loses precision."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from src.core.domain import Money
@@ -21,12 +21,15 @@ from src.modules.applications.domain.value_objects import (
     BeneficiaryDeclaration,
     CollateralDeclaration,
     Consents,
+    DecidedBy,
     DecisionSummary,
+    DeclaredOwner,
     Disbursement,
     DocumentRequirement,
     LoanRequest,
     Offer,
     OrganizationSnapshot,
+    OwnersDeclaration,
     ProductTerms,
     ProfileConsent,
     Signature,
@@ -195,13 +198,42 @@ def collateral_in(data: dict[str, Any] | None) -> CollateralDeclaration | None:
 def third_party_out(party: ThirdParty | None) -> dict[str, Any] | None:
     if party is None:
         return None
-    return {"kind": party.kind, "name": party.name, "inn": party.inn}
+    return {"kind": party.kind, "name": party.name, "inn": party.inn, "country": party.country}
 
 
 def third_party_in(data: dict[str, Any] | None) -> ThirdParty | None:
     if data is None:
         return None
-    return ThirdParty(kind=data["kind"], name=data["name"], inn=data.get("inn"))
+    return ThirdParty(
+        kind=data["kind"], name=data["name"], inn=data.get("inn"), country=data.get("country")
+    )
+
+
+def owners_out(declaration: OwnersDeclaration | None) -> dict[str, Any] | None:
+    if declaration is None:
+        return None
+    return {
+        "owners": [
+            {"name": o.name, "basis": o.basis, "country": o.country} for o in declaration.owners
+        ],
+        "declared_by": str(declaration.declared_by),
+        "declared_at": dt_out(declaration.declared_at),
+    }
+
+
+def owners_in(data: dict[str, Any] | None) -> OwnersDeclaration | None:
+    if data is None:
+        return None
+    declared_at = dt_in(data["declared_at"])
+    assert declared_at is not None
+    return OwnersDeclaration(
+        owners=tuple(
+            DeclaredOwner(name=o["name"], basis=o["basis"], country=o.get("country"))
+            for o in data["owners"]
+        ),
+        declared_by=UUID(data["declared_by"]),
+        declared_at=declared_at,
+    )
 
 
 def beneficiary_out(declaration: BeneficiaryDeclaration | None) -> dict[str, Any] | None:
@@ -339,7 +371,8 @@ def summary_out(summary: DecisionSummary | None) -> dict[str, Any] | None:
     }
 
 
-def summary_in(data: dict[str, Any] | None) -> DecisionSummary | None:
+def summary_in(data: dict[str, Any] | None, decided_by: str | None) -> DecisionSummary | None:
+    """`decided_by` is a column of its own, see ApplicationRecord."""
     if data is None:
         return None
     return DecisionSummary(
@@ -347,6 +380,7 @@ def summary_in(data: dict[str, Any] | None) -> DecisionSummary | None:
         client_explanation=data["client_explanation"],
         improvement_hints=tuple(data["improvement_hints"]),
         alternative_product_code=data.get("alternative_product_code"),
+        decided_by=cast(DecidedBy | None, decided_by),
     )
 
 
@@ -384,11 +418,12 @@ def to_domain(record: ApplicationRecord) -> CreditApplication:
         collateral=collateral_in(record.collateral),
         consents=consents_in(record.consents),
         beneficiary=beneficiary_in(record.beneficiary),
+        beneficial_owners=owners_in(record.beneficial_owners),
         org_snapshot=snapshot_in(record.org_snapshot),
         documents=[_document_in(d) for d in record.documents],
         info_requests=[_info_request_in(r) for r in record.info_requests],
         offer=offer_in(record.offer),
-        decision_summary=summary_in(record.decision_summary),
+        decision_summary=summary_in(record.decision_summary, record.decided_by),
         signature=_signature_in(record.signature),
         disbursement=disbursement_in(record.disbursement),
         client_stage=record.client_stage,
@@ -427,9 +462,12 @@ def apply(application: CreditApplication, record: ApplicationRecord) -> None:
     record.collateral = collateral_out(application.collateral)
     record.consents = consents_out(application.consents)
     record.beneficiary = beneficiary_out(application.beneficiary)
+    record.beneficial_owners = owners_out(application.beneficial_owners)
     record.org_snapshot = snapshot_out(application.org_snapshot)
     record.offer = offer_out(application.offer)
     record.decision_summary = summary_out(application.decision_summary)
+    summary = application.decision_summary
+    record.decided_by = summary.decided_by if summary else None
     record.disbursement = disbursement_out(application.disbursement)
     record.offer_expires_at = application.offer.expires_at if application.offer else None
     record.updated_at = application.updated_at

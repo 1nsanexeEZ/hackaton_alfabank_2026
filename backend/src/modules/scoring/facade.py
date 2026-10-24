@@ -63,6 +63,10 @@ class ScoringResultDTO:
     # None for results computed before it.
     quality: Literal["ok", "degraded"] | None = None
     quality_reasons: tuple[str, ...] = ()
+    # Why there is no ML estimate: no_revenue — the company has no revenue in the application
+    # or by the tax service, the model was trained on operating companies. None — it was
+    # computed (or the result predates the check).
+    ml_not_applicable: Literal["no_revenue"] | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,6 +20,7 @@
 | База публичных должностных лиц | иностранные, российские ПДЛ и должностные лица международных организаций | `POST /pep/screen` | `PepHttpSource` (`.../adapters/aml_http.py`) | **смоделировано**, записи синтетические |
 | Платформа «Знай своего клиента» Банка России | уровень риска юрлица или ИП | `GET /zsk/{inn}` | `ZskHttpSource` (`.../adapters/aml_http.py`) | **смоделировано** |
 | ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/modules/applications/infrastructure/adapters/edo_client.py`) | **смоделировано**, ответ API `simulated: true` |
+| Электронная подпись банка | подпись PDF кредитного договора после подписи клиента | ключ и сертификат демо-УЦ стенда, метка времени — встроенная служба pyHanko (`DummyTimeStamper`) | `PyHankoContractSealer` (`backend/src/modules/applications/infrastructure/adapters/contract_sealer.py`): настоящая подпись PAdES | **ключ демо-стенда**, не квалифицированный |
 | АБС банка (выдача средств) | перевод суммы кредита на счёт клиента | `POST /abs/disbursements` → номер договора, `simulated: true` | `HttpAbsClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedAbsClient` (`backend/src/modules/applications/infrastructure/adapters/abs_client.py`) | **смоделировано** |
 
 Поведение моков: детерминированные ответы для семи демо-компаний (`backend/seed/demo_data.py`) и генерация по хешу для любого другого валидного ИНН; невалидный ИНН — 404. Нестабильность сети имитируется: задержка `MOCK_LATENCY_MS_MIN..MAX` и доля ответов 503 `MOCK_FAILURE_RATE` (в `docker-compose.yml` для демо выключена). Подробно — `external-mocks/README.md`.
@@ -68,6 +69,7 @@ Python 3.12 (`backend/.python-version`), менеджер `uv`, lock — `backen
 | anyio | 4.15.1 | MIT |
 | argon2-cffi | 25.1.0 | MIT |
 | argon2-cffi-bindings | 26.1.0 | MIT |
+| asn1crypto | 1.5.1 | MIT |
 | async-timeout | 5.0.1 | Apache-2.0 |
 | asyncpg | 0.32.0 | Apache-2.0 |
 | attrs | 26.1.0 | MIT |
@@ -77,11 +79,14 @@ Python 3.12 (`backend/.python-version`), менеджер `uv`, lock — `backen
 | cffi | 2.1.1 | MIT-0 |
 | click | 8.5.0 | BSD-3-Clause |
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
+| defusedxml | 0.7.1 | PSF-2.0 |
 | dnspython | 2.9.0 | ISC |
 | email-validator | 2.3.0 | Unlicense |
 | fast-depends | 3.0.9 | MIT |
 | fastapi | 0.156.4 | MIT |
 | faststream | 0.7.7 | Apache-2.0 |
+| fonttools | 4.67.0 | MIT |
+| fpdf2 | 2.8.9 | LGPL-3.0-only; используется без изменений как библиотека |
 | frozenlist | 1.8.0 | Apache-2.0 |
 | greenlet | 3.5.6 | MIT AND PSF-2.0 |
 | h11 | 0.16.0 | MIT |
@@ -96,17 +101,22 @@ Python 3.12 (`backend/.python-version`), менеджер `uv`, lock — `backen
 | multidict | 6.9.1 | Apache-2.0 |
 | nh3 | 0.3.7 | MIT |
 | opentelemetry-api | 1.45.1 | Apache-2.0 |
+| oscrypto | 1.3.0 | MIT |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause |
+| pillow | 13.0.0 | MIT-CMU |
 | propcache | 0.5.4 | Apache-2.0 |
 | pycparser | 3.11 | BSD-3-Clause |
 | pydantic | 2.14.1 | MIT |
 | pydantic-core | 2.50.1 | MIT |
 | pydantic-settings | 2.16.1 | MIT |
+| pyhanko | 0.38.0 | MIT |
+| pyhanko-certvalidator | 0.33.0 | MIT |
 | pyjwt | 2.15.1 | MIT |
 | python-dateutil | 2.9.0.post0 | Apache-2.0 AND BSD-3-Clause |
 | python-dotenv | 1.2.4 | BSD-3-Clause |
 | python-multipart | 0.0.32 | Apache-2.0 |
 | pyyaml | 6.0.3 | MIT |
+| qrcode | 8.2 | BSD-3-Clause |
 | s3transfer | 0.14.0 | Apache-2.0 |
 | six | 1.17.0 | MIT |
 | sqlalchemy | 2.1.5 | MIT |
@@ -114,6 +124,8 @@ Python 3.12 (`backend/.python-version`), менеджер `uv`, lock — `backen
 | starlette | 1.9.0 | BSD-3-Clause |
 | typing-extensions | 4.16.0 | PSF-2.0 |
 | typing-inspection | 0.4.4 | MIT |
+| tzlocal | 5.4.5 | MIT |
+| uritools | 6.1.3 | MIT |
 | urllib3 | 2.8.0 | MIT |
 | uvicorn | 0.54.0 | BSD-3-Clause |
 | uvloop | 0.23.0 | MIT OR Apache-2.0 |
@@ -123,6 +135,8 @@ Python 3.12 (`backend/.python-version`), менеджер `uv`, lock — `backen
 | yarl | 1.25.1 | Apache-2.0 |
 
 `uvloop` ставится только на Linux (в образе), лицензия указана по PyPI.
+
+Шрифты PDF договора — PT Sans и PT Mono (ParaType), SIL Open Font License 1.1: `backend/src/modules/applications/infrastructure/contract_pdf/fonts/` вместе с `OFL.txt`, встраиваются в PDF без изменений.
 
 ### Только для разработки и тестов
 

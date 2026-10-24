@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_PNJ7oLTmNq
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AEk4pZezSL
+name: '26. Договор: подписанный PDF'
+description: '200 `application/pdf`: договор со штампами обеих подписей и листом подписания. Подпись банка видна в панели подписей программы просмотра PDF.'
+method: GET
+url: ${[ base_url ]}/applications/:application_id/contract/document
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+- enabled: true
+  name: kind
+  value: signed
+headers: []
+bodyType: null
+body: {}
+sortPriority: 26000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

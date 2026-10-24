@@ -4,7 +4,7 @@ id: rq_0XfEQmmKZR
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_Q3lRWImQlK
 name: 03. Заполнить черновик
-description: '200: сумма, срок, цель и согласия на обработку данных и запрос в БКИ.'
+description: '200: сумма, срок, цель, согласия на обработку данных и запрос в БКИ и ответ, что клиент действует к своей выгоде (115-ФЗ; без ответа заявку решает человек).'
 method: PATCH
 url: ${[ base_url ]}/applications/:application_id
 urlParameters:
@@ -28,6 +28,9 @@ body:
       "consents": {
         "personal_data": true,
         "credit_bureau": true
+      },
+      "beneficiary": {
+        "acts_for_third_party": false
       }
     }
 sortPriority: 3000.0

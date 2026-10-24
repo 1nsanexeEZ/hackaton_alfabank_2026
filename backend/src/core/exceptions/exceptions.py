@@ -45,6 +45,12 @@ class InvalidStatusTransitionError(ConflictError):
     default_message = "Status transition is not allowed"
 
 
+class PayloadTooLargeError(AppError):
+    status_code = 413
+    code = "payload_too_large"
+    default_message = "The request body is too large"
+
+
 class ValidationError(AppError):
     """Business validation failed: the request is well-formed, but the data breaks a rule."""
 

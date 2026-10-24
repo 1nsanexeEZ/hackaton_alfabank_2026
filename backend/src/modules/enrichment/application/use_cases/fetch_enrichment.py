@@ -25,13 +25,19 @@ from uuid import UUID, uuid4
 
 from src.core.domain.clock import Clock
 from src.core.messaging.contracts.enrichment import (
+    DeclaredOwnerRef,
     EnrichmentCompleted,
     EnrichmentFailed,
     FetchEnrichment,
     ThirdPartyRef,
 )
 from src.core.messaging.outbox import OutboxWriter
-from src.modules.enrichment.application.dto.aml import AmlSubjectDTO, SubjectRole
+from src.modules.enrichment.application.dto.aml import (
+    AmlSubjectDTO,
+    DeclaredOwnerBasis,
+    DeclaredOwnerDTO,
+    SubjectRole,
+)
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
@@ -128,6 +134,9 @@ class FetchEnrichmentUseCase:
                 snapshot.data_of("egrul", RegistryExtractDTO),
                 representatives=representatives,
                 third_parties=tuple(_third_party(p) for p in command.third_parties),
+                declared_owners=None
+                if command.declared_owners is None
+                else tuple(_declared_owner(o) for o in command.declared_owners),
             )
         except SourceFetchError as exc:
             snapshot.record_failure(
@@ -213,7 +222,17 @@ class FetchEnrichmentUseCase:
 def _third_party(ref: ThirdPartyRef) -> AmlSubjectDTO:
     """Организация (и ИП) — по ИНН, человек — по ФИО."""
     role = cast(SubjectRole, ref.role)
-    return AmlSubjectDTO(role, ref.name, ref.inn if ref.kind == "organization" else None)
+    inn = ref.inn if ref.kind == "organization" else None
+    return AmlSubjectDTO(role, ref.name, inn, _country(ref.country))
+
+
+def _declared_owner(ref: DeclaredOwnerRef) -> DeclaredOwnerDTO:
+    return DeclaredOwnerDTO(ref.name, cast(DeclaredOwnerBasis, ref.basis), _country(ref.country))
+
+
+def _country(code: str | None) -> str | None:
+    """Россия — как и не указанная страна: None."""
+    return None if code is None or code.upper() == "RU" else code.upper()
 
 
 def _fio(last_name: str, first_name: str, middle_name: str | None) -> str:
