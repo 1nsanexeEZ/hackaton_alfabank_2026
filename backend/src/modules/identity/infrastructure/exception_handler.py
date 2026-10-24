@@ -10,6 +10,7 @@ from src.core.exceptions.exceptions import (
     ConflictError,
     NotFoundError,
     UnauthorizedError,
+    ValidationError,
 )
 from src.core.exceptions.handlers import app_error_handler
 from src.modules.identity.domain import exceptions as errors
@@ -27,6 +28,7 @@ RESPONSES: dict[type[errors.IdentityError], type[AppError]] = {
     errors.LoginRequiredError: BadRequestError,
     errors.SelfDeletionError: BadRequestError,
     errors.EmptyNameError: BadRequestError,
+    errors.NameLockedError: ValidationError,
     errors.RoleAlreadyExistsError: ConflictError,
     errors.RoleInUseError: ConflictError,
     errors.LoginTakenError: ConflictError,
@@ -34,7 +36,7 @@ RESPONSES: dict[type[errors.IdentityError], type[AppError]] = {
 
 
 def to_app_error(exc: errors.IdentityError) -> AppError:
-    return RESPONSES[type(exc)](exc.message)
+    return RESPONSES[type(exc)](exc.message, exc.details)
 
 
 async def identity_error_handler(request: Request, exc: Exception) -> JSONResponse:

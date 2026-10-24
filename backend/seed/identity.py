@@ -78,6 +78,8 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.BACKOFFICE_READ,
             Permissions.FEED_READ,
             Permissions.PROFILE_UPDATE,
+            # Staff edit their own name; a client's name is locked (see Permissions).
+            Permissions.PROFILE_UPDATE_NAME,
             # The support queue: take a ticket, answer, resolve.
             Permissions.SUPPORT_MANAGE,
         ),
