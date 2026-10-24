@@ -155,6 +155,11 @@ const preApproved = computed(() => personal.value?.preApproved ?? null)
 /** «Сумма/срок больше одобренного» и «больше посильного» объясняет блок предодобрения, остальное — отдельно */
 const isLimitReason = (code: string) => code.endsWith('_above_pre_approved') || code === 'amount_above_affordable'
 const limitProblem = computed(() => personal.value?.problems.find((reason) => isLimitReason(reason.code)) ?? null)
+/** Сообщение бэка о лимите, а если в нём нет, что подать всё равно можно, — дописываем */
+const limitText = computed(() => {
+  const message = (limitProblem.value?.message ?? 'Запрос больше, чем банк готов предложить').replace(/\.$/, '')
+  return message.includes('специалист') ? `${message}.` : `${message}. Подать можно — решит специалист.`
+})
 const overLimit = computed(() => personal.value?.withinPreApproved === false || Boolean(personal.value?.aboveAffordable))
 /** Посильная сумма ниже предодобренной — её ограничила платёжеспособность по отчётности */
 const paymentLimit = computed(() =>
@@ -201,9 +206,11 @@ const hiddenBelow = ref(0)
 function measureList() {
   const box = listBox.value
   if (!box) return (hiddenBelow.value = 0)
-  const rows = [...box.querySelectorAll('li')]
-  const bottom = box.scrollTop + box.clientHeight
-  hiddenBelow.value = rows.filter((row) => row.offsetTop + row.offsetHeight / 2 > bottom).length
+  const bottom = box.getBoundingClientRect().bottom
+  hiddenBelow.value = [...box.querySelectorAll('li')].filter((row) => {
+    const rect = row.getBoundingClientRect()
+    return rect.top + rect.height / 2 > bottom
+  }).length
 }
 let observer: ResizeObserver | undefined
 watch(listBox, (box) => {
@@ -218,7 +225,8 @@ onBeforeUnmount(() => observer?.disconnect())
 
 <template>
   <div class="space-y-4">
-    <fieldset>
+    <!-- min-w-0: у fieldset по умолчанию min-width: min-content — без него лента целей растягивала бы страницу -->
+    <fieldset class="min-w-0">
       <legend class="mb-3 text-sm font-medium text-ink">Для чего нужны деньги</legend>
       <!-- На телефоне цели — лентой с прокруткой, на широком экране переносятся -->
       <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
@@ -269,7 +277,7 @@ onBeforeUnmount(() => observer?.disconnect())
           </p>
           <template v-if="overLimit && personal">
             <p class="mt-2 text-ink-secondary">
-              {{ limitProblem?.message ?? 'Запрос больше, чем банк готов предложить' }}. Подать можно — решит специалист.
+              {{ limitText }}
             </p>
             <button
               v-if="personal.suggestion"
@@ -328,7 +336,10 @@ onBeforeUnmount(() => observer?.disconnect())
                 </span>
               </span>
               <span class="mt-1 block text-xs text-ink-secondary">
-                от {{ formatMoney(item.paymentFrom) }} в месяц · {{ formatMoneyShort(item.amount) }} на {{ formatTerm(item.termMonths) }}
+                от {{ formatMoney(item.paymentFrom) }} в месяц
+                <template v-if="item.amount !== amount || item.termMonths !== termMonths">
+                  · {{ formatMoneyShort(item.amount) }} на {{ formatTerm(item.termMonths) }}</template
+                >
                 <template v-if="item.preApprovedMax"> · одобрено до {{ formatMoneyShort(item.preApprovedMax) }}</template>
               </span>
             </button>
