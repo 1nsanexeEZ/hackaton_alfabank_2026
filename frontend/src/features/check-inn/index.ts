@@ -1,1 +1,1 @@
-export { default as InnLookupForm } from './ui/InnLookupForm.vue'
+export { default as InnCheckForm } from './ui/InnCheckForm.vue'

@@ -6,7 +6,9 @@ import type {
   ConsentsDto,
   FounderPrescreenDto,
   OrganizationDetailDto,
+  OrganizationSummaryDto,
   PreApprovedOfferDto,
+  ProductDto,
   ProjectAssessmentDto,
   ThirdPartyDto,
 } from '../client/types'
@@ -491,6 +493,95 @@ export interface TaskResultInput {
   support_program?: boolean
 }
 
+/* ---------- Ведение каталога продуктов (PR #200, docs/modules/products.md) ---------- */
+
+/** Условия продукта для PUT /products/{code}: карточка из GET без code, version и status */
+export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status'>
+
+/** Новый продукт: версия 1 в конце каталога, черновик или сразу в продаже */
+export interface ProductCreateInput extends ProductInput {
+  code: string
+  status: 'draft' | 'active'
+}
+
+/** BPMN-маршрут процесса — для выбора workflow_code продукта */
+export interface WorkflowDto {
+  code: string
+  version: number
+  source_hash: string
+  nodes: number
+  flows: number
+}
+
+/* ---------- Проверка компании по ИНН до заявки (POST /organizations/inn-check, #213) ---------- */
+
+export type InnCheckVerdict = 'ok' | 'warning' | 'fail' | 'not_found'
+export type InnCheckStatus = 'passed' | 'warning' | 'failed' | 'skipped'
+/** input — сверка с реквизитами из документов клиента, bank — данные банка */
+export type InnCheckSource = 'input' | 'egrul' | 'fns' | 'kontur' | 'bank'
+
+/** ИНН и, если клиент их назвал, реквизиты из его документов: ИНН сверяется с каждым переданным */
+export interface InnCheckInput {
+  inn: string
+  ogrn?: string
+  kpp?: string
+  name?: string
+}
+
+export interface InnCheckDto {
+  inn: string
+  /** Худший статус проверок: failed — fail; warning или источник не ответил — warning */
+  verdict: InnCheckVerdict
+  /** Итог словами */
+  summary: string
+  checked_at: string
+  checks: { code: string; title: string; status: InnCheckStatus; message: string; source: InnCheckSource }[]
+  /** ЕГРЮЛ / ЕГРИП; null — ИНН не найден или с ошибкой в контрольной цифре */
+  company: {
+    inn: string
+    ogrn: string
+    kpp: string | null
+    legal_form: 'LLC' | 'IE' | 'JSC'
+    name: string
+    full_name: string
+    registry_status: 'active' | 'liquidating' | 'liquidated' | 'bankrupt' | 'reorganizing' | 'excluded'
+    registered_at: string
+    address: { full: string; region_code: string }
+    mass_address: boolean
+    unreliable: ('address' | 'head' | 'founder')[]
+    okved_main: string
+    okved_extra: string[]
+    head_name: string
+    head_position: string
+    head_since: string | null
+    founders: { name: string; share_percent: string; inn: string | null }[]
+  } | null
+  /** ФНС; null — не ответила */
+  tax: {
+    tax_regime: string
+    avg_headcount: number
+    reported_revenue: string | null
+    report_year: number | null
+    tax_arrears: string
+    in_msp_registry: boolean
+    disqualified_head: boolean
+    mass_head: boolean | null
+    account_blocks: { decision_number: string; date: string; reason: string }[]
+  } | null
+  /** Контур; null — не ответил */
+  counterparty: {
+    reliability: 'green' | 'yellow' | 'red'
+    notes: string[]
+    arbitration_as_defendant: number
+    arbitration_defendant_sum: string
+    enforcement_active: number
+    enforcement_sum: string
+    bankruptcy_messages: { date: string; type: string; case: string }[]
+  } | null
+  /** Компания — клиент банка: её карточка */
+  organization_id: string | null
+}
+
 export interface BackofficeApi {
   queue(query?: { status?: string; sort?: string; limit?: number; offset?: number }): Promise<QueuePageDto>
   card(applicationId: string): Promise<UnderwriterCardDto>
@@ -508,6 +599,8 @@ export interface BackofficeApi {
   workflowDiagram(code: string): Promise<string>
   /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
   applications(query?: { limit?: number; offset?: number }): Promise<StaffApplicationDto[]>
+  /** Сотрудник видит все компании банка */
+  organizations(): Promise<OrganizationSummaryDto[]>
   organization(organizationId: string): Promise<OrganizationDetailDto>
   /** До заявки — предскоринг компании: предодобренные предложения, у стартапа — проверка учредителя и проектная оценка */
   preApprovedOffers(organizationId: string): Promise<PreApprovedOfferDto[]>
@@ -515,4 +608,22 @@ export interface BackofficeApi {
   founderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
   /** 404 — оценки не было */
   projectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
+  /** Бизнес-план стартапа; 404 — ещё не загружен */
+  businessPlan(organizationId: string): Promise<BusinessPlanDto>
+  /**
+   * all — для ведения каталога: последняя версия каждого продукта, с черновиками и архивом (нужно credits.update);
+   * active — продукты в продаже, как на сайте
+   */
+  products(scope: 'all' | 'active'): Promise<ProductDto[]>
+  /** 409 — код занят; 422 — неизвестный маршрут или занятая карточка frontend_id */
+  createProduct(input: ProductCreateInput): Promise<ProductDto>
+  /** Черновик правится на месте, у продукта в продаже — новая версия; снятый с продажи этим же возвращается */
+  updateProduct(code: string, input: ProductInput): Promise<ProductDto>
+  /** Выпустить черновик в продажу */
+  activateProduct(code: string): Promise<ProductDto>
+  /** Снять с продажи: продукт уходит в архив, черновик удаляется */
+  withdrawProduct(code: string): Promise<void>
+  workflows(): Promise<WorkflowDto[]>
+  /** Проверка по ИНН до заявки, только для банка (backoffice.read); реестр не ответил — 503 */
+  innCheck(input: InnCheckInput): Promise<InnCheckDto>
 }

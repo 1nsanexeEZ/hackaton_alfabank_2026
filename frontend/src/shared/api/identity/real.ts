@@ -1,9 +1,11 @@
 import { http } from '../http'
 import type { IdentityApi } from './types'
 
-/** Настоящий Identity API бэкенда */
-export const realIdentityApi: IdentityApi = {
+/** Identity API бэкенда: вход сотрудника, профиль, пользователи и роли */
+export const identityApi: IdentityApi = {
   login: (login, password) => http('/auth/login', { method: 'POST', body: { login, password } }),
+  demoAccounts: () => http('/auth/demo-accounts'),
+  demoLogin: (login) => http('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => http('/me'),
   updateProfile: (data) => http('/me/profile', { method: 'PATCH', body: data }),
   listAccounts: (params = {}) => http('/accounts', { query: { limit: params.limit ?? 100, offset: params.offset } }),

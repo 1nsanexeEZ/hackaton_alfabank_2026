@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
+import { roleTitle } from '@/entities/role'
 import { canEnterAdmin, session } from '@/entities/session'
-import { API_MODE, MOCK_DEMO_ACCOUNTS, type MeDto } from '@/shared/api'
+import { identityApi, type DemoAccountDto, type MeDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 import { BaseButton, TextField } from '@/shared/ui'
 
-/** Вход сотрудника по email или телефону и паролю (POST /auth/login) */
+/**
+ * Вход сотрудника по email или телефону и паролю (POST /auth/login). На стенде с демо-входом
+ * (DEMO_LOGIN_ENABLED) ниже — учётки сотрудников из GET /auth/demo-accounts: вход одной кнопкой
+ */
 const emit = defineEmits<{ success: [me: MeDto] }>()
 
 const form = reactive({ login: '', password: '' })
@@ -14,10 +18,30 @@ const errors = reactive<{ login?: string; password?: string }>({})
 const formError = ref<string | null>(null)
 const pending = ref(false)
 
+const demoAccounts = ref<DemoAccountDto[]>([])
+const staffDemoAccounts = computed(() => demoAccounts.value.filter((account) => account.role !== 'client'))
+const demoPending = ref<string | null>(null)
+
+// 404 — демо-вход на стенде выключен, блока просто нет
+identityApi
+  .demoAccounts()
+  .then((accounts) => (demoAccounts.value = accounts))
+  .catch(() => undefined)
+
 function validate(): boolean {
   errors.login = form.login.trim() ? undefined : 'Введите email или телефон'
   errors.password = form.password ? undefined : 'Введите пароль'
   return !errors.login && !errors.password
+}
+
+/** Пускаем только сотрудников: клиент со своими правами в админку не входит */
+function finish(me: MeDto) {
+  if (!canEnterAdmin(me)) {
+    session.logout()
+    formError.value = 'У этой учётной записи нет доступа к рабочему месту сотрудника'
+    return
+  }
+  emit('success', me)
 }
 
 async function submit() {
@@ -25,13 +49,7 @@ async function submit() {
   if (!validate()) return
   pending.value = true
   try {
-    const me = await session.login(form.login.trim(), form.password)
-    if (!canEnterAdmin(me)) {
-      session.logout()
-      formError.value = 'У этой учётной записи нет доступа к рабочему месту сотрудника'
-      return
-    }
-    emit('success', me)
+    finish(await session.login(form.login.trim(), form.password))
   } catch (error) {
     formError.value = errorMessage(error)
   } finally {
@@ -39,11 +57,16 @@ async function submit() {
   }
 }
 
-function useDemo(account: (typeof MOCK_DEMO_ACCOUNTS)[number]) {
-  form.login = account.login
-  form.password = account.password
-  errors.login = undefined
-  errors.password = undefined
+async function enterDemo(account: DemoAccountDto) {
+  formError.value = null
+  demoPending.value = account.login
+  try {
+    finish(await session.demoLogin(account.login))
+  } catch (error) {
+    formError.value = errorMessage(error)
+  } finally {
+    demoPending.value = null
+  }
 }
 </script>
 
@@ -67,19 +90,23 @@ function useDemo(account: (typeof MOCK_DEMO_ACCOUNTS)[number]) {
     <p v-if="formError" class="rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand" role="alert">{{ formError }}</p>
     <BaseButton type="submit" size="l" block :loading="pending">Войти</BaseButton>
 
-    <div v-if="API_MODE === 'mock'" class="rounded-2xl bg-surface-soft p-4">
+    <div v-if="staffDemoAccounts.length" class="rounded-2xl bg-surface-soft p-4">
       <p class="text-sm font-semibold text-ink">Демо-доступ</p>
-      <p class="mt-0.5 text-xs text-ink-secondary">Нажмите, чтобы подставить логин и пароль</p>
+      <p class="mt-0.5 text-xs text-ink-secondary">Вход без пароля — только на демо-стенде</p>
       <div class="mt-3 grid gap-2">
         <button
-          v-for="account in MOCK_DEMO_ACCOUNTS"
+          v-for="account in staffDemoAccounts"
           :key="account.login"
           type="button"
-          class="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-left text-sm ring-1 ring-line transition hover:ring-ink/25"
-          @click="useDemo(account)"
+          class="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-left text-sm ring-1 ring-line transition hover:ring-ink/25 disabled:opacity-60"
+          :disabled="Boolean(demoPending)"
+          @click="enterDemo(account)"
         >
-          <span class="font-medium text-ink">{{ account.role }}</span>
-          <span class="truncate text-ink-secondary">{{ account.login }}</span>
+          <span class="min-w-0">
+            <span class="block font-medium text-ink">{{ account.caption || roleTitle(account.role) }}</span>
+            <span class="block truncate text-xs text-ink-secondary">{{ account.full_name }}</span>
+          </span>
+          <span class="min-w-0 truncate text-xs text-ink-secondary">{{ demoPending === account.login ? 'Входим…' : account.login }}</span>
         </button>
       </div>
     </div>

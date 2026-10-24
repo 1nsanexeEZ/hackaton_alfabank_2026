@@ -75,6 +75,7 @@ export const POLICY_META: Record<Policy, { label: string; description: string; a
 /** Человеческие названия системных ролей; новые роли показываем как есть */
 export const ROLE_TITLE: Record<string, string> = {
   admin: 'Администратор',
+  underwriter: 'Андеррайтер',
   analyst: 'Кредитный аналитик',
   head: 'Руководитель',
   client: 'Клиент',

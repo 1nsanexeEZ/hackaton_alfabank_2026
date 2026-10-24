@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
-import { COLLATERAL_TYPE_LABEL } from '@/entities/credit-product'
+import { COLLATERAL_TYPE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import type { StageKey, StageState, StageWindow } from '@/entities/process'
 import {
   GRADE_ZONE,
@@ -65,12 +65,27 @@ const events = computed(() => {
 
 const SOURCE_TEXT: Record<string, string> = { profile: 'из профиля', application: 'галочкой в заявке' }
 const VERIFICATION_TEXT: Record<string, string> = {
-  verified: 'сверена — предодобрение считается',
-  mismatch: 'расхождения с реестром — без сверки предодобрения нет',
-  unverified: 'ещё не сверяли — без сверки предодобрения нет',
+  verified: 'сверена — предскоринг считается',
+  mismatch: 'расхождения с реестром — без сверки предскоринга нет',
+  unverified: 'ещё не сверяли — без сверки предскоринга нет',
 }
-const BASIS_TEXT: Record<string, string> = { estimate: 'по данным компании', full: 'с проверками', project: 'по проектной оценке' }
+const DISCREPANCY_FIELD: Record<string, string> = {
+  name: 'Наименование',
+  address: 'Адрес',
+  kpp: 'КПП',
+  okved_main: 'ОКВЭД',
+  head: 'Руководитель',
+  head_name: 'Руководитель',
+  registry_status: 'Статус',
+}
+const BASIS_TEXT: Record<string, string> = { estimate: 'предварительно, по данным компании', full: 'точно, с проверками', project: 'по проектной оценке' }
 const offer = computed(() => props.pre?.offers.find((item) => item.product_code === application.value.product_code) ?? null)
+const otherOffers = computed(() => props.pre?.offers.filter((item) => item !== offer.value) ?? [])
+const { products } = useProductCatalog()
+const productTitle = (code: string, name?: string | null) => name ?? products.value?.find((product) => product.code === code)?.title ?? code
+const verification = computed(() => props.pre?.organization?.verification ?? null)
+const verificationStatus = computed(() => verification.value?.status ?? application.value.org_snapshot?.verification_status ?? null)
+const discrepancies = computed(() => verification.value?.discrepancies ?? application.value.org_snapshot?.discrepancies ?? [])
 
 /** Сработавшие стоп-факторы: с ними заявка идёт мимо скоринга на отказ (или к специалисту у ИП без согласия на авторешение) */
 const stopCodes = computed(() => decision.value?.reason_codes.filter((code) => code.startsWith('STOP_')) ?? [])
@@ -111,20 +126,46 @@ const models = computed(() => {
       </p>
     </template>
 
-    <template v-else-if="stage === 'pre:prescoring'">
-      <p v-if="application.org_snapshot" class="text-ink">
-        Сверка с ЕГРЮЛ: {{ VERIFICATION_TEXT[application.org_snapshot.verification_status] ?? application.org_snapshot.verification_status }}
+    <template v-else-if="stage === 'pre:registry'">
+      <p v-if="verificationStatus" class="text-ink">
+        Сверка с ЕГРЮЛ: {{ VERIFICATION_TEXT[verificationStatus] ?? verificationStatus
+        }}{{ verification?.checked_at ? `, ${formatDateTime(verification.checked_at)}` : '' }}
       </p>
+      <ul v-if="discrepancies.length" class="space-y-0.5 text-ink">
+        <li v-for="item in discrepancies" :key="item.field">
+          {{ DISCREPANCY_FIELD[item.field] ?? item.field }}: в кабинете «{{ item.declared ?? '—' }}», в реестре «{{ item.registry ?? '—' }}»
+        </li>
+      </ul>
+      <p class="text-xs text-ink-secondary">Реквизиты, руководитель и статус — по реестру; изменились — сверка повторяется.</p>
+    </template>
+
+    <template v-else-if="stage === 'pre:prescoring'">
+      <template v-if="pre?.offers.length">
+        <p class="text-ink">Предодобрено продуктов: {{ pre.offers.length }}</p>
+        <ul class="space-y-0.5 text-ink-secondary">
+          <li v-for="item in pre.offers" :key="item.product_code">
+            {{ productTitle(item.product_code, item.product_name) }} — до {{ money(item.max_amount) }} от {{ formatPercent(Number(item.rate_from)) }}
+          </li>
+        </ul>
+      </template>
+      <p v-else-if="pre" class="text-ink-secondary">
+        Предодобрений нет: предскоринг не считали или компания не прошла его по данным банка — решение по полной проверке после подачи.
+      </p>
+      <p class="text-xs text-ink-secondary">Стоп-факторы, затем PD- и ML-модель на данных банка; запуск — по согласиям или ночным пакетом.</p>
+    </template>
+
+    <template v-else-if="stage === 'pre:offer'">
       <p v-if="offer" class="text-ink">
         Предодобрено по продукту до <b>{{ money(offer.max_amount) }}</b> от {{ formatPercent(Number(offer.rate_from)) }},
         {{ BASIS_TEXT[offer.basis ?? ''] ?? '' }} · действует до {{ formatDate(offer.valid_until) }}
       </p>
-      <p v-else-if="pre" class="text-ink-secondary">По этому продукту предодобрения нет — решение по полной проверке.</p>
-      <p v-if="pre && pre.offers.length > (offer ? 1 : 0)" class="text-xs text-ink-secondary">
-        Другие предодобренные продукты: {{ pre.offers.filter((item) => item !== offer).length }}
+      <p v-else-if="pre?.project?.status === 'passed' && pre.project.max_amount" class="text-ink">
+        По проектной оценке — до <b>{{ money(pre.project.max_amount) }}</b>, действует до {{ formatDate(pre.project.valid_until) }}
       </p>
+      <p v-else-if="pre" class="text-ink-secondary">По этому продукту предодобрения нет — решение по полной проверке.</p>
+      <p v-if="otherOffers.length" class="text-xs text-ink-secondary">Другие предодобренные продукты: {{ otherOffers.length }}</p>
       <p v-if="application.status === 'draft'" class="text-xs text-ink-secondary">
-        Клиент выбирает условия — калькулятор считает по ставке предодобрения, заявка ещё не подана.
+        Клиент выбирает условия — калькулятор не предлагает больше предодобренной и посильной суммы, заявка ещё не подана.
       </p>
     </template>
 
@@ -141,11 +182,22 @@ const models = computed(() => {
       <p v-else class="text-ink-secondary">Проверку учредителя не проходили.</p>
     </template>
 
+    <template v-else-if="stage === 'pre:plan'">
+      <template v-if="pre?.plan">
+        <p class="text-ink">Редакция {{ pre.plan.revision }} от {{ formatDateTime(pre.plan.submitted_at) }}</p>
+        <p v-if="pre.plan.summary" class="text-ink-secondary">{{ pre.plan.summary }}</p>
+        <p v-if="pre.project && pre.project.plan_revision < pre.plan.revision" class="text-xs text-warning">
+          План поменяли после проектной оценки — её стоит пересчитать.
+        </p>
+      </template>
+      <p v-else class="text-ink-secondary">Бизнес-план в кабинете компании не загружали.</p>
+    </template>
+
     <template v-else-if="stage === 'pre:project'">
       <template v-if="pre?.project">
         <p class="text-ink">
           {{ pre.project.status === 'passed' ? 'Пройдена' : 'Не пройдена' }}, {{ formatDateTime(pre.project.checked_at)
-          }}<template v-if="pre.project.max_amount"> — предодобрено до <b>{{ money(pre.project.max_amount) }}</b></template>
+          }}<template v-if="pre.project.max_amount"> — сумма проекта до <b>{{ money(pre.project.max_amount) }}</b></template>
         </p>
         <ul class="space-y-0.5 text-ink-secondary">
           <li v-for="reason in pre.project.reasons" :key="reason.code">{{ reason.passed ? '✓' : '✗' }} {{ reason.message }}</li>

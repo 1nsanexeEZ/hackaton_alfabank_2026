@@ -16,6 +16,7 @@ import {
   OUTCOME_LABEL,
   qualityReasonLabel,
   REASON_LABEL,
+  REGISTRY_STATUS_LABEL,
   RELIABILITY,
   REVIEW_LABEL,
   SEGMENT_LABEL,
@@ -66,14 +67,6 @@ const isStartup = computed(() => Boolean(products.value?.find((product) => produ
 const prelude = usePrelude(data, isStartup)
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 
-const REGISTRY_STATUS: Record<string, string> = {
-  active: 'Действует',
-  liquidating: 'Ликвидируется',
-  liquidated: 'Ликвидирована',
-  bankrupt: 'Банкротство',
-  reorganizing: 'Реорганизуется',
-  excluded: 'Исключена из реестра',
-}
 const REPORT_SOURCE: Record<string, string> = { declared: 'Заявлено', fns: 'ФНС', bank_statement: 'Выписки' }
 
 /**
@@ -229,6 +222,7 @@ const RATE_PARTS = [
         :application-id="applicationId"
         :prelude="prelude.stages.value"
         :fallback-workflow="data.application.product_terms.workflow_code ?? null"
+        :policy-version="data.decision?.policy_version ?? null"
         @advance="card.reload"
       >
         <template #details="stage">
@@ -357,7 +351,7 @@ const RATE_PARTS = [
               <div>
                 <dt class="text-ink-secondary">Статус в реестре</dt>
                 <dd class="font-medium text-ink">
-                  {{ REGISTRY_STATUS[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
+                  {{ REGISTRY_STATUS_LABEL[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
                 </dd>
               </div>
               <div>
@@ -428,7 +422,7 @@ const RATE_PARTS = [
               <section v-if="data.enrichment.egrul" class="text-sm">
                 <p class="font-semibold text-ink">ЕГРЮЛ / ЕГРИП</p>
                 <ul class="mt-2 space-y-1 text-ink">
-                  <li>Статус: {{ REGISTRY_STATUS[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
+                  <li>Статус: {{ REGISTRY_STATUS_LABEL[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
                   <li v-if="data.enrichment.egrul.kpp">КПП: {{ data.enrichment.egrul.kpp }}</li>
                   <li>
                     Руководитель: {{ data.enrichment.egrul.head_last_name }} {{ data.enrichment.egrul.head_first_name }}

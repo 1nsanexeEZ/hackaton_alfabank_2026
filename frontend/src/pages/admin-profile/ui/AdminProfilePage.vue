@@ -4,7 +4,6 @@ import { computed } from 'vue'
 import { PERMISSION_GROUPS, POLICY_META, roleTitle } from '@/entities/role'
 import { session, useSession } from '@/entities/session'
 import { ProfileForm } from '@/features/edit-profile'
-import { API_MODE } from '@/shared/api'
 import { formatDateTime } from '@/shared/lib'
 import { BaseBadge, PanelCard } from '@/shared/ui'
 import { AdminPageHeader } from '@/widgets/admin-layout'
@@ -46,10 +45,6 @@ const access = computed(() =>
             <div>
               <dt class="text-ink-secondary">Сессия до</dt>
               <dd class="text-ink">{{ formatDateTime(new Date(session.state.expiresAt)) }}</dd>
-            </div>
-            <div>
-              <dt class="text-ink-secondary">Источник данных</dt>
-              <dd class="text-ink">{{ API_MODE === 'real' ? 'Identity API бэкенда' : 'демо-данные в браузере' }}</dd>
             </div>
           </dl>
         </PanelCard>

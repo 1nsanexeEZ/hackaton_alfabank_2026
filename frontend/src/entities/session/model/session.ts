@@ -1,6 +1,6 @@
 import { computed, reactive, readonly } from 'vue'
 
-import { configureAuth, identityApi, type MeDto, type Permission } from '@/shared/api'
+import { configureAuth, identityApi, type MeDto, type Permission, type TokenResponse } from '@/shared/api'
 import { readStorage, writeStorage } from '@/shared/lib'
 
 /**
@@ -65,7 +65,7 @@ export function hasPermission(me: MeDto | null, permission: Permission): boolean
 
 /**
  * Вход в админку — для сотрудников. Клиент тоже читает заявки, но только своих компаний
- * (own_only в моке, org_member на бэкенде), поэтому его не пускаем.
+ * (политика org_member), поэтому его не пускаем.
  */
 export function canEnterAdmin(me: MeDto | null): boolean {
   if (!me) return false
@@ -100,7 +100,15 @@ export function shortName(me: Pick<MeDto, 'email' | 'phone' | 'profile'> | null)
 }
 
 async function login(login: string, password: string): Promise<MeDto> {
-  const token = await identityApi.login(login, password)
+  return start(await identityApi.login(login, password))
+}
+
+/** Вход в демо-учётку стенда без пароля (POST /auth/demo-login) */
+async function demoLogin(login: string): Promise<MeDto> {
+  return start(await identityApi.demoLogin(login))
+}
+
+async function start(token: TokenResponse): Promise<MeDto> {
   state.token = token.access_token
   state.expiresAt = Date.now() + token.expires_in * 1000
   try {
@@ -132,6 +140,7 @@ function setMe(me: MeDto) {
 export const session = {
   state: readonly(state),
   login,
+  demoLogin,
   logout: clear,
   restore,
   setMe,

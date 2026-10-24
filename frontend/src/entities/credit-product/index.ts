@@ -1,4 +1,4 @@
-export { DEMO_CREDIT_PRODUCTS, findProduct } from './model/catalog'
+export { findProduct } from './model/catalog'
 export { toCreditProduct } from './model/mapper'
 export {
   amountStep,
@@ -11,7 +11,11 @@ export {
 export {
   COLLATERAL_LABEL,
   COLLATERAL_TYPE_LABEL,
+  FACILITY_LABEL,
+  LEGAL_FORM_LABEL,
+  PRODUCT_GUARANTEE_LABEL,
   PRODUCT_KIND_LABEL,
+  PRODUCT_STATUS_META,
   PURPOSE_LABEL,
   REPAYMENT_LABEL,
   type Collateral,

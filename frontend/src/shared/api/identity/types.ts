@@ -2,6 +2,8 @@
  * Контракт Identity API бэкенда (backend/src/identity/schemas.py).
  * Поля в snake_case, как их отдаёт бэкенд.
  */
+import type { DemoAccountDto } from '../client/types'
+
 export type Permission =
   | 'admin'
   | 'accounts.read'
@@ -100,6 +102,10 @@ export interface AccountUpdateInput {
 /** Identity для рабочего места сотрудников; запросы подписываются токеном сотрудника */
 export interface IdentityApi {
   login(login: string, password: string): Promise<TokenResponse>
+  /** Демо-учётки стенда, и клиентов, и сотрудников; 404, если DEMO_LOGIN_ENABLED=false */
+  demoAccounts(): Promise<DemoAccountDto[]>
+  /** Вход в демо-учётку без пароля */
+  demoLogin(login: string): Promise<TokenResponse>
   me(): Promise<MeDto>
   updateProfile(data: Partial<ProfileDto>): Promise<MeDto>
   listAccounts(params?: { limit?: number; offset?: number }): Promise<AccountDto[]>

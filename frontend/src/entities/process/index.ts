@@ -10,4 +10,5 @@ export {
 } from './model/progress'
 export { buildStageGraph, STAGE_TITLE, type KnownStage, type Stage, type StageGraph, type StageKey } from './model/stages'
 export { useProcessTracking } from './model/useProcessTracking'
+export { workflowTitle } from './model/workflows'
 export { default as ProcessMap } from './ui/ProcessMap.vue'

@@ -165,6 +165,16 @@ export const BENEFICIAL_BASIS_LABEL: Record<string, string> = {
   entrepreneur: 'ИП',
 }
 
+/** Статус компании в ЕГРЮЛ / ЕГРИП */
+export const REGISTRY_STATUS_LABEL: Record<string, string> = {
+  active: 'Действует',
+  liquidating: 'Ликвидируется',
+  liquidated: 'Ликвидирована',
+  bankrupt: 'Банкротство',
+  reorganizing: 'Реорганизуется',
+  excluded: 'Исключена из реестра',
+}
+
 /** Отметки ЕГРЮЛ о недостоверности сведений */
 export const UNRELIABLE_LABEL: Record<string, string> = { address: 'адрес', head: 'руководитель', founder: 'учредитель' }
 
