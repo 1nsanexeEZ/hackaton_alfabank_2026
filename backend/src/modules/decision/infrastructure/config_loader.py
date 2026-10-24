@@ -1,7 +1,7 @@
 """Загрузка кредитной политики и текстов для клиента из YAML с валидацией Pydantic.
 
 Политика — данные, а не код: пороги, коэффициенты и тексты живут в `config/policy_v<N>.yaml` и
-`config/explanations_ru.yaml`. Действует последняя версия (`policy_v8`); прежние лежат рядом для
+`config/explanations_ru.yaml`. Действует последняя версия (`policy_v10`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
 приложение не стартует — лучше сразу, чем молча решить не так.
@@ -14,7 +14,7 @@ import string
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -35,7 +35,7 @@ from src.modules.decision.domain.policy import (
 )
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
-_DEFAULT_POLICY = "policy_v8"
+_DEFAULT_POLICY = "policy_v10"
 _DEFAULT_EXPLANATIONS = "explanations_ru"
 
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
@@ -194,9 +194,30 @@ class _ThirdParties(_Strict):
     require_answers: bool = False
 
 
+class _AmlRisk(_Strict):
+    """policy_v9, ст. 7 п. 1 подп. 3.1 115-ФЗ: группа риска клиента — низкая, средняя, высокая."""
+
+    # Государства, не выполняющие рекомендации ФАТФ (ст. 6 п. 1 подп. 2): участник оттуда —
+    # высокая группа. Коды ISO 3166-1 alpha-2.
+    high_risk_countries: list[Annotated[str, Field(pattern=r"^[A-Z]{2}$")]] = Field(min_length=1)
+    # Виды деятельности повышенного риска по национальной оценке рисков: префиксы ОКВЭД.
+    high_risk_okved: list[str] = Field(default_factory=list)
+    # Высокая группа → ручная проверка с мерами по снижению риска (подп. 3.2).
+    high_group_review: bool = True
+
+
+class _Licensing(_Strict):
+    """policy_v9, ст. 7 п. 15 115-ФЗ: лицензируемая деятельность без лицензии — отказ."""
+
+    # Основной ОКВЭД начинается с префикса — нужна действующая лицензия на этот вид.
+    licensed_okved: list[str] = Field(min_length=1)
+
+
 class _Compliance(_Strict):
     aml: _Aml | None = None
     third_parties: _ThirdParties | None = None
+    aml_risk: _AmlRisk | None = None
+    licensing: _Licensing | None = None
     automated_decision_consent: _AutomatedDecision | None = None
 
 
@@ -263,9 +284,25 @@ def default_policy() -> CreditPolicy:
     return load_policy()
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Как `safe_load`, но повторяющийся ключ — ошибка: обычный YAML молча берёт последний, и
+    правило или текст теряется без следа."""
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+        seen: set[Any] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"ключ {key!r} повторяется", key_node.start_mark
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
+
+
 def _validate[S: BaseModel](schema: type[S], path: Path) -> S:
     try:
-        raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+        raw: Any = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
     except (OSError, yaml.YAMLError) as exc:
         raise PolicyConfigError(f"Не удалось прочитать {path}: {exc}") from exc
     try:
@@ -343,10 +380,11 @@ def _check_two_models(strategy: _Strategy, path: Path) -> None:
 
 
 def _check_compliance(compliance: _Compliance, path: Path) -> None:
-    if compliance.third_parties is not None and compliance.aml is None:
-        raise PolicyConfigError(
-            f"{path}: compliance.third_parties проверяются вместе с compliance.aml"
-        )
+    for name in ("third_parties", "aml_risk", "licensing"):
+        if getattr(compliance, name) is not None and compliance.aml is None:
+            raise PolicyConfigError(
+                f"{path}: compliance.{name} проверяются вместе с compliance.aml"
+            )
     aml = compliance.aml
     if aml is not None and set(aml.zsk_stop_levels) & set(aml.zsk_review_levels):
         raise PolicyConfigError(
@@ -410,6 +448,8 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     aml = schema.compliance.aml
     consent = schema.compliance.automated_decision_consent
     third = schema.compliance.third_parties
+    risk = schema.compliance.aml_risk
+    licensing = schema.compliance.licensing
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
@@ -488,6 +528,13 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         third_party_rules=third is not None,
         third_party_beneficiary_review=third.beneficiary_review if third is not None else False,
         third_party_answers_required=third.require_answers if third is not None else False,
+        aml_risk_rules=risk is not None,
+        high_risk_countries=frozenset(risk.high_risk_countries)
+        if risk is not None
+        else frozenset(),
+        high_risk_okved=tuple(risk.high_risk_okved) if risk is not None else (),
+        aml_high_group_review=risk.high_group_review if risk is not None else False,
+        licensed_okved=tuple(licensing.licensed_okved) if licensing is not None else (),
         screen_before_scoring=stops.before_scoring,
         route_degraded_quality=schema.routing.data_quality,
         stop_unreliable_data=stops.unreliable_data,

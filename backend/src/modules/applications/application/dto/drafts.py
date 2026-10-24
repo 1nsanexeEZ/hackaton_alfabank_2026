@@ -7,6 +7,7 @@ from typing import Any
 from src.modules.applications.application.dto.applications import (
     BeneficiaryBasis,
     CollateralDTO,
+    DeclaredOwnerDTO,
     ThirdPartyDTO,
 )
 from src.modules.applications.application.dto.common import UNSET, Unset
@@ -48,3 +49,5 @@ class DraftChangesDTO:
     consents: ConsentsChoiceDTO | None | Unset = UNSET
     # null withdraws the answer.
     beneficiary: BeneficiaryChoiceDTO | None | Unset = UNSET
+    # The client's beneficial owners; null withdraws the answer, an empty tuple — nobody.
+    beneficial_owners: tuple[DeclaredOwnerDTO, ...] | None | Unset = UNSET

@@ -1,5 +1,5 @@
 export { errorMessage, useAsyncData, type AsyncData } from './async'
-export { scrollToSection } from './dom'
+export { copyText, saveFile, scrollToSection } from './dom'
 export { calcAnnuityPayment, calcLoanSummary, clamp, type LoanSummary } from './finance'
 export {
   formatDate,
@@ -7,6 +7,7 @@ export {
   formatDuration,
   formatMoney,
   formatMoneyShort,
+  formatMoscowDateTime,
   formatPercent,
   formatProbability,
   formatRelativeTime,

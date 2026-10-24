@@ -1,6 +1,6 @@
 """Сервис external-mocks: ЕГРЮЛ/ЕГРИП, ФНС «Прозрачный бизнес», ГИР БО, Контур.Фокус, БКИ
-компаний и физлиц, перечни Росфинмониторинга, база ПДЛ, платформа ЗСК Банка России, АБС (выдача и
-внутренний стоп-лист банка), ЭДО (подписание).
+компаний и физлиц, перечни Росфинмониторинга, база ПДЛ, платформа ЗСК Банка России, реестр
+лицензий, АБС (выдача и внутренний стоп-лист банка), ЭДО (подписание).
 
 Настоящий HTTP-сервис с «чужим» форматом ответов — бэкенд ходит в него через адаптеры,
 а не перекладывает поля 1:1. Все операции АБС и ЭДО помечены `simulated: true`.
@@ -26,6 +26,7 @@ from app.data import (
     get_company,
 )
 from app.dossier import gir_bo_response, kontur_response, person_history, person_report_response
+from app.licenses import licenses_response
 from app.schemas import (
     AbsRequest,
     BkiRequest,
@@ -128,6 +129,12 @@ async def zsk(inn: str) -> dict:
         "Уровень": compliance.zsk_level(company),
         "ДатаАктуальности": compliance.lists_date(),
     }
+
+
+@app.get("/licenses/{inn}")
+async def licenses(inn: str) -> dict:
+    """Реестр лицензий: действующие лицензии компании и лицензируемый вид деятельности."""
+    return licenses_response(_company(inn))
 
 
 @app.get("/abs/accounts/{inn}")

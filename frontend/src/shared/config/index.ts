@@ -30,6 +30,8 @@ export const ROUTE_PATH = {
   login: '/login',
   profile: '/profile',
   admin: '/admin',
+  /** Публичная проверка договора по QR: /verify/<id документа> */
+  verify: '/verify',
 } as const
 
 /** Имена маршрутов рабочего места сотрудника */

@@ -1,0 +1,18 @@
+type: http_request
+model: http_request
+id: rq_dwctrKvp43
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4MO7X92vcV
+name: 21. Правила электронного взаимодействия
+description: '200: соглашение о простой электронной подписи (63-ФЗ, ст. 6 и 9). Его `version` клиент принимает при подписании.'
+method: GET
+url: ${[ base_url ]}/esign/rules
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 21000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

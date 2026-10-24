@@ -2974,7 +2974,7 @@
           "applications"
         ],
         "summary": "Contract",
-        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.",
+        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.\n`document` is its PDF: the draft until the client signs, then the copy\nsealed by the bank; `uid` — the deal identifier of the credit history.",
         "operationId": "contract_applications__application_id__contract_get",
         "security": [
           {
@@ -3017,13 +3017,78 @@
         }
       }
     },
+    "/applications/{application_id}/contract/document": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Contract Document",
+        "description": "The contract PDF: `kind` = draft or signed, by default the latest one.\n409 `contract_not_ready` before the offer is accepted, `document_pending`\nwhile it is being made.",
+        "operationId": "contract_document_applications__application_id__contract_document_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "signed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The PDF itself",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/applications/{application_id}/sign": {
       "post": {
         "tags": [
           "applications"
         ],
         "summary": "Sign",
-        "description": "Simulated signature: the password is asked once more (step-up), the\ndocument goes through the EDO mock; the response says `simulated: true`.\n`offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.",
+        "description": "The client's simple electronic signature: the password once more\n(step-up), `offer_hash` and `document_hash` of the draft it read, the\nversion of the rules it accepted. A changed offer — 409 `offer_changed`, a\nchanged draft — 422 `document_changed`, old rules — 422 `rules_outdated`.\nRight after it the bank seals the contract PDF with its signature.",
         "operationId": "sign_applications__application_id__sign_post",
         "security": [
           {
@@ -3124,6 +3189,114 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/esign/rules": {
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Rules",
+        "description": "Rules of electronic interaction: what the client accepts when it signs\n(`version` goes into `POST /applications/{id}/sign` as `rules_version`).",
+        "operationId": "rules_esign_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsignRulesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contracts/verify/{document_id}": {
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Verify",
+        "description": "The document by the QR code: who signed it and when, whether the signing\nlog is intact. 404 `document_not_found`.",
+        "operationId": "verify_contracts_verify__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractVerificationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contracts/verify": {
+      "post": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Verify File",
+        "description": "A PDF someone has: the bank's signature intact and trusted, the file\nthe same as the sealed copy in the archive. Up to 10 MB.",
+        "operationId": "verify_file_contracts_verify_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_verify_file_contracts_verify_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileVerificationOut"
                 }
               }
             }
@@ -5319,6 +5492,42 @@
             "type": "array",
             "title": "Pep Hits",
             "default": []
+          },
+          "declared_owners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Owners"
+          },
+          "owner_discrepancies": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerDiscrepancyDTO"
+            },
+            "type": "array",
+            "title": "Owner Discrepancies",
+            "default": []
+          },
+          "licenses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LicenseDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Licenses"
           }
         },
         "type": "object",
@@ -5341,7 +5550,9 @@
               "founder_company",
               "representative",
               "beneficiary",
-              "pledgor"
+              "pledgor",
+              "founder",
+              "declared_owner"
             ],
             "title": "Role"
           },
@@ -5359,6 +5570,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -5565,6 +5787,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/BeneficiaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnersDTO"
               },
               {
                 "type": "null"
@@ -5946,6 +6178,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6173,6 +6415,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6266,6 +6518,41 @@
           "avg_time_to_decision_sec"
         ],
         "title": "BackofficeMetricsDTO"
+      },
+      "BankCertificateOut": {
+        "properties": {
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "serial",
+          "subject",
+          "issuer",
+          "valid_from",
+          "valid_to"
+        ],
+        "title": "BankCertificateOut"
       },
       "BankStopListDTO": {
         "properties": {
@@ -6416,6 +6703,46 @@
         ],
         "title": "BeneficialOwnerDTO"
       },
+      "BeneficialOwnersIn": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerIn"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Owners"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners"
+        ],
+        "title": "BeneficialOwnersIn",
+        "description": "The client's beneficial owners (115-FZ art. 6.1, 7 p. 14). An empty list is an answer:\nnobody owns more than 25% or controls the company otherwise."
+      },
+      "BeneficialOwnersOut": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerOut"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_at"
+        ],
+        "title": "BeneficialOwnersOut"
+      },
       "BeneficiaryDTO": {
         "properties": {
           "acts_for_third_party": {
@@ -6551,6 +6878,20 @@
           "basis"
         ],
         "title": "BeneficiaryOut"
+      },
+      "Body_verify_file_contracts_verify_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_verify_file_contracts_verify_post"
       },
       "BusinessPlanDTO": {
         "properties": {
@@ -7801,6 +8142,96 @@
         ],
         "title": "ContractBorrowerOut"
       },
+      "ContractDocumentOut": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "signed"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "verify_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "sha256",
+          "created_at",
+          "filename",
+          "verify_url"
+        ],
+        "title": "ContractDocumentOut",
+        "description": "The current PDF: `draft` until the client signs, then `signed` (sealed by the bank).\n`pending` — being made, `failed` — could not be made, the contract still works."
+      },
       "ContractOut": {
         "properties": {
           "number": {
@@ -7844,6 +8275,27 @@
                 "type": "null"
               }
             ]
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractDocumentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -7858,7 +8310,7 @@
           "signature"
         ],
         "title": "ContractOut",
-        "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` goes back in `POST /applications/{id}/sign`."
+        "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` and `document.sha256` go back in `POST /applications/{id}/sign`."
       },
       "ContractPaymentOut": {
         "properties": {
@@ -8021,6 +8473,74 @@
           "authority"
         ],
         "title": "ContractSignerOut"
+      },
+      "ContractVerificationOut": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "signed"
+            ],
+            "title": "Kind"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "borrower": {
+            "type": "string",
+            "title": "Borrower"
+          },
+          "signatures": {
+            "items": {
+              "$ref": "#/components/schemas/VerifiedSignatureOut"
+            },
+            "type": "array",
+            "title": "Signatures"
+          },
+          "log_intact": {
+            "type": "boolean",
+            "title": "Log Intact"
+          },
+          "demo": {
+            "type": "boolean",
+            "title": "Demo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "number",
+          "uid",
+          "kind",
+          "sha256",
+          "created_at",
+          "borrower",
+          "signatures",
+          "log_intact",
+          "demo"
+        ],
+        "title": "ContractVerificationOut",
+        "description": "What anyone with the QR code sees: no IP, no account ids, the client by initials."
       },
       "CounterpartyRead": {
         "properties": {
@@ -8812,6 +9332,73 @@
         ],
         "title": "DecisionTermsDTO"
       },
+      "DeclaredOwnerIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerIn",
+        "description": "ownership — owns more than 25% directly or through other companies; control — controls\nthe company otherwise, e.g. by an agreement (115-FZ art. 3)."
+      },
+      "DeclaredOwnerOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis",
+          "country"
+        ],
+        "title": "DeclaredOwnerOut"
+      },
       "DemoAccountRead": {
         "properties": {
           "login": {
@@ -9568,6 +10155,37 @@
         ],
         "title": "EnrichmentSnapshotDTO"
       },
+      "EsignRulesOut": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "effective_from": {
+            "type": "string",
+            "title": "Effective From"
+          },
+          "paragraphs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Paragraphs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "title",
+          "effective_from",
+          "paragraphs"
+        ],
+        "title": "EsignRulesOut"
+      },
       "FactorDTO": {
         "properties": {
           "code": {
@@ -9915,6 +10533,111 @@
           "after"
         ],
         "title": "FieldChangeRead"
+      },
+      "FileSignatureOut": {
+        "properties": {
+          "present": {
+            "type": "boolean",
+            "title": "Present"
+          },
+          "intact": {
+            "type": "boolean",
+            "title": "Intact"
+          },
+          "trusted": {
+            "type": "boolean",
+            "title": "Trusted"
+          },
+          "signer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signer"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "timestamp_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "present",
+          "intact",
+          "trusted",
+          "signer",
+          "signed_at",
+          "timestamp_at"
+        ],
+        "title": "FileSignatureOut"
+      },
+      "FileVerificationOut": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "matches_archive": {
+            "type": "boolean",
+            "title": "Matches Archive"
+          },
+          "signature": {
+            "$ref": "#/components/schemas/FileSignatureOut"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "document_id",
+          "matches_archive",
+          "signature",
+          "problems"
+        ],
+        "title": "FileVerificationOut",
+        "description": "`problems`: not_in_archive, draft_not_signed, no_signature, signature_broken,\nuntrusted_certificate."
       },
       "FinancialModel-Input": {
         "properties": {
@@ -10468,6 +11191,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -11020,6 +11754,30 @@
           "keys"
         ],
         "title": "JwksResponse"
+      },
+      "LicenseDTO": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "okved": {
+            "type": "string",
+            "title": "Okved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "activity",
+          "okved"
+        ],
+        "title": "LicenseDTO",
+        "description": "Действующая лицензия из реестра лицензий (ст. 7 п. 15 115-ФЗ)."
       },
       "LimitsDTO": {
         "properties": {
@@ -12608,6 +13366,57 @@
           "my_permissions"
         ],
         "title": "OrganizationSummaryRead"
+      },
+      "OwnerDiscrepancyDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "not_declared",
+              "not_in_registry"
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "OwnerDiscrepancyDTO"
+      },
+      "OwnersDTO": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/src__modules__applications__application__dto__applications__DeclaredOwnerDTO"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Declared By"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_by",
+          "declared_at"
+        ],
+        "title": "OwnersDTO",
+        "description": "The client's beneficial owners in its own words (115-FZ art. 6.1); empty — nobody."
       },
       "Payment": {
         "properties": {
@@ -16555,6 +17364,18 @@
             "type": "array",
             "title": "Quality Reasons",
             "default": []
+          },
+          "ml_not_applicable": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "no_revenue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Not Applicable"
           }
         },
         "type": "object",
@@ -16585,6 +17406,30 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
             "title": "Offer Hash"
+          },
+          "document_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Hash"
+          },
+          "rules_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Version"
           }
         },
         "type": "object",
@@ -17578,6 +18423,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17615,6 +18471,18 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17645,6 +18513,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -18171,6 +19050,116 @@
         "title": "VerificationResultRead",
         "description": "Outcome of the check against ЕГРЮЛ/ЕГРИП: what followed the registry\nsilently and what is left for a person."
       },
+      "VerifiedSignatureOut": {
+        "properties": {
+          "party": {
+            "type": "string",
+            "enum": [
+              "client",
+              "bank"
+            ],
+            "title": "Party"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "advanced"
+            ],
+            "title": "Type"
+          },
+          "signer": {
+            "type": "string",
+            "title": "Signer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "registry",
+                  "power_of_attorney"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "signed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Signed At"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "password",
+              "pades"
+            ],
+            "title": "Method"
+          },
+          "rules_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Version"
+          },
+          "timestamp_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp At"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankCertificateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "party",
+          "type",
+          "signer",
+          "role",
+          "authority",
+          "signed_at",
+          "method",
+          "rules_version",
+          "timestamp_at",
+          "certificate"
+        ],
+        "title": "VerifiedSignatureOut"
+      },
       "ViolationOut": {
         "properties": {
           "code": {
@@ -18247,6 +19236,39 @@
         ],
         "title": "ZskRiskDTO"
       },
+      "src__modules__applications__application__dto__applications__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO"
+      },
       "src__modules__clients__presentation__schemas__inn_check__FounderRead": {
         "properties": {
           "name": {
@@ -18295,6 +19317,40 @@
           "name"
         ],
         "title": "FounderRead"
+      },
+      "src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO",
+        "description": "Бенефициар со слов клиента."
       }
     },
     "securitySchemes": {

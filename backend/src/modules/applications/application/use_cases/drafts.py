@@ -18,6 +18,7 @@ from src.modules.applications.application.interfaces.outbox import MessageOutbox
 from src.modules.applications.application.interfaces.repositories import ApplicationRepository
 from src.modules.applications.application.mappers.dto import (
     collateral_declaration,
+    declared_owners,
     loan_request,
     terms_from_dto,
     third_party,
@@ -30,7 +31,10 @@ from src.modules.applications.application.use_cases.common import (
     view,
 )
 from src.modules.applications.domain.application import CreditApplication
-from src.modules.applications.domain.value_objects import BeneficiaryDeclaration
+from src.modules.applications.domain.value_objects import (
+    BeneficiaryDeclaration,
+    OwnersDeclaration,
+)
 from src.modules.clients.facade import ClientsFacade, OrgPermission
 from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade
@@ -145,6 +149,15 @@ class UpdateDraftUseCase:
                 beneficiary=beneficiary,
                 basis=choice.basis,
             )
+        owners = (
+            declared_owners(changes.beneficial_owners)
+            if isinstance(changes.beneficial_owners, tuple)
+            else None
+        )
+        if owners is not None:
+            OwnersDeclaration(  # the same checks the aggregate makes, before the read
+                owners=owners, declared_by=access.user_id, declared_at=self._clock.now()
+            )
         application = await get_writable(
             self._repository,
             self._clients,
@@ -170,6 +183,10 @@ class UpdateDraftUseCase:
             )
         elif choice is None:
             application.withdraw_beneficiary(now)
+        if owners is not None:
+            application.declare_owners(owners, account_id=access.user_id, now=now)
+        elif changes.beneficial_owners is None:
+            application.withdraw_owners(now)
         if changes.consents is not UNSET:
             consents = changes.consents
             application.set_consents(

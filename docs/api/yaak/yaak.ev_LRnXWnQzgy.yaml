@@ -43,6 +43,9 @@ variables:
 - enabled: true
   name: workflow_code
   value: ${[ response.body.path(request='rq_25BRmtdb5P', behavior='smart', path='$[0].code') ]}
+- enabled: true
+  name: contract_document_id
+  value: ${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.id') ]}
 color: null
 sortPriority: 1000.0
 createdAt: '2026-10-24T00:00:00'

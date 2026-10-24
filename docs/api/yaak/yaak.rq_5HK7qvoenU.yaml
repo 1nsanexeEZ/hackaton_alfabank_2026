@@ -26,7 +26,7 @@ body:
     {
       "reason": "Передумали"
     }
-sortPriority: 16000.0
+sortPriority: 17000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

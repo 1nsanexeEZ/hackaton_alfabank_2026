@@ -1,10 +1,17 @@
-import { ApiError, http } from '../http'
+import { ApiError, http, httpFile } from '../http'
 import type { ClientApi } from './types'
 
 type Options = NonNullable<Parameters<typeof http>[1]>
 
 /** Запросы сайта подписываются токеном клиента — сессия сотрудника сюда не попадает */
 const call = <T>(path: string, options: Options = {}) => http<T>(path, { ...options, realm: 'client' })
+
+/** Проверяемый файл — полем file в multipart/form-data */
+function fileForm(file: File): FormData {
+  const form = new FormData()
+  form.append('file', file)
+  return form
+}
 
 /** Клиентский путь на бэкенде: auth, products, organizations, applications */
 export const realClientApi: ClientApi = {
@@ -39,8 +46,17 @@ export const realClientApi: ClientApi = {
   declineOffer: (id, reason) =>
     call(`/applications/${id}/offer/decline`, { method: 'POST', body: reason ? { reason } : undefined }),
   contract: (id) => call(`/applications/${id}/contract`),
-  sign: (id, password, offerHash) =>
-    call(`/applications/${id}/sign`, { method: 'POST', body: { password, offer_hash: offerHash } }),
+  // Поля без значения JSON.stringify отбрасывает: старому бэкенду уходит прежнее тело
+  sign: (id, password, offerHash, documentHash, rulesVersion) =>
+    call(`/applications/${id}/sign`, {
+      method: 'POST',
+      body: { password, offer_hash: offerHash, document_hash: documentHash, rules_version: rulesVersion },
+    }),
+  downloadContractDocument: (id, kind) =>
+    httpFile(`/applications/${id}/contract/document`, { query: { kind }, realm: 'client' }),
+  esignRules: () => call('/esign/rules'),
+  verifyContract: (documentId) => call(`/contracts/verify/${documentId}`),
+  verifyContractFile: (file) => call('/contracts/verify', { method: 'POST', body: fileForm(file) }),
   answerInfoRequest: (id, infoRequestId) =>
     call(`/applications/${id}/info-requests/${infoRequestId}/answer`, { method: 'POST' }),
   downloadDocument: (id, documentId) => call(`/applications/${id}/documents/${documentId}/download`),

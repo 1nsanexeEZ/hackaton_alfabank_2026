@@ -9,7 +9,8 @@ import type { LoanPurpose } from '@/shared/api'
 import { formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, TextField } from '@/shared/ui'
 
-import { useApplicationCard } from '../model/useApplicationCard'
+import { hasContractDocument, useApplicationCard } from '../model/useApplicationCard'
+import ContractDocumentBlock from './ContractDocumentBlock.vue'
 import ContractView from './ContractView.vue'
 import DecisionPanel from './DecisionPanel.vue'
 import HeadConsentNotice from './HeadConsentNotice.vue'
@@ -31,7 +32,23 @@ const emit = defineEmits<{
 }>()
 
 const application = useApplicationCard(() => props.applicationId)
-const { card, details, loading, error, busy, actionError, uploadErrors, signature, contract, contractError, infoDocuments, can } = application
+const {
+  card,
+  details,
+  loading,
+  error,
+  busy,
+  actionError,
+  uploadErrors,
+  signature,
+  contract,
+  contractError,
+  documentSlow,
+  rules,
+  rulesError,
+  infoDocuments,
+  can,
+} = application
 
 const status = computed(() => card.value?.client_status ?? null)
 const meta = computed(() => (status.value ? CLIENT_STATUS_META[status.value] : null))
@@ -185,8 +202,14 @@ function continueDraft() {
         :contract-error="contractError"
         :can-sign="can('sign')"
         :busy="busy"
+        :document-slow="documentSlow"
+        :rules="rules"
+        :rules-error="rulesError"
         @sign="application.sign"
         @reload="application.reload"
+        @refresh-document="application.refreshDocument"
+        @reload-rules="application.loadRules"
+        @download="application.downloadContract"
       />
 
       <section v-else-if="status === 'issued'" class="rounded-2xl bg-success-soft p-5">
@@ -195,7 +218,11 @@ function continueDraft() {
           Договор подписан, кредит выдан
         </p>
         <dl class="mt-3 space-y-1 text-sm text-ink">
-          <div v-if="signed" class="flex flex-wrap gap-x-2">
+          <div v-if="signed && hasContractDocument(contract)" class="flex flex-wrap gap-x-2">
+            <dt class="text-ink-secondary">Договор подписан:</dt>
+            <dd>{{ formatDateTime(signed.signed_at) }}</dd>
+          </div>
+          <div v-else-if="signed" class="flex flex-wrap gap-x-2">
             <dt class="text-ink-secondary">Документ в ЭДО:</dt>
             <dd>{{ signed.edo_document_id ?? '—' }} · {{ formatDateTime(signed.signed_at) }}</dd>
           </div>
@@ -204,11 +231,23 @@ function continueDraft() {
             <dd>№ {{ details.disbursement.reference }} · {{ formatDateTime(details.disbursement.disbursed_at) }}</dd>
           </div>
         </dl>
+        <ContractDocumentBlock
+          v-if="hasContractDocument(contract)"
+          class="mt-3"
+          :contract="contract"
+          :busy="busy"
+          :slow="documentSlow"
+          @download="application.downloadContract"
+          @refresh="application.refreshDocument"
+        />
         <details v-if="contract" class="mt-3 text-sm">
           <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">Договор № {{ contract.number }}</summary>
           <ContractView class="mt-3" :contract="contract" />
         </details>
-        <p class="mt-3 text-xs text-ink-secondary">
+        <p v-if="hasContractDocument(contract)" class="mt-3 text-xs text-ink-secondary">
+          Выдача смоделирована (мок АБС): денежных операций нет. Подпись банка — ключ демо-стенда, не квалифицированная.
+        </p>
+        <p v-else class="mt-3 text-xs text-ink-secondary">
           Подписание и выдача смоделированы (моки ЭДО и АБС): реальных подписей и денежных операций нет.
         </p>
       </section>

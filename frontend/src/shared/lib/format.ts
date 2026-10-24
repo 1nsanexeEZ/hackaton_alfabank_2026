@@ -91,6 +91,21 @@ export function formatRelativeTime(value: string | Date, now = Date.now()): stri
   return relativeFormatter.format(Math.round(hours / 24), 'day')
 }
 
+const moscowFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: 'Europe/Moscow',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+})
+
+/** «24.10.2026, 12:35:53 МСК» — время подписи: одинаковое для всех, в каком бы поясе ни был читатель */
+export function formatMoscowDateTime(value: string | Date): string {
+  return `${moscowFormatter.format(new Date(value))} МСК`
+}
+
 const timeFormatter = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 /** «14:05:12» — время шага процесса, где важны секунды */

@@ -1,0 +1,22 @@
+type: http_request
+model: http_request
+id: rq_39a4WZztpx
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PjjuPyjjDA
+name: Проверка файла договора
+description: |-
+  A PDF someone has: the bank's signature intact and trusted, the file
+  the same as the sealed copy in the archive. Up to 10 MB.
+
+  Файл выбирается в Yaak: Body → Multipart Form, поле `file` — PDF договора. Ответ скажет, цела ли подпись банка и совпадает ли файл с экземпляром в архиве.
+method: POST
+url: ${[ base_url ]}/contracts/verify
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
