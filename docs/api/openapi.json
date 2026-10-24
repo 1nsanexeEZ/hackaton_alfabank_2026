@@ -4292,6 +4292,360 @@
         }
       }
     },
+    "/decision/policies": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "List Versions",
+        "description": "The built-in policy first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.",
+        "operationId": "list_versions_decision_policies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyVersionSummaryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Versions Decision Policies Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Create Draft",
+        "description": "A draft copied from any version, under the next number: `policy_v10.1`,\n`policy_v10.2`… 404 — no such version.",
+        "operationId": "create_draft_decision_policies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/decision/policies/catalog": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Catalog",
+        "description": "What a policy document is made of: the grade scales, the outcomes, the reason codes\nwith their client texts (not editable here: a code without a text is refused), the\nstop-factor keys, registry statuses, routing flags, zones of the two models and the\nnames of collateral types and alternative products.",
+        "operationId": "get_catalog_decision_policies_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyCatalogRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/decision/policies/{version}": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Version",
+        "description": "A version with its document (`body`), the same as the YAML file.",
+        "operationId": "get_version_decision_policies__version__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Update Draft",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}` (a grade\noff the scale, a broken matrix, a reason code without a client text…). Not a draft —\n409 `invalid_transition`.",
+        "operationId": "update_draft_decision_policies__version__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Delete Draft",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: decisions\nwere made by it.",
+        "operationId": "delete_draft_decision_policies__version__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision/policies/{version}/activate": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Activate Version",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML policy is in force again. Already active — 409 `invalid_transition`.\nNew decisions, pre-approvals and the nightly refresh go by it; old decisions keep\ntheir `policy_version`.",
+        "operationId": "activate_version_decision_policies__version__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision/policies/{version}/preview": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Preview Version",
+        "description": "A try-on, not an exact replay: the latest `limit` applications with an automatic\ndecision are decided again by this version — stop factors first, then the decision,\nas the process does. The input is gathered anew from the current data (the\napplication, its latest enrichment snapshot and scoring result, the product catalog)\nwith the current key rate, so `after` may differ from `before` even with the same\npolicy when the data has changed since. Outcome and reason codes before (the stored\ndecision and its `policy_version`) and after, and how the outcomes moved. Nothing is\nwritten; an application whose input cannot be gathered any more is counted in\n`skipped`.",
+        "operationId": "preview_version_decision_policies__version__preview_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyPreviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feed": {
       "get": {
         "tags": [
@@ -8598,6 +8952,25 @@
           "title"
         ],
         "title": "ClientTimelineEntry"
+      },
+      "CodeNameRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Как это называется в тексте для клиента"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "CodeNameRead"
       },
       "Collateral": {
         "properties": {
@@ -15000,6 +15373,44 @@
         ],
         "title": "OrganizationSummaryRead"
       },
+      "OutcomeShiftRead": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "To"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "count"
+        ],
+        "title": "OutcomeShiftRead",
+        "description": "Клетка матрицы переходов: столько заявок было с исходом `from` и стало с `to`."
+      },
       "OwnerDiscrepancyDTO": {
         "properties": {
           "name": {
@@ -15546,6 +15957,517 @@
           "org_member"
         ],
         "title": "Policies"
+      },
+      "PolicyCatalogRead": {
+        "properties": {
+          "builtin": {
+            "type": "string",
+            "title": "Builtin",
+            "description": "Код встроенной политики"
+          },
+          "legacy_scale": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Legacy Scale",
+            "description": "Шкала `grades` scorecard_v1"
+          },
+          "pd_scale": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Pd Scale",
+            "description": "Шкала `grades` PD-модели; зоны двух моделей покрывают её всегда"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Outcomes",
+            "description": "Исходы решения с текстом для клиента"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyReasonRead"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "Коды причин с текстами из explanations_ru.yaml; только их можно ставить в `stop_factors.registry_statuses` и `routing.flags`, тексты здесь не правятся"
+          },
+          "stop_factors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Factors",
+            "description": "Ключи раздела `stop_factors`"
+          },
+          "registry_statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Registry Statuses",
+            "description": "Статусы ЕГРЮЛ — ключи `stop_factors.registry_statuses`"
+          },
+          "routing_flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Routing Flags",
+            "description": "Ключи `routing.flags` в порядке проверки"
+          },
+          "zones": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zones",
+            "description": "Зоны `strategy.two_models`"
+          },
+          "zone_verdicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zone Verdicts",
+            "description": "Клетки матрицы `strategy.two_models.matrix`"
+          },
+          "zsk_levels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zsk Levels",
+            "description": "Уровни ЗСК `compliance.aml`"
+          },
+          "legal_forms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Legal Forms",
+            "description": "Формы `compliance.automated_decision_consent.legal_forms`"
+          },
+          "collateral_types": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "description": "Виды залога — ключи `limits.ltv`"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Products",
+            "description": "Продукты, которые можно назвать в `alternatives`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "builtin",
+          "legacy_scale",
+          "pd_scale",
+          "outcomes",
+          "reasons",
+          "stop_factors",
+          "registry_statuses",
+          "routing_flags",
+          "zones",
+          "zone_verdicts",
+          "zsk_levels",
+          "legal_forms",
+          "collateral_types",
+          "products"
+        ],
+        "title": "PolicyCatalogRead"
+      },
+      "PolicyPreviewItemRead": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "Сохранённое автоматическое решение"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decided At"
+          },
+          "before": {
+            "$ref": "#/components/schemas/VerdictRead",
+            "description": "Как решено тогда своей версией политики"
+          },
+          "after": {
+            "$ref": "#/components/schemas/VerdictRead",
+            "description": "Как решила бы примеряемая версия на текущих данных заявки"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "result_id",
+          "decided_at",
+          "before",
+          "after"
+        ],
+        "title": "PolicyPreviewItemRead"
+      },
+      "PolicyPreviewRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Сколько заявок решено заново"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "description": "Другой исход или другие коды причин"
+          },
+          "outcome_changed": {
+            "type": "integer",
+            "title": "Outcome Changed",
+            "description": "Другой исход"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Вход не собрать (заявки или продукта уже нет) — пропущена"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/OutcomeShiftRead"
+            },
+            "type": "array",
+            "title": "Transitions",
+            "description": "Переходы исходов «было → стало», только непустые"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyPreviewItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "total",
+          "changed",
+          "outcome_changed",
+          "skipped",
+          "transitions",
+          "items"
+        ],
+        "title": "PolicyPreviewRead"
+      },
+      "PolicyReasonRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Что клиент увидит в решении"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "Что клиент может сделать"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text",
+          "hint"
+        ],
+        "title": "PolicyReasonRead"
+      },
+      "PolicyVersionRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`policy_v10` — встроенная, `policy_v10.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ политики, как policy_v10.yaml: стоп-факторы, лимиты, ценообразование, маршрутизация, стратегия (мягкие триггеры, матрица грейд × сумма, зоны двух моделей), требования закона; Decimal — строками"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin",
+          "body"
+        ],
+        "title": "PolicyVersionRead"
+      },
+      "PolicyVersionSummaryRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`policy_v10` — встроенная, `policy_v10.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin"
+        ],
+        "title": "PolicyVersionSummaryRead"
       },
       "PowerOfAttorneyCreate": {
         "properties": {
@@ -21135,6 +22057,39 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerdictRead": {
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "Outcome"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outcome",
+          "reason_codes",
+          "policy_version"
+        ],
+        "title": "VerdictRead"
       },
       "VerificationRead": {
         "properties": {

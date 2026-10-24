@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_hLMdF4eLy6
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_gUp5OBYSWR
+name: Activate Version
+description: |-
+  A draft or an archived version (rollback) is put in force, the active one goes to
+  the archive. The built-in version: the admin's active version goes to the archive and
+  the YAML policy is in force again. Already active — 409 `invalid_transition`.
+  New decisions, pre-approvals and the nightly refresh go by it; old decisions keep
+  their `policy_version`.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/decision/policies/:version/activate
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
