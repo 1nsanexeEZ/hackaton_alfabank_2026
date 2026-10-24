@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 
 from src.core.access.dependencies import CurrentToken, require_permissions
+from src.core.access.permission_check import has_permissions
 from src.core.access.permissions import Permissions
 from src.core.schemas.jwt_dto import OpenSubTokenDTO
 from src.modules.identity.application.dto.consents import GiveConsentsDTO
@@ -32,7 +33,12 @@ async def update_my_profile(
     token: Annotated[OpenSubTokenDTO, Depends(require_permissions(Permissions.PROFILE_UPDATE))],
     use_case: UpdateMyProfileDep,
 ) -> MeRead:
-    return MeRead.build(await use_case.execute(token.subject, data.to_dto()), token)
+    """Own profile. The name needs `profile.update_name` as well: clients don't have it,
+    their name is confirmed by the bank — a changed name is 422 `identity_locked` with the
+    `fields`; the same name sent again is accepted."""
+    may_change_name = has_permissions(token, Permissions.PROFILE_UPDATE_NAME)
+    account = await use_case.execute(token.subject, data.to_dto(), may_change_name=may_change_name)
+    return MeRead.build(account, token)
 
 
 @router.get("/consents", response_model=list[ConsentRead])

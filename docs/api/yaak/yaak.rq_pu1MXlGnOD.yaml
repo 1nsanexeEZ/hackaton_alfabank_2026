@@ -5,7 +5,9 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_jSuhpwkwE4
 name: Изменить профиль
 description: |-
-  Update My Profile
+  Own profile. The name needs `profile.update_name` as well: clients don't have it,
+  their name is confirmed by the bank — a changed name is 422 `identity_locked` with the
+  `fields`; the same name sent again is accepted.
 
   Токен: директор ООО «Ромашка».
 method: PATCH

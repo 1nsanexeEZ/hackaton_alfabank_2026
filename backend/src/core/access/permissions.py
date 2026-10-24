@@ -12,6 +12,10 @@ class Permissions(StrEnum):
     ROLES_UPDATE = "roles.update"
     ROLES_DELETE = "roles.delete"
     PROFILE_UPDATE = "profile.update"
+    # Own last, first and middle name. Clients don't have it: their name is confirmed by
+    # the bank when the account is opened, and the registry head check and the signer
+    # of a contract rest on it; staff correct a client's name through `accounts.update`.
+    PROFILE_UPDATE_NAME = "profile.update_name"
     # Credit applications (module `applications`). Clients get them with the
     # `org_member` policy, underwriters without policies.
     REQUESTS_READ = "requests.read"
