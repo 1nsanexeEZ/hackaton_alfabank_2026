@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_K0MTYV4dzB
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_gUp5OBYSWR
+name: Update Draft
+description: |-
+  The whole document of a draft. It is checked as the YAML file is at startup:
+  422 `validation_error` with `details.errors` — a list of `{path, message}` (a grade
+  off the scale, a broken matrix, a reason code without a client text…). Not a draft —
+  409 `invalid_transition`.
+
+  Токен: директор ООО «Ромашка».
+method: PUT
+url: ${[ base_url ]}/decision/policies/:version
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: '{}'
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

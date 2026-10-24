@@ -9350,6 +9350,205 @@
       },
       {
         "model": "http_request",
+        "id": "rq_GADG465fvs",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "List Versions",
+        "description": "The built-in policy first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/decision/policies",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 6000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_iRPdpMb5PL",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Create Draft",
+        "description": "A draft copied from any version, under the next number: `policy_v10.1`,\n`policy_v10.2`… 404 — no such version.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/decision/policies",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{}"
+        },
+        "sortPriority": 7000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_H0cAnMF7Yo",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Get Catalog",
+        "description": "What a policy document is made of: the grade scales, the outcomes, the reason codes\nwith their client texts (not editable here: a code without a text is refused), the\nstop-factor keys, registry statuses, routing flags, zones of the two models and the\nnames of collateral types and alternative products.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/decision/policies/catalog",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 8000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_g3OgHaafbO",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Get Version",
+        "description": "A version with its document (`body`), the same as the YAML file.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/decision/policies/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 9000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_K0MTYV4dzB",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Update Draft",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}` (a grade\noff the scale, a broken matrix, a reason code without a client text…). Not a draft —\n409 `invalid_transition`.\n\nТокен: директор ООО «Ромашка».",
+        "method": "PUT",
+        "url": "${[ base_url ]}/decision/policies/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{}"
+        },
+        "sortPriority": 10000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_hLMdF4eLy6",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Activate Version",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML policy is in force again. Already active — 409 `invalid_transition`.\nNew decisions, pre-approvals and the nightly refresh go by it; old decisions keep\ntheir `policy_version`.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/decision/policies/:version/activate",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 11000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Un1IRxmgCR",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Preview Version",
+        "description": "A try-on, not an exact replay: the latest `limit` applications with an automatic\ndecision are decided again by this version — stop factors first, then the decision,\nas the process does. The input is gathered anew from the current data (the\napplication, its latest enrichment snapshot and scoring result, the product catalog)\nwith the current key rate, so `after` may differ from `before` even with the same\npolicy when the data has changed since. Outcome and reason codes before (the stored\ndecision and its `policy_version`) and after, and how the outcomes moved. Nothing is\nwritten; an application whose input cannot be gathered any more is counted in\n`skipped`.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/decision/policies/:version/preview",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          },
+          {
+            "enabled": false,
+            "name": "limit",
+            "value": "20"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 12000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_KPO0c6lzKA",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_5ZqWLZjg9B",
@@ -10541,6 +10740,34 @@
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_nE273FUO07",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_gUp5OBYSWR",
+        "name": "Delete Draft",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: decisions\nwere made by it.\n\nТокен: директор ООО «Ромашка».",
+        "method": "DELETE",
+        "url": "${[ base_url ]}/decision/policies/:version",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":version",
+            "value": "${[ model_version ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 13000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
           "prefix": "Bearer"
         },
         "createdAt": "2026-10-24T00:00:00",

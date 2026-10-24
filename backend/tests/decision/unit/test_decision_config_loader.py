@@ -287,7 +287,7 @@ def test_two_models_with_a_broken_risk_matrix_is_rejected(tmp_path: Path) -> Non
     def hole(raw: dict[str, Any]) -> None:
         raw["strategy"]["risk_matrix"] = _raw("policy_v4")["strategy"]["risk_matrix"][:-1]
 
-    with pytest.raises(PolicyConfigError, match="risk_matrix должна покрыть"):
+    with pytest.raises(PolicyConfigError, match="risk_matrix: должна покрыть"):
         _load(tmp_path, hole, version="policy_v7")
 
 

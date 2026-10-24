@@ -17,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -114,3 +115,32 @@ class ProjectAssessmentRecord(Base):
     version: Mapped[str] = mapped_column(String(32))
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DecisionPolicyVersionRecord(Base):
+    """Версии кредитной политики, которые ведёт админ (decision_0005): черновик → активная →
+    архив. Встроенной политики из YAML здесь нет — она действует, пока нет активной версии."""
+
+    __tablename__ = "decision_policy_versions"
+    __table_args__ = (
+        # Активной бывает только одна версия.
+        Index(
+            "uq_decision_policy_versions_active",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)  # policy_v10.1
+    status: Mapped[str] = mapped_column(String(16))
+    # Тот же документ, что YAML: Decimal строками, `version` внутри — код версии.
+    body: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    based_on: Mapped[str | None] = mapped_column(String(32), default=None)
+    comment: Mapped[str | None] = mapped_column(Text, default=None)
+    created_by: Mapped[UUID] = mapped_column(Uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    activated_by: Mapped[UUID | None] = mapped_column(Uuid, default=None)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

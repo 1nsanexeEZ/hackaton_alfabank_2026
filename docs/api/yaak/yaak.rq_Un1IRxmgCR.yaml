@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_Un1IRxmgCR
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_gUp5OBYSWR
+name: Preview Version
+description: |-
+  A try-on, not an exact replay: the latest `limit` applications with an automatic
+  decision are decided again by this version — stop factors first, then the decision,
+  as the process does. The input is gathered anew from the current data (the
+  application, its latest enrichment snapshot and scoring result, the product catalog)
+  with the current key rate, so `after` may differ from `before` even with the same
+  policy when the data has changed since. Outcome and reason codes before (the stored
+  decision and its `policy_version`) and after, and how the outcomes moved. Nothing is
+  written; an application whose input cannot be gathered any more is counted in
+  `skipped`.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/decision/policies/:version/preview
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+- enabled: false
+  name: limit
+  value: '20'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 12000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -31,8 +31,9 @@ class Permissions(StrEnum):
     TASKS_UPDATE = "tasks.update"
     # Full credit decision with rule trace (module `decision`).
     DECISIONS_READ = "decisions.read"
-    # Versions of the PD model (module `scoring`): read and preview a version;
-    # `update` keeps them — drafts, editing, activation and rollback.
+    # Versions of the PD model (module `scoring`) and of the credit policy (module
+    # `decision`): read and preview a version; `update` keeps them — drafts, editing,
+    # activation and rollback.
     SCORING_READ = "scoring.read"
     SCORING_UPDATE = "scoring.update"
     # Back office screens: queue, metrics (module `bff`); the check of a company by INN

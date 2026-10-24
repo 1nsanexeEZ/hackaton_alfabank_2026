@@ -4,21 +4,34 @@
 `config/explanations_ru.yaml`. Действует последняя версия (`policy_v10`); прежние лежат рядом для
 golden-тестов и отката. Оба файла проверяются при старте; невалидный YAML (нет грейда,
 кода причины, текста, грейд вне матрицы или неизвестная подстановка) → `PolicyConfigError`, и
-приложение не стартует — лучше сразу, чем молча решить не так.
+приложение не стартует — лучше сразу, чем молча решить не так. Версии политики, которые ведёт
+админ (`decision_policy_versions`), проверяются той же `parse_policy`: ошибка — 422 со списком
+проблем. Тексты для клиента админ не правит: у каждого кода причины в документе должен быть
+текст в `explanations_ru.yaml`.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import string
+from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from src.core.exceptions.exceptions import ValidationError as AppValidationError
+from src.modules.decision.application.policy_versions import (
+    CodeName,
+    PolicyCatalog,
+    PolicyDocuments,
+    ReasonInfo,
+)
 from src.modules.decision.domain.explanations import (
     CONDITION_KEYS,
     NOTE_KEYS,
@@ -41,10 +54,40 @@ _DEFAULT_EXPLANATIONS = "explanations_ru"
 _SCALES: tuple[tuple[Grade, ...], ...] = (LEGACY_SCALE, PD_SCALE)
 _OKVED_CLASS = re.compile(r"^\d{2}$")
 _OUTCOMES = frozenset({"APPROVE", "COUNTER_OFFER", "REQUEST_INFO", "MANUAL_REVIEW", "REJECT"})
+# Статусы компании в ЕГРЮЛ (clients, RegistryStatus) — ключи `stop_factors.registry_statuses`.
+_REGISTRY_STATUSES = ("active", "liquidating", "liquidated", "bankrupt", "reorganizing", "excluded")
+# Флаги, которые видит маршрутизация (флаги скоринга и свои: расхождение с реестром, массовый
+# адрес, сбой источников), в порядке проверки. JSONB в Postgres переставляет ключи, а от порядка
+# зависят коды причин в решении, поэтому `routing.flags` всегда идут в этом порядке.
+_ROUTING_FLAGS = (
+    "verification_mismatch",
+    "revenue_mismatch",
+    "bureau_unavailable",
+    "mass_address",
+    "thin_file",
+    "cash_gap",
+)
+_LEGAL_FORMS = ("LLC", "IE", "JSC")
 
 
 class PolicyConfigError(Exception):
     """Политика или тексты в YAML не прошли валидацию — приложение не должно стартовать."""
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyProblem:
+    """Что не так в документе политики: путь до места (`limits.revenue_multiplier`) и текст."""
+
+    path: str
+    message: str
+
+
+class PolicyDocumentError(PolicyConfigError):
+    """Документ политики не прошёл проверку; `problems` — всё, что нашлось."""
+
+    def __init__(self, message: str, problems: list[PolicyProblem]) -> None:
+        super().__init__(message)
+        self.problems = problems
 
 
 class _Strict(BaseModel):
@@ -52,7 +95,8 @@ class _Strict(BaseModel):
 
 
 class _StopFactors(_Strict):
-    registry_statuses: dict[str, ReasonCode]
+    # Код причины — строкой: что у кода есть текст, проверяет `_check_cross`.
+    registry_statuses: dict[str, str]
     overdue_days: int = Field(ge=0)
     grades: list[str]
     # policy_v2: нет ключа — правило выключено.
@@ -111,7 +155,7 @@ class _Pricing(_Strict):
 
 class _Routing(_Strict):
     grades: list[str]
-    flags: dict[str, ReasonCode]
+    flags: dict[str, str]
     tax_arrears: bool = False  # policy_v2
     # policy_v7: скоринг пометил данные неполными (quality = degraded) → ручная проверка.
     data_quality: bool = False
@@ -270,18 +314,104 @@ def load_policy(
 
 
 def load_policy_files(policy_path: Path, explanations_path: Path) -> CreditPolicy:
-    policy = _validate(_PolicySchema, policy_path)
-    texts = _validate(_ExplanationsSchema, explanations_path)
-    _check_policy(policy, policy_path)
-    _check_explanations(texts, explanations_path)
-    _check_cross(policy, texts, explanations_path)
-    return CreditPolicy(_policy_config(policy), _catalog(texts))
+    texts = _load_texts(explanations_path)
+    return _compile(_validated(_read(policy_path), texts, str(policy_path)), texts)
+
+
+def parse_policy(raw: Any, where: str) -> CreditPolicy:
+    """Документ политики (YAML или версия из БД) → политика с текстами `explanations_ru.yaml`;
+    не прошёл проверку — `PolicyDocumentError`."""
+    texts = _default_texts()
+    return _compile(_validated(raw, texts, where), texts)
+
+
+def normalize_policy(raw: Any, where: str) -> dict[str, Any]:
+    """Проверенный документ в каноническом виде для БД и API: Decimal строками, пустые поля
+    опущены."""
+    return _validated(raw, _default_texts(), where).model_dump(mode="json", exclude_none=True)
+
+
+@lru_cache(maxsize=4)
+def _builtin_body(name: str) -> str:
+    path = _CONFIG_DIR / f"{name}.yaml"
+    return json.dumps(normalize_policy(_read(path), str(path)), ensure_ascii=False)
+
+
+def builtin_policy_body(name: str = _DEFAULT_POLICY) -> dict[str, Any]:
+    """Документ встроенной политики из YAML — каждый раз свежая копия, её можно править."""
+    body: dict[str, Any] = json.loads(_builtin_body(name))
+    return body
 
 
 @lru_cache(maxsize=4)
 def default_policy() -> CreditPolicy:
-    """Политика по умолчанию, загружается один раз на процесс."""
+    """Встроенная политика, загружается один раз на процесс. Действует, пока админ не
+    активировал свою версию (`decision_policy_versions`)."""
     return load_policy()
+
+
+def policy_catalog() -> PolicyCatalog:
+    """Из чего собирается документ политики: что проверяет `parse_policy`, для редактора."""
+    texts = _default_texts()
+    return PolicyCatalog(
+        builtin=_DEFAULT_POLICY,
+        legacy_scale=LEGACY_SCALE,
+        pd_scale=PD_SCALE,
+        outcomes=tuple(
+            CodeName(outcome, texts.outcomes[outcome]) for outcome in get_args(_OutcomeName)
+        ),
+        reasons=tuple(
+            ReasonInfo(str(code), texts.reasons[code].text, texts.reasons[code].hint)
+            for code in ReasonCode
+            if code in texts.reasons
+        ),
+        stop_factors=tuple(_StopFactors.model_fields),
+        registry_statuses=_REGISTRY_STATUSES,
+        routing_flags=_ROUTING_FLAGS,
+        zones=get_args(_ZoneName),
+        zone_verdicts=get_args(_ModelsVerdict),
+        zsk_levels=get_args(_ZskLevel),
+        legal_forms=_LEGAL_FORMS,
+        collateral_types=tuple(CodeName(c, n) for c, n in texts.collateral_types.items()),
+        products=tuple(CodeName(c, n) for c, n in texts.products.items()),
+    )
+
+
+class CreditPolicyDocuments(PolicyDocuments):
+    """Документы политики для реестра версий: встроенная политика, проверка и сборка. Ошибка
+    проверки — 422 со списком `{path, message}`."""
+
+    @property
+    def builtin_version(self) -> str:
+        return default_policy().version
+
+    def builtin_body(self) -> dict[str, Any]:
+        return builtin_policy_body()
+
+    def builtin_policy(self) -> CreditPolicy:
+        return default_policy()
+
+    def normalize(self, body: Mapping[str, Any], version: str) -> dict[str, Any]:
+        try:
+            return normalize_policy(dict(body), version)
+        except PolicyDocumentError as exc:
+            raise _invalid(exc) from None
+
+    def compile(self, body: Mapping[str, Any], version: str) -> CreditPolicy:
+        try:
+            return parse_policy(dict(body), version)
+        except PolicyDocumentError as exc:
+            raise _invalid(exc) from None
+
+    def catalog(self) -> PolicyCatalog:
+        return policy_catalog()
+
+
+def _invalid(exc: PolicyDocumentError) -> AppValidationError:
+    return AppValidationError(
+        "Credit policy is invalid",
+        details={"errors": [{"path": p.path, "message": p.message} for p in exc.problems]},
+    )
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -300,23 +430,68 @@ class _UniqueKeyLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
-def _validate[S: BaseModel](schema: type[S], path: Path) -> S:
+def _read(path: Path) -> Any:
     try:
-        raw: Any = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+        return yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
     except (OSError, yaml.YAMLError) as exc:
         raise PolicyConfigError(f"Не удалось прочитать {path}: {exc}") from exc
+
+
+def _load_texts(path: Path) -> _ExplanationsSchema:
     try:
-        return schema.model_validate(raw)
+        texts = _ExplanationsSchema.model_validate(_read(path))
     except ValidationError as exc:
         raise PolicyConfigError(f"{path} не прошёл схему: {exc}") from exc
+    _check_explanations(texts, path)
+    return texts
 
 
-def _check_policy(schema: _PolicySchema, path: Path) -> None:
+@lru_cache(maxsize=1)
+def _default_texts() -> _ExplanationsSchema:
+    """Тексты для клиента — одни на все версии политики: админ их не правит."""
+    return _load_texts(_CONFIG_DIR / f"{_DEFAULT_EXPLANATIONS}.yaml")
+
+
+def _validated(raw: Any, texts: _ExplanationsSchema, where: str) -> _PolicySchema:
+    """Схема и правила документа политики; YAML дубли ключей отсёк ещё при чтении, у JSON из БД
+    и API их не бывает."""
+    try:
+        schema = _PolicySchema.model_validate(raw)
+    except ValidationError as exc:
+        problems = [
+            PolicyProblem(".".join(str(part) for part in error["loc"]), error["msg"])
+            for error in exc.errors()
+        ]
+        raise PolicyDocumentError(f"{where} не прошёл схему: {exc}", problems) from exc
+    problems = [*_check_policy(schema), *_check_cross(schema, texts)]
+    if problems:
+        listed = "; ".join(f"{p.path}: {p.message}" for p in problems)
+        raise PolicyDocumentError(f"{where}: {listed}", problems)
+    return schema
+
+
+def _compile(schema: _PolicySchema, texts: _ExplanationsSchema) -> CreditPolicy:
+    return CreditPolicy(_policy_config(schema), _catalog(texts))
+
+
+def _check_policy(schema: _PolicySchema) -> list[PolicyProblem]:
     scale = tuple(schema.grades)
     if scale not in _SCALES:
-        raise PolicyConfigError(
-            f"{path}: шкала грейдов — {list(LEGACY_SCALE)} или {list(PD_SCALE)}"
-        )
+        # Остальное проверяется по шкале: без неё список проблем был бы шумом.
+        return [
+            PolicyProblem("grades", f"шкала грейдов — {list(LEGACY_SCALE)} или {list(PD_SCALE)}")
+        ]
+    problems: list[PolicyProblem] = []
+    for name, grades in (
+        ("stop_factors.grades", schema.stop_factors.grades),
+        ("routing.grades", schema.routing.grades),
+        ("limits.revenue_multiplier", schema.limits.revenue_multiplier),
+        ("limits.grade_max_amount", schema.limits.grade_max_amount),
+        ("pricing.grade_premium", schema.pricing.grade_premium),
+    ):
+        outside = set(grades) - set(scale)
+        if outside:
+            problems.append(PolicyProblem(name, f"грейды вне шкалы: {sorted(outside)}"))
     # Грейды, по которым решение не отказ по стоп-фактору, — для них нужны коэффициенты.
     graded = frozenset(scale) - frozenset(schema.stop_factors.grades)
     mappings = [
@@ -330,72 +505,113 @@ def _check_policy(schema: _PolicySchema, path: Path) -> None:
     for name, mapping in mappings:
         missing = graded - mapping.keys()
         if missing:
-            raise PolicyConfigError(f"{path}: в {name} нет грейдов {sorted(missing)}")
-    _check_strategy(schema, scale, path)
+            problems.append(PolicyProblem(name, f"нет грейдов {sorted(missing)}"))
+    problems += _check_strategy(schema, scale)
     if not schema.alternatives.cash_gap_products:
-        raise PolicyConfigError(f"{path}: пустой alternatives.cash_gap_products")
-    _check_compliance(schema.compliance, path)
-    bad_okved = [c for c in schema.stop_factors.okved_classes if not _OKVED_CLASS.match(c)]
+        problems.append(PolicyProblem("alternatives.cash_gap_products", "пустой список"))
+    problems += _check_compliance(schema.compliance)
+    stops = schema.stop_factors
+    bad_okved = [c for c in stops.okved_classes if not _OKVED_CLASS.match(c)]
     if bad_okved:
-        raise PolicyConfigError(
-            f"{path}: в stop_factors.okved_classes нужны двузначные классы: {bad_okved}"
+        problems.append(
+            PolicyProblem("stop_factors.okved_classes", f"нужны двузначные классы: {bad_okved}")
         )
+    statuses = set(stops.registry_statuses) - set(_REGISTRY_STATUSES)
+    if statuses:
+        problems.append(
+            PolicyProblem(
+                "stop_factors.registry_statuses",
+                f"неизвестные статусы реестра {sorted(statuses)}",
+            )
+        )
+    flags = set(schema.routing.flags) - set(_ROUTING_FLAGS)
+    if flags:
+        problems.append(PolicyProblem("routing.flags", f"неизвестные флаги {sorted(flags)}"))
+    return problems
 
 
-def _check_strategy(schema: _PolicySchema, scale: tuple[str, ...], path: Path) -> None:
+def _check_strategy(schema: _PolicySchema, scale: tuple[str, ...]) -> list[PolicyProblem]:
     strategy = schema.strategy
+    problems: list[PolicyProblem] = []
     seen: list[str] = [g for band in strategy.risk_matrix for g in band.grades]
     if strategy.risk_matrix and (len(seen) != len(set(seen)) or set(seen) != set(scale)):
-        raise PolicyConfigError(
-            f"{path}: strategy.risk_matrix должна покрыть каждый грейд {list(scale)} ровно раз"
+        problems.append(
+            PolicyProblem(
+                "strategy.risk_matrix", f"должна покрыть каждый грейд {list(scale)} ровно раз"
+            )
         )
-    for band in strategy.risk_matrix:
+    for index, band in enumerate(strategy.risk_matrix):
         if band.manual_up_to is not None and band.manual_up_to < band.approve_up_to:
-            raise PolicyConfigError(f"{path}: в корзине {band.label} manual_up_to < approve_up_to")
+            problems.append(
+                PolicyProblem(
+                    f"strategy.risk_matrix.{index}.manual_up_to",
+                    f"в корзине {band.label} manual_up_to < approve_up_to",
+                )
+            )
     unknown = set(strategy.guarantee.grades) - set(scale)
     if unknown:
-        raise PolicyConfigError(f"{path}: strategy.guarantee.grades вне шкалы: {sorted(unknown)}")
+        problems.append(
+            PolicyProblem("strategy.guarantee.grades", f"грейды вне шкалы: {sorted(unknown)}")
+        )
     if strategy.two_models is not None:
-        _check_two_models(strategy, path)
+        problems += _check_two_models(strategy.two_models)
+    return problems
 
 
-def _check_two_models(strategy: _Strategy, path: Path) -> None:
+def _check_two_models(models: _TwoModels) -> list[PolicyProblem]:
     """policy_v5/v6 — две модели вместо матрицы; policy_v7 — обе: зоны моделей решают, можно ли
     одобрить автоматически, корзина грейда — до какой суммы. Итог — строже из двух."""
-    models = strategy.two_models
-    assert models is not None
+    problems: list[PolicyProblem] = []
     # ML-модель всегда ставит грейд на шкале A–J — зоны покрывают её, а не шкалу политики.
     zoned = [g for grades in models.zones.values() for g in grades]
     if len(zoned) != len(set(zoned)) or set(zoned) != set(PD_SCALE):
-        raise PolicyConfigError(
-            f"{path}: strategy.two_models.zones должны покрыть каждый грейд {list(PD_SCALE)} "
-            "ровно раз"
+        problems.append(
+            PolicyProblem(
+                "strategy.two_models.zones",
+                f"должны покрыть каждый грейд {list(PD_SCALE)} ровно раз",
+            )
         )
     zones = set(models.zones)
     if set(models.matrix) != zones or any(set(row) != zones for row in models.matrix.values()):
-        raise PolicyConfigError(
-            f"{path}: strategy.two_models.matrix — по строке и столбцу на каждую зону "
-            f"{sorted(zones)}"
+        problems.append(
+            PolicyProblem(
+                "strategy.two_models.matrix",
+                f"по строке и столбцу на каждую зону {sorted(zones)}",
+            )
         )
+    return problems
 
 
-def _check_compliance(compliance: _Compliance, path: Path) -> None:
+def _check_compliance(compliance: _Compliance) -> list[PolicyProblem]:
+    problems: list[PolicyProblem] = []
     for name in ("third_parties", "aml_risk", "licensing"):
         if getattr(compliance, name) is not None and compliance.aml is None:
-            raise PolicyConfigError(
-                f"{path}: compliance.{name} проверяются вместе с compliance.aml"
+            problems.append(
+                PolicyProblem(f"compliance.{name}", "проверяются вместе с compliance.aml")
             )
     aml = compliance.aml
     if aml is not None and set(aml.zsk_stop_levels) & set(aml.zsk_review_levels):
-        raise PolicyConfigError(
-            f"{path}: compliance.aml — уровень ЗСК и в отказе, и в ручной проверке"
+        problems.append(
+            PolicyProblem("compliance.aml", "уровень ЗСК и в отказе, и в ручной проверке")
         )
     consent = compliance.automated_decision_consent
-    if consent is not None and "MANUAL_REVIEW" in consent.outcomes:
-        raise PolicyConfigError(
-            f"{path}: compliance.automated_decision_consent.outcomes — ручная проверка и так "
-            "решение человека"
-        )
+    if consent is not None:
+        if "MANUAL_REVIEW" in consent.outcomes:
+            problems.append(
+                PolicyProblem(
+                    "compliance.automated_decision_consent.outcomes",
+                    "ручная проверка и так решение человека",
+                )
+            )
+        forms = set(consent.legal_forms) - set(_LEGAL_FORMS)
+        if forms:
+            problems.append(
+                PolicyProblem(
+                    "compliance.automated_decision_consent.legal_forms",
+                    f"неизвестные формы {sorted(forms)}",
+                )
+            )
+    return problems
 
 
 def _check_explanations(schema: _ExplanationsSchema, path: Path) -> None:
@@ -423,19 +639,36 @@ def _check_explanations(schema: _ExplanationsSchema, path: Path) -> None:
             raise PolicyConfigError(f"{path}: неизвестные подстановки {sorted(unknown)}")
 
 
-def _check_cross(policy: _PolicySchema, texts: _ExplanationsSchema, path: Path) -> None:
+def _check_cross(policy: _PolicySchema, texts: _ExplanationsSchema) -> list[PolicyProblem]:
+    """Всё, что клиент увидит в решении, есть в `explanations_ru.yaml`: текст на каждый код
+    причины, названия продуктов-альтернатив и залогов."""
+    problems: list[PolicyProblem] = []
+    for section, codes in (
+        ("stop_factors.registry_statuses", policy.stop_factors.registry_statuses),
+        ("routing.flags", policy.routing.flags),
+    ):
+        for key, code in codes.items():
+            if code not in texts.reasons:
+                problems.append(
+                    PolicyProblem(f"{section}.{key}", f"нет текста для кода причины {code}")
+                )
     alternatives = policy.alternatives
-    codes = {
+    named = {
         *alternatives.cash_gap_products,
         alternatives.secured_product,
         alternatives.small_amount_product,
     }
-    missing = codes - texts.products.keys()
+    missing = named - texts.products.keys()
     if missing:
-        raise PolicyConfigError(f"{path}: нет названий продуктов-альтернатив {sorted(missing)}")
+        problems.append(
+            PolicyProblem("alternatives", f"нет названий продуктов-альтернатив {sorted(missing)}")
+        )
     missing_collateral = policy.limits.ltv.keys() - texts.collateral_types.keys()
     if missing_collateral:
-        raise PolicyConfigError(f"{path}: нет названий залогов {sorted(missing_collateral)}")
+        problems.append(
+            PolicyProblem("limits.ltv", f"нет названий залогов {sorted(missing_collateral)}")
+        )
+    return problems
 
 
 def _policy_config(schema: _PolicySchema) -> PolicyConfig:
@@ -453,7 +686,9 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
     return PolicyConfig(
         version=schema.version,
         key_rate_reference=schema.key_rate_reference,
-        stop_registry_statuses=dict(schema.stop_factors.registry_statuses),
+        stop_registry_statuses={
+            status: ReasonCode(code) for status, code in stops.registry_statuses.items()
+        },
         stop_overdue_days=schema.stop_factors.overdue_days,
         stop_grades=frozenset(schema.stop_factors.grades),
         revenue_document=schema.info_request.revenue_document,
@@ -466,7 +701,11 @@ def _policy_config(schema: _PolicySchema) -> PolicyConfig:
         collateral_discount=schema.pricing.collateral_discount,
         collateral_min_coverage=schema.pricing.collateral_min_coverage,
         manual_review_grades=frozenset(schema.routing.grades),
-        routing_flags=dict(schema.routing.flags),
+        routing_flags={
+            flag: ReasonCode(schema.routing.flags[flag])
+            for flag in _ROUTING_FLAGS
+            if flag in schema.routing.flags
+        },
         cash_gap_products=tuple(schema.alternatives.cash_gap_products),
         secured_product=schema.alternatives.secured_product,
         small_amount_product=schema.alternatives.small_amount_product,

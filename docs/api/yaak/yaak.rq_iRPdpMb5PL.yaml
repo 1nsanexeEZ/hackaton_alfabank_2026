@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_iRPdpMb5PL
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_gUp5OBYSWR
+name: Create Draft
+description: |-
+  A draft copied from any version, under the next number: `policy_v10.1`,
+  `policy_v10.2`… 404 — no such version.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/decision/policies
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: '{}'
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
