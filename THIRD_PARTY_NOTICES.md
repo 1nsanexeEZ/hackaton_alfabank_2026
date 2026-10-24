@@ -40,7 +40,7 @@
 | `soldevelo/minio` | `2026.7.17` | `docker-compose.yml`, сервис `minio` | GNU AGPL v3 (MinIO); используется без изменений как отдельный сервис через S3 API |
 | `apache/kafka` | `3.8.0` | `docker-compose.yml`, сервис `kafka` | Apache-2.0 |
 | `nginx` | `1.31.7-alpine` | `docker-compose.yml`, сервис `nginx`; база образа `frontend/Dockerfile` (раздача статики) | BSD-2-Clause |
-| `node` | `22-alpine` | стадия сборки `frontend/Dockerfile`, в итоговый образ не входит | MIT (Node.js) |
+| `node` | `22.23.4-alpine` | стадия сборки `frontend/Dockerfile`, в итоговый образ не входит | MIT (Node.js) |
 | `python` | `3.12-slim` | база образов `backend/Dockerfile` и `external-mocks/Dockerfile` | PSF-2.0 (CPython) |
 | `ghcr.io/astral-sh/uv` | `0.12.10` (backend), `0.13.4` (external-mocks) | из образа копируются только бинарники `uv` (и `uvx` у external-mocks) для установки зависимостей и запуска | MIT OR Apache-2.0 |
 
