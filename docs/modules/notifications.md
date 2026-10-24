@@ -19,7 +19,7 @@
 notifications/
 ├── facade.py                 # NotificationsFacade + реэкспорт DTO и FeedItemType;
 │                             # реализация — infrastructure/adapters/notifications_facade.py
-├── module.py                 # register: роутеры; wire: фасад; subscribers: четыре подписки
+├── module.py                 # register: роутеры; wire: фасад; subscribers: пять подписок
 ├── domain/
 │   ├── feed.py               # Recipient, FeedEntry, Delivery, FeedRecord, ключи групп
 │   ├── viewers.py            # кто банк, чьи записи читает зритель, StreamGrant
@@ -33,7 +33,7 @@ notifications/
 │   │                         # neighbours: Neighbours (чтение соседей), FacadeLookup;
 │   │                         # access: OrganizationAccess (видна ли компания)
 │   ├── deliveries/           # правила «событие → записи»: по файлу на топик-источник
-│   │                         # (applications, process, decision, clients) + общий context
+│   │                         # (applications, process, decision, clients, support) + общий context
 │   ├── mappers/feed.py       # запись домена → DTO
 │   └── use_cases/            # project_event: ProjectEventUseCase (проекция в ленту);
 │                             # feed, news, stream, organizations: HTTP;
@@ -46,7 +46,7 @@ notifications/
 └── presentation/
     ├── api/                  # /feed (лента, SSE), /news
     ├── schemas/              # feed, news
-    ├── consumers.py          # четыре подписки → ProjectEventUseCase
+    ├── consumers.py          # пять подписок → ProjectEventUseCase
     └── dependencies.py       # сборка use case'ов и фасада
 ```
 
@@ -54,7 +54,7 @@ notifications/
 
 ## Источники событий
 
-Консьюмер подписан на четыре топика, по одной подписке на топик (у платформы `group_id` уникален на подписку): `notifications.feed.applications`, `notifications.feed.process`, `notifications.feed.decision`, `notifications.feed.clients`. Фильтр `message_types` — только события ниже, остальные пропускаются.
+Консьюмер подписан на пять топиков, по одной подписке на топик (у платформы `group_id` уникален на подписку): `notifications.feed.applications`, `notifications.feed.process`, `notifications.feed.decision`, `notifications.feed.clients`, `notifications.feed.support`. Фильтр `message_types` — только события ниже, остальные пропускаются.
 
 | Событие | Кому | Тип записи | Приоритет | Нужно действие |
 |---|---|---|---|---|
@@ -83,8 +83,15 @@ notifications/
 | `OrganizationVerificationMismatch` | участники | `info_requested` со списком расхождений | high | ✓ |
 | `MemberAdded`, `MemberRemoved`, `MemberRoleChanged` | сам участник | `status_changed` | normal | — |
 | `FinancialReportSubmitted` | участники | `status_changed` | low | — |
+| `SupportTicketOpened` | `role:underwriter` | `support` «Новое обращение ТП-…», ссылка `/backoffice/support/{ticket_id}` | normal | ✓ до взятия или закрытия клиентом |
+| `SupportMessagePosted` от сотрудника | автор обращения | `support` «Ответ по обращению …» с началом ответа, ссылка `/support/{ticket_id}` — **одна запись на обращение**, обновляется | normal | — |
+| `SupportMessagePosted` от клиента во взятое обращение | взявший сотрудник (`account`) | `support` «Клиент написал в обращение …» — одна запись на обращение | normal | — |
+| `SupportTicketStatusChanged` сотрудником → `in_progress`, `resolved`, `closed` | автор обращения | `support` — та же запись клиента, что и ответ | normal | — |
+| `SupportTicketStatusChanged` → `open` (вернули в очередь) | `role:underwriter` | `support` «Обращение … вернулось в очередь» | normal | ✓ |
 
 `ProcessStarted`, `ProcessCompleted`, `ScoreCalculated` в ленту не попадают: клиент узнаёт итог из статуса заявки.
+
+Записи типа `support` не повторяют переписку: у клиента одна запись на обращение (группа `support:{ticket_id}`), её заменяет последнее событие. Что клиент сделал сам (закрыл, написал в решённое), ему не пишется. У записи очереди (`support-queue:{ticket_id}`) «нужно действие» снимается, когда обращение уходит из `open`. Полная переписка — в модуле [support](support.md).
 
 Чего нет в событии — номер заявки, названия компании и продукта, условия предложения, комментарий запроса — дочитывается фасадами соседей (`ApplicationsFacade.get_card`, `ClientsFacade.get_snapshot`, `ProductsFacade.get_product`). Если фасад не зарегистрирован или сущности нет, текст деградирует («Новая заявка» без номера, «Клиент» вместо названия), событие не падает. Без `ClientsFacade` участники неизвестны — клиентские записи не пишутся, записи бэк-офиса пишутся.
 

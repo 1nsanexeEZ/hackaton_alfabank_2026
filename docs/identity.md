@@ -47,13 +47,16 @@
 {
   "name": "client",
   "permissions": ["requests.read", "requests.create", "requests.update", "credits.read",
-                  "organizations.read", "organizations.update", "feed.read", "profile.update"],
+                  "organizations.read", "organizations.update", "feed.read", "profile.update",
+                  "support.read", "support.create"],
   "policies": {
     "requests.read": ["org_member"],
     "requests.create": ["org_member"],
     "requests.update": ["org_member"],
     "organizations.read": ["org_member"],
-    "organizations.update": ["org_member"]
+    "organizations.update": ["org_member"],
+    "support.read": ["own_only"],
+    "support.create": ["own_only"]
   }
 }
 ```
@@ -77,8 +80,10 @@
 | `backoffice.read` | — | ✓ | bff |
 | `feed.read` | ✓ | ✓ | notifications |
 | `profile.update` | ✓ | ✓ | identity |
+| `support.read`, `support.create` | ✓ `own_only` | — | support |
+| `support.manage` | — | ✓ | support |
 
-`org_member` рядом с галочкой — политика на этом пермишне. У андеррайтера политик нет: он видит заявки и компании всех клиентов.
+`org_member` и `own_only` рядом с галочкой — политика на этом пермишне. У андеррайтера политик нет: он видит заявки и компании всех клиентов и всю очередь обращений в поддержку. `support.create` у клиента — «писать в свои обращения»: создать, написать сообщение, закрыть.
 
 ## Политики
 
