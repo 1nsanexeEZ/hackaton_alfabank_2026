@@ -1,0 +1,18 @@
+type: http_request
+model: http_request
+id: rq_8soBcosdtm
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_6Z3Dg12WRC
+name: Публичные ключи JWT
+description: Public keys to verify access tokens without calling identity.
+method: GET
+url: ${[ base_url ]}/.well-known/jwks.json
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

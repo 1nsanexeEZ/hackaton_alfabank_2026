@@ -1,0 +1,27 @@
+type: http_request
+model: http_request
+id: rq_ZCS4LXqOJF
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Подбор по потребности
+description: 'Matching by the need only: eligibility of a company is not checked.'
+method: POST
+url: ${[ base_url ]}/products/recommend
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "purpose": "working_capital",
+      "amount": "3000000",
+      "term_months": 24
+    }
+sortPriority: 2000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

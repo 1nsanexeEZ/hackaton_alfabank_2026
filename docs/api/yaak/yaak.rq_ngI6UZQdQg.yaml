@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_ngI6UZQdQg
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Прочитать все события
+description: |-
+  Read All
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/feed/read-all
+urlParameters:
+- enabled: false
+  name: organization_id
+  value: ${[ organization_id ]}
+- enabled: false
+  name: application_id
+  value: ''
+headers: []
+bodyType: null
+body: {}
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

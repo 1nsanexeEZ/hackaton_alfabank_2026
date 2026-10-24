@@ -1,0 +1,18 @@
+type: http_request
+model: http_request
+id: rq_IJDkRtSG5Q
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AYQAW6UnzM
+name: Сервис готов (БД, Kafka)
+description: Ready
+method: GET
+url: ${[ base_url ]}/ready
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

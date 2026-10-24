@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_VnxRqqkp2W
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4MO7X92vcV
+name: 18. Принять предложение
+description: '200, статус `signing`: дальше договор и подпись.'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/offer/accept
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 18000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_progress ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,15 @@
+type: folder
+model: folder
+id: fl_rgp4VZHY1e
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PKvrC4MM6R
+name: 'S-7. Ромашка: бизнес-ипотека всегда у человека'
+description: |-
+  «Бизнес-ипотека», 30 млн ₽ на 120 месяцев, залог — офис на 50 млн: у ипотеки нет лимита авторешения → андеррайтер одобряет под 18%, политика возвращает (ниже коридора 23–28%) → новая задача, одобрение под 23,5% → клиент подписывает.
+
+  Входит директор ООО «Ромашка» (`owner@romashka.test`). Шаги отправляются по порядку.
+sortPriority: 7000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

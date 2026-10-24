@@ -1,0 +1,35 @@
+type: http_request
+model: http_request
+id: rq_5HK7qvoenU
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Отменить заявку
+description: |-
+  Cancel
+
+  Закрывает заявку: отменить можно черновик, поданную заявку, запрос информации и готовое предложение, но не заявку у андеррайтера.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/applications/:application_id/cancel
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "reason": "Передумали"
+    }
+sortPriority: 16000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

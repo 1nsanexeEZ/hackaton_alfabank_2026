@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_9G1B4682UU
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tp4nOiyJyx
+name: '07. Документ bank_statement: заявить файл'
+description: '201: документ `pending_upload` и presigned URL для загрузки (`upload`).'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/documents
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "type": "bank_statement",
+      "filename": "ivanov.csv",
+      "content_type": "text/csv",
+      "size_bytes": 5703
+    }
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_ivanov ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

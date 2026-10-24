@@ -1,0 +1,37 @@
+type: http_request
+model: http_request
+id: rq_AFmSspZP9x
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: '20. Андеррайтер: решение'
+description: '200, задача закрыта, процесс идёт дальше в той же транзакции. Форма предзаполнена оценкой проекта (`startup.form` в карточке андеррайтера): андеррайтер подтверждает её и ставит ставку.'
+method: POST
+url: ${[ base_url ]}/tasks/:task_id/complete
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ response.body.path(request='rq_88Rv5omIzk', behavior='smart', path='$.task.id') ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "decision": "approve",
+      "amount": "3000000",
+      "term_months": 36,
+      "rate": "17",
+      "business_plan": "acceptable",
+      "collateral": "Поручительство учредителя",
+      "support_program": true,
+      "comment": "Проект подтверждаю: финмодель реалистичная, гарантия Корпорации МСП"
+    }
+sortPriority: 20000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

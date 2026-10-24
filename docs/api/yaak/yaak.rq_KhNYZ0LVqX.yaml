@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_KhNYZ0LVqX
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Убрать участника
+description: |-
+  Remove Member
+
+  Токен: директор ООО «Ромашка».
+method: DELETE
+url: ${[ base_url ]}/organizations/:organization_id/members/:account_id
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+- enabled: true
+  name: :account_id
+  value: ${[ member_account_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 15000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

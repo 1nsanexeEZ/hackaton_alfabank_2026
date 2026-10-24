@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_K3qCrH6aIk
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tp4nOiyJyx
+name: '15. Карточка: контрпредложение'
+description: |-
+  Ожидаем: статус `offer_ready`, `offer.kind` = `counter`, 3 000 000.
+
+  Решение процесс принимает асинхронно (Kafka, BPMN), обычно за 2–5 секунд. Если статус ещё `submitted` или `in_review` без нужного этапа — отправьте шаг ещё раз.
+method: GET
+url: ${[ base_url ]}/applications/:application_id
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 15000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_ivanov ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

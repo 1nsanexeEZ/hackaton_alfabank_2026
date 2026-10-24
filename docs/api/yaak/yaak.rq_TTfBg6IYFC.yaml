@@ -1,0 +1,18 @@
+type: http_request
+model: http_request
+id: rq_TTfBg6IYFC
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AYQAW6UnzM
+name: Сервис жив
+description: Health
+method: GET
+url: ${[ base_url ]}/health
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

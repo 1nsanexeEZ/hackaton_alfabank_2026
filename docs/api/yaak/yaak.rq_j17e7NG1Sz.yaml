@@ -1,0 +1,34 @@
+type: http_request
+model: http_request
+id: rq_j17e7NG1Sz
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_WpoGHiYheT
+name: '11. Андеррайтер: решение'
+description: '200, задача закрыта, процесс идёт дальше в той же транзакции. Контрпредложение: лимит 6 млн под 24%.'
+method: POST
+url: ${[ base_url ]}/tasks/:task_id/complete
+urlParameters:
+- enabled: true
+  name: :task_id
+  value: ${[ response.body.path(request='rq_JqEzHwpymZ', behavior='smart', path='$.task.id') ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "decision": "counter_offer",
+      "amount": "6000000",
+      "term_months": 24,
+      "rate": "24",
+      "comment": "Руководитель в ЕГРЮЛ другой: снижаем лимит до подтверждения полномочий"
+    }
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,15 @@
+type: folder
+model: folder
+id: fl_tp4nOiyJyx
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_PKvrC4MM6R
+name: 'S-2. ИП Иванов: андеррайтер снижает сумму'
+description: |-
+  «Кредит без залога», 5 млн ₽ на 24 месяца, с налоговой декларацией и выпиской: обе модели в жёлтой зоне (грейд E) → андеррайтер видит оценки и прогноз кассового разрыва и делает контрпредложение на 3 млн → клиент принимает и подписывает.
+
+  Входит ИП Иванов (`ivanov@ip.test`). Шаги отправляются по порядку.
+sortPriority: 2000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_k82AWpRodY
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_jSuhpwkwE4
+name: Отозвать согласие
+description: |-
+  Revoking an absent or already revoked consent is also 204.
+
+  Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, вернуть всё — пересоздать базу (`docker compose down -v`).
+
+  Токен: директор ООО «Ромашка».
+method: DELETE
+url: ${[ base_url ]}/me/consents/:type
+urlParameters:
+- enabled: true
+  name: :type
+  value: personal_data
+headers: []
+bodyType: null
+body: {}
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

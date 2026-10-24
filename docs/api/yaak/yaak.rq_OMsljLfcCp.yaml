@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_OMsljLfcCp
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_rgp4VZHY1e
+name: '10. Документ collateral_documents: заявить файл'
+description: '201: документ `pending_upload` и presigned URL для загрузки (`upload`).'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/documents
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "type": "collateral_documents",
+      "filename": "collateral_documents.pdf",
+      "content_type": "application/pdf",
+      "size_bytes": 13
+    }
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

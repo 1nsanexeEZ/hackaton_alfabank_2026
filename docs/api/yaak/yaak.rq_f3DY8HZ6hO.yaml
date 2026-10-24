@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_f3DY8HZ6hO
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Подать отчётность
+description: |-
+  Declared report for a period that is over. The same period again
+  revises the report (200), a new one is created (201).
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/financial-reports
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "period_year": 2025,
+      "revenue": "48000000",
+      "expenses": "41000000",
+      "net_profit": "5600000",
+      "total_liabilities": "12000000",
+      "monthly_debt_payments": "350000"
+    }
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

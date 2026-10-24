@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_0vER5YkNzi
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_XaejLZxLdI
+name: Создать черновик заявки
+description: |-
+  Draft for a company and a product; requisites come from the bank's data.
+
+  Черновик овердрафта Ромашки: продукта нет в сценариях, S-1, S-7 и S-8 он не задевает. Дальше папка работает с ним как с самой новой заявкой: выписка, подача, предложение.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/applications
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "organization_id": "${[ organization_id ]}",
+      "product_code": "OVERDRAFT"
+    }
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

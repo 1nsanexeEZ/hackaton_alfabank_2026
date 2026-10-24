@@ -1,0 +1,31 @@
+type: http_request
+model: http_request
+id: rq_kRCNzPHub7
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: 24. Подписать договор
+description: '200: пароль спрашивается ещё раз (step-up), подпись смоделирована (ЭДО, `simulated: true`). Деньги выдаёт АБС, тоже мок.'
+method: POST
+url: ${[ base_url ]}/applications/:application_id/sign
+urlParameters:
+- enabled: true
+  name: :application_id
+  value: ${[ application_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "password": "${[ demo_password ]}",
+      "offer_hash": "${[ response.body.path(request='rq_UrHc34LSio', behavior='smart', path='$.offer_hash') ]}"
+    }
+sortPriority: 24000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

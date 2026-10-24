@@ -1,0 +1,32 @@
+type: http_request
+model: http_request
+id: rq_mJ5L5saxkD
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Отозвать согласие компании
+description: |-
+  Any representative with `submit_application` may revoke; an absent or already
+  revoked consent is also 204. Applications already submitted keep their consents.
+
+  Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, вернуть всё — пересоздать базу (`docker compose down -v`).
+
+  Токен: директор ООО «Ромашка».
+method: DELETE
+url: ${[ base_url ]}/organizations/:organization_id/consents/:type
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+- enabled: true
+  name: :type
+  value: credit_bureau_company
+headers: []
+bodyType: null
+body: {}
+sortPriority: 14000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_zeRLTIM10q
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_JamWtX6KID
+name: '06. Главный экран: предодобрение'
+description: В `pre_approved` — STARTUP до 3 810 000, в ленте событие о предодобрении. Если пусто — проект ещё оценивается, отправьте ещё раз.
+method: GET
+url: ${[ base_url ]}/bff/dashboard
+urlParameters:
+- enabled: true
+  name: organization_id
+  value: ${[ organization_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_start ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

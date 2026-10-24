@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_IYp3E3fMBk
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_P85dkFhpWD
+name: Изменить роль
+description: |-
+  Accounts get the new rights with their next token.
+
+  Токен: администратор.
+method: PATCH
+url: ${[ base_url ]}/roles/:role_id
+urlParameters:
+- enabled: true
+  name: :role_id
+  value: ${[ new_role_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "description": "Роль из коллекции Yaak, изменена"
+    }
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

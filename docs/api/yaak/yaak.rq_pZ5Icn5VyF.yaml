@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_pZ5Icn5VyF
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_4r4NbfqXel
+name: Дать согласие компании
+description: |-
+  A representative with `submit_application` gives the consent for the company before
+  an application; drafts and submissions take it from here.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/organizations/:organization_id/consents
+urlParameters:
+- enabled: true
+  name: :organization_id
+  value: ${[ organization_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "types": [
+        "credit_bureau_company"
+      ]
+    }
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

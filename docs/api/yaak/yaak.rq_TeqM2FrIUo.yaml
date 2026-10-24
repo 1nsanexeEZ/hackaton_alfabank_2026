@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_TeqM2FrIUo
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_5ZqWLZjg9B
+name: Прочитать новость
+description: |-
+  Read News
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/news/:news_id/read
+urlParameters:
+- enabled: true
+  name: :news_id
+  value: ${[ news_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

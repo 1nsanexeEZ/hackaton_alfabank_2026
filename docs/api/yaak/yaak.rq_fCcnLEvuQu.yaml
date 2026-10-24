@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_fCcnLEvuQu
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_7SKPEIQejF
+name: Директор ООО «Вектор»
+description: '200 и `access_token` на 30 минут: переменная `token_vector`.'
+method: POST
+url: ${[ base_url ]}/auth/login
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "login": "petrov@vector.test",
+      "password": "${[ demo_password ]}"
+    }
+sortPriority: 4000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
