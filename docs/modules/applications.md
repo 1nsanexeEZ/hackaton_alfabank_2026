@@ -60,7 +60,8 @@ applications/
 - **Use case возвращает DTO.** Схемы ответа собираются через `model_validate(dto)` с
   `from_attributes=True`; белый список полей для клиента — по-прежнему pydantic-схемы.
 - **Автосохранение черновика.** `ApplicationUpdate.to_dto()` отличает «не прислали» (`UNSET`) от
-  `null`: `collateral: null` убирает залог, `consents: null` снимает оба согласия. Значения
+  `null`: `collateral: null` убирает залог, `consents: null` снимает оба согласия,
+  `beneficiary: null` отзывает ответ о выгодоприобретателе. Значения
   проверяются в начале use case'а, до проверки доступа.
 - Своих HTTP-исключений нет: агрегат и use case'ы бросают исключения core (`NotFoundError`,
   `ConflictError`, `ValidationError`, `InvalidStatusTransitionError`…), их переводит общий
@@ -98,6 +99,20 @@ applications/
   `consents.credit_bureau`. Галочки `PATCH /applications/{id}` → `consents` работают как раньше.
   Снятая галочка убирает и ссылку на согласие из профиля, но при подаче действующее согласие
   возьмётся снова: отказаться от него — отозвать в профиле.
+
+## Выгодоприобретатель и владелец залога (115-ФЗ)
+
+В черновике клиент отвечает, действует ли к выгоде третьего лица (`CreditApplication.declare_beneficiary`,
+`BeneficiaryDeclaration` в JSON-колонке `beneficiary`, миграция `applications_0003`):
+`acts_for_third_party`, при `true` — `beneficiary` (`ThirdParty`: `kind` `person` / `organization`,
+`name`, `inn` — у организации обязателен, проверяется контрольная сумма) и `basis` (`agency`,
+`commission`, `mandate`, `trust_management`); пишутся `declared_by` и `declared_at`. У залога
+третьего лица (`collateral.owner = "third_party"`) — владелец `collateral.owner_party` в том же
+формате. После подачи ответ заморожен, как и остальной черновик.
+
+Подачу ответ не блокирует. Оба лица уходят в `FetchEnrichment.third_parties` и проверяются по
+перечням на каждой заявке; решение — в `decision` (`policy_v8`). Подробно и пример запроса —
+[compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
 
 ## API
 
