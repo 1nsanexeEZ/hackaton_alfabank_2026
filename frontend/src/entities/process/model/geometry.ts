@@ -52,7 +52,16 @@ export function mapGeometry(graph: StageGraph, column: number): MapGeometry {
   const places = [...graph.placement.values()]
   const hasTop = places.some((place) => place.row === -1)
   const hasBottom = places.some((place) => place.row === 1)
-  const mainY = TOP_SPACE + (hasTop ? ROW_GAP - 24 : 0)
+  // Без ряда над линией сверху остаются только дуги пропусков — места под самую высокую из них
+  const longestSkip = Math.max(
+    0,
+    ...graph.edges.map((edge) => {
+      const [a, b] = [graph.placement.get(edge.from), graph.placement.get(edge.to)]
+      return a?.row === 0 && b?.row === 0 ? Math.abs(b.col - a.col) : 0
+    }),
+  )
+  const arcSpace = SKIP_HEIGHT + Math.max(0, Math.round(longestSkip) - 2) * 10 + 18
+  const mainY = hasTop ? TOP_SPACE + ROW_GAP - 24 : Math.max(TOP_SPACE, arcSpace)
   const rowY = { [-1]: mainY - ROW_GAP + 24, 0: mainY, 1: mainY + ROW_GAP } as Record<-1 | 0 | 1, number>
 
   const points = new Map<StageKey, StagePoint>()
@@ -81,8 +90,10 @@ export function mapGeometry(graph: StageGraph, column: number): MapGeometry {
         [b.x - dir * r, b.y],
       ]
     } else if (a.row === b.row && a.row !== 1) {
-      // Пропуск этапа или возврат назад по линии — дугой сверху, возврат выше
-      const top = a.y - (dir > 0 ? SKIP_HEIGHT : SKIP_HEIGHT + 14)
+      // Пропуск этапа или возврат назад по линии — дугой сверху: чем длиннее пропуск, тем выше дуга,
+      // чтобы дуги не сливались; возврат — ещё выше
+      const span = Math.round(Math.abs(b.x - a.x) / column)
+      const top = a.y - SKIP_HEIGHT - Math.max(0, span - 2) * 10 - (dir > 0 ? 0 : 14)
       line = [
         [a.x, a.y - r],
         [a.x, top],
