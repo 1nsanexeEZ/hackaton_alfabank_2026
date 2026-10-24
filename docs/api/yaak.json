@@ -459,6 +459,11 @@
             "enabled": true,
             "name": "contract_document_id",
             "value": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.id') ]}"
+          },
+          {
+            "enabled": true,
+            "name": "ticket_id",
+            "value": "${[ response.body.path(request='rq_a0Fuaxyc7Z', behavior='smart', path='$.id') ]}"
           }
         ],
         "color": null,
@@ -769,12 +774,25 @@
       },
       {
         "model": "folder",
+        "id": "fl_wXQZoZJb93",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_LRnXWnQzgy",
+        "name": "Техподдержка",
+        "description": "Обращения клиента, очередь сотрудников, взятие и переписка.",
+        "sortPriority": 11000.0,
+        "authenticationType": null,
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "folder",
         "id": "fl_D4y4bxXgkd",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF клиента",
         "description": "Экраны кабинета клиента одним запросом.",
-        "sortPriority": 11000.0,
+        "sortPriority": 12000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -787,7 +805,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF бэк-офиса",
         "description": "Очередь, карточка андеррайтера, метрики.",
-        "sortPriority": 12000.0,
+        "sortPriority": 13000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -800,7 +818,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Администрирование",
         "description": "Аккаунты и роли: создаём свои и на них пробуем.",
-        "sortPriority": 13000.0,
+        "sortPriority": 14000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -9333,6 +9351,385 @@
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_a0Fuaxyc7Z",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Задать вопрос в поддержку",
+        "description": "A question to the bank with its first message; it lands in the staff queue.\n\nОбращение Ромашки: отсюда `ticket_id` справочника, с ним работают и запросы очереди.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/tickets",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"subject\": \"Продление овердрафта\",\n  \"text\": \"Добрый день! Можно продлить овердрафт без новой заявки?\"\n}"
+        },
+        "sortPriority": 1000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_rF4Z6rTCvM",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Мои обращения",
+        "description": "The client's tickets, newest activity first.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/support/tickets",
+        "urlParameters": [
+          {
+            "enabled": false,
+            "name": "status",
+            "value": ""
+          },
+          {
+            "enabled": false,
+            "name": "limit",
+            "value": "20"
+          },
+          {
+            "enabled": false,
+            "name": "offset",
+            "value": "0"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 2000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Y3yYoOibTR",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Обращение с перепиской",
+        "description": "The ticket with the whole chat.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/support/tickets/:ticket_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_01uo95UKU9",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Написать в обращение",
+        "description": "A message into the client's ticket; a closed one is 409. A message into a\nresolved ticket takes it back to the employee who handled it.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/tickets/:ticket_id/messages",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"text\": \"Уточню: лимит нужен тот же.\"\n}"
+        },
+        "sortPriority": 4000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_jOkFvq131c",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Закрыть своё обращение",
+        "description": "The question is settled: nobody writes into the ticket anymore.\n\nЗакрытое обращение финально: в него больше не пишет никто. Для запросов очереди задайте новый вопрос.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/tickets/:ticket_id/close",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 5000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_VwRZvQCl7L",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Очередь обращений",
+        "description": "Tickets of all clients, newest activity first.\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/support/queue",
+        "urlParameters": [
+          {
+            "enabled": false,
+            "name": "status",
+            "value": ""
+          },
+          {
+            "enabled": false,
+            "name": "scope",
+            "value": "all"
+          },
+          {
+            "enabled": false,
+            "name": "limit",
+            "value": "20"
+          },
+          {
+            "enabled": false,
+            "name": "offset",
+            "value": "0"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 6000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_J5H6APFgx5",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Карточка обращения",
+        "description": "Get Ticket\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/support/queue/:ticket_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 7000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_lcH0rjtIoX",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Взять обращение",
+        "description": "The ticket becomes the caller's. Already taken (by anyone) — 409 `already_taken`.\n\nВторой раз — 409 `already_taken`: взятое обращение не берёт никто, даже тот, кто его держит.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/queue/:ticket_id/take",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 8000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_Nr71rMjzjO",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Вернуть обращение в очередь",
+        "description": "Back to the queue: anyone may take it again.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/queue/:ticket_id/release",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 9000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_WTpIhgOQCa",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Ответить клиенту",
+        "description": "An answer to the client. Only the employee who took the ticket (the admin —\nin any taken ticket); not taken — 409 `not_taken`, taken by another — 403.\n\nСначала «Взять обращение»: в невзятое — 409 `not_taken`.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/queue/:ticket_id/messages",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"text\": \"Здравствуйте! Да, за месяц до конца срока придёт предложение продлить.\"\n}"
+        },
+        "sortPriority": 10000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_GJRCbfxjRj",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Решить обращение",
+        "description": "The question is answered; the client may still write and reopen it.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/queue/:ticket_id/resolve",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 11000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_aDgyAvKPdE",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_wXQZoZJb93",
+        "name": "Закрыть обращение",
+        "description": "Final: nobody writes into the ticket anymore.\n\nТокен: андеррайтер банка.",
+        "method": "POST",
+        "url": "${[ base_url ]}/support/queue/:ticket_id/close",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":ticket_id",
+            "value": "${[ ticket_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 12000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
           "prefix": "Bearer"
         },
         "createdAt": "2026-10-24T00:00:00",

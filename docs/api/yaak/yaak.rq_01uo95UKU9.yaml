@@ -1,0 +1,34 @@
+type: http_request
+model: http_request
+id: rq_01uo95UKU9
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Написать в обращение
+description: |-
+  A message into the client's ticket; a closed one is 409. A message into a
+  resolved ticket takes it back to the employee who handled it.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/support/tickets/:ticket_id/messages
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "text": "Уточню: лимит нужен тот же."
+    }
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

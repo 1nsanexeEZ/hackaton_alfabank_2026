@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_aDgyAvKPdE
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Закрыть обращение
+description: |-
+  Final: nobody writes into the ticket anymore.
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/support/queue/:ticket_id/close
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 12000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -28,6 +28,7 @@ FOLDERS: list[tuple[str, str, str]] = [
     ("process", "Процесс и задачи", "BPMN-процессы и задачи андеррайтера."),
     ("decision", "Предодобрение и стартапы", "Предодобрения, проверка учредителя, проект."),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
+    ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
     ("bff", "BFF клиента", "Экраны кабинета клиента одним запросом."),
     ("backoffice", "BFF бэк-офиса", "Очередь, карточка андеррайтера, метрики."),
     ("admin", "Администрирование", "Аккаунты и роли: создаём свои и на них пробуем."),
@@ -121,6 +122,18 @@ NAMES: dict[str, str] = {
     "POST /feed/{item_id}/read": "Прочитать событие",
     "GET /news": "Новости для компании",
     "POST /news/{news_id}/read": "Прочитать новость",
+    "POST /support/tickets": "Задать вопрос в поддержку",
+    "GET /support/tickets": "Мои обращения",
+    "GET /support/tickets/{ticket_id}": "Обращение с перепиской",
+    "POST /support/tickets/{ticket_id}/messages": "Написать в обращение",
+    "POST /support/tickets/{ticket_id}/close": "Закрыть своё обращение",
+    "GET /support/queue": "Очередь обращений",
+    "GET /support/queue/{ticket_id}": "Карточка обращения",
+    "POST /support/queue/{ticket_id}/take": "Взять обращение",
+    "POST /support/queue/{ticket_id}/release": "Вернуть обращение в очередь",
+    "POST /support/queue/{ticket_id}/messages": "Ответить клиенту",
+    "POST /support/queue/{ticket_id}/resolve": "Решить обращение",
+    "POST /support/queue/{ticket_id}/close": "Закрыть обращение",
     "GET /bff/dashboard": "Главный экран клиента",
     "GET /bff/applications": "Заявки компании",
     "GET /bff/applications/{application_id}": "Карточка заявки для клиента",
@@ -216,6 +229,20 @@ NOTES: dict[str, str] = {
     "GET /feed/stream": (
         "Поток не заканчивается сам: остановите запрос, когда насмотритесь. Билет одноразовый, "
         "новый берётся при каждой отправке."
+    ),
+    "POST /support/tickets": (
+        "Обращение Ромашки: отсюда `ticket_id` справочника, с ним работают и запросы очереди."
+    ),
+    "POST /support/tickets/{ticket_id}/close": (
+        "Закрытое обращение финально: в него больше не пишет никто. Для запросов очереди "
+        "задайте новый вопрос."
+    ),
+    "POST /support/queue/{ticket_id}/take": (
+        "Второй раз — 409 `already_taken`: взятое обращение не берёт никто, даже тот, "
+        "кто его держит."
+    ),
+    "POST /support/queue/{ticket_id}/messages": (
+        "Сначала «Взять обращение»: в невзятое — 409 `not_taken`."
     ),
 }
 
@@ -361,6 +388,14 @@ def _bodies() -> dict[str, Any]:
             "comment": "Решение из справочника коллекции",
         },
         "POST /bff/products/{code}/calculate": {"amount": "3000000", "term_months": 24},
+        "POST /support/tickets": {
+            "subject": "Продление овердрафта",
+            "text": "Добрый день! Можно продлить овердрафт без новой заявки?",
+        },
+        "POST /support/tickets/{ticket_id}/messages": {"text": "Уточню: лимит нужен тот же."},
+        "POST /support/queue/{ticket_id}/messages": {
+            "text": "Здравствуйте! Да, за месяц до конца срока придёт предложение продлить.",
+        },
     }
 
 
@@ -389,6 +424,7 @@ def reference_variables() -> dict[str, str]:
         "contract_document_id": answer(
             ref("GET", "/applications/{application_id}/contract"), "$.document.id"
         ),
+        "ticket_id": answer(ref("POST", "/support/tickets"), "$.id"),
     }
 
 
@@ -397,7 +433,7 @@ def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
         return None
     if path.startswith(("/accounts", "/roles")) or (method, path) in _CATALOG_KEEPING:
         return "admin"
-    if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice")):
+    if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice", "/support/queue")):
         return "underwriter"
     if (method, path) == ("get", "/organizations"):
         return "underwriter"

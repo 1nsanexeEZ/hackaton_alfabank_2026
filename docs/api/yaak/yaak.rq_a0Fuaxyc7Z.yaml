@@ -1,0 +1,33 @@
+type: http_request
+model: http_request
+id: rq_a0Fuaxyc7Z
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Задать вопрос в поддержку
+description: |-
+  A question to the bank with its first message; it lands in the staff queue.
+
+  Обращение Ромашки: отсюда `ticket_id` справочника, с ним работают и запросы очереди.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/support/tickets
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "subject": "Продление овердрафта",
+      "text": "Добрый день! Можно продлить овердрафт без новой заявки?"
+    }
+sortPriority: 1000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_WTpIhgOQCa
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Ответить клиенту
+description: |-
+  An answer to the client. Only the employee who took the ticket (the admin —
+  in any taken ticket); not taken — 409 `not_taken`, taken by another — 403.
+
+  Сначала «Взять обращение»: в невзятое — 409 `not_taken`.
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/support/queue/:ticket_id/messages
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "text": "Здравствуйте! Да, за месяц до конца срока придёт предложение продлить."
+    }
+sortPriority: 10000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

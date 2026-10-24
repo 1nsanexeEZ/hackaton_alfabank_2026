@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_J5H6APFgx5
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Карточка обращения
+description: |-
+  Get Ticket
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/support/queue/:ticket_id
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
