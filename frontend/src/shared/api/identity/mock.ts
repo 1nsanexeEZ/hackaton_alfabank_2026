@@ -48,6 +48,7 @@ function seed(): Store {
       'requests.update',
       'credits.read',
       'profile.update',
+      'profile.update_name',
     ]),
     role('r-head', 'head', 'Руководитель: продукты, сотрудники, отчёты', [
       'requests.read',
@@ -56,6 +57,7 @@ function seed(): Store {
       'accounts.read',
       'roles.read',
       'profile.update',
+      'profile.update_name',
     ]),
     role(
       'r-client',
@@ -181,6 +183,14 @@ export const mockIdentityApi: IdentityApi = {
   async updateProfile(data) {
     await delay()
     const account = requirePermission('profile.update')
+    // Как на бэкенде: другое ФИО — только с profile.update_name, то же ФИО и должность проходят
+    const { permissions } = findRole(account.role.id)
+    const renamed = (['last_name', 'first_name', 'middle_name'] as const).filter(
+      (field) => field in data && data[field] !== (account.profile?.[field] ?? null),
+    )
+    if (renamed.length && !permissions.includes('admin') && !permissions.includes('profile.update_name')) {
+      throw new ApiError(422, 'validation_error', 'ФИО подтверждено банком', { code: 'identity_locked', fields: renamed })
+    }
     account.profile = { ...(account.profile ?? profile('', '', null, null)), ...data }
     save()
     return toMe(account)
