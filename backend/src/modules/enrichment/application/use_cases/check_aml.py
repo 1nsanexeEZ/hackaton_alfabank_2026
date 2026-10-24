@@ -3,8 +3,10 @@
 1. Бенефициары: учредители из ЕГРЮЛ, по учредителям-юрлицам — их выписки по цепочке; доля
    больше 25% прямо или косвенно, никого — руководитель, у ИП — он сам (`domain.beneficial_owners`).
 2. Перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ): компания и
-   учредители-юрлица цепочки — по ИНН, руководитель, бенефициары и представитель — по ФИО.
-3. ПДЛ (ст. 7.3): руководитель, бенефициары, представитель.
+   учредители-юрлица цепочки — по ИНН, руководитель, бенефициары и представитель — по ФИО;
+   выгодоприобретатель и залогодатель из заявки — организация по ИНН, человек по ФИО.
+3. ПДЛ (ст. 7.3): руководитель, бенефициары, представитель, выгодоприобретатель и
+   залогодатель-физлицо.
 4. Уровень риска на платформе ЗСК Банка России (ст. 7.6).
 
 Не установить цепочку, не ответил ЕГРЮЛ, перечни, база ПДЛ или ЗСК — проверка не выполнена
@@ -42,10 +44,15 @@ class AmlCheck:
         self._sources = sources
 
     async def run(
-        self, registry: RegistryExtractDTO | None, *, representatives: tuple[str, ...] = ()
+        self,
+        registry: RegistryExtractDTO | None,
+        *,
+        representatives: tuple[str, ...] = (),
+        third_parties: tuple[AmlSubjectDTO, ...] = (),
     ) -> AmlCheckDTO:
         """`registry` — выписка ЕГРЮЛ этой заявки; `representatives` — ФИО тех, кто действует
-        от имени клиента (подал заявку), кроме руководителя."""
+        от имени клиента (подал заявку), кроме руководителя; `third_parties` —
+        выгодоприобретатель и залогодатель, которых клиент указал в заявке."""
         if registry is None:
             raise SourceFetchError(
                 "incomplete", "ЕГРЮЛ не ответил — не установить руководителя и бенефициаров"
@@ -60,7 +67,9 @@ class AmlCheck:
             shares, head=head, entrepreneur=registry.legal_form == _ENTREPRENEUR
         )
 
-        subjects = _subjects(registry, chain, head, owners, representatives)
+        subjects = _subjects(registry, chain, head, owners, representatives) + tuple(
+            p for p in dict.fromkeys(third_parties)
+        )
         people = tuple(dict.fromkeys(s.name for s in subjects if s.inn is None))
         lists, pep, zsk = await asyncio.gather(
             self._sources.aml_lists.screen(subjects),

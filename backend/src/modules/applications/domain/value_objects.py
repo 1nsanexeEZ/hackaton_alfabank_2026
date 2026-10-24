@@ -144,12 +144,90 @@ class ProductTerms:
         return [r.type for r in self.required_documents if r.applies(amount, legal_form)]
 
 
+_INN_WEIGHTS = {
+    10: ((2, 4, 10, 3, 5, 9, 4, 6, 8),),
+    12: ((7, 2, 4, 10, 3, 5, 9, 4, 6, 8), (3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8)),
+}
+
+
+def _valid_inn(inn: str) -> bool:
+    """10 digits — a company, 12 — a person or an entrepreneur; check digits included."""
+    weights = _INN_WEIGHTS.get(len(inn))
+    if not inn.isdigit() or weights is None:
+        return False
+    digits = [int(ch) for ch in inn]
+    for row in weights:
+        n = len(row)
+        if sum(d * w for d, w in zip(digits[:n], row, strict=True)) % 11 % 10 != digits[n]:
+            return False
+    return True
+
+
+ThirdPartyKind = Literal["person", "organization"]
+
+
+@dataclass(frozen=True, slots=True)
+class ThirdParty:
+    """Someone besides the client in the deal (115-FZ): a person by full name, a company or an
+    entrepreneur by name and INN. Screened against the lists on every application."""
+
+    kind: ThirdPartyKind
+    name: str
+    inn: str | None = None
+
+    def validate(self, prefix: str) -> None:
+        if self.kind not in ("person", "organization"):
+            raise _invalid(f"{prefix}.kind", "unknown", "Unknown kind of the third party")
+        if not self.name.strip() or len(self.name) > 300:
+            raise _invalid(f"{prefix}.name", "invalid", "Name the third party")
+        if self.kind == "organization" and self.inn is None:
+            raise _invalid(f"{prefix}.inn", "missing", "INN of the company is required")
+        if self.inn is not None and not _valid_inn(self.inn):
+            raise _invalid(f"{prefix}.inn", "bad_checksum", "INN is wrong")
+
+
+# agency — агентский договор, commission — комиссия, mandate — поручение,
+# trust_management — доверительное управление (115-FZ art. 3, the beneficiary).
+BeneficiaryBasis = Literal["agency", "commission", "mandate", "trust_management"]
+BENEFICIARY_BASES: frozenset[str] = frozenset(
+    {"agency", "commission", "mandate", "trust_management"}
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BeneficiaryDeclaration:
+    """The client's answer: does it act to the benefit of a third party (the beneficiary,
+    115-FZ art. 3, 7 p. 14). "No" is an answer too and is kept with who gave it and when."""
+
+    acts_for_third_party: bool
+    declared_by: UUID
+    declared_at: datetime
+    beneficiary: ThirdParty | None = None
+    basis: BeneficiaryBasis | None = None
+
+    def __post_init__(self) -> None:
+        _require_aware(self.declared_at, "declared_at")
+        if not self.acts_for_third_party:
+            if self.beneficiary is not None or self.basis is not None:
+                raise _invalid(
+                    "beneficiary.beneficiary", "unexpected", "No beneficiary when acting alone"
+                )
+            return
+        if self.beneficiary is None:
+            raise _invalid("beneficiary.beneficiary", "missing", "Name the beneficiary")
+        self.beneficiary.validate("beneficiary.beneficiary")
+        if self.basis not in BENEFICIARY_BASES:
+            raise _invalid("beneficiary.basis", "missing", "On what basis the client acts")
+
+
 @dataclass(frozen=True, slots=True)
 class CollateralDeclaration:
     type: str
     description: str
     declared_value: Money
     owner: Literal["self", "third_party"]
+    # Who owns the collateral when it is not the client: the pledgor, screened under 115-FZ.
+    owner_party: ThirdParty | None = None
 
     def __post_init__(self) -> None:
         if self.type not in COLLATERAL_TYPES:
@@ -160,6 +238,12 @@ class CollateralDeclaration:
             raise _invalid("collateral.declared_value", "not_positive", "Value must be positive")
         if self.owner not in ("self", "third_party"):
             raise _invalid("collateral.owner", "unknown", "Unknown collateral owner")
+        if self.owner_party is not None:
+            if self.owner == "self":
+                raise _invalid(
+                    "collateral.owner_party", "unexpected", "The client owns the collateral"
+                )
+            self.owner_party.validate("collateral.owner_party")
 
 
 @dataclass(frozen=True, slots=True)

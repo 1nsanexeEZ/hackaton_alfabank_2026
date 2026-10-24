@@ -64,6 +64,13 @@ policy_v7 — стоп-факторы до модели, как на общей 
 реорганизация и исключение из реестра (статусы ЕГРЮЛ), недостоверность сведений ЕГРЮЛ, массовый
 руководитель (ФНС), срок работы меньше минимума продукта, внутренний стоп-лист банка.
 
+policy_v8 — v7 и третьи лица по 115-ФЗ. Выгодоприобретатель (к чьей выгоде действует клиент) и
+залогодатель — третье лицо проверяются вместе с остальными на каждой заявке: в перечне — отказ
+(STOP_AML_LISTED, как у всех). Клиент действует к выгоде третьего лица → ручная проверка
+(ROUTE_THIRD_PARTY_BENEFICIARY). Нет ответа о выгодоприобретателе или залог третьего лица без
+владельца → ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN) — правило включается ключом
+`require_answers`, когда форма заявки задаёт вопрос; пока выключено, факт пишется в трассу.
+
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
 ключами в YAML: нет ключа — нет правила и нет строки в трассе, поэтому решения прежних версий
@@ -97,6 +104,7 @@ from src.modules.decision.domain.model import (
     ReasonCode,
     RuleHit,
     ScoreInput,
+    ThirdPartiesInput,
     Trigger,
 )
 
@@ -215,6 +223,10 @@ class PolicyConfig:
     # решение только на основании автоматизированной обработки.
     automated_decision_forms: frozenset[str] = frozenset()
     automated_decision_outcomes: frozenset[str] = frozenset()
+    # policy_v8: третьи лица по 115-ФЗ. False — выключено (так ведут себя policy_v1–v7).
+    third_party_beneficiary_review: bool = False
+    third_party_answers_required: bool = False
+    third_party_rules: bool = False  # раздел есть в YAML — правила пишутся в трассу
     # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
     # в policy_v1–v6: без скоринга сразу ручная проверка.
     screen_before_scoring: bool = False
@@ -505,6 +517,14 @@ def _num(value: Decimal) -> str:
 
 def _pct(value: Decimal) -> str:
     return f"{value.quantize(_CENT, rounding=ROUND_HALF_UP)}%"
+
+
+_BASES = {
+    "agency": "агентский договор",
+    "commission": "договор комиссии",
+    "mandate": "договор поручения",
+    "trust_management": "доверительное управление",
+}
 
 
 def _zsk(level: str | None) -> str:
@@ -1225,6 +1245,51 @@ class _Evaluation:
         self._hit("route.zsk", medium, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
         if medium:
             reasons.append(ReasonCode.ROUTE_ZSK_MEDIUM_RISK)
+        reasons.extend(self._third_parties())
+        return reasons
+
+    def _third_parties(self) -> list[ReasonCode]:
+        """policy_v8: выгодоприобретатель и залогодатель — третье лицо. Совпадение с перечнем
+        у них — уже отказ (`_aml_stops`), здесь — что третье лицо есть и что о нём не сказано."""
+        if not self._c.third_party_rules:
+            return []
+        parties = self._in.third_parties or ThirdPartiesInput()
+        reasons: list[ReasonCode] = []
+        declared = parties.beneficiary == "declared"
+        review = declared and self._c.third_party_beneficiary_review
+        basis = _BASES.get(parties.basis or "", parties.basis or "основание не указано")
+        self._hit(
+            "route.beneficiary",
+            review,
+            f"клиент действует к выгоде третьего лица: {parties.beneficiary_name} ({basis})"
+            if declared
+            else "клиент действует к своей выгоде"
+            if parties.beneficiary == "none"
+            else "клиент не ответил, действует ли к выгоде третьего лица",
+        )
+        if review:
+            reasons.append(ReasonCode.ROUTE_THIRD_PARTY_BENEFICIARY)
+        missing = [
+            text
+            for text, gap in (
+                ("ответа о выгодоприобретателе нет", parties.beneficiary == "not_answered"),
+                ("у залога третьего лица не указан владелец", parties.pledgor == "unknown"),
+            )
+            if gap
+        ]
+        required = bool(missing) and self._c.third_party_answers_required
+        self._hit(
+            "route.third_parties_unknown",
+            required,
+            "; ".join(missing)
+            + ("" if required else " — правило выключено, пока форма заявки не спрашивает")
+            if missing
+            else f"залогодатель: {parties.pledgor_name}"
+            if parties.pledgor == "declared"
+            else "сведения о третьих лицах есть",
+        )
+        if required:
+            reasons.append(ReasonCode.ROUTE_THIRD_PARTIES_UNKNOWN)
         return reasons
 
     def _automated_decision_consent(self, decision: PolicyDecision) -> PolicyDecision:

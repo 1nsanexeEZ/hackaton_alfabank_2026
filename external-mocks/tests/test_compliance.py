@@ -74,3 +74,15 @@ def test_generated_answers_are_deterministic(client: TestClient) -> None:
     subject = {"id": "h", "type": "FL", "name": "Руководитель № 0001"}
     assert _screen(client, subject) == _screen(client, subject)
     assert client.get("/zsk/7707083893").json() == client.get("/zsk/7707083893").json()
+
+
+def test_third_parties_from_the_application(client: TestClient) -> None:
+    """Выгодоприобретатель или залогодатель, которого клиент укажет в заявке: человек — по ФИО,
+    организация — по ИНН."""
+    person, company = _screen(
+        client,
+        {"id": "b", "type": "FL", "name": "Посредников Павел Павлович"},
+        {"id": "p", "type": "UL", "name": "ООО «Транзитный агент»", "inn": "7707115094"},
+    )
+    assert person[0]["Перечень"] == "ЭКСТРЕМИЗМ_ТЕРРОРИЗМ"
+    assert company[0]["Перечень"] == "МВК"

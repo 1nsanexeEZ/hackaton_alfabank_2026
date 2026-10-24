@@ -18,6 +18,7 @@ from src.modules.applications.domain.fields_schema import ProductFieldsSchema
 from src.modules.applications.domain.value_objects import (
     Actor,
     ApplicationNumber,
+    BeneficiaryDeclaration,
     CollateralDeclaration,
     Consents,
     DecisionSummary,
@@ -30,6 +31,7 @@ from src.modules.applications.domain.value_objects import (
     ProfileConsent,
     Signature,
     StatusChange,
+    ThirdParty,
 )
 from src.modules.applications.infrastructure.database.models import (
     ApplicationRecord,
@@ -174,6 +176,7 @@ def collateral_out(collateral: CollateralDeclaration | None) -> dict[str, Any] |
         "description": collateral.description,
         "declared_value": money_out(collateral.declared_value),
         "owner": collateral.owner,
+        "owner_party": third_party_out(collateral.owner_party),
     }
 
 
@@ -185,6 +188,45 @@ def collateral_in(data: dict[str, Any] | None) -> CollateralDeclaration | None:
         description=data["description"],
         declared_value=_money(data["declared_value"]),
         owner=data["owner"],
+        owner_party=third_party_in(data.get("owner_party")),
+    )
+
+
+def third_party_out(party: ThirdParty | None) -> dict[str, Any] | None:
+    if party is None:
+        return None
+    return {"kind": party.kind, "name": party.name, "inn": party.inn}
+
+
+def third_party_in(data: dict[str, Any] | None) -> ThirdParty | None:
+    if data is None:
+        return None
+    return ThirdParty(kind=data["kind"], name=data["name"], inn=data.get("inn"))
+
+
+def beneficiary_out(declaration: BeneficiaryDeclaration | None) -> dict[str, Any] | None:
+    if declaration is None:
+        return None
+    return {
+        "acts_for_third_party": declaration.acts_for_third_party,
+        "declared_by": str(declaration.declared_by),
+        "declared_at": dt_out(declaration.declared_at),
+        "beneficiary": third_party_out(declaration.beneficiary),
+        "basis": declaration.basis,
+    }
+
+
+def beneficiary_in(data: dict[str, Any] | None) -> BeneficiaryDeclaration | None:
+    if data is None:
+        return None
+    declared_at = dt_in(data["declared_at"])
+    assert declared_at is not None
+    return BeneficiaryDeclaration(
+        acts_for_third_party=data["acts_for_third_party"],
+        declared_by=UUID(data["declared_by"]),
+        declared_at=declared_at,
+        beneficiary=third_party_in(data.get("beneficiary")),
+        basis=data.get("basis"),
     )
 
 
@@ -341,6 +383,7 @@ def to_domain(record: ApplicationRecord) -> CreditApplication:
         product_fields=record.product_fields,
         collateral=collateral_in(record.collateral),
         consents=consents_in(record.consents),
+        beneficiary=beneficiary_in(record.beneficiary),
         org_snapshot=snapshot_in(record.org_snapshot),
         documents=[_document_in(d) for d in record.documents],
         info_requests=[_info_request_in(r) for r in record.info_requests],
@@ -383,6 +426,7 @@ def apply(application: CreditApplication, record: ApplicationRecord) -> None:
     record.product_fields = dict(application.product_fields)
     record.collateral = collateral_out(application.collateral)
     record.consents = consents_out(application.consents)
+    record.beneficiary = beneficiary_out(application.beneficiary)
     record.org_snapshot = snapshot_out(application.org_snapshot)
     record.offer = offer_out(application.offer)
     record.decision_summary = summary_out(application.decision_summary)

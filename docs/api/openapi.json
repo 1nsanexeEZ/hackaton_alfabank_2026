@@ -5028,7 +5028,9 @@
               "head",
               "beneficial_owner",
               "founder_company",
-              "representative"
+              "representative",
+              "beneficiary",
+              "pledgor"
             ],
             "title": "Role"
           },
@@ -5247,6 +5249,16 @@
               }
             ],
             "title": "Disbursement Reference"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5597,6 +5609,16 @@
               }
             ],
             "title": "Closed At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5809,6 +5831,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ConsentsIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryIn"
               },
               {
                 "type": "null"
@@ -6032,6 +6064,142 @@
           "basis"
         ],
         "title": "BeneficialOwnerDTO"
+      },
+      "BeneficiaryDTO": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "declared_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Declared By"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "agency",
+                  "commission",
+                  "mandate",
+                  "trust_management"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party",
+          "declared_by",
+          "declared_at"
+        ],
+        "title": "BeneficiaryDTO",
+        "description": "Whether the client acts to the benefit of a third party (115-FZ): \"no\" is an answer too."
+      },
+      "BeneficiaryIn": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "agency",
+                  "commission",
+                  "mandate",
+                  "trust_management"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party"
+        ],
+        "title": "BeneficiaryIn",
+        "description": "Does the client act to the benefit of a third party — the beneficiary (115-FZ art. 3).\n`false` is an answer too; `true` needs the beneficiary and the basis."
+      },
+      "BeneficiaryOut": {
+        "properties": {
+          "acts_for_third_party": {
+            "type": "boolean",
+            "title": "Acts For Third Party"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          },
+          "beneficiary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "acts_for_third_party",
+          "declared_at",
+          "beneficiary",
+          "basis"
+        ],
+        "title": "BeneficiaryOut"
       },
       "BusinessPlanDTO": {
         "properties": {
@@ -6702,6 +6870,16 @@
               "third_party"
             ],
             "title": "Owner"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6751,6 +6929,16 @@
             ],
             "title": "Owner",
             "default": "self"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6778,6 +6966,16 @@
           "owner": {
             "type": "string",
             "title": "Owner"
+          },
+          "owner_party": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdPartyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -15884,6 +16082,107 @@
           "in_msp_registry"
         ],
         "title": "TaxProfileDTO"
+      },
+      "ThirdPartyDTO": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "organization"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "ThirdPartyDTO",
+        "description": "Someone besides the client in the deal: a person by full name, a company or an\nentrepreneur by name and INN."
+      },
+      "ThirdPartyIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "organization"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{10}(\\d{2})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "ThirdPartyIn",
+        "description": "A person by full name; a company or an entrepreneur by name and INN."
+      },
+      "ThirdPartyOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "inn"
+        ],
+        "title": "ThirdPartyOut"
       },
       "TimelineEntryDTO": {
         "properties": {

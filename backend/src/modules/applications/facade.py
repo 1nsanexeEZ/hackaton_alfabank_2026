@@ -12,6 +12,7 @@ from src.modules.applications.application.dto.applications import (
     ApplicationCardDTO,
     ApplicationStatus,
     ApplicationSummaryDTO,
+    BeneficiaryDTO,
     CollateralDTO,
     CollateralType,
     CompletenessDTO,
@@ -24,6 +25,7 @@ from src.modules.applications.application.dto.applications import (
     OfferDTO,
     ScoringInputDTO,
     StatusChangeDTO,
+    ThirdPartyDTO,
 )
 
 __all__ = [
@@ -32,6 +34,7 @@ __all__ = [
     "ApplicationStatus",
     "ApplicationSummaryDTO",
     "ApplicationsFacade",
+    "BeneficiaryDTO",
     "CollateralDTO",
     "CollateralType",
     "CompletenessDTO",
@@ -44,6 +47,7 @@ __all__ = [
     "OfferDTO",
     "ScoringInputDTO",
     "StatusChangeDTO",
+    "ThirdPartyDTO",
 ]
 
 

@@ -105,7 +105,8 @@ aml: {
   beneficial_owners: [{ name, basis: "ownership" | "head_by_default" | "entrepreneur",
                         share_percent | null }],
   subjects: [{ role: "company" | "founder_company" | "head" | "beneficial_owner" |
-                     "representative", name, inn | null }],     // кого проверили
+                     "representative" | "beneficiary" | "pledgor",
+                name, inn | null }],                    // кого проверили
   list_hits: [{ subject, list: "terrorism" | "freeze" | "wmd", record }],
   pep_hits: [{ subject, kind: "foreign" | "russian" | "international", position }]
 } | null                                              // null — проверка не выполнена (aml в failed)
@@ -115,7 +116,9 @@ aml: {
 этого же снимка: руководитель, учредители, цепочка владения. Делается на каждой команде заново —
 повторный заёмщик проверяется так же, как новый, кеша нет. Проверяются компания и учредители-юрлица
 цепочки (по ИНН), руководитель, бенефициары и представитель — тот, кто подал заявку, если это не
-руководитель (`FetchEnrichment.representative`). Не ответил ЕГРЮЛ, не найдено звено цепочки, не
+руководитель (`FetchEnrichment.representative`), а также третьи лица из заявки
+(`FetchEnrichment.third_parties`): выгодоприобретатель (`beneficiary`) и владелец залога третьего
+лица (`pledgor`) — организация по ИНН, физлицо по ФИО. Не ответил ЕГРЮЛ, не найдено звено цепочки, не
 ответили перечни, база ПДЛ или ЗСК — `aml` в `failed` с видом `incomplete` или ошибкой источника:
 лучше «проверка не выполнена», чем молча пропущенное совпадение. Незнакомый код перечня, категории
 ПДЛ или уровня ЗСК в ответе — тоже `bad_response`.
@@ -204,6 +207,8 @@ date;amount;counterparty_inn;counterparty_name;purpose
   `head {account_id, last_name, first_name, middle_name}` — руководитель по реестру,
   `head_bki_consent_at` — момент его личного согласия на запрос своей кредитной истории (identity,
   `/me/consents`); без согласия — `null`. Оба поля необязательные: старые команды читаются.
+  `third_parties [{role: "beneficiary" | "pledgor", kind: "person" | "organization", name, inn}]` —
+  третьи лица для проверки по 115-ФЗ; по умолчанию пусто.
 - Публикует `enrichment.events` → `EnrichmentCompleted {application_id, snapshot_id, sources_ok,
   sources_failed, cash_gap_detected}` (`cash_gap_detected = None`, если выписок не было) — если
   ответил хотя бы один внешний источник (частичный результат — нормальный исход).

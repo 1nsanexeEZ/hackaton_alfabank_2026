@@ -7,6 +7,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from src.modules.applications.application.dto.applications import (
+    BeneficiaryDTO,
     CollateralDTO,
     ConsentsDTO,
     DecisionSummaryDTO,
@@ -59,6 +60,8 @@ class ApplicationViewDTO:
     updated_at: datetime
     submitted_at: datetime | None
     closed_at: datetime | None
+    # The answer about the beneficiary (115-FZ); None — not answered.
+    beneficiary: BeneficiaryDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

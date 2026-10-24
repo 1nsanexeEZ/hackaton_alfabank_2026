@@ -16,6 +16,16 @@ class PersonRef(ContractModel):
     middle_name: str | None = None
 
 
+class ThirdPartyRef(ContractModel):
+    """Someone besides the client in the deal, screened under 115-FZ: the beneficiary the
+    client acts for, the owner of the collateral."""
+
+    role: str  # beneficiary | pledgor
+    kind: str  # person | organization
+    name: str
+    inn: str | None = None
+
+
 class FetchEnrichment(IntegrationMessage):
     TYPE = "FetchEnrichment"
     TOPIC = topics.ENRICHMENT_COMMANDS
@@ -50,6 +60,8 @@ class FetchEnrichment(IntegrationMessage):
     # Who acts for the client (submitted the application), when not the head: screened
     # against the lists and the PEP base as a representative (115-FZ).
     representative: PersonRef | None = None
+    # The beneficiary and the pledgor declared in the application (115-FZ).
+    third_parties: list[ThirdPartyRef] = []
 
 
 class EnrichmentCompleted(IntegrationMessage):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from src.modules.applications.facade import ApplicationsFacade
+from src.modules.applications.facade import ApplicationsFacade, ScoringInputDTO
 from src.modules.clients.facade import ClientsFacade
 from src.modules.identity.facade import IdentityFacade
 from src.modules.process.domain.steps import (
@@ -10,6 +10,7 @@ from src.modules.process.domain.steps import (
     EnrichmentRequestFact,
     PersonFact,
     ProcessFacts,
+    ThirdPartyFact,
 )
 
 
@@ -42,6 +43,7 @@ class ApplicationFacts(ProcessFacts):
             head=head,
             head_bki_consent_at=head_consent_at,
             representative=await self._representative(data.applicant_account_id, head),
+            third_parties=_third_parties(data),
         )
 
     async def collateral(self, application_id: UUID) -> CollateralFact | None:
@@ -72,3 +74,16 @@ class ApplicationFacts(ProcessFacts):
         consent = await self._identity.get_active_consent(account_id, "credit_bureau_personal")
         person = PersonFact(account.id, account.last_name, account.first_name, account.middle_name)
         return person, consent.given_at if consent is not None else None
+
+
+def _third_parties(data: ScoringInputDTO) -> tuple[ThirdPartyFact, ...]:
+    """The beneficiary the client acts for and the owner of the collateral, if declared."""
+    parties: list[ThirdPartyFact] = []
+    declaration = data.beneficiary
+    if declaration is not None and declaration.beneficiary is not None:
+        b = declaration.beneficiary
+        parties.append(ThirdPartyFact("beneficiary", b.kind, b.name, b.inn))
+    owner = data.collateral.owner_party if data.collateral is not None else None
+    if owner is not None:
+        parties.append(ThirdPartyFact("pledgor", owner.kind, owner.name, owner.inn))
+    return tuple(parties)
