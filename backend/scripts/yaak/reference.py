@@ -18,7 +18,11 @@ FOLDERS: list[tuple[str, str, str]] = [
     ("auth", "Вход", "Токен по паролю или демо-вход, публичные ключи JWT."),
     ("me", "Профиль и согласия", "Профиль представителя и его личные согласия (152-ФЗ)."),
     ("organizations", "Компании", "Компании, участники, доверенности, отчётность, согласия."),
-    ("products", "Продукты", "Каталог, подбор по потребности, калькулятор, применимость."),
+    (
+        "products",
+        "Продукты",
+        "Каталог, подбор по потребности, калькулятор, применимость; ведение каталога.",
+    ),
     ("applications", "Заявки", "Черновик, документы, подача, предложение, договор, подпись."),
     ("process", "Процесс и задачи", "BPMN-процессы и задачи андеррайтера."),
     ("decision", "Предодобрение и стартапы", "Предодобрения, проверка учредителя, проект."),
@@ -52,9 +56,14 @@ NAMES: dict[str, str] = {
     "PATCH /roles/{role_id}": "Изменить роль",
     "DELETE /roles/{role_id}": "Удалить роль",
     "GET /products": "Каталог продуктов",
+    "POST /products": "Добавить продукт",
+    "GET /products/all": "Все продукты с черновиками и архивом",
     "POST /products/recommend": "Подбор по потребности",
     "POST /products/recommend/{organization_id}": "Подбор для компании",
     "GET /products/{code}": "Продукт",
+    "PUT /products/{code}": "Новые условия продукта",
+    "DELETE /products/{code}": "Снять продукт с продажи",
+    "POST /products/{code}/activate": "Опубликовать черновик",
     "POST /products/{code}/calculate": "Калькулятор платежей",
     "GET /products/{code}/eligibility": "Подходит ли продукт компании",
     "GET /organizations": "Компании",
@@ -121,6 +130,15 @@ NAMES: dict[str, str] = {
 
 # Operations of the startup: they need «Старт», not «Ромашка».
 _STARTUP_PATHS = ("/business-plan", "/founder-prescreen", "/project-assessment")
+# Keeping the catalog: the admin works on a product of its own, the demo catalog stays.
+_CATALOG_KEEPING = {
+    ("get", "/products/all"),
+    ("post", "/products"),
+    ("put", "/products/{code}"),
+    ("delete", "/products/{code}"),
+    ("post", "/products/{code}/activate"),
+}
+YAAK_PRODUCT = "YAAK_DEMO"
 # Changes the demo data in a way the scenarios notice.
 _CAREFUL = (
     "Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, "
@@ -144,6 +162,17 @@ NOTES: dict[str, str] = {
     "GET /applications": "Отсюда `application_id` справочника: самая новая заявка Ромашки.",
     "POST /accounts": "Создаёт свой аккаунт: следующие запросы папки работают с ним.",
     "POST /roles": "Создаёт свою роль: следующие запросы папки работают с ней.",
+    "POST /products": (
+        f"Создаёт черновик `{YAAK_PRODUCT}`: правка, публикация и снятие с продажи работают "
+        "с ним, демо-каталог не меняется. Повторный запуск — 409: код уже занят."
+    ),
+    "PUT /products/{code}": (
+        f"Черновик `{YAAK_PRODUCT}` меняется на месте; опубликованный или архивный продукт "
+        "получает новую активную версию."
+    ),
+    "DELETE /products/{code}": (
+        f"Опубликованный `{YAAK_PRODUCT}` уходит в архив, черновик удаляется."
+    ),
     "POST /organizations/{organization_id}/members": (
         "Добавляет ИП Иванова в Ромашку сотрудником: смена роли, доверенность и удаление — "
         "над ним, бухгалтер Ромашки остаётся на месте."
@@ -195,6 +224,29 @@ def startup_plan() -> dict[str, Any]:
     return _STARTUP_PLAN
 
 
+_PRODUCT_TERMS: dict[str, Any] = {
+    "frontend_id": "yaak-demo",
+    "name": "Факторинг (Yaak)",
+    "short_description": "Продукт из коллекции Yaak: деньги под отсрочку платежа покупателей",
+    "purposes": ["working_capital", "cash_gap"],
+    "facility": "credit_line_revolving",
+    "repayment_options": ["interest_only", "annuity"],
+    "amount_min": "500000",
+    "amount_max": "20000000",
+    "term_min_months": 3,
+    "term_max_months": 12,
+    "rate_base": "21",
+    "rate_max": "27",
+    "min_business_age_months": 6,
+    "min_annual_revenue": "5000000",
+    "required_documents": [
+        {"type": "receivables_register", "title": "Реестр дебиторской задолженности"}
+    ],
+    "workflow_code": "standard_v2",
+    "auto_decision_limit": "5000000",
+}
+
+
 PDF_STUB = "%PDF-1.4 demo"
 STATEMENTS = Path(__file__).resolve().parents[2] / "seed" / "statements"
 
@@ -242,6 +294,8 @@ def _bodies() -> dict[str, Any]:
             "term_months": 24,
         },
         "POST /products/{code}/calculate": {"amount": "3000000", "term_months": 24},
+        "POST /products": {"code": YAAK_PRODUCT, **_PRODUCT_TERMS},
+        "PUT /products/{code}": _PRODUCT_TERMS | {"rate_base": "20"},
         "POST /organizations/{organization_id}/members": {
             "login": ACCOUNTS["ivanov"][0],
             "role": "employee",
@@ -322,7 +376,7 @@ def reference_variables() -> dict[str, str]:
 def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
     if not operation.get("security"):
         return None
-    if path.startswith(("/accounts", "/roles")):
+    if path.startswith(("/accounts", "/roles")) or (method, path) in _CATALOG_KEEPING:
         return "admin"
     if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice")):
         return "underwriter"
@@ -353,7 +407,9 @@ def _path_value(method: str, path: str, param: str) -> str:
     if param == "item_id":
         return var("feed_item_id")
     if param == "code":
-        return var("workflow_code") if path.startswith("/workflows") else "UNSECURED"
+        if path.startswith("/workflows"):
+            return var("workflow_code")
+        return YAAK_PRODUCT if (method, path) in _CATALOG_KEEPING else "UNSECURED"
     if param == "type":
         return "credit_bureau_company" if path.startswith("/organizations") else "personal_data"
     return var(param)

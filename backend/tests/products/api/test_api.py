@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Iterator
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from src.core.domain import FrozenClock
 from src.core.facades import FacadeRegistry
 from src.main import create_app
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.products.domain.product import CreditProduct, ProductStatus
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 from tests.fakes import builders, install
 from tests.fakes.clients_facade import FakeClientsFacade
@@ -344,3 +346,199 @@ def test_archived_product_has_no_eligibility(
         headers=bearer(token_for(app, CLIENT_PERMISSIONS)),
     )
     assert response.status_code == 409
+
+
+# --- keeping the catalog: credits.create|update|delete ------------------------------------
+
+MANAGER_PERMISSIONS = [
+    Permissions.CREDITS_CREATE,
+    Permissions.CREDITS_UPDATE,
+    Permissions.CREDITS_DELETE,
+]
+
+
+def manager(app: FastAPI) -> dict[str, str]:
+    return bearer(token_for(app, MANAGER_PERMISSIONS))
+
+
+def new_product(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "code": "FACTORING",
+        "frontend_id": "factoring",
+        "name": "Факторинг",
+        "short_description": "Деньги под отсрочку платежа покупателей",
+        "purposes": ["working_capital", "cash_gap"],
+        "facility": "credit_line_revolving",
+        "repayment_options": ["interest_only", "annuity"],
+        "amount_min": "500000",
+        "amount_max": "20000000",
+        "term_min_months": 3,
+        "term_max_months": 12,
+        "rate_base": "21",
+        "rate_max": "27",
+        "min_business_age_months": 6,
+        "min_annual_revenue": "5000000",
+        "required_documents": [
+            {"type": "receivables_register", "title": "Реестр дебиторской задолженности"}
+        ],
+        "workflow_code": "standard_v2",
+        "auto_decision_limit": "5000000",
+    }
+    body.update(overrides)
+    return body
+
+
+def as_body(card: dict[str, Any]) -> dict[str, Any]:
+    """A product card read back is the body of new terms."""
+    return {k: v for k, v in card.items() if k not in ("code", "version", "status")}
+
+
+def stored(settings: Settings, code: str, version: int) -> CreditProduct | None:
+    async def read() -> CreditProduct | None:
+        engine = create_async_engine(settings.database_url)
+        async with async_sessionmaker(engine)() as session:
+            product = await SqlAlchemyProductRepository(session).get_version(code, version)
+        await engine.dispose()
+        return product
+
+    return asyncio.run(read())
+
+
+def test_keeping_the_catalog_needs_rights(app: FastAPI, api: TestClient) -> None:
+    calls = [
+        ("GET", "/products/all", None),
+        ("POST", "/products", new_product()),
+        ("PUT", "/products/UNSECURED", as_body(api.get("/products/UNSECURED").json())),
+        ("POST", "/products/UNSECURED/activate", None),
+        ("DELETE", "/products/UNSECURED", None),
+    ]
+    client = client_token(app, uuid4())
+    for method, path, body in calls:
+        assert api.request(method, path, json=body).status_code == 401, path
+        assert api.request(method, path, json=body, headers=client).status_code == 403, path
+    admin = bearer(token_for(app, [Permissions.ADMIN]))
+    assert api.get("/products/all", headers=admin).status_code == 200
+
+
+def test_a_draft_is_hidden_until_activated(app: FastAPI, api: TestClient) -> None:
+    headers = manager(app)
+    response = api.post("/products", json=new_product(), headers=headers)
+    assert response.status_code == 201, response.text
+    draft = response.json()
+    assert (draft["code"], draft["version"], draft["status"]) == ("FACTORING", 1, "draft")
+    assert draft["required_documents"][0]["legal_forms"] == []
+    assert draft["allowed_legal_forms"] == ["LLC", "IE", "JSC"]
+    assert api.get("/products/FACTORING").status_code == 404
+    assert "FACTORING" not in [p["code"] for p in api.get("/products").json()]
+    everything = api.get("/products/all", headers=headers).json()
+    assert [(p["code"], p["status"]) for p in everything][-2:] == [
+        ("STARTUP", "active"),
+        ("FACTORING", "draft"),
+    ]
+    assert ("REFINANCE", "archived") in [(p["code"], p["status"]) for p in everything]
+
+    activated = api.post("/products/FACTORING/activate", headers=headers)
+    assert activated.status_code == 200 and activated.json()["status"] == "active"
+    assert [p["code"] for p in api.get("/products").json()][-1] == "FACTORING"
+    schedule = api.post(
+        "/products/FACTORING/calculate", json={"amount": "1000000", "term_months": 6}
+    ).json()
+    assert schedule["repayment"] == "interest_only" and Decimal(schedule["rate"]) == 21
+    again = api.post("/products/FACTORING/activate", headers=headers)
+    assert again.status_code == 409 and again.json()["code"] == "invalid_transition"
+
+
+def test_a_product_may_be_published_right_away(app: FastAPI, api: TestClient) -> None:
+    response = api.post("/products", json=new_product(status="active"), headers=manager(app))
+    assert response.status_code == 201 and response.json()["status"] == "active"
+    assert api.get("/products/FACTORING").json()["version"] == 1
+
+
+def test_a_taken_code_is_a_conflict(app: FastAPI, api: TestClient) -> None:
+    response = api.post(
+        "/products", json=new_product(code="UNSECURED", frontend_id="x"), headers=manager(app)
+    )
+    assert response.status_code == 409 and response.json()["code"] == "conflict"
+
+
+@pytest.mark.parametrize(
+    "overrides,field,code",
+    [
+        ({"code": "factoring"}, "code", "bad_format"),
+        ({"workflow_code": "nope_v1"}, "workflow_code", "unknown"),
+        ({"frontend_id": "unsecured"}, "frontend_id", "taken"),
+        ({"amount_max": "100000"}, "amount_max", "less_than_min"),
+        ({"auto_decision_limit": "30000000"}, "auto_decision_limit", "above_max"),
+        ({"collateral_types": ["vehicle"]}, "collateral_types", "not_expected"),
+    ],
+)
+def test_a_new_product_keeps_the_rules(
+    app: FastAPI, api: TestClient, overrides: dict[str, Any], field: str, code: str
+) -> None:
+    response = api.post("/products", json=new_product(**overrides), headers=manager(app))
+    assert response.status_code == 422, response.text
+    assert response.json()["details"] == {"field": field, "code": code}
+    assert "FACTORING" not in [
+        p["code"] for p in api.get("/products/all", headers=manager(app)).json()
+    ]
+
+
+def test_new_terms_of_a_published_product_are_a_new_version(
+    app: FastAPI, api: TestClient, settings: Settings
+) -> None:
+    body = as_body(api.get("/products/UNSECURED").json()) | {"rate_base": "22"}
+    response = api.put("/products/UNSECURED", json=body, headers=manager(app))
+    assert response.status_code == 200, response.text
+    revised = response.json()
+    assert (revised["version"], revised["status"]) == (2, "active")
+    assert as_body(revised) == as_body(api.get("/products/UNSECURED").json())
+    assert Decimal(revised["rate_base"]) == 22
+    catalog = api.get("/products").json()
+    assert (catalog[0]["code"], catalog[0]["version"]) == ("UNSECURED", 2)
+    assert [p["code"] for p in catalog].count("UNSECURED") == 1
+    # Applications opened with version 1 keep pointing to it.
+    first = stored(settings, "UNSECURED", 1)
+    assert first is not None and first.status == ProductStatus.ARCHIVED
+
+
+def test_a_draft_changes_in_place(app: FastAPI, api: TestClient) -> None:
+    headers = manager(app)
+    api.post("/products", json=new_product(), headers=headers)
+    body = as_body(new_product(name="Факторинг без регресса"))
+    response = api.put("/products/FACTORING", json=body, headers=headers)
+    assert response.status_code == 200, response.text
+    assert (response.json()["version"], response.json()["status"]) == (1, "draft")
+    assert response.json()["name"] == "Факторинг без регресса"
+
+
+def test_an_archived_product_comes_back_with_new_terms(app: FastAPI, api: TestClient) -> None:
+    body = as_body(api.get("/products/REFINANCE").json())
+    response = api.put("/products/REFINANCE", json=body, headers=manager(app))
+    assert response.status_code == 200, response.text
+    assert (response.json()["version"], response.json()["status"]) == (2, "active")
+    assert "REFINANCE" in [p["code"] for p in api.get("/products").json()]
+
+
+def test_unknown_product_can_not_be_changed(app: FastAPI, api: TestClient) -> None:
+    headers = manager(app)
+    body = as_body(new_product())
+    assert api.put("/products/NOPE", json=body, headers=headers).status_code == 404
+    assert api.post("/products/NOPE/activate", headers=headers).status_code == 404
+    assert api.delete("/products/NOPE", headers=headers).status_code == 404
+
+
+def test_off_sale_a_published_product_is_archived_and_a_draft_deleted(
+    app: FastAPI, api: TestClient
+) -> None:
+    headers = manager(app)
+    assert api.delete("/products/OVERDRAFT", headers=headers).status_code == 204
+    assert api.get("/products/OVERDRAFT").json()["status"] == "archived"
+    assert "OVERDRAFT" not in [p["code"] for p in api.get("/products").json()]
+    again = api.delete("/products/OVERDRAFT", headers=headers)
+    assert again.status_code == 409 and again.json()["code"] == "invalid_transition"
+
+    api.post("/products", json=new_product(), headers=headers)
+    assert api.delete("/products/FACTORING", headers=headers).status_code == 204
+    assert "FACTORING" not in [p["code"] for p in api.get("/products/all", headers=headers).json()]
+    # The code is free again.
+    assert api.post("/products", json=new_product(), headers=headers).status_code == 201

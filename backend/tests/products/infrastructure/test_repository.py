@@ -76,8 +76,47 @@ async def test_drafts_are_not_current_and_archived_stay_readable(session_factory
         assert [p.version for p in listed] == [2]
 
 
+async def test_latest_versions_whatever_the_status(session_factory: Sessions) -> None:
+    await run_seed(session_factory)
+    unsecured = next(p for p in catalog() if p.code.value == "UNSECURED")
+    async with session_factory() as session:
+        repository = SqlAlchemyProductRepository(session)
+        draft = replace(unsecured, version=2, status=ProductStatus.DRAFT)
+        await repository.save(draft)
+        await session.commit()
+
+        latest = await repository.get_latest("UNSECURED")
+        assert latest is not None and (latest.version, latest.status) == (2, "draft")
+        listed = await repository.list_latest()
+        assert [p.code.value for p in listed] == [p.code.value for p in catalog()]
+        assert (listed[0].version, listed[0].status) == (2, "draft")
+
+        await repository.delete(draft)
+        await session.commit()
+        assert await repository.get_version("UNSECURED", 2) is None
+        latest = await repository.get_latest("UNSECURED")
+        assert latest is not None and latest.version == 1
+
+
+async def test_seed_leaves_a_product_off_sale_archived(session_factory: Sessions) -> None:
+    await run_seed(session_factory)
+    async with session_factory() as session:
+        repository = SqlAlchemyProductRepository(session)
+        overdraft = await repository.get_current("OVERDRAFT")
+        assert overdraft is not None
+        overdraft.archive()
+        await repository.save(overdraft)
+        await session.commit()
+
+    await run_seed(session_factory)
+    async with session_factory() as session:
+        current = await SqlAlchemyProductRepository(session).get_current("OVERDRAFT")
+    assert current is not None and current.status == ProductStatus.ARCHIVED
+
+
 async def test_unknown_product(session_factory: Sessions) -> None:
     async with session_factory() as session:
         repository = SqlAlchemyProductRepository(session)
         assert await repository.get_current("NOPE") is None
         assert await repository.get_version("NOPE", 1) is None
+        assert await repository.get_latest("NOPE") is None

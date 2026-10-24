@@ -7,6 +7,7 @@ class FakeProcessFacade:
     def __init__(self) -> None:
         self.views: dict[UUID, ProcessViewDTO] = {}
         self.tasks: dict[UUID, UserTaskDTO] = {}
+        self.workflows: list[str] = []
 
     def add_view(self, view: ProcessViewDTO) -> ProcessViewDTO:
         self.views[view.application_id] = view
@@ -31,3 +32,6 @@ class FakeProcessFacade:
 
     async def get_task(self, task_id: UUID) -> UserTaskDTO | None:
         return self.tasks.get(task_id)
+
+    def workflow_codes(self) -> list[str]:
+        return list(self.workflows)

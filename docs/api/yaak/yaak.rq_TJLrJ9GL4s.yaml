@@ -22,7 +22,7 @@ body:
       "amount": "3000000",
       "term_months": 24
     }
-sortPriority: 5000.0
+sortPriority: 9000.0
 authenticationType: none
 authentication: {}
 createdAt: '2026-10-24T00:00:00'

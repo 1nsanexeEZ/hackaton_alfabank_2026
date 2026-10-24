@@ -1044,6 +1044,82 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Create Product",
+        "description": "Version 1 at the end of the catalog, a draft unless `status: active`. 409 — the code\nis taken; 422 `workflow_code` `unknown` — no such route (GET /workflows), `frontend_id`\n`taken` — another product has this card.",
+        "operationId": "create_product_products_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/all": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "List All Products",
+        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order.",
+        "operationId": "list_all_products_products_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductRead"
+                  },
+                  "type": "array",
+                  "title": "Response List All Products Products All Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
       }
     },
     "/products/recommend": {
@@ -1155,6 +1231,149 @@
         "summary": "Get Product",
         "description": "Archived products are readable too (status `archived`).",
         "operationId": "get_product_products__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Update Product",
+        "description": "New terms. A draft changes in place; a published product gets a new active version\nand the previous one goes to the archive, so an archived product comes back this way.\nApplications keep the terms they were opened with.",
+        "operationId": "update_product_products__code__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Delete Product",
+        "description": "Off sale: a published product goes to the archive (old applications refer to it),\na draft is deleted. Already archived — 409 `invalid_transition`.",
+        "operationId": "delete_product_products__code__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{code}/activate": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Activate Product",
+        "description": "A draft goes to the catalog; anything else — 409 `invalid_transition`.",
+        "operationId": "activate_product_products__code__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
         "parameters": [
           {
             "name": "code",
@@ -13005,6 +13224,588 @@
         ],
         "title": "ProcessViewDTO"
       },
+      "ProductBody": {
+        "properties": {
+          "frontend_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Frontend Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "short_description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Short Description"
+          },
+          "description_plain": {
+            "type": "string",
+            "title": "Description Plain",
+            "default": ""
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "working_capital",
+                "cash_gap",
+                "equipment",
+                "vehicles",
+                "real_estate",
+                "contract_execution",
+                "refinancing",
+                "expansion"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "facility": {
+            "type": "string",
+            "enum": [
+              "term_loan",
+              "credit_line_revolving",
+              "credit_line_non_revolving",
+              "overdraft"
+            ],
+            "title": "Facility"
+          },
+          "repayment_options": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "annuity",
+                "differentiated",
+                "interest_only",
+                "by_contract_schedule"
+              ]
+            },
+            "type": "array",
+            "title": "Repayment Options"
+          },
+          "amount_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Max"
+          },
+          "term_min_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Min Months"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Max Months"
+          },
+          "rate_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Max"
+          },
+          "collateral_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Collateral Kind",
+            "default": "none"
+          },
+          "collateral_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "real_estate",
+                "equipment",
+                "vehicle",
+                "goods"
+              ]
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "default": []
+          },
+          "collateral_required_from": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Required From"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "owner",
+              "msp_corporation"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "target_use_confirmation": {
+            "type": "boolean",
+            "title": "Target Use Confirmation",
+            "default": false
+          },
+          "support_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportProgramBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_business_age_months": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Business Age Months",
+            "default": 0
+          },
+          "allowed_legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Legal Forms",
+            "default": [
+              "LLC",
+              "IE",
+              "JSC"
+            ]
+          },
+          "min_annual_revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Annual Revenue"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only",
+            "default": false
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocumentBody"
+            },
+            "type": "array",
+            "title": "Required Documents",
+            "default": []
+          },
+          "application_fields_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Application Fields Schema",
+            "default": {}
+          },
+          "workflow_code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Workflow Code"
+          },
+          "auto_decision_limit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Auto Decision Limit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frontend_id",
+          "name",
+          "short_description",
+          "purposes",
+          "facility",
+          "repayment_options",
+          "amount_min",
+          "amount_max",
+          "term_min_months",
+          "term_max_months",
+          "rate_base",
+          "rate_max",
+          "workflow_code",
+          "auto_decision_limit"
+        ],
+        "title": "ProductBody",
+        "description": "Terms of a product, as in `ProductRead`: the code is in the path, the\nversion and the status are set by the catalog."
+      },
+      "ProductCreate": {
+        "properties": {
+          "frontend_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Frontend Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "short_description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Short Description"
+          },
+          "description_plain": {
+            "type": "string",
+            "title": "Description Plain",
+            "default": ""
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "working_capital",
+                "cash_gap",
+                "equipment",
+                "vehicles",
+                "real_estate",
+                "contract_execution",
+                "refinancing",
+                "expansion"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "facility": {
+            "type": "string",
+            "enum": [
+              "term_loan",
+              "credit_line_revolving",
+              "credit_line_non_revolving",
+              "overdraft"
+            ],
+            "title": "Facility"
+          },
+          "repayment_options": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "annuity",
+                "differentiated",
+                "interest_only",
+                "by_contract_schedule"
+              ]
+            },
+            "type": "array",
+            "title": "Repayment Options"
+          },
+          "amount_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount Max"
+          },
+          "term_min_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Min Months"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "maximum": 360.0,
+            "minimum": 1.0,
+            "title": "Term Max Months"
+          },
+          "rate_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Max"
+          },
+          "collateral_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Collateral Kind",
+            "default": "none"
+          },
+          "collateral_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "real_estate",
+                "equipment",
+                "vehicle",
+                "goods"
+              ]
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "default": []
+          },
+          "collateral_required_from": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Required From"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "owner",
+              "msp_corporation"
+            ],
+            "title": "Guarantee",
+            "default": "none"
+          },
+          "target_use_confirmation": {
+            "type": "boolean",
+            "title": "Target Use Confirmation",
+            "default": false
+          },
+          "support_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportProgramBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_business_age_months": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Business Age Months",
+            "default": 0
+          },
+          "allowed_legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Legal Forms",
+            "default": [
+              "LLC",
+              "IE",
+              "JSC"
+            ]
+          },
+          "min_annual_revenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Annual Revenue"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only",
+            "default": false
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocumentBody"
+            },
+            "type": "array",
+            "title": "Required Documents",
+            "default": []
+          },
+          "application_fields_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Application Fields Schema",
+            "default": {}
+          },
+          "workflow_code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Workflow Code"
+          },
+          "auto_decision_limit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Auto Decision Limit"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Code"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "title": "Status",
+            "default": "draft"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frontend_id",
+          "name",
+          "short_description",
+          "purposes",
+          "facility",
+          "repayment_options",
+          "amount_min",
+          "amount_max",
+          "term_min_months",
+          "term_max_months",
+          "rate_base",
+          "rate_max",
+          "workflow_code",
+          "auto_decision_limit",
+          "code"
+        ],
+        "title": "ProductCreate"
+      },
       "ProductInfo": {
         "properties": {
           "code": {
@@ -14757,6 +15558,55 @@
         ],
         "title": "RequestedInfoDTO"
       },
+      "RequiredDocumentBody": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title"
+          },
+          "required_from_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required From Amount"
+          },
+          "legal_forms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "LLC",
+                "IE",
+                "JSC"
+              ]
+            },
+            "type": "array",
+            "title": "Legal Forms",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "title"
+        ],
+        "title": "RequiredDocumentBody"
+      },
       "RequiredDocumentDTO": {
         "properties": {
           "type": {
@@ -15736,6 +16586,54 @@
           "monthly_payment"
         ],
         "title": "Suggestion"
+      },
+      "SupportProgramBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "rate_cap": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Rate Cap"
+          },
+          "msp_registry_required": {
+            "type": "boolean",
+            "title": "Msp Registry Required",
+            "default": true
+          },
+          "okved_whitelist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Okved Whitelist",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "rate_cap"
+        ],
+        "title": "SupportProgramBody"
       },
       "SupportProgramRead": {
         "properties": {

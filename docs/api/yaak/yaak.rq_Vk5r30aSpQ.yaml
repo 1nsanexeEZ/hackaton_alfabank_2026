@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_Vk5r30aSpQ
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_IzRxHh5qB6
+name: Снять продукт с продажи
+description: |-
+  Off sale: a published product goes to the archive (old applications refer to it),
+  a draft is deleted. Already archived — 409 `invalid_transition`.
+
+  Опубликованный `YAAK_DEMO` уходит в архив, черновик удаляется.
+
+  Токен: администратор.
+method: DELETE
+url: ${[ base_url ]}/products/:code
+urlParameters:
+- enabled: true
+  name: :code
+  value: YAAK_DEMO
+headers: []
+bodyType: null
+body: {}
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

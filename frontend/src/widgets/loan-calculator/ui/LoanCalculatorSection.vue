@@ -1,35 +1,44 @@
 <script setup lang="ts">
-import { Calculator, CalendarCheck } from 'lucide-vue-next'
+import { Calculator, Target } from 'lucide-vue-next'
 
 import type { ProductCatalog } from '@/entities/credit-product'
 import { LoanCalculator } from '@/features/calculate-loan'
+import type { LoanPurpose } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
 import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
+/**
+ * Подбор и расчёт кредита одной секцией: к ней ведут и «Подобрать кредит», и «Калькулятор» —
+ * оба якоря здесь, чтобы ссылки из шапки, футера и с первого экрана работали как раньше.
+ */
 defineProps<{
   products: ProductCatalog
-  /** Компании вошедшего клиента — расчёт по ставке предодобрения */
+  /** Компании вошедшего клиента — подбор и расчёт для выбранной */
   companies?: readonly { id: string; name: string }[] | null
 }>()
 
-const emit = defineEmits<{ apply: [] }>()
+const emit = defineEmits<{
+  apply: [params: { productId: string; amount: number; termMonths: number; purpose: LoanPurpose; organizationId: string }]
+}>()
 
 const productId = defineModel<string>('productId', { required: true })
 const amount = defineModel<number>('amount', { required: true })
 const termMonths = defineModel<number>('termMonths', { required: true })
+const purpose = defineModel<LoanPurpose>('purpose', { default: 'working_capital' })
 const organizationId = defineModel<string>('organizationId', { default: '' })
 </script>
 
 <template>
-  <section :id="SECTION_ID.calculator" class="bg-surface py-16 lg:py-24">
+  <section :id="SECTION_ID.calculator" class="scroll-mt-20 bg-surface py-16 lg:py-24">
+    <span :id="SECTION_ID.picker" class="block scroll-mt-20" aria-hidden="true" />
     <BaseContainer class="relative">
       <DecorSticker
-        class="absolute top-6 right-6"
-        :icon="CalendarCheck"
-        tone="sky"
-        title="Равные платежи"
-        caption="каждый месяц"
-        :tilt="4"
+        class="absolute -top-10 right-10"
+        :icon="Target"
+        title="Под вашу задачу"
+        caption="с объяснением"
+        :tilt="-5"
+        :delay="2"
       />
       <DecorSticker
         class="absolute top-2 right-[19rem]"
@@ -37,28 +46,28 @@ const organizationId = defineModel<string>('organizationId', { default: '' })
         tone="sun"
         title="Расчёт за секунду"
         caption="меняйте сумму и срок"
-        :tilt="-5"
+        :tilt="4"
         :delay="3"
       />
       <SectionHeader
-        title="Рассчитайте платёж"
+        title="Подберём кредит и рассчитаем платёж"
         :description="
           companies?.length
-            ? 'Расчёт по ставке, которую банк предварительно одобрил вашей компании, — параметры сразу перенесутся в заявку.'
-            : 'Выберите продукт, сумму и срок — параметры сразу перенесутся в заявку.'
+            ? 'Выберите цель, сумму и срок — покажем подходящие продукты вашей компании и посчитаем платёж по ставке её предодобрения.'
+            : 'Выберите цель, сумму и срок — покажем, какие продукты подходят и почему, и посчитаем платёж.'
         "
       />
       <div class="relative isolate mt-8 lg:mt-12">
         <PeekSticker art="banknote" class="absolute -top-16 right-14 -z-10" :tilt="-10" :delay="3" />
-        <PeekSticker art="calculator" from="left" class="absolute bottom-10 -left-16 -z-10" :tilt="12" />
         <LoanCalculator
           v-model:product-id="productId"
           v-model:amount="amount"
           v-model:term-months="termMonths"
+          v-model:purpose="purpose"
           v-model:organization-id="organizationId"
           :products="products"
           :companies="companies"
-          @apply="emit('apply')"
+          @apply="(params) => emit('apply', params)"
         />
       </div>
     </BaseContainer>
