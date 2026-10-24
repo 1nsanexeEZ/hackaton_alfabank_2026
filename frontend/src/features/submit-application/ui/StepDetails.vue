@@ -7,6 +7,7 @@ import { SelectField, TextField } from '@/shared/ui'
 import type { ApplicationWizard, CollateralForm } from '../model/useApplicationWizard'
 import DocumentUploads from './DocumentUploads.vue'
 import ProductFieldsForm from './ProductFieldsForm.vue'
+import ThirdPartyFields from './ThirdPartyFields.vue'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
 
@@ -55,6 +56,10 @@ const OWNER_OPTIONS: { value: CollateralForm['owner']; label: string }[] = [
         placeholder="0"
         :error="fieldErrors['collateral.declared_value']"
       />
+      <div v-if="collateral.owner === 'third_party'" class="space-y-4 rounded-2xl border border-line p-4">
+        <p class="text-sm font-medium text-ink">Кому принадлежит залог</p>
+        <ThirdPartyFields v-model:party="collateral.ownerParty" prefix="collateral.owner_party" :errors="fieldErrors" />
+      </div>
     </section>
 
     <section v-if="withFields" class="space-y-4">

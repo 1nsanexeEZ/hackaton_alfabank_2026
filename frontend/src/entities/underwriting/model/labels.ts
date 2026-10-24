@@ -54,6 +54,8 @@ export const REASON_LABEL: Record<string, string> = {
   ROUTE_PEP: 'Публичное должностное лицо среди проверенных',
   ROUTE_ZSK_MEDIUM_RISK: 'Средний уровень риска на платформе ЗСК',
   ROUTE_AUTOMATED_DECISION_CONSENT: 'ИП не дал согласия на автоматическое решение',
+  ROUTE_THIRD_PARTY_BENEFICIARY: 'Клиент действует в интересах третьего лица',
+  ROUTE_THIRD_PARTIES_UNKNOWN: 'Нет сведений о выгодоприобретателе или владельце залога',
   INFO_REVENUE_NOT_CONFIRMED: 'Нужна выписка для подтверждения выручки',
   LIMIT_BY_PRODUCT: 'Лимит продукта',
   LIMIT_BY_REVENUE: 'Лимит по выручке',
@@ -154,6 +156,8 @@ export const AML_ROLE_LABEL: Record<string, string> = {
   head: 'руководитель',
   beneficial_owner: 'бенефициар',
   representative: 'представитель',
+  beneficiary: 'выгодоприобретатель',
+  pledgor: 'залогодатель',
 }
 export const BENEFICIAL_BASIS_LABEL: Record<string, string> = {
   ownership: 'владение',
