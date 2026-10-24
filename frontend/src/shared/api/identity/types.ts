@@ -13,6 +13,8 @@ export type Permission =
   | 'roles.update'
   | 'roles.delete'
   | 'profile.update'
+  /** Своё ФИО: у сотрудников; у клиента его нет — ФИО подтверждено банком */
+  | 'profile.update_name'
   | 'requests.read'
   | 'requests.create'
   | 'requests.update'
