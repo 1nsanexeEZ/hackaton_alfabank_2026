@@ -30,7 +30,7 @@ body:
       "total_liabilities": "12000000",
       "monthly_debt_payments": "350000"
     }
-sortPriority: 11000.0
+sortPriority: 12000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

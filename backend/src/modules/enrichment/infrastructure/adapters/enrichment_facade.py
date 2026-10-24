@@ -7,11 +7,13 @@ from datetime import datetime
 from uuid import UUID
 
 from src.modules.enrichment.application.dto.cashflow import CashflowForecastDTO
+from src.modules.enrichment.application.dto.company import CompanyLookupDTO
 from src.modules.enrichment.application.dto.credit_history import CreditHistoryDTO, PersonDTO
 from src.modules.enrichment.application.dto.registry import RegistryExtractDTO
 from src.modules.enrichment.application.dto.snapshot import EnrichmentSnapshotDTO
 from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.application.use_cases.latest_cashflow import GetLatestCashflowUseCase
+from src.modules.enrichment.application.use_cases.lookup_company import LookupCompanyUseCase
 from src.modules.enrichment.application.use_cases.lookup_person_bureau import (
     LookupPersonBureauUseCase,
 )
@@ -26,11 +28,13 @@ class EnrichmentFacadeImpl(EnrichmentFacade):
         lookup_registry: LookupRegistryUseCase,
         lookup_person_bureau: LookupPersonBureauUseCase,
         latest_cashflow: GetLatestCashflowUseCase,
+        lookup_company: LookupCompanyUseCase,
     ) -> None:
         self._get_snapshot = get_snapshot
         self._lookup_registry = lookup_registry
         self._lookup_person_bureau = lookup_person_bureau
         self._latest_cashflow = latest_cashflow
+        self._lookup_company = lookup_company
 
     async def get_snapshot(self, application_id: UUID) -> EnrichmentSnapshotDTO | None:
         return await self._get_snapshot.execute(application_id)
@@ -40,6 +44,9 @@ class EnrichmentFacadeImpl(EnrichmentFacade):
 
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         return await self._lookup_registry.execute(inn, fresh=fresh)
+
+    async def lookup_company(self, inn: str) -> CompanyLookupDTO | None:
+        return await self._lookup_company.execute(inn)
 
     async def lookup_person_bureau(
         self, person: PersonDTO, consent_at: datetime

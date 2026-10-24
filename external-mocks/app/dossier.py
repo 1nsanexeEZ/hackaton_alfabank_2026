@@ -176,6 +176,27 @@ DEMO_KONTUR: dict[str, Kontur] = {
     "7704568152": Kontur("green", active_pledges=1, affiliated_companies=1),
     "7705729405": Kontur("green", as_plaintiff=3, active_pledges=1, affiliated_companies=2),
     "7706123455": Kontur("yellow", ("Компания зарегистрирована менее 12 месяцев назад",)),
+    # Компании для проверки по ИНН (CHECK_DEMO в app/data.py).
+    "7707177012": Kontur(
+        "red",
+        ("Процедура банкротства",),
+        as_defendant=3,
+        defendant_sum_rub=7_400_000,
+        bankruptcy_messages=(
+            (
+                "2026-06-15",
+                "Признание должника банкротом и открытие конкурсного производства",
+                "А40-117701/2026",
+            ),
+        ),
+    ),
+    "7707177020": Kontur("yellow", ("Адрес массовой регистрации",), affiliated_companies=1),
+    "7707177037": Kontur(
+        "yellow",
+        ("Налоговая задолженность", "Исполнительные производства"),
+        enforcement_active=3,
+        enforcement_sum_rub=1_860_000,
+    ),
 }
 
 

@@ -32,7 +32,7 @@ body:
         "submit_application"
       ]
     }
-sortPriority: 9000.0
+sortPriority: 10000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

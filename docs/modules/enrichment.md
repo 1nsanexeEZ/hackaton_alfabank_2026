@@ -36,11 +36,12 @@ enrichment/
 │   ├── enums.py              # Source, SourceStatus, INTERNAL_SOURCES
 │   └── exceptions.py         # SourceNotFound, SourceUnavailable, StatementParseError
 ├── application/
-│   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot
+│   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot,
+│   │                         # company (компания по ИНН без заявки)
 │   ├── interfaces/           # sources (порты источников + Sources), repositories,
 │   │                         # statement_parser, registry_cache
 │   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
-│                             # latest_cashflow, lookup_registry, lookup_person_bureau
+│                             # latest_cashflow, lookup_registry, lookup_person_bureau, lookup_company
 ├── infrastructure/
 │   ├── config.py             # ENRICHMENT_* из окружения
 │   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
@@ -241,6 +242,12 @@ date;amount;counterparty_inn;counterparty_name;purpose
 - `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
   мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
   недоступен → `InfrastructureError` (503).
+- `lookup_company(inn)` — компания до заявки, для проверки по ИНН в clients: ЕГРЮЛ мимо кеша (как
+  `lookup_registry(fresh=True)`, кеш обновляется), затем параллельно ФНС, Контур и стоп-лист банка.
+  Согласий не нужно: открытые сведения и данные самого банка, БКИ сюда не входит. Реестр не знает
+  ИНН → `None`, остальных не спрашиваем; реестр недоступен → `InfrastructureError` (503). Не
+  ответил другой источник — его поле `None`, а источник и причина — в `sources_failed`. Ничего не
+  сохраняет: снимка по заявке нет.
 - В выписке `RegistryExtractDTO` есть `kpp` (`None` у ИП и в снимках, сохранённых до него).
 
 ## Моки (для README и `THIRD_PARTY_NOTICES`)

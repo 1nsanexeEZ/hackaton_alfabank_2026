@@ -23,7 +23,7 @@ urlParameters:
 headers: []
 bodyType: null
 body: {}
-sortPriority: 14000.0
+sortPriority: 15000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

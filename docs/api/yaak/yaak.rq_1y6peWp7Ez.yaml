@@ -27,7 +27,7 @@ body:
     {
       "role": "accountant"
     }
-sortPriority: 8000.0
+sortPriority: 9000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}
