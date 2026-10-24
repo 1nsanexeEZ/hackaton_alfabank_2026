@@ -495,6 +495,33 @@ STOP_DEMO: dict[str, Company] = {
 }
 
 
+# Компании для проверки по ИНН до заявки (`docs/modules/clients.md`): исходы, которых нет ни у
+# демо-клиентов, ни в STOP_DEMO. Суды и приставы для них — в DEMO_KONTUR (`app/dossier.py`).
+CHECK_DEMO: dict[str, Company] = {
+    company.inn: company
+    for company in (
+        # ЕГРЮЛ: признана банкротом, в Контуре — сообщение о конкурсном производстве.
+        replace(
+            _clean("7707177012", "Крах", "1157707177011", "Крахов Кирилл Кириллович"),
+            status="BANKRUPT",
+        ),
+        # ЕГРЮЛ: адрес массовой регистрации.
+        replace(
+            _clean("7707177020", "Адрес-Сити", "1157707177022", "Адресов Антон Андреевич"),
+            mass_address=True,
+        ),
+        # Действующая, но с долгами: недоимка по налогам и исполнительные производства.
+        replace(
+            _clean("7707177037", "Должник", "1157707177033", "Должиков Денис Денисович"),
+            arrears_kop=1_240_000 * _RUB,
+        ),
+    )
+}
+
+# Валидные ИНН, которых нет в реестре: на все запросы — 404, как у реестра для незнакомого ИНН.
+UNREGISTERED: frozenset[str] = frozenset({"7707177990"})
+
+
 _GEN_OKVED = ("62.01", "56.10", "47.19", "41.20", "49.41", "46.90", "69.10", "86.10")
 _GEN_STATUS = ("ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE", "LIQUIDATING")
 
@@ -579,14 +606,17 @@ def generate_company(inn: str) -> Company:
 
 
 def get_company(inn: str) -> Company | None:
-    """Демо-компания, иначе детерминированная генерация; невалидный ИНН → None (404)."""
+    """Демо-компания, иначе детерминированная генерация; невалидный ИНН или ИНН не из
+    реестра → None (404)."""
     if inn in DEMO:
         return DEMO[inn]
     if inn in AML_DEMO:
         return AML_DEMO[inn]
     if inn in STOP_DEMO:
         return STOP_DEMO[inn]
-    if not validate_inn(inn):
+    if inn in CHECK_DEMO:
+        return CHECK_DEMO[inn]
+    if inn in UNREGISTERED or not validate_inn(inn):
         return None
     return generate_company(inn)
 
