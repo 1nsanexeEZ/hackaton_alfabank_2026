@@ -78,6 +78,10 @@ def test_confirm_unknown_document() -> None:
         ("financial_statement", "image/png", True),
         ("financial_statement", "image/jpeg", True),
         ("financial_statement", "text/html", False),
+        ("beneficiary_contract", "application/pdf", True),
+        ("beneficiary_contract", "image/jpeg", True),
+        ("beneficiary_contract", "image/png", True),
+        ("beneficiary_contract", "text/csv", False),
         ("other", "application/x-msdownload", False),
     ],
 )

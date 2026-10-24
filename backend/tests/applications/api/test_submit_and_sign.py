@@ -313,6 +313,57 @@ def test_information_request_round_trip(world: World) -> None:
     assert world.outbox_types()[-1] == "ApplicationInfoProvided"
 
 
+def test_info_request_on_the_beneficiary_needs_the_contract(world: World) -> None:
+    """Банк просит уточнить выгодоприобретателя: новый ответ «за третье лицо» требует договор."""
+    application = world.submit(world.ready())
+    info_request_id = uuid4()
+
+    def ask(app) -> None:  # type: ignore[no-untyped-def]
+        now = world.clock.now()
+        app.start_review(now)
+        app.request_info(
+            info_request_id=info_request_id,
+            fields=("beneficiary",),
+            documents=(),
+            comment="Уточните, действуете ли вы в интересах третьего лица",
+            due_at=None,
+            now=now,
+        )
+
+    world.process(application["id"], ask)
+    headers = world.headers(world.director)
+    url = f"/applications/{application['id']}"
+    card = world.client.get(url, headers=headers).json()
+    answered = world.client.patch(
+        url,
+        json={
+            "version": card["version"],
+            "beneficiary": {
+                "acts_for_third_party": True,
+                "beneficiary": {"kind": "person", "name": "Посредников Павел Павлович"},
+                "basis": "mandate",
+            },
+        },
+        headers=headers,
+    )
+    assert answered.status_code == 200, answered.text
+
+    answer_url = f"{url}/info-requests/{info_request_id}/answer"
+    refused = world.client.post(answer_url, headers=headers)
+    assert refused.status_code == 422
+    assert refused.json()["details"]["violations"] == [
+        {
+            "code": "missing",
+            "field": "documents.beneficiary_contract",
+            "type": "beneficiary_contract",
+            "basis": "mandate",
+        }
+    ]
+
+    world.upload(card, "beneficiary_contract", content=b"%PDF-1.7", content_type="application/pdf")
+    assert world.client.post(answer_url, headers=headers).status_code == 200
+
+
 def test_amount_stays_decimal(world: World) -> None:
     application = world.create()
     body = world.client.patch(
