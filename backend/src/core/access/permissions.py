@@ -35,3 +35,8 @@ class Permissions(StrEnum):
     BACKOFFICE_READ = "backoffice.read"
     # Feed and notifications (module `notifications`).
     FEED_READ = "feed.read"
+    # Support tickets (module `support`). Clients read and write their own
+    # tickets (`own_only`); `manage` is the staff queue: take, reply, resolve.
+    SUPPORT_READ = "support.read"
+    SUPPORT_CREATE = "support.create"
+    SUPPORT_MANAGE = "support.manage"
