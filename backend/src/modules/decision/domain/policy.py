@@ -89,6 +89,8 @@ from src.modules.decision.domain.explanations import ExplanationCatalog, month_i
 from src.modules.decision.domain.model import (
     LEGACY_SCALE,
     AlternativeInput,
+    AmlInput,
+    AmlRiskGroup,
     CompanyInput,
     DecisionInput,
     Grade,
@@ -227,6 +229,12 @@ class PolicyConfig:
     third_party_beneficiary_review: bool = False
     third_party_answers_required: bool = False
     third_party_rules: bool = False  # раздел есть в YAML — правила пишутся в трассу
+    # policy_v9: группа риска клиента по 115-ФЗ и лицензии. Выключено в policy_v1–v8.
+    aml_risk_rules: bool = False
+    high_risk_countries: frozenset[str] = frozenset()
+    high_risk_okved: tuple[str, ...] = ()  # префиксы ОКВЭД
+    aml_high_group_review: bool = False
+    licensed_okved: tuple[str, ...] = ()  # префиксы ОКВЭД; пусто — правило выключено
     # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
     # в policy_v1–v6: без скоринга сразу ручная проверка.
     screen_before_scoring: bool = False
@@ -527,6 +535,9 @@ _BASES = {
 }
 
 
+_GROUPS = {"low": "низкая", "medium": "средняя", "high": "высокая"}
+
+
 def _zsk(level: str | None) -> str:
     return {"low": "низкий", "medium": "средний", "high": "высокий"}.get(level or "", "нет данных")
 
@@ -570,6 +581,7 @@ class _Evaluation:
         self._rate: Decimal | None = None
         self._rate_breakdown: RateBreakdown | None = None
         self._triggers: list[Trigger] = []
+        self._aml_group: AmlRiskGroup | None = None
 
     def run(self) -> PolicyDecision:
         # 115-ФЗ — до всего остального: клиента из перечня банк не обслуживает при любом скоре.
@@ -1216,7 +1228,71 @@ class _Evaluation:
         self._hit("aml.zsk_stop", zsk_stop, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
         if zsk_stop:
             reasons.append(ReasonCode.STOP_ZSK_HIGH_RISK)
+        if self._unlicensed(aml):
+            reasons.append(ReasonCode.STOP_UNLICENSED_ACTIVITY)
+        self._risk_group(aml)
         return tuple(reasons)
+
+    def _unlicensed(self, aml: AmlInput) -> bool:
+        """policy_v9, ст. 7 п. 15: лицензируемая деятельность без действующей лицензии."""
+        if not self._c.licensed_okved:
+            return False
+        okved = self._in.company.okved_main
+        required = max(
+            (p for p in self._c.licensed_okved if okved.startswith(p)), key=len, default=None
+        )
+        if required is None:
+            self._hit("aml.license", False, f"ОКВЭД {okved}: лицензия не нужна")
+            return False
+        if aml.licensed_okved is None:
+            self._hit("aml.license", False, "реестр лицензий не запрашивался")
+            return False
+        found = any(code.startswith(required) for code in aml.licensed_okved)
+        self._hit(
+            "aml.license",
+            not found,
+            f"ОКВЭД {okved} лицензируется: "
+            + ("действующая лицензия есть" if found else "действующей лицензии нет"),
+        )
+        return not found
+
+    def _risk_group(self, aml: AmlInput) -> None:
+        """policy_v9, ст. 7 п. 1 подп. 3.1: группа риска клиента по 115-ФЗ — по факторам."""
+        if not self._c.aml_risk_rules:
+            return
+        high: list[str] = []
+        medium: list[str] = []
+        if aml.list_hits:
+            high.append("совпадение с перечнями")
+        if aml.zsk_level == "high":
+            high.append("высокий риск ЗСК")
+        elif aml.zsk_level == "medium":
+            medium.append("средний риск ЗСК")
+        if aml.foreign_pep:
+            high.append("иностранное ПДЛ")
+        elif aml.pep_hits:
+            medium.append("ПДЛ")
+        for who, country in aml.foreign_participants:
+            if country in self._c.high_risk_countries:
+                high.append(f"{who} — {country}, государство не выполняет рекомендации ФАТФ")
+            else:
+                medium.append(f"{who} — иностранный участник ({country})")
+        high.extend(f"бенефициары со слов клиента: {item}" for item in aml.owner_discrepancies)
+        parties = self._in.third_parties
+        if parties is not None and parties.beneficiary == "declared":
+            medium.append("клиент действует к выгоде третьего лица")
+        okved = self._in.company.okved_main
+        if any(okved.startswith(p) for p in self._c.high_risk_okved):
+            medium.append(f"вид деятельности {okved} — повышенного риска по национальной оценке")
+        group: AmlRiskGroup = "high" if high else "medium" if medium else "low"
+        self._aml_group = group
+        factors = "; ".join((*high, *medium)) or "факторов риска нет"
+        owners = "" if aml.owners_declared else "; бенефициаров клиент не называл"
+        self._hit(
+            "aml.risk_group",
+            group == "high",
+            f"группа риска по 115-ФЗ: {_GROUPS[group]} — {factors}{owners}",
+        )
 
     def _aml_routes(self) -> list[ReasonCode]:
         """Без автоматического одобрения: проверка не выполнена, ПДЛ, средний риск ЗСК."""
@@ -1246,6 +1322,14 @@ class _Evaluation:
         if medium:
             reasons.append(ReasonCode.ROUTE_ZSK_MEDIUM_RISK)
         reasons.extend(self._third_parties())
+        if self._aml_group == "high" and self._c.aml_high_group_review:
+            self._hit(
+                "route.aml_high_risk",
+                True,
+                "высокая группа риска по 115-ФЗ — меры по снижению риска: источник средств, "
+                "документы о структуре владения и деятельности, решение уполномоченного лица",
+            )
+            reasons.append(ReasonCode.ROUTE_AML_HIGH_RISK)
         return reasons
 
     def _third_parties(self) -> list[ReasonCode]:

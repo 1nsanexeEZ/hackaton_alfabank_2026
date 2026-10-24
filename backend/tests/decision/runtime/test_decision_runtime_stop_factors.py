@@ -55,7 +55,7 @@ async def test_stop_factor_is_a_decision_without_the_model(session_factory: Sess
     assert staged.causation_id == event_id
     stored = await decision(session_factory, world.application_id)
     assert stored is not None and stored.id == made.decision_id
-    assert stored.policy_version == "policy_v8"
+    assert stored.policy_version == "policy_v9"
     assert stored.reason_codes == ("STOP_LIQUIDATION",)
     assert not any(hit.rule.startswith("strategy.") for hit in stored.rule_trace)
     record = await by_command(session_factory, event_id)
