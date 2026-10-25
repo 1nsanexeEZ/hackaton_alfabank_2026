@@ -18,9 +18,10 @@ export function sectionHref(id: SectionId): string {
 }
 
 /** Пункты навигации по лендингу — общие для шапки и футера */
+// В порядке секций на странице: калькулятор с подбором идёт раньше каталога
 export const LANDING_NAV: readonly { label: string; section: SectionId }[] = [
-  { label: 'Продукты', section: SECTION_ID.products },
   { label: 'Калькулятор', section: SECTION_ID.calculator },
+  { label: 'Продукты', section: SECTION_ID.products },
   { label: 'Как это работает', section: SECTION_ID.process },
   { label: 'Вопросы', section: SECTION_ID.faq },
 ]
