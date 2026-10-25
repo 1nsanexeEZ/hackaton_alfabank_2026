@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Check } from 'lucide-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, toRaw, watch } from 'vue'
 
-import { MATRIX_ACTIONS, PERMISSION_GROUPS, POLICY_META } from '@/entities/role'
+import { MATRIX_ACTIONS, PERMISSION_GROUPS, PERMISSION_SECTIONS, POLICY_META } from '@/entities/role'
 import { identityApi, type Permission, type Policy, type PolicyMap, type RoleDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 import { BaseButton, BaseModal, TextField, ToggleSwitch } from '@/shared/ui'
@@ -32,7 +32,8 @@ watch(open, (isOpen) => {
   form.name = props.role?.name ?? ''
   form.description = props.role?.description ?? ''
   form.permissions = new Set(props.role?.permissions ?? ['profile.update'])
-  form.policies = structuredClone(props.role?.policies ?? {})
+  // Роль приходит реактивной (ref на странице) — structuredClone не клонирует Proxy, берём исходный объект
+  form.policies = structuredClone(toRaw(props.role)?.policies ?? {})
   nameError.value = undefined
   formError.value = null
 })
@@ -176,6 +177,22 @@ async function submit() {
             </template>
           </tbody>
         </table>
+      </div>
+
+      <div class="space-y-4" :class="isAdmin && 'pointer-events-none opacity-40'">
+        <section v-for="section in PERMISSION_SECTIONS" :key="section.title">
+          <h3 class="mb-2 text-xs font-semibold tracking-wide text-ink-secondary uppercase">{{ section.title }}</h3>
+          <div class="grid gap-3 rounded-xl bg-surface-soft p-4 sm:grid-cols-2">
+            <ToggleSwitch
+              v-for="item in section.items"
+              :key="item.permission"
+              :model-value="form.permissions.has(item.permission)"
+              :label="item.label"
+              :description="item.description"
+              @update:model-value="(value) => toggle(item.permission, value)"
+            />
+          </div>
+        </section>
       </div>
     </form>
     <p v-if="formError" class="mt-4 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand" role="alert">{{ formError }}</p>

@@ -1,5 +1,6 @@
 import {
   FileSearch,
+  GitBranch,
   Inbox,
   LayoutDashboard,
   MessagesSquare,
@@ -41,6 +42,7 @@ export const ADMIN_NAVIGATION: readonly NavGroup[] = [
     items: [
       { route: ADMIN_ROUTE.products, label: 'Продукты', icon: Package, permission: 'credits.read' },
       { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'backoffice.read' },
+      { route: ADMIN_ROUTE.versions, label: 'Модель и политика', icon: GitBranch, permission: 'scoring.read' },
     ],
   },
   {

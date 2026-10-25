@@ -24,17 +24,32 @@ const state = reactive<{ items: MyApplication[] | null; loading: boolean; error:
 // Ответ старого запроса (например, до выхода из учётки) не должен перезаписать новый
 let requestId = 0
 
+const PAGE = 100
+
+/** Все строки BFF компании: страницами по 100, пока не наберём total */
+async function rowsOf(organizationId: string) {
+  const rows: ApplicationRowDto[] = []
+  for (;;) {
+    const page = await clientApi.listApplicationRows(organizationId, { limit: PAGE, offset: rows.length })
+    rows.push(...page.items)
+    if (!page.items.length || rows.length >= page.total) return rows
+  }
+}
+
 async function load(): Promise<void> {
   const id = ++requestId
   state.loading = true
   state.error = null
   try {
     // Сотрудник банка видит все компании, но не участник ни одной — у клиента только свои
-    const [all, plain] = await Promise.all([clientApi.listOrganizations(), clientApi.listApplications(100)])
+    const [all, plain] = await Promise.all([
+      clientApi.listOrganizations(),
+      clientApi.listApplications({ status: ['draft'], limit: PAGE }),
+    ])
     const organizations = all.filter((item) => item.my_role !== null)
     const lists = await Promise.all(
       organizations.map(async (organization) =>
-        (await clientApi.listApplicationRows(organization.id, 100)).items.map((row) => ({
+        (await rowsOf(organization.id)).map((row) => ({
           ...row,
           organization_id: organization.id,
           organization_name: organization.name,
@@ -43,7 +58,7 @@ async function load(): Promise<void> {
     )
     if (id !== requestId) return
     const rows: MyApplication[] = lists.flat()
-    // Модель чтения BFF строится по событиям подачи — черновиков в ней нет, берём их из GET /applications
+    // Модель чтения BFF строится по событиям подачи — черновиков в ней нет, берём их из GET /applications?status=draft
     const known = new Set(rows.map((row) => row.id))
     const names = new Map(organizations.map((organization) => [organization.id, organization.name]))
     for (const draft of plain) {

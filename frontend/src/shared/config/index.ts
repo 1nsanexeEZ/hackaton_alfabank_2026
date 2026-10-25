@@ -46,6 +46,8 @@ export const ADMIN_ROUTE = {
   supportTicket: 'admin-support-ticket',
   products: 'admin-products',
   scoring: 'admin-scoring',
+  versions: 'admin-versions',
+  version: 'admin-version',
   users: 'admin-users',
   roles: 'admin-roles',
   profile: 'admin-profile',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { PERMISSION_GROUPS, POLICY_META, roleTitle } from '@/entities/role'
+import { PERMISSION_GROUPS, PERMISSION_SECTIONS, POLICY_META, roleTitle } from '@/entities/role'
 import { session, useSession } from '@/entities/session'
 import { ProfileForm } from '@/features/edit-profile'
 import { formatDateTime } from '@/shared/lib'
@@ -19,6 +19,15 @@ const access = computed(() =>
     actions: group.items.filter((item) => isAdmin.value || me.value?.permissions.includes(item.permission)).map((item) => item.action),
     policies: me.value?.policies[group.items[0]!.permission] ?? [],
   })),
+)
+
+const extra = computed(() =>
+  PERMISSION_SECTIONS.map((section) => ({
+    title: section.title,
+    labels: section.items
+      .filter((item) => isAdmin.value || me.value?.permissions.includes(item.permission))
+      .map((item) => item.label),
+  })).filter((section) => section.labels.length),
 )
 </script>
 
@@ -58,6 +67,12 @@ const access = computed(() =>
                 <BaseBadge v-for="action in group.actions" :key="action" tone="success">{{ action }}</BaseBadge>
                 <BaseBadge v-for="policy in group.policies" :key="policy" tone="warning">{{ POLICY_META[policy].label }}</BaseBadge>
                 <span v-if="!group.actions.length" class="text-ink-muted">нет доступа</span>
+              </p>
+            </li>
+            <li v-for="section in extra" :key="section.title">
+              <p class="font-medium text-ink">{{ section.title }}</p>
+              <p class="mt-1 flex flex-wrap gap-1.5">
+                <BaseBadge v-for="item in section.labels" :key="item" tone="success">{{ item }}</BaseBadge>
               </p>
             </li>
           </ul>

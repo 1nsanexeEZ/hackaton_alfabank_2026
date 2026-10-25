@@ -68,6 +68,15 @@ export interface StaffApplicationDto {
   submitted_at: string | null
 }
 
+/** Фильтры GET /applications: status повторяется в query, decided_by — кто решил; limit до 100 */
+export interface StaffApplicationsQuery {
+  organizationId?: string
+  status?: ApplicationStatusCode[]
+  decidedBy?: 'auto' | 'underwriter'
+  limit?: number
+  offset?: number
+}
+
 export interface QueuePageDto {
   items: QueueItemDto[]
   total: number
@@ -625,7 +634,7 @@ export interface BackofficeApi {
   /** Схема маршрута — BPMN 2.0 XML */
   workflowDiagram(code: string): Promise<string>
   /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
-  applications(query?: { limit?: number; offset?: number }): Promise<StaffApplicationDto[]>
+  applications(query?: StaffApplicationsQuery): Promise<StaffApplicationDto[]>
   /** Сотрудник видит все компании банка */
   organizations(): Promise<OrganizationSummaryDto[]>
   organization(organizationId: string): Promise<OrganizationDetailDto>
@@ -669,4 +678,177 @@ export interface BackofficeApi {
   replySupportTicket(id: string, text: string): Promise<SupportTicketDto>
   resolveSupportTicket(id: string): Promise<SupportTicketDto>
   closeSupportTicketByStaff(id: string): Promise<SupportTicketDto>
+  /** Версии PD-модели: читать и примерять — scoring.read, вести — scoring.update */
+  scoringModels: VersionsApi<ModelCatalogDto, ModelPreviewDto>
+  /** Версии кредитной политики: права те же, что у версий PD-модели */
+  decisionPolicies: VersionsApi<PolicyCatalogDto, PolicyPreviewDto>
+}
+
+/**
+ * Версии PD-модели (/scoring/models) и кредитной политики (/decision/policies) устроены одинаково:
+ * встроенная версия из YAML только читается, версии админа — `<встроенная>.<n>`, draft → active → archived.
+ * Черновик — копия любой версии; править и удалять можно только его. Активировать черновик или архивную —
+ * это и откат; активировать встроенную — вернуть YAML (docs/modules/scoring.md, decision.md)
+ */
+export type VersionStatus = 'draft' | 'active' | 'archived'
+
+export interface VersionSummaryDto {
+  version: string
+  status: VersionStatus
+  builtin: boolean
+  based_on: string | null
+  comment: string | null
+  created_by: string | null
+  created_at: string | null
+  updated_at: string | null
+  activated_by: string | null
+  activated_at: string | null
+}
+
+/** Документ версии — тот же YAML в JSON: Decimal строками, пустые поля опущены */
+export type VersionBody = Record<string, unknown>
+
+export interface VersionDto extends VersionSummaryDto {
+  body: VersionBody
+}
+
+/** Ошибка документа из 422 (details.errors): путь в документе и текст */
+export interface VersionBodyError {
+  path: string
+  message: string
+}
+
+export interface VersionsApi<Catalog, Preview> {
+  /** Встроенная первой, затем версии админа; без body */
+  list(): Promise<VersionSummaryDto[]>
+  /** Из чего собирается документ */
+  catalog(): Promise<Catalog>
+  get(version: string): Promise<VersionDto>
+  /** Черновик-копия версии based_on; нет такой — 404 */
+  createDraft(input: { based_on: string; comment?: string }): Promise<VersionDto>
+  /** Документ целиком; comment не прислали — остаётся прежний. 422 — details.errors, 409 — не черновик */
+  updateDraft(version: string, input: { body: VersionBody; comment?: string }): Promise<VersionDto>
+  /** Только черновик, иначе 409 */
+  deleteDraft(version: string): Promise<void>
+  /** Черновик или архивная → активная; встроенная — вернуть YAML. Уже активна — 409 */
+  activate(version: string): Promise<VersionDto>
+  /** Пересчитать последние заявки версией-кандидатом, ничего не пишет; limit 1–500 */
+  preview(version: string, limit?: number): Promise<Preview>
+}
+
+export interface ModelFeatureInfoDto {
+  code: string
+  /** numeric — интервальные бины [from; to), categorical — бины категорий */
+  kind: 'numeric' | 'categorical'
+  /** Категории, у каждой из которых обязан быть бин */
+  categories: string[]
+  /** Обязателен в скоркарте каждого сегмента */
+  required: boolean
+}
+
+export interface ModelCatalogDto {
+  builtin: string
+  segments: string[]
+  features: ModelFeatureInfoDto[]
+  /** Грейды с верхней границей PD, по возрастанию */
+  grades: Grade[]
+  /** PD выше границы последнего грейда */
+  worst_grade: Grade
+  industry_sections: string[]
+}
+
+export interface CodeNameDto {
+  code: string
+  name: string
+}
+
+export interface PolicyReasonDto {
+  code: string
+  /** Что клиент увидит в решении */
+  text: string
+  hint: string | null
+}
+
+export interface PolicyCatalogDto {
+  builtin: string
+  legacy_scale: Grade[]
+  pd_scale: Grade[]
+  outcomes: CodeNameDto[]
+  /** Коды причин с текстами для клиента; код без текста в документе — 422 */
+  reasons: PolicyReasonDto[]
+  stop_factors: string[]
+  registry_statuses: string[]
+  routing_flags: string[]
+  zones: string[]
+  zone_verdicts: string[]
+  zsk_levels: string[]
+  legal_forms: string[]
+  collateral_types: CodeNameDto[]
+  products: CodeNameDto[]
+}
+
+export interface VersionShiftDto {
+  from: string
+  to: string
+  count: number
+}
+
+export interface ModelEstimateDto {
+  score: number
+  pd_12m: string | null
+  grade: Grade
+  segment: string | null
+  model_version: string
+}
+
+export interface ModelPreviewItemDto {
+  application_id: string
+  result_id: string
+  computed_at: string
+  /** Как посчитано тогда своей версией модели */
+  before: ModelEstimateDto
+  /** Как посчитала бы примеряемая версия */
+  after: ModelEstimateDto
+}
+
+export interface ModelPreviewDto {
+  version: string
+  total: number
+  same: number
+  better: number
+  worse: number
+  /** Снимок входа не прочитан */
+  skipped: number
+  /** Переходы грейдов, только непустые */
+  transitions: VersionShiftDto[]
+  items: ModelPreviewItemDto[]
+}
+
+export interface PolicyVerdictDto {
+  outcome: 'APPROVE' | 'COUNTER_OFFER' | 'REQUEST_INFO' | 'MANUAL_REVIEW' | 'REJECT'
+  reason_codes: string[]
+  policy_version: string
+}
+
+export interface PolicyPreviewItemDto {
+  application_id: string
+  /** Сохранённое автоматическое решение */
+  result_id: string
+  decided_at: string
+  before: PolicyVerdictDto
+  /** Как решила бы примеряемая версия на текущих данных заявки */
+  after: PolicyVerdictDto
+}
+
+export interface PolicyPreviewDto {
+  version: string
+  total: number
+  /** Другой исход или другие коды причин */
+  changed: number
+  outcome_changed: number
+  /** Вход не собрать: заявки или продукта уже нет */
+  skipped: number
+  /** Переходы исходов, только непустые */
+  transitions: VersionShiftDto[]
+  items: PolicyPreviewItemDto[]
 }
