@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 
@@ -13,6 +14,10 @@ from tests.helpers import create_schema
 
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "Admin-password-1"
+
+# Expected rates are the catalog ones: the key rate equals the catalog key rate, nothing moves.
+# Rates following the key rate are tested on their own (tests/products/unit/test_key_rate.py).
+os.environ["KEY_RATE"] = "16.50"
 
 
 @pytest.fixture

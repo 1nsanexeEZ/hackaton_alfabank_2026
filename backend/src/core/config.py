@@ -1,7 +1,9 @@
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,6 +46,13 @@ class Settings(BaseSettings):
 
     # Periodic jobs of modules (offer expiry...); off in tests, they call jobs directly.
     run_background_jobs: bool = True
+
+    # The Bank of Russia key rate, % per year: the funding part of the offered rate. Check it
+    # against cbr.ru (14.00 — the decision of 23.10.2026).
+    key_rate: Decimal = Field(default=Decimal("14.00"), ge=0, le=100)
+    # The key rate the catalog rates are set at (seeds, admin). Clients get the rate range and
+    # the support program cap moved by key_rate − catalog_key_rate.
+    catalog_key_rate: Decimal = Field(default=Decimal("16.50"), ge=0, le=100)
 
     # Demo organizations, accounts and products from docs (idempotent).
     seed_demo_data: bool = False

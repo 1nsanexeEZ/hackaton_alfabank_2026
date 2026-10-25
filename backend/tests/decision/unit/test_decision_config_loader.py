@@ -12,7 +12,6 @@ from typing import Any
 import pytest
 import yaml
 
-from src.modules.decision.config import DecisionSettings
 from src.modules.decision.domain.model import ReasonCode
 from src.modules.decision.facade import ClientDecisionDTO, DecisionDTO
 from src.modules.decision.infrastructure.config_loader import (
@@ -193,18 +192,6 @@ def test_invalid_v2_thresholds_are_rejected(
 ) -> None:
     with pytest.raises(PolicyConfigError):
         _load(tmp_path, policy=breaks, version="policy_v2")
-
-
-def test_default_key_rate_matches_policy_reference(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Каталог откалиброван под опорную ставку: по умолчанию ставки не сдвигаются."""
-    monkeypatch.delenv("DECISION_KEY_RATE", raising=False)
-    settings = DecisionSettings(_env_file=None)  # type: ignore[call-arg]
-    assert settings.key_rate == default_policy().config.key_rate_reference
-
-
-def test_key_rate_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DECISION_KEY_RATE", "18.25")
-    assert DecisionSettings(_env_file=None).key_rate == Decimal("18.25")  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(

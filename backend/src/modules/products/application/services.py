@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from src.core.config import Settings
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError, ValidationError
 from src.modules.products.application.ports import ProductRepository
@@ -17,22 +18,28 @@ from src.modules.products.domain.value_objects import (
 
 
 class ProductService:
+    """Products as clients and other modules see them: rates follow the key rate by
+    `rate_shift` (`rate_shift_of`). Keeping the catalog (`ProductCatalog`) sees the stored
+    rates."""
+
     def __init__(
         self,
         products: ProductRepository,
         calculator: PaymentCalculator | None = None,
         recommender: ProductRecommender | None = None,
+        rate_shift: Decimal = Decimal(0),
     ) -> None:
         self._products = products
         self._calculator = calculator or PaymentCalculator()
         self._recommender = recommender or ProductRecommender(self._calculator)
+        self._shift = rate_shift
 
     async def get(self, code: str) -> CreditProduct:
         """Active or archived; a draft is not published yet."""
         product = await self._products.get_current(code)
         if product is None or product.status == ProductStatus.DRAFT:
             raise NotFoundError("Product not found", details={"code": code})
-        return product
+        return product.at_key_rate(self._shift)
 
     async def get_selectable(self, code: str) -> CreditProduct:
         product = await self.get(code)
@@ -41,7 +48,9 @@ class ProductService:
 
     async def list_active(self, purpose: str | None = None) -> list[CreditProduct]:
         products = await self._products.list_active()
-        return [p for p in products if purpose is None or p.serves(purpose)]
+        return [
+            p.at_key_rate(self._shift) for p in products if purpose is None or p.serves(purpose)
+        ]
 
     async def terms_snapshot(self, code: str) -> ProductTerms:
         return (await self.get(code)).snapshot()
@@ -89,6 +98,11 @@ class ProductService:
         self, amount: Money, term_months: int, rate: Decimal, repayment: str
     ) -> PaymentSchedule:
         return self._calculator.schedule(amount, term_months, rate, repayment)
+
+
+def rate_shift_of(settings: Settings) -> Decimal:
+    """How far the catalog rates move: the key rate now minus the one they are set at."""
+    return settings.key_rate - settings.catalog_key_rate
 
 
 def _out_of_range(field: str, low: Decimal | int, high: Decimal | int) -> ValidationError:
