@@ -3,9 +3,9 @@ import { computed } from 'vue'
 
 import { useSession } from '@/entities/session'
 import { AdminPageHeader } from '@/widgets/admin-layout'
-import { BackofficeOverview } from '@/widgets/backoffice-overview'
+import { ApplicationsBoard } from '@/widgets/applications-board'
 
-/** Обзор в режиме real: метрики и очередь с бэкенда */
+/** Обзор: панель модулей с графиками — заявки, метрики и очередь с бэкенда */
 const { me } = useSession()
 
 const greeting = computed(() => {
@@ -15,6 +15,6 @@ const greeting = computed(() => {
 </script>
 
 <template>
-  <AdminPageHeader :title="greeting" description="Кредитный конвейер: поданные заявки, авторешения и очередь специалиста" />
-  <BackofficeOverview />
+  <AdminPageHeader :title="greeting" description="Кредитный конвейер в графиках: воронка, поток решений, очередь специалиста, продукты и скоринг" />
+  <ApplicationsBoard />
 </template>
