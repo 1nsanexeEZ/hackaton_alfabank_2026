@@ -9,11 +9,18 @@ import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
  * На телефоне панель во всю ширину и начинается ниже полосы фона, на остальных экранах — справа на всю высоту.
  * Закрытие тоже анимировано: перед уходом область фона получает атрибут `data-leaving`, и декор в слоте
  * уходит вместе с панелью. Атрибут, а не пропс: компоненты внутри уходящей панели Vue уже не перерисовывает.
+ * `exit` — как уйти: `close` — обычное закрытие; `handoff` — декор забирает анимация снаружи (свой гаснет
+ * сразу), панель уезжает (на телефоне — вниз); `handoff-dark` — то же, но размытие не гаснет, а доходит
+ * до непрозрачного тёмного, чтобы под ним можно было сменить страницу.
  */
-withDefaults(defineProps<{ title: string; description?: string; eyebrow?: string }>(), {
-  description: undefined,
-  eyebrow: undefined,
-})
+const props = withDefaults(
+  defineProps<{ title: string; description?: string; eyebrow?: string; exit?: 'close' | 'handoff' | 'handoff-dark' }>(),
+  {
+    description: undefined,
+    eyebrow: undefined,
+    exit: 'close',
+  },
+)
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -28,6 +35,7 @@ function close() {
 }
 
 function markLeaving(el: Element) {
+  if (props.exit !== 'close') el.setAttribute('data-exit', props.exit)
   el.querySelector('.drawer__decor')?.setAttribute('data-leaving', '')
 }
 
@@ -184,5 +192,39 @@ onBeforeUnmount(() => {
 .drawer-enter-from .drawer__panel,
 .drawer-leave-to .drawer__panel {
   transform: translateX(100%);
+}
+
+/* Декор передан анимации входа: она ставит на места букв свои копии, свои буквы гасим в тот же кадр */
+.drawer[data-exit] .drawer__decor {
+  visibility: hidden;
+}
+
+/* handoff-dark: размытие не гаснет, а темнеет до непрозрачного — под ним меняется страница */
+.drawer__backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-night);
+  opacity: 0;
+  transition: opacity 400ms ease 40ms;
+}
+
+.drawer[data-exit='handoff-dark'] .drawer__backdrop::after {
+  opacity: 1;
+}
+
+.drawer-leave-active[data-exit='handoff-dark'] .drawer__backdrop {
+  transition: none;
+}
+
+.drawer-leave-to[data-exit='handoff-dark'] .drawer__backdrop {
+  opacity: 1;
+}
+
+/* На телефоне панель снизу — и уходит вниз */
+@media (width < 40rem) {
+  .drawer-leave-to[data-exit] .drawer__panel {
+    transform: translateY(100%);
+  }
 }
 </style>

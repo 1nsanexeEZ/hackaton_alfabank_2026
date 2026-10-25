@@ -8,8 +8,16 @@
  * Положения детерминированы: картинка одна и та же при каждом открытии.
  * Когда предок помечен `data-leaving` (так BaseDrawer помечает фон при закрытии), буквы улетают
  * обратно в глубину (3D) или схлопываются (плоско).
+ * `snapshot()` отдаёт, где и какими буквы видны сейчас: по нему анимация входа подменяет их своими копиями.
  */
+import { ref } from 'vue'
+
+import type { LetterSnapshot } from './letters'
+
 withDefaults(defineProps<{ glyph?: string }>(), { glyph: 'А' })
+
+/** Перспектива сцены, px — та же, что в стилях `.letters` */
+const PERSPECTIVE = 1000
 
 type Tone = 'red' | 'white' | 'ghost'
 
@@ -87,12 +95,40 @@ const letters = SPOTS.map((spot, i) => {
     },
   }
 })
+
+const glyphs = ref<HTMLElement[]>([])
+
+/**
+ * Где и какими буквы видны в эту секунду. Размер — видимый: на широком экране буква ближе или дальше
+ * по глубине и кажется крупнее или мельче своего кегля (поправка — по перспективе сцены).
+ */
+function snapshot(): LetterSnapshot[] {
+  const deep = window.matchMedia('(width >= 64rem)').matches
+  return glyphs.value.map((el) => {
+    const rect = el.getBoundingClientRect()
+    const own = getComputedStyle(el)
+    const drift = el.parentElement ? getComputedStyle(el.parentElement) : null
+    const depth = deep ? Number.parseFloat(own.getPropertyValue('--depth')) || 0 : 0
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+      size: Number.parseFloat(own.fontSize) * (PERSPECTIVE / (PERSPECTIVE - depth)),
+      rotate: Number.parseFloat(own.getPropertyValue('--tilt')) || 0,
+      color: own.color,
+      shadow: own.textShadow,
+      opacity: Number(own.opacity) * Number(drift?.opacity ?? 1),
+      filter: drift?.filter ?? 'none',
+    }
+  })
+}
+
+defineExpose({ snapshot })
 </script>
 
 <template>
   <div class="letters" aria-hidden="true">
     <span v-for="letter in letters" :key="letter.key" class="letters__drift" :style="letter.driftStyle">
-      <span :class="['letters__glyph', `is-${letter.tone}`]" :style="letter.glyphStyle">{{ glyph }}</span>
+      <span ref="glyphs" :class="['letters__glyph', `is-${letter.tone}`]" :style="letter.glyphStyle">{{ glyph }}</span>
     </span>
   </div>
 </template>
