@@ -151,6 +151,27 @@ async def test_queue_status_filter_and_pages(
     assert done.total == closed.total == 1
 
 
+async def test_queue_has_one_row_per_application_its_latest_task(
+    store: OpenStore, facade: OpenFacade
+) -> None:
+    returned, decided = uuid4(), uuid4()
+    done = {"status": "done", "source_version": task_stage("done")}
+    old_round = queue_item(application_id=returned, **done)
+    new_round = queue_item(application_id=returned, created_at=T0 + timedelta(minutes=5))
+    first = queue_item(application_id=decided, **done)
+    second = queue_item(application_id=decided, created_at=T0 + timedelta(minutes=5), **done)
+    async with store() as s:
+        for item in (old_round, new_round, first, second):
+            await s.save_queue_item(item)
+
+    async with facade() as projector:
+        waiting = await projector.get_underwriting_queue("underwriter")
+        closed = await projector.get_underwriting_queue("underwriter", status="closed")
+
+    assert waiting.total == 1 and [i.task_id for i in waiting.items] == [new_round.task_id]
+    assert closed.total == 1 and [i.task_id for i in closed.items] == [second.task_id]
+
+
 async def test_queue_overdue_is_computed_with_the_clock(
     queue: dict[str, QueueItem], facade: OpenFacade, clock: FrozenClock
 ) -> None:
