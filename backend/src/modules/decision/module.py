@@ -53,6 +53,7 @@ from src.modules.decision.infrastructure.repository import (
 from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
 from src.modules.decision.jobs import run_pre_approval_refresh
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -62,13 +63,13 @@ NAME = "decision"
 @dataclass(frozen=True)
 class _Runtime:
     policies: PolicyProvider
-    key_rate: Decimal
     settings: DecisionSettings
 
 
 # Встроенная политика грузится один раз на процесс (невалидный YAML → приложение не стартует).
 # Решают активной версией админа из БД или встроенной: провайдер спрашивает БД на каждую команду,
-# событие и проход ночного пакета. Ключевая ставка — KEY_RATE, ночной пакет — DECISION_*.
+# событие и проход ночного пакета. Ключевая ставка — действующая по истории модуля market (так же
+# на каждую команду и проход), ночной пакет — DECISION_*.
 _runtime: _Runtime | None = None
 
 
@@ -83,8 +84,7 @@ def wire(app: FastAPI) -> None:
     global _runtime
     settings = DecisionSettings()
     default_policy()  # невалидный YAML → не стартуем
-    key_rate = app.state.settings.key_rate
-    _runtime = _Runtime(ActivePolicyProvider(CreditPolicyDocuments()), key_rate, settings)
+    _runtime = _Runtime(ActivePolicyProvider(CreditPolicyDocuments()), settings)
     # Ручкам — тот же провайдер: собранные версии кэшируются один раз на процесс.
     app.state.decision_policies = _runtime.policies
     clock = app.state.clock
@@ -101,9 +101,7 @@ async def startup(app: FastAPI) -> None:
         SqlAlchemyPreApprovalTransaction, app.state.session_factory, app.state.facades, clock
     )
     # Активную политику пакет берёт на каждом проходе, а не один раз при старте.
-    use_case = RefreshExpiringPreApprovedUseCase(
-        transactions, current.policies, clock, current.key_rate
-    )
+    use_case = RefreshExpiringPreApprovedUseCase(transactions, current.policies, clock)
     stop = asyncio.Event()
     task = asyncio.create_task(
         run_pre_approval_refresh(
@@ -137,8 +135,12 @@ async def _policy(ctx: HandlerContext) -> CreditPolicy:
     return await _current().policies.active(SqlAlchemyPolicyVersionRepository(ctx.session))
 
 
+async def _key_rate(ctx: HandlerContext) -> Decimal:
+    """Ключевая ставка на эту команду или событие — одна строка в БД."""
+    return (await ctx.facade(MarketFacade).key_rate()).value
+
+
 async def _pre_approval(ctx: HandlerContext) -> RecalculatePreApprovedUseCase:
-    current = _current()
     return RecalculatePreApprovedUseCase(
         SqlAlchemyPreApprovedOfferRepository(ctx.session),
         await _policy(ctx),
@@ -146,7 +148,7 @@ async def _pre_approval(ctx: HandlerContext) -> RecalculatePreApprovedUseCase:
         ctx.facade(ProductsFacade),
         ctx.facade(ScoringFacade),
         ctx.clock,
-        current.key_rate,
+        await _key_rate(ctx),
     )
 
 
@@ -164,11 +166,11 @@ def _builder(ctx: HandlerContext, policy: CreditPolicy) -> DecisionInputBuilder:
 async def _on_command(
     ctx: HandlerContext, payload: CheckStopFactors | MakeDecision | RecordManualDecision
 ) -> None:
-    current = _current()
     # Каждая команда — активной версией на момент обработки: если политику активировали между
     # CheckStopFactors и MakeDecision одной заявки, они пройдут на разных версиях (она видна в
     # `policy_version` результата).
     policy = await _policy(ctx)
+    key_rate = await _key_rate(ctx)
     repository = SqlAlchemyDecisionRepository(ctx.session)
     products = ctx.facade(ProductsFacade)
     event_id = ctx.envelope.event_id
@@ -178,12 +180,12 @@ async def _on_command(
             policy,
             _builder(ctx, policy),
             ctx.clock,
-            current.key_rate,
+            key_rate,
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
     elif isinstance(payload, MakeDecision):
         builder = _builder(ctx, policy)
         await MakeDecisionUseCase(
-            repository, policy, builder, products, ctx.clock, current.key_rate
+            repository, policy, builder, products, ctx.clock, key_rate
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
     else:
         await RecordManualDecisionUseCase(
@@ -192,7 +194,7 @@ async def _on_command(
             ctx.facade(ApplicationsFacade),
             products,
             ctx.clock,
-            current.key_rate,
+            key_rate,
         ).execute(payload, command_event_id=event_id, outbox=ctx.outbox)
 
 

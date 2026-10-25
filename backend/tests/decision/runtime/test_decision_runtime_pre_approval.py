@@ -32,12 +32,14 @@ from src.modules.decision.infrastructure.config_loader import (
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
 from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
+from src.modules.market.facade import MarketFacade
 from src.modules.products.application.borrowers import borrower_profile
 from src.modules.products.application.mappers import check_dto, product_dto
 from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO, ProductsFacade
 from src.modules.scoring.facade import EstimateDTO, ScoringFacade
 from tests.fakes import builders
 from tests.fakes.clients_facade import FakeClientsFacade
+from tests.fakes.market_facade import FakeMarketFacade
 from tests.fakes.messaging import FakeOutboxWriter
 from tests.fakes.products_facade import FakeProductsFacade
 from tests.fakes.scoring_facade import FakeScoringFacade
@@ -255,10 +257,11 @@ def _refresh(sessions: Sessions, world: _World) -> RefreshExpiringPreApprovedUse
     facades.register(ClientsFacade, lambda _session: world.clients)
     facades.register(ProductsFacade, lambda _session: world.products)
     facades.register(ScoringFacade, lambda _session: world.scoring)
+    facades.register(MarketFacade, lambda _session: FakeMarketFacade(KEY_RATE))
     clock = FrozenClock(NOW)
     transactions = partial(SqlAlchemyPreApprovalTransaction, sessions, facades, clock)
     policies = ActivePolicyProvider(CreditPolicyDocuments())
-    return RefreshExpiringPreApprovedUseCase(transactions, policies, clock, KEY_RATE)
+    return RefreshExpiringPreApprovedUseCase(transactions, policies, clock)
 
 
 async def _published(sessions: Sessions) -> list[dict[str, Any]]:

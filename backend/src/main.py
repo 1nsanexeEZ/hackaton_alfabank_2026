@@ -20,6 +20,7 @@ from src.modules.clients import module as clients_module
 from src.modules.decision import module as decision_module
 from src.modules.enrichment import module as enrichment_module
 from src.modules.identity import module as identity_module
+from src.modules.market import module as market_module
 from src.modules.notifications import module as notifications_module
 from src.modules.process import module as process_module
 from src.modules.products import module as products_module
@@ -30,6 +31,7 @@ from src.modules.support import module as support_module
 # Explicit list: no discovery by string. Each module owns only its module.py.
 MODULES = (
     identity_module,
+    market_module,
     products_module,
     clients_module,
     applications_module,

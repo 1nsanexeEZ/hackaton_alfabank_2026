@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Protocol
 
 from src.modules.products.domain.product import CreditProduct
@@ -30,4 +31,10 @@ class ProductRepository(Protocol):
 
     async def delete(self, product: CreditProduct) -> None:
         """Only a draft: nothing refers to it yet."""
+        ...
+
+
+class KeyRates(Protocol):
+    async def current(self) -> Decimal:
+        """The key rate in force today, % a year (the market module)."""
         ...

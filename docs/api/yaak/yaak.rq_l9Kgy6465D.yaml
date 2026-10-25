@@ -1,0 +1,27 @@
+type: http_request
+model: http_request
+id: rq_l9Kgy6465D
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_ji3qMW82IV
+name: Удалить будущую ставку
+description: |-
+  Only a rate not in force yet or from today: one that has been in force is history —
+  409 `invalid_transition`. No such rate — 404.
+
+  Токен: администратор.
+method: DELETE
+url: ${[ base_url ]}/market/key-rates/:effective_from
+urlParameters:
+- enabled: true
+  name: :effective_from
+  value: '2030-01-01'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

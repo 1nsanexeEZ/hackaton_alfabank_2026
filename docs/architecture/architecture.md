@@ -113,6 +113,7 @@ flowchart TB
         Clients["clients<br/>компании, участники,<br/>права, доверенности,<br/>отчётность, бизнес-план"]
         Products["products<br/>каталог, подбор,<br/>калькулятор, eligibility"]
         Enrichment["enrichment<br/>адаптеры источников,<br/>снимок на заявку,<br/>кассовый разрыв, 115-ФЗ"]
+        Market["market<br/>ключевая ставка<br/>и её история"]
     end
     subgraph generic["Общие"]
         Identity["identity<br/>учётки, роли, JWT,<br/>согласия"]
@@ -133,7 +134,8 @@ flowchart TB
     Kafka -->|enrichment.events| Scoring & Clients
     Process -.->|фасады: факты заявки| Applications & Clients & Identity
     Scoring -.->|фасады| Applications & Enrichment
-    Decision -.->|фасады| Applications & Enrichment & Scoring & Clients & Products
+    Decision -.->|фасады| Applications & Enrichment & Scoring & Clients & Products & Market
+    Products -.->|фасад: ключевая| Market
     Applications -.->|фасады| Clients & Products & Identity
 ```
 
@@ -144,7 +146,7 @@ flowchart TB
 | Тип | Модули | Почему |
 |---|---|---|
 | **Ядро** (core domain) | `decision`, `scoring`, `process`, `applications` | то, ради чего система: решение по кредиту за минуты, объяснимое и с доказуемым путём |
-| **Поддерживающие** | `clients`, `products`, `enrichment` | нужны ядру, своя логика есть, но не уникальна |
+| **Поддерживающие** | `clients`, `products`, `enrichment`, `market` | нужны ядру, своя логика есть, но не уникальна |
 | **Общие** (generic) | `identity`, `notifications`, `support` | типовые задачи, сделаны просто и надёжно |
 | **Края** | `bff`, `projector`, `assistant` | не владеют бизнес-данными: собирают ответы под экраны, модели чтения и ответы помощника (у помощника — только история диалогов) |
 | **Shared kernel** | `core` | инфраструктура обмена и доступа, которую разделяют все; про модули не знает (контракт import-linter) |
@@ -155,6 +157,7 @@ flowchart TB
 |---|---|---|---|
 | `identity` | Account, Profile, Role, Consent | пермишн, политика (`own_only`, `org_member`), step-up | [identity.md](../identity.md) |
 | `clients` | Organization (Members, PowerOfAttorney, FinancialReport, BusinessPlan) | право в компании (`submit_application`, `sign`), полномочие (`registry` / доверенность), сверка с ЕГРЮЛ | [clients.md](../modules/clients.md) |
+| `market` | KeyRate | ключевая ставка, дата начала действия, история | [market.md](../modules/market.md) |
 | `products` | CreditProduct | коридор ставки, профиль рассмотрения, eligibility, лимит авторешения | [products.md](../modules/products.md) |
 | `applications` | **CreditApplication** (Documents, InfoRequest, Offer, Signature, ContractDocument, SigningEvent) | единственный владелец статуса, `offer_hash`, УИд, журнал подписания | [applications.md](../modules/applications.md), [state-machine.md](../state-machine.md) |
 | `process` | ProcessInstance, StepExecution, UserTask, WorkflowDefinition | узел, шлюз, токен ожидания, `causation_id`, эскалация | [process.md](../modules/process.md), [bpmn.md](../process/bpmn.md) |

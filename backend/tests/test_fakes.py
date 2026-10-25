@@ -15,6 +15,7 @@ from src.modules.clients.facade import ClientsFacade, OrgPermission
 from src.modules.decision.facade import DecisionFacade
 from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.identity.facade import IdentityFacade
+from src.modules.market.facade import MarketFacade
 from src.modules.notifications.facade import NotificationsFacade
 from src.modules.process.facade import ProcessFacade
 from src.modules.products.facade import ProductsFacade
@@ -26,6 +27,7 @@ from tests.fakes.clients_facade import FakeClientsFacade
 from tests.fakes.decision_facade import FakeDecisionFacade
 from tests.fakes.enrichment_facade import FakeEnrichmentFacade
 from tests.fakes.identity_facade import FakeIdentityFacade
+from tests.fakes.market_facade import FakeMarketFacade
 from tests.fakes.notifications_facade import FakeNotificationsFacade
 from tests.fakes.process_facade import FakeProcessFacade
 from tests.fakes.products_facade import FakeProductsFacade
@@ -44,6 +46,7 @@ PAIRS: list[tuple[type[Any], type[Any]]] = [
     (DecisionFacade, FakeDecisionFacade),
     (NotificationsFacade, FakeNotificationsFacade),
     (ProjectorFacade, FakeProjectorFacade),
+    (MarketFacade, FakeMarketFacade),
 ]
 
 
