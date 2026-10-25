@@ -72,20 +72,18 @@ const stats = computed(() => heroStats(props.products))
 
 <style scoped>
 /*
- * Hero занимает весь первый экран. Следующая секция наезжает на него
- * скруглённым листом на --r, поэтому добавляем эту высоту сверх экрана.
+ * Hero занимает весь первый экран под шапкой. Высоту, на которую наезжает следующий лист,
+ * добавляет сам лист лендинга (LandingSheet) своим отступом снизу.
  */
 .hero {
-  --r: 2.5rem;
   /* Высота шапки */
   --header: 4rem;
 
-  min-height: calc(100dvh - var(--header) + var(--r));
+  min-height: calc(100dvh - var(--header));
 }
 
 @media (width >= 64rem) {
   .hero {
-    --r: var(--radius-sheet);
     --header: 4.5rem;
   }
 }
