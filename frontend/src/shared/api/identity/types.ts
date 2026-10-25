@@ -30,6 +30,10 @@ export type Permission =
   | 'tasks.read'
   | 'tasks.update'
   | 'decisions.read'
+  /** Версии PD-модели и кредитной политики: читать и примерять */
+  | 'scoring.read'
+  /** Вести версии: черновики, правка, активация и откат */
+  | 'scoring.update'
   | 'backoffice.read'
   | 'feed.read'
   | 'support.read'

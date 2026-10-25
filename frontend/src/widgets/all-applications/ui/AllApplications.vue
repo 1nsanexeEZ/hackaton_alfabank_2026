@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { ChevronRight } from 'lucide-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useProductCatalog } from '@/entities/credit-product'
 import { backofficeApi, type ApplicationStatusCode, type StaffApplicationDto } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
 import { errorMessage, formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
-import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl, type BadgeTone } from '@/shared/ui'
+import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl, SelectField, type BadgeTone } from '@/shared/ui'
 
 /**
  * Все заявки банка для сотрудника (GET /applications с токеном сотрудника): и черновики — клиент ещё
  * выбирает условия и проходит предскоринг, — и решённые автоматикой, которых нет в очереди задач.
- * Строка ведёт в карточку со схемой маршрута. Фильтра по группам статусов в API нет — фильтруем
- * загруженное; страница по 100, «Показать ещё» догружает следующую.
+ * Строка ведёт в карточку со схемой маршрута. Фильтрует бэкенд: группа статусов (status повторяется),
+ * кто решил (decided_by) и компания; страница по 100, «Показать ещё» догружает следующую.
  */
 const PAGE = 100
 
@@ -49,6 +49,21 @@ const GROUP_STATUSES: Record<Exclude<Group, 'all'>, readonly ApplicationStatusCo
 
 const group = ref<Group>('all')
 
+type DecidedBy = 'any' | 'auto' | 'underwriter'
+const DECIDED_BY: readonly { value: DecidedBy; label: string }[] = [
+  { value: 'any', label: 'Кто угодно' },
+  { value: 'auto', label: 'Автоматика' },
+  { value: 'underwriter', label: 'Андеррайтер' },
+]
+const decidedBy = ref<DecidedBy>('any')
+
+const organizationId = ref('')
+const organizations = ref<{ value: string; label: string }[]>([])
+backofficeApi
+  .organizations()
+  .then((list) => (organizations.value = [{ value: '', label: 'Все компании' }, ...list.map((item) => ({ value: item.id, label: `${item.name} · ${item.inn}` }))]))
+  .catch(() => undefined)
+
 const items = ref<StaffApplicationDto[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -58,7 +73,13 @@ async function load(append = false) {
   loading.value = true
   error.value = null
   try {
-    const page = await backofficeApi.applications({ limit: PAGE, offset: append ? items.value.length : 0 })
+    const page = await backofficeApi.applications({
+      status: group.value === 'all' ? undefined : [...GROUP_STATUSES[group.value]],
+      decidedBy: decidedBy.value === 'any' ? undefined : decidedBy.value,
+      organizationId: organizationId.value || undefined,
+      limit: PAGE,
+      offset: append ? items.value.length : 0,
+    })
     items.value = append ? [...items.value, ...page] : page
     more.value = page.length === PAGE
   } catch (caught) {
@@ -68,10 +89,7 @@ async function load(append = false) {
   }
 }
 void load()
-
-const shown = computed(() =>
-  group.value === 'all' ? items.value : items.value.filter((item) => GROUP_STATUSES[group.value as Exclude<Group, 'all'>].includes(item.status)),
-)
+watch([group, decidedBy, organizationId], () => void load())
 
 /** Названия компаний — по одной загрузке на компанию за сессию списка */
 const companies = reactive<Record<string, { name: string; inn: string } | null>>({})
@@ -98,16 +116,18 @@ const productTitle = (code: string) => products.value?.find((product) => product
   <PanelCard flush>
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
       <SegmentedControl v-model="group" :options="GROUPS" label="Какие заявки показать" />
-      <p v-if="items.length" class="text-sm text-ink-secondary">
-        Показано {{ shown.length }} из {{ items.length }}{{ more ? '+' : '' }}
-      </p>
+      <p v-if="items.length" class="text-sm text-ink-secondary">Показано {{ items.length }}{{ more ? '+' : '' }}</p>
+    </div>
+    <div class="flex flex-wrap gap-3 border-b border-line px-4 py-3">
+      <SelectField v-model="decidedBy" class="w-48" label="Кто решил" :options="DECIDED_BY" dense />
+      <SelectField v-if="organizations.length" v-model="organizationId" class="min-w-64 flex-1 sm:max-w-md" label="Компания" :options="organizations" dense />
     </div>
 
     <AsyncState
       :loading="loading && !items.length"
       :error="items.length ? null : error"
-      :empty="!shown.length"
-      :empty-text="items.length ? 'Заявок с таким статусом нет' : 'Заявок пока нет'"
+      :empty="!items.length"
+      :empty-text="group === 'all' && decidedBy === 'any' && !organizationId ? 'Заявок пока нет' : 'Таких заявок нет'"
       @retry="load()"
     >
       <div class="overflow-x-auto">
@@ -123,7 +143,7 @@ const productTitle = (code: string) => products.value?.find((product) => product
             </tr>
           </thead>
           <tbody class="divide-y divide-line">
-            <tr v-for="item in shown" :key="item.id" class="transition-colors hover:bg-surface-soft">
+            <tr v-for="item in items" :key="item.id" class="transition-colors hover:bg-surface-soft">
               <td class="px-4 py-3">
                 <RouterLink :to="{ name: ADMIN_ROUTE.application, params: { id: item.id } }" class="font-semibold text-ink hover:text-brand">
                   {{ item.number }}

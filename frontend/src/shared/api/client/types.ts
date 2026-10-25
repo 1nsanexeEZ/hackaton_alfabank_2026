@@ -421,6 +421,12 @@ export interface ApplicationRowDto {
   updated_at: string
 }
 
+/** Часть ленты: записи одной компании или одной заявки */
+export interface FeedScope {
+  organizationId?: string
+  applicationId?: string
+}
+
 export interface ApplicationListDto {
   items: ApplicationRowDto[]
   total: number
@@ -1073,7 +1079,8 @@ export interface ClientApi {
   /** Компании, где пользователь участник */
   listOrganizations(): Promise<OrganizationSummaryDto[]>
   /** Заявки клиента по всем его компаниям, свежие первыми; limit — до 100 */
-  listApplications(limit?: number): Promise<ApplicationSummaryDto[]>
+  /** Заявки моих компаний; status повторяется в query, limit до 100 */
+  listApplications(query?: { organizationId?: string; status?: ApplicationStatusCode[]; limit?: number; offset?: number }): Promise<ApplicationSummaryDto[]>
   /** Уже есть заявка по продукту в работе — 409, details.code = duplicate_active, details.application_id */
   createApplication(organizationId: string, productCode: string): Promise<ApplicationDto>
   getApplication(id: string): Promise<ApplicationDto>
@@ -1092,7 +1099,8 @@ export interface ClientApi {
   /** Главная кабинета: компания, предодобрение, заявки, «нужно действие», лента, новости */
   dashboard(organizationId?: string): Promise<DashboardDto>
   /** Заявки компании с клиентским статусом */
-  listApplicationRows(organizationId: string, limit?: number): Promise<ApplicationListDto>
+  /** Строки BFF по компании: черновиков нет; status — статус бэкенда, limit до 100, total — сколько всего */
+  listApplicationRows(organizationId: string, query?: { status?: string; limit?: number; offset?: number }): Promise<ApplicationListDto>
   getApplicationCard(id: string): Promise<ClientApplicationCardDto>
   acceptOffer(id: string): Promise<ApplicationDto>
   declineOffer(id: string, reason?: string): Promise<ApplicationDto>
@@ -1123,9 +1131,10 @@ export interface ClientApi {
   recommendFor(need: NeedInput, organizationId?: string): Promise<RecommendationsDto>
 
   feed(query?: { organizationId?: string; applicationId?: string; unreadOnly?: boolean; limit?: number; offset?: number }): Promise<FeedPageDto>
-  unreadCount(): Promise<{ count: number }>
+  /** Без фильтра — по всей ленте; с компанией или заявкой — только по ним */
+  unreadCount(scope?: FeedScope): Promise<{ count: number }>
   readFeedItem(itemId: string): Promise<FeedItemDto>
-  readAllFeed(): Promise<{ updated: number }>
+  readAllFeed(scope?: FeedScope): Promise<{ updated: number }>
   /** Одноразовый билет для EventSource: он не умеет слать Authorization */
   streamTicket(): Promise<StreamTicketDto>
   news(organizationId?: string, limit?: number): Promise<NewsDto[]>

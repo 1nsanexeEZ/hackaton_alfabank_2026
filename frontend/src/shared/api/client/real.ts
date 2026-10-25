@@ -25,7 +25,10 @@ export const realClientApi: ClientApi = {
   eligibility: (code, organizationId) =>
     call(`/products/${code}/eligibility`, { query: { organization_id: organizationId } }),
   listOrganizations: () => call('/organizations'),
-  listApplications: (limit) => call('/applications', { query: { limit } }),
+  listApplications: (query = {}) =>
+    call('/applications', {
+      query: { organization_id: query.organizationId, status: query.status, limit: query.limit, offset: query.offset },
+    }),
   createApplication: (organizationId, productCode) =>
     call('/applications', { method: 'POST', body: { organization_id: organizationId, product_code: productCode } }),
   getApplication: (id) => call(`/applications/${id}`),
@@ -40,8 +43,10 @@ export const realClientApi: ClientApi = {
     call(`/applications/${id}/cancel`, { method: 'POST', body: reason ? { reason } : undefined }),
 
   dashboard: (organizationId) => call('/bff/dashboard', { query: { organization_id: organizationId } }),
-  listApplicationRows: (organizationId, limit = 50) =>
-    call('/bff/applications', { query: { organization_id: organizationId, limit } }),
+  listApplicationRows: (organizationId, query = {}) =>
+    call('/bff/applications', {
+      query: { organization_id: organizationId, status: query.status, limit: query.limit ?? 50, offset: query.offset },
+    }),
   getApplicationCard: (id) => call(`/bff/applications/${id}`),
   acceptOffer: (id) => call(`/applications/${id}/offer/accept`, { method: 'POST' }),
   declineOffer: (id, reason) =>
@@ -78,9 +83,14 @@ export const realClientApi: ClientApi = {
         offset: query.offset,
       },
     }),
-  unreadCount: () => call('/feed/unread-count'),
+  unreadCount: (scope = {}) =>
+    call('/feed/unread-count', { query: { organization_id: scope.organizationId, application_id: scope.applicationId } }),
   readFeedItem: (itemId) => call(`/feed/${itemId}/read`, { method: 'POST' }),
-  readAllFeed: () => call('/feed/read-all', { method: 'POST' }),
+  readAllFeed: (scope = {}) =>
+    call('/feed/read-all', {
+      method: 'POST',
+      query: { organization_id: scope.organizationId, application_id: scope.applicationId },
+    }),
   streamTicket: () => call('/feed/stream-ticket', { method: 'POST' }),
   news: (organizationId, limit) => call('/news', { query: { organization_id: organizationId, limit } }),
   readNews: (newsId) => call(`/news/${newsId}/read`, { method: 'POST' }),

@@ -123,6 +123,19 @@ export const router = createRouter({
           meta: { title: 'Скоринг', permission: 'backoffice.read' },
         },
         {
+          path: 'versions',
+          name: ADMIN_ROUTE.versions,
+          component: () => import('@/pages/admin-versions').then((module) => module.AdminVersionsPage),
+          meta: { title: 'Модель и политика', permission: 'scoring.read' },
+        },
+        {
+          path: 'versions/:kind(model|policy)/:version',
+          name: ADMIN_ROUTE.version,
+          props: true,
+          component: () => import('@/pages/admin-versions').then((module) => module.AdminVersionPage),
+          meta: { title: 'Версия', permission: 'scoring.read' },
+        },
+        {
           path: 'users',
           name: ADMIN_ROUTE.users,
           component: () => import('@/pages/admin-users').then((module) => module.AdminUsersPage),
