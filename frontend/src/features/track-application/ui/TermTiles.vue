@@ -3,15 +3,19 @@ import { computed } from 'vue'
 
 import type { OfferDto } from '@/shared/api'
 import { formatMoney, formatPercent, formatTerm } from '@/shared/lib'
+import { AnimatedNumber } from '@/shared/ui'
 
-/** Условия предложения крупными цифрами: сумма, ставка, платёж в месяц (тёмная плитка — главное), срок */
+/**
+ * Условия предложения крупными цифрами: сумма, ставка, платёж в месяц (тёмная плитка — главное), срок.
+ * Суммы и ставка при смене условий (встречное предложение) перебирают цифры и встают на новое значение.
+ */
 const props = defineProps<{ offer: OfferDto; compact?: boolean }>()
 
 const tiles = computed(() => [
-  { label: 'Сумма', value: formatMoney(Number(props.offer.amount)), main: false },
-  { label: 'Ставка', value: formatPercent(Number(props.offer.rate)), main: false },
-  { label: 'Платёж в месяц', value: formatMoney(Number(props.offer.monthly_payment)), main: true },
-  { label: 'Срок', value: formatTerm(props.offer.term_months), main: false },
+  { label: 'Сумма', value: Number(props.offer.amount), format: formatMoney, main: false },
+  { label: 'Ставка', value: Number(props.offer.rate), format: formatPercent, main: false },
+  { label: 'Платёж в месяц', value: Number(props.offer.monthly_payment), format: formatMoney, main: true },
+  { label: 'Срок', value: props.offer.term_months, format: formatTerm, main: false },
 ])
 </script>
 
@@ -25,7 +29,7 @@ const tiles = computed(() => [
     >
       <dt class="text-xs" :class="tile.main ? 'text-white/70' : 'text-ink-secondary'">{{ tile.label }}</dt>
       <dd class="font-extrabold tracking-tight whitespace-nowrap tabular-nums" :class="compact ? 'text-base sm:text-[1.0625rem]' : 'text-base sm:text-xl'">
-        {{ tile.value }}
+        <AnimatedNumber :value="tile.value" :format="tile.format" />
       </dd>
     </div>
   </dl>

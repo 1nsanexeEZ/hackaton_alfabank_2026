@@ -71,23 +71,26 @@ const BAR_CLASS: Record<StepState, string> = {
     </div>
 
     <div class="flex items-start gap-3.5">
+      <!-- Открыли из списка или уведомлений — слева «назад», той же формы, что крестик справа -->
+      <button
+        v-if="backLabel"
+        type="button"
+        class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-night-glass text-on-night transition-colors hover:bg-night-line"
+        :aria-label="backLabel"
+        :title="backLabel"
+        @click="emit('back')"
+      >
+        <ArrowLeft class="size-5" aria-hidden="true" />
+      </button>
       <span
-        class="flex size-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-brand text-xl font-black text-white sm:size-11 sm:rounded-xl sm:text-2xl"
+        v-else
+        class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand text-xl font-black text-white"
         aria-hidden="true"
       >
         А
       </span>
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <button
-            v-if="backLabel"
-            type="button"
-            class="-ml-1 inline-flex items-center gap-1 rounded-md px-1 text-[0.8125rem] text-on-night-secondary transition-colors hover:text-on-night"
-            @click="emit('back')"
-          >
-            <ArrowLeft class="size-3.5" aria-hidden="true" />
-            {{ backLabel }}
-          </button>
           <span v-if="card" class="text-[0.8125rem] tracking-wide text-on-night-secondary">Заявка {{ card.number }}</span>
           <span v-if="meta" class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="DARK_BADGE_CLASS[meta.tone]">
             {{ meta.label }}
@@ -133,21 +136,22 @@ const BAR_CLASS: Record<StepState, string> = {
         <li
           v-for="(step, index) in steps"
           :key="step.label"
-          class="flex flex-col gap-2"
+          class="relative flex flex-col items-center gap-2 text-center"
           :aria-current="step.state === 'current' ? 'step' : undefined"
         >
+          <!-- Линия от центра этой точки до центра следующей: этапы стоят ровно по колонкам, путь — по центру шапки -->
+          <span
+            v-if="index < steps.length - 1"
+            class="absolute top-3 right-[calc(-50%+1.25rem)] left-[calc(50%+1.25rem)] h-0.5 rounded-full"
+            :class="step.state === 'done' ? 'bg-success' : 'bg-night-line'"
+            aria-hidden="true"
+          />
           <div class="flex items-center">
             <span class="flex size-[1.625rem] shrink-0 items-center justify-center rounded-full border-2" :class="DOT_CLASS[step.state]">
               <Check v-if="step.state === 'done'" class="size-3.5 stroke-[3] text-white" aria-hidden="true" />
               <span v-else-if="step.state === 'current'" class="size-2.5 rounded-full bg-brand" aria-hidden="true" />
               <X v-else-if="step.state === 'failed'" class="size-3.5 stroke-[3] text-white" aria-hidden="true" />
             </span>
-            <span
-              v-if="index < steps.length - 1"
-              class="mx-2 h-0.5 flex-1 rounded-full"
-              :class="step.state === 'done' ? 'bg-success' : 'bg-night-line'"
-              aria-hidden="true"
-            />
           </div>
           <span
             class="text-[0.8125rem]"

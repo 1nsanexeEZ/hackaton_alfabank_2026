@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AlertCircle, ArrowRight, CircleCheck, Clock, Download, FileText, Inbox, PenLine } from 'lucide-vue-next'
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 
 import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, REPAYMENT_LABEL, type ProductCatalog } from '@/entities/credit-product'
@@ -234,6 +234,31 @@ const tabs = computed(() => {
 const selectedTab = ref<Tab>('terms')
 const currentTab = computed<Tab>(() => (tabs.value.some((tab) => tab.id === selectedTab.value) ? selectedTab.value : 'terms'))
 
+/** Куда сдвигается новая вкладка при переходе: вправо по списку — выезжает справа, назад — слева */
+const tabShift = ref('1rem')
+watch(currentTab, (next, previous) => {
+  const ids = tabs.value.map((tab) => tab.id)
+  tabShift.value = ids.indexOf(next) >= ids.indexOf(previous) ? '1rem' : '-1rem'
+})
+
+/** Красная линия под активной вкладкой переезжает, а не перескакивает: её место и ширина — от кнопки вкладки */
+const tabButtons = new Map<Tab, HTMLElement>()
+const indicator = ref({ left: 0, width: 0 })
+function setTabButton(id: Tab, element: unknown) {
+  if (element instanceof HTMLElement) tabButtons.set(id, element)
+  else tabButtons.delete(id)
+}
+function placeIndicator() {
+  const button = tabButtons.get(currentTab.value)
+  if (button) indicator.value = { left: button.offsetLeft, width: button.offsetWidth }
+}
+watch([currentTab, tabs], () => nextTick(placeIndicator), { flush: 'post' })
+onMounted(() => {
+  nextTick(placeIndicator)
+  window.addEventListener('resize', placeIndicator)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', placeIndicator))
+
 // На подписании и после выдачи главное — договор: открываем его вкладку
 watch(
   status,
@@ -424,25 +449,32 @@ const footerHint = computed(() => {
             Часть сведений сейчас недоступна, показываем то, что есть.
           </p>
 
-          <div>
-            <div class="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line" role="tablist" aria-label="Разделы заявки">
+          <div :style="{ '--tab-shift': tabShift }">
+            <div class="relative flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line" role="tablist" aria-label="Разделы заявки">
               <button
                 v-for="tab in tabs"
                 :id="`application-tab-${tab.id}`"
                 :key="tab.id"
+                :ref="(element) => setTabButton(tab.id, element)"
                 type="button"
                 role="tab"
                 :aria-selected="currentTab === tab.id"
                 :aria-controls="`application-panel-${tab.id}`"
-                class="-mb-px shrink-0 border-b-2 px-3 py-3 text-[0.9375rem] whitespace-nowrap transition-colors sm:px-3.5"
-                :class="currentTab === tab.id ? 'border-brand font-bold text-ink' : 'border-transparent font-semibold text-ink-secondary hover:text-ink'"
+                class="shrink-0 px-3 py-3 text-[0.9375rem] whitespace-nowrap transition-colors sm:px-3.5"
+                :class="currentTab === tab.id ? 'font-bold text-ink' : 'font-semibold text-ink-secondary hover:text-ink'"
                 @click="selectedTab = tab.id"
               >
                 {{ tab.label }}<span v-if="tab.count" class="ml-1.5 text-xs font-medium text-ink-secondary">{{ tab.count }}</span>
               </button>
+              <span
+                class="tab-indicator pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-brand"
+                :style="{ width: `${indicator.width}px`, transform: `translateX(${indicator.left}px)` }"
+                aria-hidden="true"
+              />
             </div>
 
             <!-- Панели через v-show: форма подписи остаётся в DOM, кнопка в подвале отправляет её с любой вкладки -->
+            <Transition name="tab-panel">
             <div v-show="currentTab === 'terms'" id="application-panel-terms" role="tabpanel" aria-labelledby="application-tab-terms" class="pt-2">
               <dl class="grid sm:grid-cols-2 sm:gap-x-8">
                 <div v-for="row in termRows" :key="row.label" class="flex flex-col gap-0.5 border-b border-line py-3">
@@ -451,11 +483,15 @@ const footerHint = computed(() => {
                 </div>
               </dl>
             </div>
+            </Transition>
 
+            <Transition name="tab-panel">
             <div v-if="contract" v-show="currentTab === 'schedule'" id="application-panel-schedule" role="tabpanel" aria-labelledby="application-tab-schedule" class="pt-5">
               <ScheduleView :schedule="contract.schedule" />
             </div>
+            </Transition>
 
+            <Transition name="tab-panel">
             <div v-show="currentTab === 'contract'" id="application-panel-contract" role="tabpanel" aria-labelledby="application-tab-contract" class="space-y-4 pt-5">
               <template v-if="contract">
                 <ContractSheet
@@ -494,7 +530,9 @@ const footerHint = computed(() => {
               </div>
               <p v-else class="text-sm text-ink-secondary">Загружаем договор…</p>
             </div>
+            </Transition>
 
+            <Transition name="tab-panel">
             <div v-show="currentTab === 'history'" id="application-panel-history" role="tabpanel" aria-labelledby="application-tab-history" class="pt-5">
               <ol class="relative space-y-4 border-l border-line pl-5">
                 <li v-for="(entry, index) in card.timeline" :key="`${entry.at}-${index}`" class="relative">
@@ -508,11 +546,15 @@ const footerHint = computed(() => {
                 </li>
               </ol>
             </div>
+            </Transition>
 
+            <Transition name="tab-panel">
             <div v-if="currentTab === 'events'" id="application-panel-events" role="tabpanel" aria-labelledby="application-tab-events" class="pt-5">
               <ApplicationEvents :application-id="card.id" />
             </div>
+            </Transition>
 
+            <Transition name="tab-panel">
             <div v-show="currentTab === 'documents'" id="application-panel-documents" role="tabpanel" aria-labelledby="application-tab-documents" class="pt-5">
               <ul class="space-y-2">
                 <li
@@ -536,6 +578,7 @@ const footerHint = computed(() => {
                 </li>
               </ul>
             </div>
+            </Transition>
           </div>
         </div>
       </AsyncState>
@@ -613,3 +656,27 @@ const footerHint = computed(() => {
     </footer>
   </div>
 </template>
+
+<style scoped>
+/* Новая вкладка въезжает со стороны, куда шагнули, старая исчезает сразу — две панели вместе не видны */
+.tab-panel-enter-active {
+  transition:
+    opacity 0.26s ease,
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tab-panel-enter-from {
+  opacity: 0;
+  transform: translateX(var(--tab-shift, 1rem));
+}
+.tab-indicator {
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel-enter-active,
+  .tab-indicator {
+    transition: none;
+  }
+}
+</style>
