@@ -89,6 +89,7 @@ class NameLockedError(IdentityError):
 
     def __init__(self, fields: list[str]) -> None:
         super().__init__(
-            "The name and the position are confirmed by the bank and change only through the bank's staff"
+            "The name and the position are confirmed by the bank "
+            "and change only through the bank's staff"
         )
         self.details = {"code": "identity_locked", "fields": fields}
