@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_i55ggaV5Pj
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Умный помощник
+description: 'Кто отвечает (модель или шаблоны), заявки для чата, диалог: ответ целиком или потоком.'
+sortPriority: 14000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'
