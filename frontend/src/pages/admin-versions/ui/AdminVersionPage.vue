@@ -35,7 +35,7 @@ const catalog = useAsyncData<ModelCatalogDto | PolicyCatalogDto>(() =>
   props.kind === 'model' ? backofficeApi.scoringModels.catalog() : backofficeApi.decisionPolicies.catalog(),
 )
 /** Кто создал и активировал — по id сотрудника, если можно читать пользователей */
-const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAccounts() : Promise.resolve([])))
+const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAllAccounts() : Promise.resolve([])))
 const who = (id: string | null) => {
   if (!id) return null
   const account = accounts.data.value?.find((item) => item.id === id)

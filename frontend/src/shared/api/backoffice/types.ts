@@ -618,8 +618,12 @@ export interface InnCheckDto {
   organization_id: string | null
 }
 
+/** Порядок очереди: срок по SLA, сумма, балл скоринга, создана */
+export type QueueSort = 'due_at' | 'amount' | 'score' | 'created_at'
+
 export interface BackofficeApi {
-  queue(query?: { status?: string; sort?: string; limit?: number; offset?: number }): Promise<QueuePageDto>
+  /** limit до 100; total — сколько задач всего с этим статусом */
+  queue(query?: { status?: string; sort?: QueueSort; limit?: number; offset?: number }): Promise<QueuePageDto>
   card(applicationId: string): Promise<UnderwriterCardDto>
   /** Взять задачу на себя */
   claim(taskId: string): Promise<UnderwriterTaskDto>

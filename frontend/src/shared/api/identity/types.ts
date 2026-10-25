@@ -118,6 +118,8 @@ export interface IdentityApi {
   me(): Promise<MeDto>
   updateProfile(data: Partial<ProfileDto>): Promise<MeDto>
   listAccounts(params?: { limit?: number; offset?: number }): Promise<AccountDto[]>
+  /** Все учётки: страницами по 100, пока не придёт неполная */
+  listAllAccounts(): Promise<AccountDto[]>
   createAccount(data: AccountCreateInput): Promise<AccountDto>
   updateAccount(id: string, data: AccountUpdateInput): Promise<AccountDto>
   deleteAccount(id: string): Promise<void>

@@ -1071,7 +1071,8 @@ export interface ClientApi {
   /** Кто вошёл на сайт — по клиентскому токену */
   me(): Promise<MeDto>
   /** Активные продукты в порядке каталога, без входа */
-  listProducts(): Promise<ProductDto[]>
+  /** Продукты в продаже; purpose — только подходящие под цель кредита */
+  listProducts(purpose?: LoanPurpose): Promise<ProductDto[]>
   /** График платежей по базовой ставке продукта, без входа. За рамками продукта — 422 */
   calculate(code: string, input: CalculateInput): Promise<PaymentScheduleDto>
   /** Подходит ли компания под продукт — те же проверки, что при создании заявки */

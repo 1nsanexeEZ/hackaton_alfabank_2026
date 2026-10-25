@@ -20,7 +20,7 @@ export const realClientApi: ClientApi = {
   demoAccounts: () => call('/auth/demo-accounts'),
   demoLogin: (login) => call('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => call('/me'),
-  listProducts: () => call('/products'),
+  listProducts: (purpose) => call('/products', { query: { purpose } }),
   calculate: (code, input) => call(`/products/${code}/calculate`, { method: 'POST', body: input }),
   eligibility: (code, organizationId) =>
     call(`/products/${code}/eligibility`, { query: { organization_id: organizationId } }),
