@@ -166,7 +166,7 @@ const suggestProject = computed(
         class="mt-2 flex items-start gap-2 rounded-xl bg-warning-soft p-3 text-sm text-ink"
       >
         <CircleAlert class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-        Данные компании расходятся с ЕГРЮЛ — заявку посмотрит специалист банка, решение займёт больше времени.
+        Часть данных компании нужно уточнить — заявку посмотрит специалист банка, решение займёт больше времени.
       </p>
     </div>
 

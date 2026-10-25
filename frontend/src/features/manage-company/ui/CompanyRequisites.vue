@@ -9,6 +9,7 @@ import { BaseButton } from '@/shared/ui'
 /**
  * Реквизиты из базы банка — клиенту их не вводить — и сверка с ЕГРЮЛ. Сверку бэкенд делает и сам по
  * каждой заявке; кнопка — чтобы подтянуть изменения из реестра сейчас (POST /organizations/{id}/verification).
+ * Откуда банк берёт данные и с чем сверяет, клиенту не называем: «актуальны», «нужно уточнить», «обновить».
  */
 const props = defineProps<{ company: OrganizationDetailDto; verification: VerificationResultDto | null; verifying: boolean }>()
 
@@ -26,7 +27,7 @@ const FIELD: Record<string, string> = {
   kpp: 'КПП',
   okved_main: 'ОКВЭД',
   okved_extra: 'Дополнительные ОКВЭД',
-  registry_status: 'Статус в реестре',
+  registry_status: 'Статус компании',
 }
 
 const rows = computed(() => {
@@ -41,7 +42,7 @@ const rows = computed(() => {
     { label: 'ОКВЭД', value: [company.okved_main, ...company.okved_extra].join(', ') },
     { label: 'Налоговый режим', value: TAX_REGIME[company.tax_regime] ?? company.tax_regime },
     { label: 'Сотрудников', value: String(company.employees_count) },
-    ...(company.head_name ? [{ label: 'Руководитель по реестру', value: company.head_name }] : []),
+    ...(company.head_name ? [{ label: 'Руководитель', value: company.head_name }] : []),
   ]
 })
 </script>
@@ -64,29 +65,29 @@ const rows = computed(() => {
       <CircleHelp v-else class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <div>
         <p v-if="company.verification.status === 'verified'">
-          {{ company.verification.checked_at ? `Сверено с ЕГРЮЛ ${formatDateTime(company.verification.checked_at)}` : 'Сверено с ЕГРЮЛ' }}
+          {{ company.verification.checked_at ? `Реквизиты актуальны на ${formatDateTime(company.verification.checked_at)}` : 'Реквизиты актуальны' }}
         </p>
         <template v-else-if="company.verification.status === 'mismatch'">
-          <p class="font-medium">Данные расходятся с ЕГРЮЛ — заявку посмотрит специалист банка</p>
+          <p class="font-medium">Часть реквизитов нужно уточнить — заявку посмотрит специалист банка</p>
           <ul class="mt-1 space-y-0.5 text-ink-secondary">
             <li v-for="item in company.verification.discrepancies" :key="item.field">
-              {{ FIELD[item.field] ?? item.field }}: у нас «{{ item.declared ?? '—' }}», в реестре «{{ item.registry ?? '—' }}»
+              {{ FIELD[item.field] ?? item.field }}: «{{ item.declared ?? '—' }}» → «{{ item.registry ?? '—' }}»
             </li>
           </ul>
         </template>
-        <p v-else>Сверки с ЕГРЮЛ ещё не было</p>
+        <p v-else>Реквизиты ещё не обновлялись</p>
         <template v-if="verification">
-          <p v-if="verification.updated_fields.length" class="mt-2 font-medium">Обновили из реестра:</p>
+          <p v-if="verification.updated_fields.length" class="mt-2 font-medium">Обновили:</p>
           <ul v-if="verification.updated_fields.length" class="mt-0.5 space-y-0.5 text-ink-secondary">
             <li v-for="item in verification.updated_fields" :key="item.field">
               {{ FIELD[item.field] ?? item.field }}: «{{ item.before ?? '—' }}» → «{{ item.after ?? '—' }}»
             </li>
           </ul>
-          <p v-else class="mt-1 text-ink-secondary">Реквизиты в банке совпадают с реестром — обновлять нечего.</p>
+          <p v-else class="mt-1 text-ink-secondary">Реквизиты актуальны — обновлять нечего.</p>
         </template>
         <BaseButton size="s" variant="secondary" class="mt-3" :loading="verifying" @click="emit('verify')">
           <RefreshCw class="size-4" aria-hidden="true" />
-          Сверить с ЕГРЮЛ сейчас
+          Обновить реквизиты
         </BaseButton>
       </div>
     </div>

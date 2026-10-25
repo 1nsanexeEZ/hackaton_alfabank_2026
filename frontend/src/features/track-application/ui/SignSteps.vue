@@ -50,7 +50,7 @@ function acceptRules() {
   rulesOpen.value = false
 }
 
-const AUTHORITY = { registry: 'руководитель по ЕГРЮЛ', power_of_attorney: 'по доверенности' } as const
+const AUTHORITY = { registry: 'руководитель', power_of_attorney: 'по доверенности' } as const
 const signers = computed(() => props.contract.signers.map((signer) => `${signer.name} (${AUTHORITY[signer.authority] ?? signer.authority})`).join(', '))
 
 const allSet = computed(() => Boolean(password.value) && (!withDocument.value || (rulesAccepted.value && draftReady.value)))
@@ -165,7 +165,7 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
   </section>
 
   <p v-else class="rounded-2xl bg-surface-soft p-4 text-sm text-ink">
-    У вас нет права подписи от этой компании. Подписать может руководитель, полномочия которого подтверждены реестром, или
+    У вас нет права подписи от этой компании. Подписать может руководитель компании или
     сотрудник с доверенностью на подпись<template v-if="signers">: {{ signers }}</template>.
   </p>
 </template>

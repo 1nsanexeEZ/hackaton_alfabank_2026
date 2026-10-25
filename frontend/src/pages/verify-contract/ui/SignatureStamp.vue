@@ -11,7 +11,7 @@ import { formatDate, formatMoscowDateTime } from '@/shared/lib'
 const props = defineProps<{ signature: ContractSignatureDto }>()
 
 const AUTHORITY: Record<NonNullable<ContractSignatureDto['authority']>, string> = {
-  registry: 'руководитель по ЕГРЮЛ',
+  registry: 'руководитель',
   power_of_attorney: 'по доверенности',
 }
 

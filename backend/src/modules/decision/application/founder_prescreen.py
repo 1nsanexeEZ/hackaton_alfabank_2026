@@ -55,7 +55,7 @@ class FounderPrescreenUseCase:
         account = await self._identity.get_account(founder_id) if founder_id else None
         if founder_id is None or account is None:
             raise ValidationError(
-                "Учредитель по реестру не найден среди участников компании",
+                "Учредитель не найден среди участников компании",
                 details={"code": "founder_not_found"},
             )
         consent = await self._identity.get_active_consent(founder_id, "credit_bureau_personal")

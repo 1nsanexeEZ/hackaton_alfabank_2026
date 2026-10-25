@@ -28,14 +28,14 @@ const nameLocked = computed(
 
 const fullName = computed(() => [form.lastName, form.firstName, form.middleName].filter(Boolean).join(' ') || '—')
 
-/** Строки блока только для чтения: значение и откуда оно */
+/** Строки блока только для чтения. Откуда банк взял ФИО и должность, клиенту не показываем — только зачем контакты */
 const readonlyRows = computed(() =>
   [
-    { label: 'ФИО', value: fullName.value, source: 'по паспорту', registry: false },
-    { label: 'Должность', value: form.position || '—', source: 'по ЕГРЮЛ', registry: true },
-    me?.email ? { label: 'Email', value: me.email, source: 'вход и уведомления', registry: false } : null,
-    me?.phone ? { label: 'Телефон', value: me.phone, source: 'вход', registry: false } : null,
-  ].filter((row): row is { label: string; value: string; source: string; registry: boolean } => row !== null),
+    { label: 'ФИО', value: fullName.value, hint: '' },
+    { label: 'Должность', value: form.position || '—', hint: '' },
+    me?.email ? { label: 'Email', value: me.email, hint: 'вход и уведомления' } : null,
+    me?.phone ? { label: 'Телефон', value: me.phone, hint: 'вход' } : null,
+  ].filter((row): row is { label: string; value: string; hint: string } => row !== null),
 )
 
 const saving = ref(false)
@@ -77,11 +77,8 @@ async function save() {
       <div v-for="row in readonlyRows" :key="row.label" class="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 py-3 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto]">
         <dt class="text-[0.8125rem] text-ink-secondary">{{ row.label }}</dt>
         <dd class="font-semibold break-words text-ink">{{ row.value }}</dd>
-        <span
-          class="col-start-2 justify-self-start text-xs sm:col-start-auto sm:justify-self-end"
-          :class="row.registry ? 'rounded-md bg-info-soft px-2 py-0.5 font-semibold text-info' : 'text-ink-secondary'"
-        >
-          {{ row.source }}
+        <span v-if="row.hint" class="col-start-2 justify-self-start text-xs text-ink-secondary sm:col-start-auto sm:justify-self-end">
+          {{ row.hint }}
         </span>
       </div>
     </dl>
@@ -91,8 +88,7 @@ async function save() {
         <Lock class="size-4" />
       </span>
       <p class="flex-1 text-sm text-ink-secondary">
-        ФИО — по паспорту, должность — по ЕГРЮЛ: по ним банк указывает подписанта в договоре. Сменились данные — их обновит
-        сотрудник банка.
+        Если данные указаны неверно или изменились — свяжитесь с банком, и сотрудник их обновит.
       </p>
       <RouterLink
         :to="ROUTE_PATH.support"

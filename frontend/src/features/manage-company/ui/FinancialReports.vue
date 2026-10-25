@@ -10,7 +10,7 @@ defineProps<{ reports: FinancialReportDto[]; canEdit: boolean; busy: boolean }>(
 
 const emit = defineEmits<{ submit: [input: FinancialReportInput, done: () => void] }>()
 
-const SOURCE: Record<FinancialReportDto['source'], string> = { declared: 'Заявлено вами', fns: 'ФНС', bank_statement: 'По выпискам' }
+const SOURCE: Record<FinancialReportDto['source'], string> = { declared: 'Заявлено вами', fns: 'Данные банка', bank_statement: 'По выпискам' }
 
 const QUARTERS = [
   { value: '', label: 'Год целиком' },

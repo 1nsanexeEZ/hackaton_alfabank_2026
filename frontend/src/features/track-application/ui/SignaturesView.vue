@@ -26,7 +26,7 @@ watch(
   { immediate: true },
 )
 
-const AUTHORITY = { registry: 'руководитель по ЕГРЮЛ', power_of_attorney: 'по доверенности' } as const
+const AUTHORITY = { registry: 'руководитель', power_of_attorney: 'по доверенности' } as const
 const METHOD: Record<string, string> = { password: 'пароль от кабинета', pades: 'подпись в PDF (PAdES)' }
 
 /** Серийный номер сертификата длинный — в карточке хватает начала и конца */
