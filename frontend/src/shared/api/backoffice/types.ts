@@ -139,7 +139,15 @@ export interface UnderwriterApplicationDto {
   } | null
   status: ApplicationStatusCode
   client_stage: string | null
-  documents: { id: string; type: string; filename: string; status: string; uploaded_at: string | null; review_comment: string | null }[]
+  documents: {
+    id: string
+    type: string
+    filename: string
+    status: string
+    uploaded_at: string | null
+    review_comment: string | null
+    size_bytes?: number
+  }[]
   info_requests: { id: string; requested_documents: string[]; comment: string; status: string; created_at: string; answered_at: string | null }[]
   offer: { kind: string; amount: string; term_months: number; rate: string; monthly_payment: string; conditions: string[]; expires_at: string } | null
   submitted_at: string | null
@@ -286,6 +294,7 @@ export interface EnrichmentDto {
     tax_arrears: string
     avg_headcount: number
     reported_revenue: string | null
+    reported_expenses?: string | null
     report_year: number | null
     tax_regime: string
     disqualified_head: boolean
