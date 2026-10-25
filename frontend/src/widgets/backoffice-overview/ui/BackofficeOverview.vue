@@ -1,15 +1,51 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useProductCatalog } from '@/entities/credit-product'
 import { backofficeApi } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
 import { formatDate, useAsyncData } from '@/shared/lib'
-import { AsyncState, PanelCard } from '@/shared/ui'
+import { AsyncState, PanelCard, SegmentedControl, TextField } from '@/shared/ui'
 
-/** Обзор бэк-офиса на метриках бэкенда (GET /bff/backoffice/metrics) и очереди специалиста */
-const metrics = useAsyncData(() => backofficeApi.metrics())
+/**
+ * Обзор бэк-офиса на метриках бэкенда (GET /bff/backoffice/metrics) и очереди специалиста.
+ * Период метрик — date_from / date_to: последние 7, 30 или 90 дней либо свои даты.
+ */
+type Period = '7' | '30' | '90' | 'custom'
+const PERIODS: readonly { value: Period; label: string }[] = [
+  { value: '7', label: '7 дней' },
+  { value: '30', label: '30 дней' },
+  { value: '90', label: '90 дней' },
+  { value: 'custom', label: 'Свой период' },
+]
+
+/** Дата по местному времени в формате бэкенда: 2026-10-25 */
+const isoDay = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
+function daysAgo(days: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return isoDay(date)
+}
+
+const period = ref<Period>('30')
+const customFrom = ref(daysAgo(29))
+const customTo = ref(isoDay(new Date()))
+
+const range = computed(() => {
+  if (period.value !== 'custom') return { dateFrom: daysAgo(Number(period.value) - 1), dateTo: isoDay(new Date()) }
+  return { dateFrom: customFrom.value || undefined, dateTo: customTo.value || undefined }
+})
+const rangeError = computed(() =>
+  range.value.dateFrom && range.value.dateTo && range.value.dateFrom > range.value.dateTo ? 'Начало периода позже конца' : undefined,
+)
+
+const metrics = useAsyncData(() => backofficeApi.metrics(range.value))
+watch(range, () => {
+  if (!rangeError.value) void metrics.reload()
+})
 const queue = useAsyncData(() => backofficeApi.queue({ status: 'open', limit: 100 }))
 
 const { products } = useProductCatalog()
@@ -62,8 +98,15 @@ const byDay = computed(() => {
 </script>
 
 <template>
+  <div class="mb-4 flex flex-wrap items-end gap-3">
+    <SegmentedControl v-model="period" :options="PERIODS" label="Период метрик" small />
+    <template v-if="period === 'custom'">
+      <TextField v-model="customFrom" class="w-44" type="date" label="С" dense :error="rangeError" />
+      <TextField v-model="customTo" class="w-44" type="date" label="По" dense />
+    </template>
+  </div>
   <AsyncState :loading="metrics.loading.value && !metrics.data.value" :error="metrics.error.value" @retry="metrics.reload">
-    <div class="space-y-4">
+    <div class="space-y-4" :class="metrics.loading.value && 'opacity-60'">
       <ul class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <li v-for="tile in tiles" :key="tile.label" class="rounded-card bg-white p-4 ring-1 ring-line">
           <p class="text-2xl font-bold text-ink tabular-nums">{{ tile.value }}</p>

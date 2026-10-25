@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_hwpeVosNxY
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_i55ggaV5Pj
+name: История диалога
+description: |-
+  The history: someone else's conversation is 404.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/assistant/conversations/:conversation_id
+urlParameters:
+- enabled: true
+  name: :conversation_id
+  value: ${[ conversation_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

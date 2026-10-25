@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 0. Контекст | кто пользуется системой и с какими внешними системами она говорит | [Контекст](#0-контекст) | «0. Контекст» |
 | 1. Контейнеры | что запускает `docker compose`: сервисы, хранилища, порты, профили | [Контейнеры](#1-контейнеры) | «1. Контейнеры» |
-| 2. Модули (DDD) | 12 модулей backend как ограниченные контексты, карта связей: фасады, Kafka, ACL | [Модули](#2-модули-ddd) | «2. Модули и Kafka» |
+| 2. Модули (DDD) | 13 модулей backend как ограниченные контексты, карта связей: фасады, Kafka, ACL | [Модули](#2-модули-ddd) | «2. Модули и Kafka» |
 | 3. Устройство модуля | слои domain → application → infrastructure → presentation, правила import-linter | [Устройство модуля](#3-устройство-модуля) | «3. Слои модуля» |
 | 4. Потоки | путь заявки через Kafka, outbox и inbox, подписание, запрос к ассистенту | [Потоки](#4-ключевые-потоки) | «5. BPMN», «6. Подписание», «7. Ассистент» |
 | — | путь клиента и маршруты BPMN | [docs/process/bpmn.md](../process/bpmn.md) | «4. BPMN: путь клиента», «5. BPMN: маршрут заявки» |
@@ -28,7 +28,7 @@ flowchart LR
 
     subgraph System["Кредитный кабинет МСП"]
         Cabinet["Сайт и кабинет клиента<br/>рабочее место сотрудника<br/>сервис кредитного конвейера"]
-        AI["Умный помощник<br/>(профиль ai, по желанию)"]
+        AI["Умный помощник<br/>модуль assistant, модель по желанию"]
     end
 
     subgraph External["Внешние системы — смоделированы в external-mocks"]
@@ -47,7 +47,7 @@ flowchart LR
     Staff --> Cabinet
     Verifier -->|"/verify/{id}"| Cabinet
     Client --> AI
-    AI -->|"данные — токеном пользователя"| Cabinet
+    AI -->|"факты через фасады"| Cabinet
     AI --> LLM
     Cabinet --> Registry & FNS & BKI & GIRBO & Kontur & AML & ABS & EDO
 ```
@@ -55,7 +55,7 @@ flowchart LR
 - **Клиент** — компания (ООО, АО) или ИП. В кабинет приходит руководитель, бухгалтер или сотрудник. Что каждый может в компании — подать, подписать, управлять участниками — решают права внутри компании и доверенности.
 - **Сотрудник** — андеррайтер (очередь задач, карточка заявки, решение, чат поддержки) и администратор (пользователи и роли, продукты, версии модели скоринга и кредитной политики).
 - **Внешние системы** — отдельный сервис `external-mocks` со «своими» форматами ответов, задержками и сбоями. Backend ходит к нему через те же адаптеры, что ходили бы к настоящим системам: замена мока на реальный источник — замена base URL и адаптера.
-- **LLM** — только для помощника. Он ничего не решает, только переформулирует факты, которые собрал код ([docs/ai.md](../ai.md)).
+- **LLM** — только для помощника: Ollama в профиле `ai` или любой OpenAI-совместимый API (OpenRouter, vLLM). Модель ничего не решает, только переформулирует факты, которые собрал код ([docs/ai.md](../ai.md)).
 
 ## 1. Контейнеры
 
@@ -65,10 +65,9 @@ flowchart LR
 flowchart LR
     Browser["Браузер"] -->|":8080 (стенд: :443)"| Nginx["nginx 1.31<br/>статика, /api → backend"]
     Nginx --> Frontend["frontend<br/>Vue 3 + Vite, статика"]
-    Nginx --> Backend["backend<br/>FastAPI, модульный монолит<br/>12 модулей + core"]
-    Browser -.->|":8200, профиль ai"| Assistant["assistant<br/>FastAPI"]
-    Assistant -->|"HTTP, токен пользователя"| Backend
-    Assistant -->|"OpenAI API"| Ollama["ollama<br/>Qwen3-4B, CPU"]
+    Nginx --> Backend["backend<br/>FastAPI, модульный монолит<br/>13 модулей + core"]
+    Backend -.->|"OpenAI API, профиль ai"| Ollama["ollama<br/>Qwen3-4B, CPU"]
+    Backend -.->|"или ASSISTANT_LLM_PROVIDER=api"| Provider["свой провайдер<br/>OpenRouter, vLLM…"]
     Backend --> Postgres[("Postgres 16<br/>таблицы модулей,<br/>outbox, inbox")]
     Backend <-->|"outbox → топики,<br/>консьюмеры с inbox, DLQ"| Kafka[("Kafka 3.8<br/>KRaft")]
     Backend -->|"S3 API"| MinIO[("MinIO<br/>credit-documents,<br/>credit-contracts (Object Lock)")]
@@ -80,15 +79,14 @@ flowchart LR
 |---|---|---|---|---|
 | `nginx` | nginx:1.31.7-alpine | — | `HTTP_PORT` (8080) | единая точка входа: сайт, `/api`, presigned-ссылки MinIO |
 | `frontend` | сборка `./frontend` | — | — | статика Vue: сайт клиента и `/admin` |
-| `backend` | сборка `./backend` | 768 МБ | — | весь кредитный конвейер; миграции Alembic и сид при старте |
+| `backend` | сборка `./backend` | 768 МБ | — | весь кредитный конвейер и умный помощник; миграции Alembic и сид при старте |
 | `db` | postgres:16.4-alpine | 512 МБ | — | данные модулей, outbox, inbox |
 | `kafka` | apache/kafka:3.8.0 (KRaft) | 1 ГБ | — | события и команды модулей, хранение бессрочное |
 | `minio` | soldevelo/minio | 512 МБ | через nginx | документы заявок; договоры — в отдельном бакете с Object Lock |
 | `external-mocks` | сборка `./external-mocks` | 192 МБ | — | ЕГРЮЛ, ФНС, БКИ, ГИР БО, Контур, 115-ФЗ, ЭДО, АБС |
-| `assistant` | сборка `./assistant`, профиль `ai` | 256 МБ | 127.0.0.1:8200 | умный помощник |
-| `ollama` | ollama/ollama:0.40.0, профиль `ai` | 4 ГБ | — | модель с открытыми весами на CPU |
+| `ollama` | ollama/ollama:0.40.0, профиль `ai` | 4 ГБ | — | модель с открытыми весами на CPU для помощника; вместо неё можно подключить свой OpenAI-совместимый API |
 
-**Без ИИ** стенд занимает около 2,9 ГБ по `mem_limit`, **с профилем `ai`** — около 7,2 ГБ. Healthcheck у каждого сервиса, `docker compose up --wait` ждёт всех. Тот же подъём делает CI на каждый PR. Боевой стенд — `docker-compose.prod.yml` поверх основного: HTTPS (Let's Encrypt), basic auth, порты 80 и 443. Лимиты, деградация и SLA — [sla.md](../sla.md).
+**Без ИИ** стенд занимает около 2,9 ГБ по `mem_limit`, **с профилем `ai`** — около 7 ГБ. Healthcheck у каждого сервиса, `docker compose up --wait` ждёт всех. Тот же подъём делает CI на каждый PR. Боевой стенд — `docker-compose.prod.yml` поверх основного: HTTPS (Let's Encrypt), basic auth, порты 80 и 443. Лимиты, деградация и SLA — [sla.md](../sla.md).
 
 **Почему модульный монолит, а не микросервисы.** Один процесс проще поднять жюри и дешевле по памяти. Границы при этом настоящие: модули не видят чужих таблиц и классов, читают соседей только через фасады, пишут им только командами через Kafka. Любой модуль можно вынести в отдельный сервис: фасад станет HTTP-клиентом, Kafka уже на месте.
 
@@ -103,6 +101,7 @@ flowchart TB
     subgraph edge["Края: экраны и чтение"]
         BFF["bff<br/>ответы под экраны"]
         Projector["projector<br/>модели чтения"]
+        Assistant["assistant<br/>умный помощник: факты из фасадов,<br/>модель за портом LanguageModel"]
     end
     subgraph core_domain["Ядро: кредитный конвейер"]
         Applications["applications<br/>CreditApplication, документы,<br/>дозапрос, предложение, договор,<br/>подпись, выдача"]
@@ -125,6 +124,7 @@ flowchart TB
 
     BFF -.->|фасады| Applications & Process & Decision & Scoring & Clients & Products & Identity & Notifications & Support
     BFF -.->|read API| Projector
+    Assistant -.->|фасады| Applications & Decision & Products & Clients
     Process -->|команды| Kafka
     Kafka -->|команды| Applications & Enrichment & Scoring & Decision
     Applications & Enrichment & Scoring & Decision & Clients & Support -->|события| Kafka
@@ -146,7 +146,7 @@ flowchart TB
 | **Ядро** (core domain) | `decision`, `scoring`, `process`, `applications` | то, ради чего система: решение по кредиту за минуты, объяснимое и с доказуемым путём |
 | **Поддерживающие** | `clients`, `products`, `enrichment` | нужны ядру, своя логика есть, но не уникальна |
 | **Общие** (generic) | `identity`, `notifications`, `support` | типовые задачи, сделаны просто и надёжно |
-| **Края** | `bff`, `projector` | не владеют бизнес-данными: собирают ответы под экраны и модели чтения |
+| **Края** | `bff`, `projector`, `assistant` | не владеют бизнес-данными: собирают ответы под экраны, модели чтения и ответы помощника (у помощника — только история диалогов) |
 | **Shared kernel** | `core` | инфраструктура обмена и доступа, которую разделяют все; про модули не знает (контракт import-linter) |
 
 ### Агрегаты и язык модулей
@@ -165,6 +165,7 @@ flowchart TB
 | `support` | Ticket (Messages) | обращение, очередь, взятие | [support.md](../modules/support.md) |
 | `projector` | модели чтения | проекция, перестройка из Kafka | [projector.md](../modules/projector.md) |
 | `bff` | — | экран, действие, «что сделать» | [client-journey.md](../api/client-journey.md) |
+| `assistant` | Conversation (Messages) | намерение, факты, шаблон, постпроверка, провайдер `local` / `api` / `off` | [ai.md](../ai.md) |
 
 ### Связи между контекстами
 
@@ -173,7 +174,7 @@ flowchart TB
 | **Синхронное чтение** (customer — supplier) | `facade.py`: Protocol + frozen DTO, реализация в `infrastructure/adapters` модуля-поставщика | `decision` читает снимок обогащения через `EnrichmentFacade.get_snapshot` |
 | **Запись в чужой контекст** | только командой через Kafka; изменение и команда — в одной транзакции (outbox) | `process` шлёт `MakeDecision` в `decision.commands` |
 | **Published language** | контракты сообщений в `core/messaging/contracts/*.py`, конверт с `event_id`, `causation_id`, `correlation_id` | `DecisionMade`, `ApplicationSigned` |
-| **Anti-corruption layer** | адаптеры источников переводят чужой формат в свои DTO; мок отвечает «как внешняя система» | ответ ЕГРЮЛ → `RegistryData` в `enrichment` |
+| **Anti-corruption layer** | адаптеры источников переводят чужой формат в свои DTO; мок отвечает «как внешняя система» | ответ ЕГРЮЛ → `RegistryData` в `enrichment`; помощник отбрасывает название и ИНН компании из карточки заявки до своего домена |
 | **Conformist** | `projector` и `notifications` принимают события как есть и ничего не пишут обратно | лента клиента по `ApplicationStatusChanged` |
 | **Владелец статуса** | статус заявки меняет только `applications`, остальные просят командой | `process` → `PresentOffer` → `OFFER_READY` |
 
@@ -333,22 +334,22 @@ flowchart LR
 sequenceDiagram
     actor C as Клиент
     participant UI as Кабинет
-    participant AS as assistant
-    participant B as backend
+    participant AS as assistant (модуль backend)
+    participant F as фасады decision, applications, products, clients
     participant L as LLM (Ollama / свой провайдер)
     C->>UI: «Что решил банк?»
-    UI->>AS: POST /assistant/conversations/{id}/messages (Bearer пользователя)
-    AS->>B: GET /me — кто и есть ли assistant.use
+    UI->>AS: POST /api/assistant/conversations/{id}/messages
+    AS->>AS: право assistant.use, заявка своей компании (ABAC), лимит вопросов
     AS->>AS: маршрутизатор на правилах: намерение / injection / вне темы
-    AS->>B: GET /bff/applications/{id} — только клиентские поля
+    AS->>F: клиентский вид решения, карточка заявки, каталог — без скора и кодов причин
     AS->>AS: факты кодом + шаблонный ответ
-    AS->>L: POST /chat/completions (факты, без ПДн)
+    AS->>L: POST /chat/completions (факты, без ПДн; текст анкеты — только local)
     L-->>AS: текст
     AS->>AS: постпроверка: числа и даты из фактов, без внутренних терминов и обещаний
-    AS-->>UI: SSE: ответ модели или шаблон
+    AS-->>UI: SSE: ответ модели или шаблон, ответ — в истории диалога
 ```
 
-Помощник — отдельный сервис, а не модуль backend. Он не имеет своей базы пользователей и прав: ходит в backend токеном пользователя, поэтому видит ровно то, что видит пользователь. Модель не вызывает инструменты и ничего не меняет. Без модели помощник отвечает по шаблонам из тех же фактов. Подробно — [ai.md](../ai.md).
+Помощник — модуль backend `assistant`: вход и права те же, что у всего кабинета, данные — из фасадов соседей, поэтому он видит ровно то, что видит пользователь. Модель — за портом `LanguageModel`: Ollama в профиле `ai` (`local`), любой OpenAI-совместимый API (`api`) или без модели (`off`). Модель не вызывает инструменты и ничего не меняет. Без модели помощник отвечает по шаблонам из тех же фактов. Подробно — [ai.md](../ai.md).
 
 ## Модель принятия решения
 
@@ -449,4 +450,4 @@ Vue 3 + TypeScript + Vite + Tailwind CSS v4, архитектура **Feature-Sl
 - **Kafka:** публикуют `clients`, `applications`, `process`, `enrichment`, `scoring`, `decision`, `support`. Топик `identity.events` создаётся, но пока пуст, `notifications` и `projector` только читают.
 - **ML-модель** — вторая независимая оценка рядом с PD-моделью, на схеме её не было. Вместе с матрицей грейд × сумма решает строже из двух.
 - **Ставка считается до лимита** — лимит по платёжеспособности зависит от ставки; на схеме порядок обратный, схему стоит поправить.
-- **Помощник** — отдельный сервис и профиль compose, на исходной схеме его не было.
+- **Помощник** — модуль backend `assistant`, модель — профиль compose `ai` или внешний API; на исходной схеме его не было.

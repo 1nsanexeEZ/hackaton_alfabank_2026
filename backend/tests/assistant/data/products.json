@@ -1,0 +1,423 @@
+[
+  {
+    "code": "UNSECURED",
+    "name": "Кредит без залога",
+    "short_description": "На пополнение оборотных средств, развитие бизнеса или рефинансирование текущих долгов.",
+    "description_plain": "Деньги одной суммой на расчётный счёт без залога имущества. Подойдёт для оборотных средств, развития бизнеса, исполнения контракта и рефинансирования. До 5 млн ₽ решение принимается автоматически, от 5 млн ₽ нужна отчётность за последний год.",
+    "purposes": [
+      "working_capital",
+      "contract_execution",
+      "refinancing",
+      "expansion"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "300000.00",
+    "amount_max": "30000000.00",
+    "term_min_months": 12,
+    "term_max_months": 60,
+    "rate_base": "23.5",
+    "rate_max": "30",
+    "collateral_kind": "none",
+    "collateral_required_from": null,
+    "collateral_types": [],
+    "guarantee": "none",
+    "target_use_confirmation": false,
+    "support_program": null,
+    "min_business_age_months": 6,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "3000000.00",
+    "required_documents": [
+      {
+        "type": "financial_report",
+        "title": "Бухгалтерская отчётность за последний год",
+        "required_from_amount": "5000000.00",
+        "legal_forms": [
+          "LLC",
+          "JSC"
+        ]
+      },
+      {
+        "type": "tax_return",
+        "title": "Налоговая декларация за последний год",
+        "required_from_amount": "5000000.00",
+        "legal_forms": [
+          "IE"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "SECURED",
+    "name": "Кредит под залог",
+    "short_description": "Крупная сумма на длинный срок под залог недвижимости, транспорта или оборудования.",
+    "description_plain": "Большая сумма и срок до 10 лет за счёт залога: недвижимость, транспорт или оборудование. Ставка ниже, чем без залога. Залог описывается в заявке, документы на него прикладываются.",
+    "purposes": [
+      "working_capital",
+      "equipment",
+      "refinancing",
+      "expansion"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "500000.00",
+    "amount_max": "150000000.00",
+    "term_min_months": 12,
+    "term_max_months": 120,
+    "rate_base": "21.5",
+    "rate_max": "27",
+    "collateral_kind": "required",
+    "collateral_required_from": null,
+    "collateral_types": [
+      "real_estate",
+      "vehicle",
+      "equipment"
+    ],
+    "guarantee": "owner",
+    "target_use_confirmation": false,
+    "support_program": null,
+    "min_business_age_months": 12,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "10000000.00",
+    "required_documents": [
+      {
+        "type": "financial_report",
+        "title": "Бухгалтерская отчётность за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "LLC",
+          "JSC"
+        ]
+      },
+      {
+        "type": "tax_return",
+        "title": "Налоговая декларация за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "IE"
+        ]
+      },
+      {
+        "type": "collateral_documents",
+        "title": "Документы на залог: право собственности и оценка",
+        "required_from_amount": null,
+        "legal_forms": []
+      }
+    ]
+  },
+  {
+    "code": "CREDIT_LINE",
+    "name": "Кредитная линия",
+    "short_description": "Берите деньги частями в пределах лимита, проценты начисляются только на использованную сумму.",
+    "description_plain": "Возобновляемый лимит: деньги берутся траншами, когда нужны, и гасятся из поступлений, после погашения лимит снова доступен. Закрывает кассовые разрывы и исполнение контрактов. Залог по желанию, от 30 млн ₽ — обязателен.",
+    "purposes": [
+      "working_capital",
+      "cash_gap",
+      "contract_execution"
+    ],
+    "facility": "credit_line_revolving",
+    "repayment_options": [
+      "interest_only",
+      "annuity"
+    ],
+    "amount_min": "1000000.00",
+    "amount_max": "50000000.00",
+    "term_min_months": 12,
+    "term_max_months": 36,
+    "rate_base": "22",
+    "rate_max": "28",
+    "collateral_kind": "optional",
+    "collateral_required_from": "30000000.00",
+    "collateral_types": [
+      "real_estate",
+      "vehicle",
+      "equipment",
+      "goods"
+    ],
+    "guarantee": "none",
+    "target_use_confirmation": false,
+    "support_program": null,
+    "min_business_age_months": 12,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "12000000.00",
+    "required_documents": [
+      {
+        "type": "financial_report",
+        "title": "Бухгалтерская отчётность за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "LLC",
+          "JSC"
+        ]
+      },
+      {
+        "type": "tax_return",
+        "title": "Налоговая декларация за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "IE"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "OVERDRAFT",
+    "name": "Овердрафт",
+    "short_description": "Платите поставщикам и налоги, даже когда на расчётном счёте временно не хватает денег.",
+    "description_plain": "Платежи проходят, даже когда на счёте не хватает денег: банк добавляет недостающее, долг гасится из первых поступлений. Лимит считается по оборотам счёта, поэтому нужна выписка за 6 месяцев.",
+    "purposes": [
+      "cash_gap"
+    ],
+    "facility": "overdraft",
+    "repayment_options": [
+      "interest_only"
+    ],
+    "amount_min": "100000.00",
+    "amount_max": "10000000.00",
+    "term_min_months": 3,
+    "term_max_months": 12,
+    "rate_base": "24",
+    "rate_max": "30",
+    "collateral_kind": "none",
+    "collateral_required_from": null,
+    "collateral_types": [],
+    "guarantee": "none",
+    "target_use_confirmation": false,
+    "support_program": null,
+    "min_business_age_months": 6,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "5000000.00",
+    "required_documents": [
+      {
+        "type": "bank_statement",
+        "title": "Выписка по расчётному счёту за 6 месяцев (CSV)",
+        "required_from_amount": null,
+        "legal_forms": []
+      }
+    ]
+  },
+  {
+    "code": "AUTO",
+    "name": "Автокредит для бизнеса",
+    "short_description": "Легковой и грузовой транспорт или спецтехника для бизнеса: в залог идёт покупка.",
+    "description_plain": "Кредит на покупку транспорта или спецтехники у продавца. Деньги идут продавцу, купленный транспорт становится залогом. В заявке — что покупаете, у кого и за сколько.",
+    "purposes": [
+      "vehicles"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "500000.00",
+    "amount_max": "50000000.00",
+    "term_min_months": 12,
+    "term_max_months": 84,
+    "rate_base": "20",
+    "rate_max": "26",
+    "collateral_kind": "required",
+    "collateral_required_from": null,
+    "collateral_types": [
+      "vehicle"
+    ],
+    "guarantee": "none",
+    "target_use_confirmation": true,
+    "support_program": null,
+    "min_business_age_months": 6,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "5000000.00",
+    "required_documents": [
+      {
+        "type": "purchase_contract",
+        "title": "Договор купли-продажи или счёт продавца",
+        "required_from_amount": null,
+        "legal_forms": []
+      }
+    ]
+  },
+  {
+    "code": "MORTGAGE",
+    "name": "Бизнес-ипотека",
+    "short_description": "Покупка коммерческой недвижимости: офис, склад, торговое помещение или производство.",
+    "description_plain": "Кредит на покупку коммерческой недвижимости, она же становится залогом. Только для ООО и АО со сроком работы от 2 лет. Каждую заявку рассматривает андеррайтер.",
+    "purposes": [
+      "real_estate"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "3000000.00",
+    "amount_max": "150000000.00",
+    "term_min_months": 24,
+    "term_max_months": 120,
+    "rate_base": "23",
+    "rate_max": "28",
+    "collateral_kind": "required",
+    "collateral_required_from": null,
+    "collateral_types": [
+      "real_estate"
+    ],
+    "guarantee": "owner",
+    "target_use_confirmation": true,
+    "support_program": null,
+    "min_business_age_months": 24,
+    "allowed_legal_forms": [
+      "LLC",
+      "JSC"
+    ],
+    "min_annual_revenue": "30000000.00",
+    "required_documents": [
+      {
+        "type": "financial_report",
+        "title": "Бухгалтерская отчётность за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "LLC",
+          "JSC"
+        ]
+      },
+      {
+        "type": "purchase_contract",
+        "title": "Договор купли-продажи или счёт продавца",
+        "required_from_amount": null,
+        "legal_forms": []
+      },
+      {
+        "type": "collateral_documents",
+        "title": "Документы на залог: право собственности и оценка",
+        "required_from_amount": null,
+        "legal_forms": []
+      }
+    ]
+  },
+  {
+    "code": "REFINANCE",
+    "name": "Рефинансирование",
+    "short_description": "Переведите кредиты других банков в один: понятный график и, возможно, ниже ставка.",
+    "description_plain": "Новый кредит гасит кредиты в других банках, остаётся один платёж. В заявке — список кредитов с остатком и платежом. Залог по желанию, от 50 млн ₽ — обязателен.",
+    "purposes": [
+      "refinancing"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "1000000.00",
+    "amount_max": "100000000.00",
+    "term_min_months": 12,
+    "term_max_months": 84,
+    "rate_base": "21",
+    "rate_max": "27",
+    "collateral_kind": "optional",
+    "collateral_required_from": "50000000.00",
+    "collateral_types": [
+      "real_estate",
+      "vehicle",
+      "equipment"
+    ],
+    "guarantee": "none",
+    "target_use_confirmation": true,
+    "support_program": null,
+    "min_business_age_months": 12,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "10000000.00",
+    "required_documents": [
+      {
+        "type": "existing_loans_statement",
+        "title": "Справка о действующих кредитах: остаток долга и график",
+        "required_from_amount": null,
+        "legal_forms": []
+      }
+    ]
+  },
+  {
+    "code": "GOV_SUPPORT",
+    "name": "Кредит с господдержкой",
+    "short_description": "Льготная ставка для малого и среднего бизнеса из приоритетных отраслей.",
+    "description_plain": "Ставка не выше 15% годовых за счёт программы господдержки. Для компаний из реестра МСП в приоритетных отраслях: сельское хозяйство, производство, гостиницы и общепит, IT, наука, здравоохранение. Поручитель — Корпорация МСП.",
+    "purposes": [
+      "working_capital",
+      "equipment",
+      "expansion"
+    ],
+    "facility": "term_loan",
+    "repayment_options": [
+      "annuity",
+      "differentiated"
+    ],
+    "amount_min": "1000000.00",
+    "amount_max": "100000000.00",
+    "term_min_months": 12,
+    "term_max_months": 60,
+    "rate_base": "12",
+    "rate_max": "18",
+    "collateral_kind": "none",
+    "collateral_required_from": null,
+    "collateral_types": [],
+    "guarantee": "msp_corporation",
+    "target_use_confirmation": true,
+    "support_program": {
+      "name": "Льготное кредитование МСП в приоритетных отраслях",
+      "rate_cap": "15"
+    },
+    "min_business_age_months": 12,
+    "allowed_legal_forms": [
+      "LLC",
+      "IE",
+      "JSC"
+    ],
+    "min_annual_revenue": "10000000.00",
+    "required_documents": [
+      {
+        "type": "financial_report",
+        "title": "Бухгалтерская отчётность за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "LLC",
+          "JSC"
+        ]
+      },
+      {
+        "type": "tax_return",
+        "title": "Налоговая декларация за последний год",
+        "required_from_amount": null,
+        "legal_forms": [
+          "IE"
+        ]
+      }
+    ]
+  }
+]

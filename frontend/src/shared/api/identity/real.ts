@@ -1,5 +1,8 @@
 import { http } from '../http'
-import type { IdentityApi } from './types'
+import type { AccountDto, IdentityApi } from './types'
+
+/** Страница GET /accounts — бэкенд отдаёт не больше 100 */
+const ACCOUNTS_PAGE = 100
 
 /** Identity API бэкенда: вход сотрудника, профиль, пользователи и роли */
 export const identityApi: IdentityApi = {
@@ -8,7 +11,15 @@ export const identityApi: IdentityApi = {
   demoLogin: (login) => http('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => http('/me'),
   updateProfile: (data) => http('/me/profile', { method: 'PATCH', body: data }),
-  listAccounts: (params = {}) => http('/accounts', { query: { limit: params.limit ?? 100, offset: params.offset } }),
+  listAccounts: (params = {}) => http('/accounts', { query: { limit: params.limit ?? ACCOUNTS_PAGE, offset: params.offset } }),
+  async listAllAccounts() {
+    const all: AccountDto[] = []
+    for (;;) {
+      const page = await http<AccountDto[]>('/accounts', { query: { limit: ACCOUNTS_PAGE, offset: all.length } })
+      all.push(...page)
+      if (page.length < ACCOUNTS_PAGE) return all
+    }
+  },
   createAccount: (data) => http('/accounts', { method: 'POST', body: data }),
   updateAccount: (id, data) => http(`/accounts/${id}`, { method: 'PATCH', body: data }),
   deleteAccount: (id) => http(`/accounts/${id}`, { method: 'DELETE' }),

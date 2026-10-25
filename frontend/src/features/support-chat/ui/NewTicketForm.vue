@@ -28,7 +28,7 @@ clientApi
   .then((list) => (companies.value = list.filter((item) => item.my_role !== null)))
   .catch(() => undefined)
 clientApi
-  .listApplications(50)
+  .listApplications({ limit: 100 })
   .then((list) => {
     applications.value = list
     const preset = list.find((item) => item.id === form.applicationId)

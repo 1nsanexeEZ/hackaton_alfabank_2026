@@ -41,7 +41,7 @@ jobs:
 
       # Модули, в которых mypy чист; остальные добавляются сюда по мере починки.
       - name: Types
-        run: uv run mypy src/modules/scoring src/modules/products src/modules/decision
+        run: uv run mypy src/modules/scoring src/modules/products src/modules/decision src/modules/assistant
 
       - name: Tests
         run: uv run pytest -q
@@ -176,6 +176,8 @@ jobs:
           TOKEN=$(curl -fsS -X POST "$B/api/auth/demo-login" -H 'Content-Type: application/json' \
             -d '{"login":"owner@romashka.test"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
           curl -fsS -o /dev/null "$B/api/bff/dashboard" -H "Authorization: Bearer $TOKEN"
+          # The assistant without the `ai` profile: templates, no error.
+          curl -fsS "$B/api/assistant/status" | grep -q '"mode":"rules"'
 
       - name: Logs on failure
         if: failure()

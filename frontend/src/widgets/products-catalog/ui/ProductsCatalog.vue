@@ -3,7 +3,7 @@ import { Calculator, ChevronLeft, ChevronRight, Zap } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { ProductFlexCard, type ProductCatalog } from '@/entities/credit-product'
-import { ProductFilterControl, useProductFilter } from '@/features/filter-products'
+import { ProductFilterControl, PurposeFilterControl, useProductFilter } from '@/features/filter-products'
 import { SECTION_ID } from '@/shared/config'
 import { BaseButton, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
 
@@ -21,7 +21,7 @@ const emit = defineEmits<{
 /** Сколько раскрытая карточка ждёт, прежде чем ряд переключится сам */
 const AUTOPLAY_MS = 6000
 
-const { filter, filteredProducts } = useProductFilter(() => props.products)
+const { filter, purpose, purposeError, filteredProducts } = useProductFilter(() => props.products)
 
 // В ряду всегда раскрыта одна карточка
 const expandedId = ref(props.products[0].id)
@@ -162,7 +162,11 @@ function onFocusOut(event: FocusEvent) {
       >
         <template #aside>
           <!-- shrink-0: на 1024 px длинное описание иначе сжимает фильтр и обрезает «Деньги частями» -->
-          <ProductFilterControl v-model="filter" class="self-start lg:shrink-0 lg:self-auto" />
+          <div class="flex flex-col gap-2 self-start sm:flex-row sm:items-center lg:shrink-0 lg:self-auto">
+            <ProductFilterControl v-model="filter" />
+            <PurposeFilterControl v-model="purpose" class="sm:w-64" />
+          </div>
+          <p v-if="purposeError" class="mt-1 text-xs text-ink-secondary">Не удалось подобрать по цели — показаны все продукты</p>
         </template>
       </SectionHeader>
 

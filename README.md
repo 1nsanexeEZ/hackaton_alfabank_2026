@@ -60,58 +60,60 @@ curl http://localhost:8080/api/ready
 
 ### С ИИ: локальная модель
 
-Умный помощник отвечает в кабинете на «что решил банк и что делать», «где заявка», «сколько платить». Он — необязательный профиль `ai`: обычный `docker compose up` его не поднимает, и основной сценарий от него не зависит. Модель с открытыми весами — Qwen3-4B-Instruct (Apache-2.0, 4 млрд параметров) — работает на CPU через Ollama.
+Умный помощник отвечает в кабинете на «что решил банк и что делать», «где заявка», «сколько платить». Это модуль `assistant` backend (`/api/assistant/…`), поэтому обычный `docker compose up` уже включает его: без модели он отвечает по шаблонам из тех же фактов. Модель с открытыми весами — Qwen3-4B-Instruct (Apache-2.0, 4 млрд параметров) — работает на CPU через Ollama в профиле `ai`:
 
 ```bash
-assistant/scripts/ai-pull-model.sh     # один раз, нужен интернет: скачать модель (~2,5 ГБ) в том ollama_models
-docker compose --profile ai up -d      # стенд + ollama + assistant
-assistant/scripts/ai-smoke.sh          # проверить, что помощник отвечает
+backend/scripts/ai-pull-model.sh       # один раз, нужен интернет: скачать модель (~2,5 ГБ) в том ollama_models
+docker compose --profile ai up -d      # стенд + ollama
+backend/scripts/ai-smoke.sh            # проверка: статус, вопрос, поток, injection
 ```
 
-- Чат — кнопка помощника в шапке сайта; отдельная демо-страница — http://localhost:8200/assistant/demo.
-- После скачивания модели стенд работает офлайн. Не скачана модель — помощник отвечает по шаблонам, ничего не падает.
-- Лёгкая модель для машин с 8 ГБ: `assistant/scripts/ai-pull-model.sh qwen2.5:1.5b`, затем `AI_MODEL=qwen2.5:1.5b OLLAMA_MEM_LIMIT=2g docker compose --profile ai up -d`.
-- Ollama вне Docker (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 assistant/scripts/ai-pull-model.sh`, затем `AI_BASE_URL=http://host.docker.internal:11434/v1 docker compose --profile ai up -d assistant`.
-- Только шаблоны, без модели: `AI_ENABLED=false docker compose --profile ai up -d assistant`.
+- **Где чат:** кнопка «Умный помощник» в шапке сайта после входа клиентом.
+- **Офлайн:** после скачивания модели стенд работает без интернета. Не скачана модель — помощник отвечает по шаблонам, ничего не падает.
+- **Прогрев:** backend при старте сам загружает модель в память — на CPU это 20–40 с.
+- **Лёгкая модель** для машин с 8 ГБ: `backend/scripts/ai-pull-model.sh qwen2.5:1.5b`, затем `ASSISTANT_LLM_MODEL=qwen2.5:1.5b OLLAMA_MEM_LIMIT=2g docker compose --profile ai up -d`.
+- **Ollama вне Docker** (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 backend/scripts/ai-pull-model.sh`, затем `ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1 docker compose up -d backend`.
+- **Совсем без модели:** `ASSISTANT_LLM_PROVIDER=off`.
 
 ### С ИИ: свой провайдер (OpenAI-совместимый API)
 
-Помощник ходит в модель по OpenAI-совместимому API (`POST {AI_BASE_URL}/chat/completions`). Подойдёт любой сервер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, Ollama на другой машине. Адрес, ключ и модель задаются в `.env` в корне репозитория:
+Помощник ходит в модель через порт `LanguageModel` по OpenAI-совместимому API (`POST {base URL}/chat/completions`). Подойдёт любой провайдер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, шлюз банка. Base URL, ключ и название модели задаются в `.env` в корне репозитория:
 
 ```bash
 cp .env.example .env
 ```
 
 ```dotenv
-AI_ENABLED=true
-AI_BASE_URL=https://openrouter.ai/api/v1   # адрес OpenAI-совместимого API, без /chat/completions
-AI_API_KEY=<ваш ключ>                      # ключ провайдера; Ollama и vLLM без авторизации — оставить пустым
-AI_MODEL=openai/gpt-oss-120b               # имя модели у провайдера: только модели с открытыми весами
-AI_EXTRA_ALLOWED_HOSTS=openrouter.ai       # хост провайдера: без него помощник не пойдёт на внешний адрес
-AI_TIMEOUT_S=25                            # для облачной модели можно меньше, для медленной — больше
+ASSISTANT_LLM_PROVIDER=api                          # внешний OpenAI-совместимый API
+ASSISTANT_LLM_BASE_URL=https://openrouter.ai/api/v1 # base URL провайдера, без /chat/completions
+ASSISTANT_LLM_API_KEY=<ваш ключ>                    # уходит заголовком Authorization: Bearer
+ASSISTANT_LLM_MODEL=qwen/qwen-2.5-72b-instruct      # название модели у провайдера: только открытые веса
 ```
 
 ```bash
-docker compose --profile ai up -d assistant   # ollama при своём провайдере не нужна
+docker compose up -d backend
+curl http://localhost:8080/api/assistant/status
+# {"enabled": true, "mode": "llm", "provider": "api", "model": "qwen/qwen-2.5-72b-instruct", "host": "openrouter.ai", "reachable": true, "reason": null}
 ```
 
-- **Ключ не коммитьте:** `.env` в `.gitignore`, в репозитории только `.env.example` с пустым `AI_API_KEY`.
-- **Модель** — с открытыми весами, ориентир экспертов — до 120 млрд параметров. Например, `openai/gpt-oss-120b` (Apache-2.0) или любая Qwen / Llama у вашего провайдера. Имена закрытых моделей (`gpt-4o`, `claude`, `gemini`, `gigachat`, `yandexgpt`…) помощник отклоняет.
-- **Проверка:** `curl http://localhost:8200/assistant/status` → `mode: llm`, `reachable: true`, адрес и модель. Если модель недоступна, в ответе — `mode: rules` и причина в `reason`; помощник отвечает по шаблонам.
-- В промпт уходят только факты для ответа: без ФИО, телефона, ИНН и названия компании. Модель ничего не решает и не вызывает инструменты, её ответ проходит постпроверку чисел и формулировок ([`docs/ai.md`](docs/ai.md)).
+- **Ключ не коммитьте:** `.env` в `.gitignore`, в репозитории только `.env.example` с пустым ключом.
+- **Модель** — с открытыми весами. Ориентир экспертов — до 120 млрд параметров, организаторы подтвердили, что это рекомендация. Закрытые модели (`gpt-*`, `claude`, `gemini`, `gigachat`, `yandexgpt`…) помощник отклоняет по названию: `enabled: false` и причина в `reason`.
+- **Статус:** `mode: rules` при `enabled: true` — провайдер не ответил или не знает модель (`reachable: false`). Помощник при этом отвечает по шаблонам, основной сценарий не страдает.
+- **Данные:** во внешний API уходят только факты банка — без ФИО, телефона, ИНН, названия компании и без текста, который клиент сам написал в анкете (152-ФЗ). Модель ничего не решает и не вызывает инструменты, её ответ проходит постпроверку чисел и формулировок.
+- **Свой сервер внутри периметра** (vLLM, llama.cpp) можно подключить и как `local`: хост добавляется в `ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS`.
 
-| Переменная | По умолчанию | Что задаёт |
+| Переменная | По умолчанию в compose | Что задаёт |
 |---|---|---|
-| `AI_ENABLED` | `true` в compose | `false` — только шаблоны |
-| `AI_BASE_URL` | `http://ollama:11434/v1` | OpenAI-совместимый endpoint |
-| `AI_API_KEY` | пусто | ключ провайдера |
-| `AI_MODEL` | `qwen3:4b-instruct-2507-q4_K_M` | модель на сервере |
-| `AI_EXTRA_ALLOWED_HOSTS` | пусто | внешние хосты провайдеров через запятую |
-| `AI_TIMEOUT_S`, `AI_CONCURRENCY`, `AI_MAX_QUEUE` | `25`, `1`, `4` | срок ответа, одновременных генераций, очередь |
+| `ASSISTANT_LLM_PROVIDER` | `local` | `local` — модель рядом с приложением (Ollama профиля `ai`), `api` — внешний OpenAI-совместимый API, `off` — без модели |
+| `ASSISTANT_LLM_BASE_URL` | `http://ollama:11434/v1` | OpenAI-совместимый endpoint |
+| `ASSISTANT_LLM_API_KEY` | пусто | ключ провайдера |
+| `ASSISTANT_LLM_MODEL` | `qwen3:4b-instruct-2507-q4_K_M` | название модели на сервере |
+| `ASSISTANT_LLM_TIMEOUT_S`, `ASSISTANT_LLM_CONCURRENCY`, `ASSISTANT_LLM_MAX_QUEUE` | `25`, `1`, `4` | срок ответа, одновременных генераций, очередь |
+| `ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS` | пусто | только `local`: ещё хосты внутри периметра |
 | `ASSISTANT_RATE_LIMIT_PER_MINUTE` | `10` | вопросов в минуту на пользователя |
-| `OLLAMA_MEM_LIMIT` | `4g` | память контейнера ollama |
+| `OLLAMA_MEM_LIMIT` | `4g` | память контейнера `ollama` |
 
-Модели, деградация, защита от prompt injection и замеры качества — [`docs/ai.md`](docs/ai.md).
+Модели, деградация, защита от prompt injection и замеры качества — [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md).
 
 ## Что проверить за 10 минут
 
@@ -135,7 +137,7 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 ## Требования
 
 - Docker с Compose v2: Docker Desktop на Windows и macOS или Docker Engine на Linux.
-- 12 ГБ оперативной памяти: стенд без ИИ — около 3 ГБ по `mem_limit`, с профилем `ai` и локальной моделью — около 7,2 ГБ.
+- 12 ГБ оперативной памяти: стенд без ИИ — около 3 ГБ по `mem_limit`, с профилем `ai` и локальной моделью — около 7 ГБ.
 - Около 2,5 ГБ диска под образы (с моделью — ещё около 2,5 ГБ) и свободный порт 8080 (другой — `HTTP_PORT`).
 - Интернет — только для первой сборки образов и скачивания модели; дальше стенд запускается офлайн.
 - Для разработки без Docker: Python 3.12 и [uv](https://docs.astral.sh/uv/), Node.js 22+.
@@ -149,7 +151,6 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 | `external-mocks` | 192 МБ | 47 МБ |
 | `frontend`, `nginx` | не заданы | 6 МБ |
 | **Итого без ИИ** | **≈ 3,0 ГБ** | **≈ 0,7 ГБ** |
-| `assistant` (профиль `ai`) | 256 МБ | — |
 | `ollama` (профиль `ai`) | 4 ГБ | до 4 ГБ при ответе модели |
 
 Замер — Docker Desktop на Windows 11 (WSL 2), без нагрузки, `docker stats` через минуту после старта.
@@ -160,13 +161,13 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 - Что именно упало — `docker compose ps` и `docker compose logs --tail=100 <сервис>`.
 - На свежем томе Kafka в первые секунды backend пишет `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик, это проходит само.
 
-**Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `assistant/scripts/ai-pull-model.sh`.
+**Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `backend/scripts/ai-pull-model.sh`.
 
 **Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`).
 
 ## Архитектура
 
-Модульный монолит на FastAPI: один процесс backend, внутри — 12 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
+Модульный монолит на FastAPI: один процесс backend, внутри — 13 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
 
 ![Контейнеры](docs/architecture/img/1-containers.png)
 
@@ -184,8 +185,7 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 | `support` | чат клиента с поддержкой, очередь сотрудников — [`docs/modules/support.md`](docs/modules/support.md) |
 | `projector` | модели чтения под экраны — [`docs/modules/projector.md`](docs/modules/projector.md) |
 | `bff` | ответы под экраны кабинета и бэк-офиса — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
-
-Помощник `assistant` — отдельный сервис (профиль `ai`): данные берёт у backend токеном пользователя, своей базы прав у него нет.
+| `assistant` | умный помощник: маршрутизатор на правилах, факты из фасадов, модель за портом `LanguageModel` (Ollama или свой OpenAI-совместимый API), постпроверка, история диалогов — [`docs/ai.md`](docs/ai.md) |
 
 **Kafka.** Transactional outbox: изменение и событие о нём — в одной транзакции. Inbox отсекает повторы, у каждого топика есть `<topic>.dlq`. Хранение бессрочное — projector перестраивает модели чтения с нуля.
 
@@ -195,7 +195,7 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 
 | Компонент | Версия | Где |
 |---|---|---|
-| Python, FastAPI, Pydantic | 3.12, 0.156, 2.14 | `backend`, `external-mocks`, `assistant` |
+| Python, FastAPI, Pydantic | 3.12, 0.156, 2.14 | `backend`, `external-mocks` |
 | SQLAlchemy (async), Alembic, asyncpg | 2.1, 1.20 | `backend` |
 | FastStream (Kafka) | 0.7 | `backend` |
 | pyHanko, fpdf2, qrcode | 0.38, 2.8 | договор PDF, подпись банка PAdES |
@@ -207,7 +207,7 @@ docker compose --profile ai up -d assistant   # ollama при своём про�
 | Vue, Vue Router, Vite, TypeScript, Tailwind CSS | 3.5, 5.4, 8.3, 6.0, 4.3 | `frontend`, Node 22 |
 | Ollama, Qwen3-4B-Instruct-2507 | 0.40.0, Q4_K_M | профиль `ai` |
 
-Версии зафиксированы lock-файлами: `backend/uv.lock`, `external-mocks/uv.lock`, `assistant/uv.lock`, `frontend/package-lock.json`, `backend/.python-version`, теги образов в `docker-compose.yml`. Лицензии и смоделированные интеграции — [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Версии зафиксированы lock-файлами: `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`, `backend/.python-version`, теги образов в `docker-compose.yml`. Лицензии и смоделированные интеграции — [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Переменные окружения
 
@@ -338,7 +338,7 @@ Compose читает `.env` из корня репозитория. В конт�
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
 | Описание API | Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
-| Умный помощник: модели, запуск, деградация, защита, качество | [`docs/ai.md`](docs/ai.md) |
+| Умный помощник: модели, свой провайдер, деградация, защита, качество | [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
 | Проверка по 115-ФЗ на каждой заявке, автоматизированное решение (ст. 16 152-ФЗ) | [`docs/compliance-115.md`](docs/compliance-115.md) |
 | SLA, отказоустойчивость, деградация | [`docs/sla.md`](docs/sla.md) |
@@ -359,13 +359,13 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check 
 ```
 
 - **Без Docker** backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`.
-- **Моки:** `cd external-mocks && uv sync && uv run pytest`. **Помощник:** `cd assistant && uv sync && uv run pytest` (фейковая модель, без сети).
+- **Моки:** `cd external-mocks && uv sync && uv run pytest`. Тесты помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети).
 - **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)).
 - **CI** (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`:
   - ruff, import-linter, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
-  - интеграционные тесты, тесты моков и помощника, сборка фронтенда;
-  - подъём всего стенда так, как его запускает жюри: `docker compose up --wait` и проверка сайта, API, входа и кабинета.
+  - интеграционные тесты, тесты моков, сборка фронтенда;
+  - подъём всего стенда так, как его запускает жюри: `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника.
 
 ## Что вошло, ограничения и что дальше
 
@@ -383,8 +383,7 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check 
 - все внешние системы смоделированы;
 - ключ подписи банка — демо-УЦ, не квалифицированный;
 - членство в реестре МСП не проверяется автоматически;
-- нет лимита попыток пароля при подписании;
-- история диалогов помощника хранится в памяти.
+- нет лимита попыток пароля при подписании.
 
 **Дальше:**
 - УКЭП банка и клиента через ЭДО с машиночитаемой доверенностью;

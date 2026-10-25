@@ -30,11 +30,17 @@ export type Permission =
   | 'tasks.read'
   | 'tasks.update'
   | 'decisions.read'
+  /** Версии PD-модели и кредитной политики: читать и примерять */
+  | 'scoring.read'
+  /** Вести версии: черновики, правка, активация и откат */
+  | 'scoring.update'
   | 'backoffice.read'
   | 'feed.read'
   | 'support.read'
   | 'support.create'
   | 'support.manage'
+  /** Умный помощник: задать вопрос о своих заявках (клиенту и андеррайтеру) */
+  | 'assistant.use'
 
 /** org_member — только компании, где пользователь участник, и их заявки */
 export type Policy = 'not_deleted' | 'own_only' | 'org_member'
@@ -112,6 +118,8 @@ export interface IdentityApi {
   me(): Promise<MeDto>
   updateProfile(data: Partial<ProfileDto>): Promise<MeDto>
   listAccounts(params?: { limit?: number; offset?: number }): Promise<AccountDto[]>
+  /** Все учётки: страницами по 100, пока не придёт неполная */
+  listAllAccounts(): Promise<AccountDto[]>
   createAccount(data: AccountCreateInput): Promise<AccountDto>
   updateAccount(id: string, data: AccountUpdateInput): Promise<AccountDto>
   deleteAccount(id: string): Promise<void>

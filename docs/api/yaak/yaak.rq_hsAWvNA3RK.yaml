@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_hsAWvNA3RK
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_i55ggaV5Pj
+name: Вопрос помощнику
+description: |-
+  Ask
+
+  Ответ целиком; с заголовком `Accept: text/event-stream` — поток SSE: `status`, `delta`, `done`. `fallback_reason` — почему ответил шаблон.
+
+  Токен: директор ООО «Ромашка».
+method: POST
+url: ${[ base_url ]}/assistant/conversations/:conversation_id/messages
+urlParameters:
+- enabled: true
+  name: :conversation_id
+  value: ${[ conversation_id ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "text": "Что решил банк по моей заявке?",
+      "application_id": "${[ application_id ]}"
+    }
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

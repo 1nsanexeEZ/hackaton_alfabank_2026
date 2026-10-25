@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { AlertTriangle, ChevronRight, Waves } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useProductCatalog } from '@/entities/credit-product'
 import { gradeTone, label, REASON_LABEL, REVIEW_LABEL, TASK_STATUS_LABEL } from '@/entities/underwriting'
-import { backofficeApi, type ReviewKind } from '@/shared/api'
+import { backofficeApi, type QueueItemDto, type QueueSort, type ReviewKind } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
-import { formatDateTime, formatMoney, useAsyncData } from '@/shared/lib'
-import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
+import { errorMessage, formatDateTime, formatMoney } from '@/shared/lib'
+import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl, SelectField } from '@/shared/ui'
 
 /**
  * Очередь андеррайтера с бэкенда (GET /bff/backoffice/queue): заявки, которые не решились автоматически,
  * с видом проверки, причиной маршрута, баллом скоринга и сроком по SLA. Строка ведёт в карточку заявки.
- * Фильтра по виду проверки в API нет — фильтруем загруженную страницу.
+ * Статус и порядок задаёт бэкенд (status, sort), страница по 100 — «Показать ещё» догружает до total.
+ * Фильтра по виду проверки в API нет — фильтруем загруженное.
  */
 type Filter = 'open' | 'in_progress' | 'closed'
 const FILTERS: readonly { value: Filter; label: string }[] = [
@@ -29,15 +30,50 @@ const REVIEW_FILTERS: readonly { value: ReviewFilter; label: string }[] = [
   { value: 'dispute', label: 'Спорные' },
 ]
 
+const SORTS: readonly { value: QueueSort; label: string }[] = [
+  { value: 'due_at', label: 'Сначала срочные' },
+  { value: 'created_at', label: 'Сначала новые' },
+  { value: 'amount', label: 'По сумме' },
+  { value: 'score', label: 'По баллу скоринга' },
+]
+
+const PAGE = 100
+
 const filter = ref<Filter>('open')
 const review = ref<ReviewFilter>('all')
-const queue = useAsyncData(() => backofficeApi.queue({ status: filter.value, limit: 100 }))
-watch(filter, queue.reload)
+const sort = ref<QueueSort>('due_at')
 
-const items = computed(() => {
-  const all = queue.data.value?.items ?? []
-  return review.value === 'all' ? all : all.filter((item) => item.review === review.value)
-})
+const loaded = shallowRef<QueueItemDto[]>([])
+const total = ref<number | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
+// Ответ старого запроса (сменили фильтр, пока грузилось) не перезаписывает новый
+let requestId = 0
+
+async function load(append = false) {
+  const current = ++requestId
+  loading.value = true
+  error.value = null
+  try {
+    const page = await backofficeApi.queue({
+      status: filter.value,
+      sort: sort.value,
+      limit: PAGE,
+      offset: append ? loaded.value.length : 0,
+    })
+    if (current !== requestId) return
+    loaded.value = append ? [...loaded.value, ...page.items] : page.items
+    total.value = page.total
+  } catch (caught) {
+    if (current === requestId) error.value = errorMessage(caught)
+  } finally {
+    if (current === requestId) loading.value = false
+  }
+}
+watch([filter, sort], () => void load(), { immediate: true })
+
+const more = computed(() => total.value !== null && loaded.value.length < total.value)
+const items = computed(() => (review.value === 'all' ? loaded.value : loaded.value.filter((item) => item.review === review.value)))
 
 const { products } = useProductCatalog()
 const productTitle = (code: string) => products.value?.find((product) => product.code === code)?.title ?? code
@@ -49,22 +85,23 @@ const productTitle = (code: string) => products.value?.find((product) => product
       <div class="flex flex-wrap items-center gap-3">
         <SegmentedControl v-model="filter" :options="FILTERS" label="Какие задачи показать" />
         <SegmentedControl v-model="review" :options="REVIEW_FILTERS" label="Вид проверки" />
+        <SelectField v-model="sort" class="w-52" label="Порядок" hide-label :options="SORTS" dense />
       </div>
-      <p v-if="queue.data.value" class="text-sm text-ink-secondary">
-        <template v-if="review === 'all'">Всего: {{ queue.data.value.total }}</template>
-        <template v-else>Показано {{ items.length }} из {{ queue.data.value.total }}</template>
+      <p v-if="total !== null" class="text-sm text-ink-secondary">
+        <template v-if="review === 'all' && !more">Всего: {{ total }}</template>
+        <template v-else>Показано {{ items.length }} из {{ total }}</template>
       </p>
     </div>
 
     <AsyncState
-      :loading="queue.loading.value && !queue.data.value"
-      :error="queue.error.value"
+      :loading="loading && !loaded.length"
+      :error="loaded.length ? null : error"
       :empty="!items.length"
-      :empty-text="queue.data.value?.items.length ? 'Задач с таким видом проверки нет' : 'Задач нет — все заявки решены автоматически'"
-      @retry="queue.reload"
+      :empty-text="loaded.length ? 'Задач с таким видом проверки нет' : 'Задач нет — все заявки решены автоматически'"
+      @retry="load()"
     >
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[56rem] text-left text-sm" :class="queue.loading.value && 'opacity-60'">
+        <table class="w-full min-w-[56rem] text-left text-sm" :class="loading && 'opacity-60'">
           <thead class="text-xs text-ink-secondary">
             <tr class="border-b border-line">
               <th class="px-4 py-3 font-medium">Заявка</th>
@@ -128,6 +165,10 @@ const productTitle = (code: string) => products.value?.find((product) => product
           </tbody>
         </table>
       </div>
+      <div v-if="more" class="border-t border-line p-4">
+        <BaseButton variant="secondary" size="s" :loading="loading" @click="load(true)">Показать ещё</BaseButton>
+      </div>
+      <p v-if="error && loaded.length" class="px-4 pb-4 text-sm text-brand" role="alert">{{ error }}</p>
     </AsyncState>
   </PanelCard>
 </template>

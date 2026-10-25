@@ -1,11 +1,25 @@
 import { shallowRef } from 'vue'
 
-import { backofficeApi, type StaffApplicationDto, type UnderwriterCardDto } from '@/shared/api'
+import { backofficeApi, type ApplicationStatusCode, type StaffApplicationDto, type UnderwriterCardDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
 /** Сколько последних поданных заявок разбираем и сколько карточек грузим одновременно */
 const LIMIT = 50
 const PARALLEL = 6
+/** Всё, кроме черновика: черновики не оценивались */
+const SUBMITTED: ApplicationStatusCode[] = [
+  'submitted',
+  'in_review',
+  'info_requested',
+  'offer_ready',
+  'signing',
+  'signed',
+  'disbursed',
+  'rejected',
+  'offer_declined',
+  'expired',
+  'cancelled',
+]
 
 export interface ScoredApplication {
   application: StaffApplicationDto
@@ -15,7 +29,7 @@ export interface ScoredApplication {
 /**
  * Скоринг по заявкам: отдельной ручки со сводкой нет, поэтому берём последние поданные заявки
  * (GET /applications) и их карточки (GET /bff/backoffice/applications/{id}) — там оценки обеих
- * моделей, качество данных и решение. Черновики не оценивались — их пропускаем.
+ * моделей, качество данных и решение. Черновики не оценивались — бэкенд их не отдаёт (status).
  */
 export function useScoredApplications() {
   const items = shallowRef<ScoredApplication[]>([])
@@ -27,7 +41,7 @@ export function useScoredApplications() {
     loading.value = true
     error.value = null
     try {
-      const submitted = (await backofficeApi.applications({ limit: 100 })).filter((item) => item.status !== 'draft').slice(0, LIMIT)
+      const submitted = await backofficeApi.applications({ status: SUBMITTED, limit: LIMIT })
       total.value = submitted.length
       const loaded: ScoredApplication[] = []
       for (let index = 0; index < submitted.length; index += PARALLEL) {

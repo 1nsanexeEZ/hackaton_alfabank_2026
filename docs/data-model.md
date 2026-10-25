@@ -418,6 +418,30 @@ erDiagram
     }
 ```
 
+История умного помощника — таблицы модуля `assistant`: диалог видит только его автор (`owner_id`), в сообщении — роль (вопрос или ответ), заявка, намерение и режим ответа (`llm` или `rules`). Тексты вопросов и ответов в логи не пишутся ([ai.md](ai.md)).
+
+```mermaid
+erDiagram
+    assistant_conversations ||--o{ assistant_messages : ""
+
+    assistant_conversations {
+        uuid id PK
+        uuid owner_id
+        timestamp created_at
+    }
+    assistant_messages {
+        uuid id PK
+        uuid conversation_id FK
+        int position
+        string role
+        text text
+        uuid application_id
+        string intent
+        string mode
+        timestamp created_at
+    }
+```
+
 Модели чтения `projector_*` — денормализованные таблицы под экраны, их можно удалить и перестроить из Kafka ([architecture.md](architecture/architecture.md#модели-чтения)): `application_overview`, `underwriting_queue`, `application_timeline`, `organization_dashboard`, `backoffice_metrics`.
 
 ## Каталог продуктов: products

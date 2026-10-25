@@ -204,7 +204,7 @@
 | Идентификатор версии на дедлайн | обязательно | git-тег на `main` + commit hash в форме сдачи и в README — ставится при сдаче; тег вида `v*.*.*` (например, `v1.0.0`) ещё и запускает деплой на VPS |
 | Доступ для `alfa-hack-2026` (если репо приватный) | обязательно | Settings → Collaborators; проверить приглашение заранее |
 | Docker и единый воспроизводимый запуск на обычном ПК | обязательно | `docker-compose.yml` в корне, `backend/Dockerfile`, `frontend/Dockerfile`, `external-mocks/Dockerfile`, `.env.example` |
-| Lock-файлы, версии языка и библиотек | обязательно | `backend/uv.lock`, `backend/.python-version`, `external-mocks/uv.lock`, `assistant/uv.lock`, `frontend/package-lock.json`; у всех образов в `docker-compose.yml` точные теги версий |
+| Lock-файлы, версии языка и библиотек | обязательно | `backend/uv.lock`, `backend/.python-version`, `external-mocks/uv.lock`, `frontend/package-lock.json`; у всех образов в `docker-compose.yml` точные теги версий |
 | README.md: назначение, архитектура, требования к окружению, запуск, конфигурации и env, компоненты, пошаговый сценарий проверки | обязательно | `README.md` в корне |
 | Синтетические тестовые данные | обязательно | `backend/seed/` (фикстуры и выписки, генератор — `backend/scripts/generate_statements.py`), `external-mocks/app/`; грузятся автоматически при `docker compose up` |
 | Тестовые учётные записи | обязательно (для e2e) | таблица логинов в `README.md`, создаются сидером |

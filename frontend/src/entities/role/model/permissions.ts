@@ -53,6 +53,51 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
 
 export const MATRIX_ACTIONS = ['Просмотр', 'Создание', 'Изменение', 'Удаление'] as const
 
+export interface PermissionSection {
+  title: string
+  items: { permission: Permission; label: string; description?: string }[]
+}
+
+/**
+ * Права вне матрицы «раздел × действие»: у них нет четвёрки просмотр–создание–изменение–удаление.
+ * Профиль и admin — отдельными переключателями в редакторе роли
+ */
+export const PERMISSION_SECTIONS: readonly PermissionSection[] = [
+  {
+    title: 'Рабочее место',
+    items: [
+      { permission: 'backoffice.read', label: 'Очередь, метрики, проверка по ИНН, скоринг', description: 'Экраны бэк-офиса' },
+      { permission: 'tasks.read', label: 'Задачи и маршрут заявки', description: 'Видеть задачи андеррайтера и ход процесса' },
+      { permission: 'tasks.update', label: 'Решать задачи', description: 'Взять задачу и вынести решение по заявке' },
+      { permission: 'decisions.read', label: 'Решение с журналом правил', description: 'Полная трасса кредитной политики' },
+    ],
+  },
+  {
+    title: 'Модель и политика',
+    items: [
+      { permission: 'scoring.read', label: 'Версии: просмотр и примерка', description: 'PD-модель и кредитная политика' },
+      { permission: 'scoring.update', label: 'Версии: черновики, активация, откат', description: 'Новая версия действует со следующей заявки' },
+    ],
+  },
+  {
+    title: 'Компании',
+    items: [
+      { permission: 'organizations.read', label: 'Просмотр компаний' },
+      { permission: 'organizations.update', label: 'Изменение компаний', description: 'Участники, доверенности, сверка с ЕГРЮЛ, отчётность' },
+    ],
+  },
+  {
+    title: 'Поддержка и уведомления',
+    items: [
+      { permission: 'support.manage', label: 'Очередь обращений', description: 'Взять, ответить, решить, закрыть' },
+      { permission: 'support.read', label: 'Свои обращения', description: 'Клиентам: список и переписка' },
+      { permission: 'support.create', label: 'Задать вопрос', description: 'Клиентам: новое обращение и сообщения в своё' },
+      { permission: 'feed.read', label: 'Лента уведомлений' },
+      { permission: 'assistant.use', label: 'Умный помощник', description: 'Вопросы о своих заявках в окне на сайте' },
+    ],
+  },
+]
+
 /** Политики применимы только к моделям с нужными миксинами — на бэкенде это заявки и кредиты */
 export const POLICY_META: Record<Policy, { label: string; description: string; appliesTo: readonly string[] }> = {
   own_only: {

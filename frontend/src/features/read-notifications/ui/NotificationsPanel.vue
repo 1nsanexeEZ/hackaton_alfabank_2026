@@ -13,7 +13,8 @@ import { useNotifications } from '../model/useNotifications'
 const emit = defineEmits<{ openApplication: [applicationId: string]; openLink: [path: string] }>()
 
 const notifications = useNotifications()
-const { items, total, feedLoading, feedError, organizations, organizationId, news, newsLoading, newsError } = notifications
+const { items, total, feedLoading, feedError, organizations, organizationId, feedOrganizationId, news, newsLoading, newsError } =
+  notifications
 
 const tab = ref<'events' | 'news'>('events')
 const tabs = computed(() => [
@@ -21,10 +22,14 @@ const tabs = computed(() => [
   { value: 'news' as const, label: 'Новости для вас' },
 ])
 
-onMounted(() => void notifications.loadFeed())
+onMounted(() => {
+  void notifications.loadFeed()
+  notifications.loadOrganizations().catch(() => undefined)
+})
 watch(tab, (value) => value === 'news' && !news.value.length && void notifications.loadNews())
 
 const organizationOptions = computed(() => organizations.value.map((item) => ({ value: item.id, label: item.name })))
+const feedOrganizationOptions = computed(() => [{ value: '', label: 'Все компании' }, ...organizationOptions.value])
 const expandedNews = ref<string | null>(null)
 
 function openNews(id: string) {
@@ -63,6 +68,13 @@ const PRIORITY_DOT: Record<string, string> = { high: 'bg-brand', normal: 'bg-inf
     </div>
 
     <template v-if="tab === 'events'">
+      <SelectField
+        v-if="organizationOptions.length > 1"
+        v-model="feedOrganizationId"
+        label="События компании"
+        :options="feedOrganizationOptions"
+        dense
+      />
       <AsyncState :loading="feedLoading && !items.length" :error="items.length ? null : feedError" @retry="notifications.loadFeed()">
         <p v-if="!items.length" class="rounded-2xl bg-surface-soft p-6 text-center text-sm text-ink-secondary">
           Событий пока нет — они появятся, когда вы подадите заявку

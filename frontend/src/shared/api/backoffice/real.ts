@@ -1,10 +1,25 @@
 import { http, httpFile } from '../http'
 import { decodeTicket, decodeTicketItem } from '../client/support'
 import type { SupportTicketDto, SupportTicketListItemDto } from '../client/types'
-import type { BackofficeApi } from './types'
+import type { BackofficeApi, VersionDto, VersionsApi, VersionSummaryDto } from './types'
 
 /** Карточка обращения с раскодированными темой и сообщениями */
 const ticket = (path: string, options?: Parameters<typeof http>[1]) => http<SupportTicketDto>(path, options).then(decodeTicket)
+
+/** Версии PD-модели и кредитной политики: одни и те же ручки под своим префиксом */
+function versions<Catalog, Preview>(base: string): VersionsApi<Catalog, Preview> {
+  const at = (version: string) => `${base}/${encodeURIComponent(version)}`
+  return {
+    list: () => http<VersionSummaryDto[]>(base),
+    catalog: () => http<Catalog>(`${base}/catalog`),
+    get: (version) => http<VersionDto>(at(version)),
+    createDraft: (input) => http<VersionDto>(base, { method: 'POST', body: input }),
+    updateDraft: (version, input) => http<VersionDto>(at(version), { method: 'PUT', body: input }),
+    deleteDraft: (version) => http<void>(at(version), { method: 'DELETE' }),
+    activate: (version) => http<VersionDto>(`${at(version)}/activate`, { method: 'POST' }),
+    preview: (version, limit) => http<Preview>(`${at(version)}/preview`, { method: 'POST', query: { limit } }),
+  }
+}
 
 /** Рабочее место андеррайтера: запросы подписываются токеном сотрудника */
 export const backofficeApi: BackofficeApi = {
@@ -20,7 +35,16 @@ export const backofficeApi: BackofficeApi = {
   contractDocument: (applicationId, kind) => httpFile(`/applications/${applicationId}/contract/document`, { query: { kind } }),
   process: (applicationId) => http(`/processes/${applicationId}`),
   workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
-  applications: (query = {}) => http('/applications', { query: { limit: query.limit, offset: query.offset } }),
+  applications: (query = {}) =>
+    http('/applications', {
+      query: {
+        organization_id: query.organizationId,
+        status: query.status,
+        decided_by: query.decidedBy,
+        limit: query.limit,
+        offset: query.offset,
+      },
+    }),
   organizations: () => http('/organizations'),
   organization: (organizationId) => http(`/organizations/${organizationId}`),
   preApprovedOffers: (organizationId) => http(`/organizations/${organizationId}/pre-approved-offers`),
@@ -44,4 +68,6 @@ export const backofficeApi: BackofficeApi = {
   replySupportTicket: (id, text) => ticket(`/support/queue/${id}/messages`, { method: 'POST', body: { text } }),
   resolveSupportTicket: (id) => ticket(`/support/queue/${id}/resolve`, { method: 'POST' }),
   closeSupportTicketByStaff: (id) => ticket(`/support/queue/${id}/close`, { method: 'POST' }),
+  scoringModels: versions('/scoring/models'),
+  decisionPolicies: versions('/decision/policies'),
 }
