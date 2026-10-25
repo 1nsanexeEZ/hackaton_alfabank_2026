@@ -311,10 +311,11 @@ onBeforeUnmount(() => observer?.disconnect())
         <p v-else-if="items && !list.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
           Под эту цель продуктов нет — выберите другую цель или посмотрите каталог ниже.
         </p>
+        <!-- Отступ внутри прокрутки: рамка выбранного продукта рисуется снаружи карточки и иначе обрезается -->
         <ol
           v-else
           ref="listBox"
-          class="mt-3 max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1 transition-opacity lg:max-h-[26rem]"
+          class="-mx-1 mt-2 max-h-60 space-y-2 overflow-y-auto overscroll-contain p-1 pr-2 transition-opacity lg:max-h-[26rem]"
           :class="loading && 'opacity-60'"
           aria-label="Продукты под цель"
           @scroll.passive="measureList"
@@ -324,7 +325,7 @@ onBeforeUnmount(() => observer?.disconnect())
             <button
               type="button"
               class="w-full rounded-xl p-3 text-left transition-colors"
-              :class="item.code === product.code ? 'bg-surface-soft ring-2 ring-ink' : 'bg-surface-soft/60 hover:bg-surface-soft'"
+              :class="item.code === product.code ? 'bg-brand-soft ring-2 ring-brand' : 'bg-surface-soft/60 hover:bg-surface-soft'"
               :aria-pressed="item.code === product.code"
               @click="choose(item)"
             >
