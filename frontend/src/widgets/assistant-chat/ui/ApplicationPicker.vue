@@ -38,8 +38,11 @@ interface Row {
   status: ClientStatus | null
 }
 
+/** Закрытые без решения банка: в toClientStatus их нет, а в списке им место среди завершённых */
+const CLOSED_STATUS: Partial<Record<string, ClientStatus>> = { cancelled: 'cancelled', offer_declined: 'declined', expired: 'expired' }
+
 function rowOf(item: AssistantApplicationDto): Row {
-  const status = toClientStatus(item.status as ApplicationStatusCode, item.client_stage)
+  const status = toClientStatus(item.status as ApplicationStatusCode, item.client_stage) ?? CLOSED_STATUS[item.status] ?? null
   const product = products.value?.find((entry) => entry.code === item.product_code)?.title ?? item.product_code
   const statusLabel = status ? CLIENT_STATUS_META[status].label : (item.client_stage ?? item.status)
   return { id: item.id, title: product, subtitle: `№ ${item.number} · ${statusLabel}`, status }
