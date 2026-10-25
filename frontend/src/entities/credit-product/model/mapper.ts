@@ -15,7 +15,7 @@ const PRESENTATION: Record<string, Pick<CreditProduct, 'keywords' | 'decisionTim
   mortgage: { keywords: ['Недвижимость', 'До 10 лет', 'Для ООО и АО'], decisionTime: '3 рабочих дня' },
   refinance: { keywords: ['Один платёж', 'Ставка ниже', 'Один график'], decisionTime: '1 рабочий день' },
   'gov-support': { keywords: ['Льготная ставка', 'Господдержка', 'МСП'], decisionTime: '1 рабочий день' },
-  startup: { keywords: ['Для нового бизнеса', 'Без оборотов', 'Господдержка'], decisionTime: '3 рабочих дня', tag: 'До 6 месяцев' },
+  startup: { keywords: ['Новый бизнес', 'Без оборотов', 'Господдержка'], decisionTime: '3 рабочих дня', tag: 'До 6 месяцев' },
 }
 
 const KIND_BY_FACILITY: Record<ProductDto['facility'], ProductKind> = {
