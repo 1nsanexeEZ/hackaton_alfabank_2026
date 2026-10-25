@@ -88,7 +88,8 @@ watch(
 <template>
   <header class="sticky top-0 z-50 bg-night text-on-night">
     <BaseContainer class="flex h-16 items-center justify-between gap-6 lg:h-18">
-      <RouterLink :to="ROUTE_PATH.home" class="shrink-0 rounded-lg" aria-label="Кредитный кабинет — на главную">
+      <!-- data-brand-logo: сюда долетает «А» анимации входа, и логотип подсвечивается -->
+      <RouterLink :to="ROUTE_PATH.home" class="shrink-0 rounded-lg" aria-label="Кредитный кабинет — на главную" data-brand-logo>
         <AppLogo inverted />
       </RouterLink>
 

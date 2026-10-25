@@ -29,7 +29,8 @@ watch(
 <template>
   <!-- Админка рисует свой каркас, шапка и подвал сайта ей не нужны -->
   <RouterView v-if="route.meta.bare" />
-  <div v-else class="flex min-h-dvh flex-col">
+  <!-- data-app-shell: анимация входа поднимает сайт над красной заливкой и открывает его кругом -->
+  <div v-else class="flex min-h-dvh flex-col" data-app-shell>
     <AppHeader @apply="startApplication()" @login="openLogin" @open="openSection" />
     <main class="flex-1">
       <RouterView />
