@@ -802,12 +802,25 @@
       },
       {
         "model": "folder",
+        "id": "fl_ji3qMW82IV",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_LRnXWnQzgy",
+        "name": "Ключевая ставка",
+        "description": "Действующая ключевая (открыто) и её история: ставка с датой начала, удаление будущей.",
+        "sortPriority": 12000.0,
+        "authenticationType": null,
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "folder",
         "id": "fl_5ZqWLZjg9B",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "Лента и новости",
         "description": "События по заявкам, поток SSE, персональные новости.",
-        "sortPriority": 12000.0,
+        "sortPriority": 13000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -820,7 +833,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Техподдержка",
         "description": "Обращения клиента, очередь сотрудников, взятие и переписка.",
-        "sortPriority": 13000.0,
+        "sortPriority": 14000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -833,7 +846,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Умный помощник",
         "description": "Кто отвечает (модель или шаблоны), заявки для чата, диалог: ответ целиком или потоком.",
-        "sortPriority": 14000.0,
+        "sortPriority": 15000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -846,7 +859,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF клиента",
         "description": "Экраны кабинета клиента одним запросом.",
-        "sortPriority": 15000.0,
+        "sortPriority": 16000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -859,7 +872,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF бэк-офиса",
         "description": "Очередь, карточка андеррайтера, метрики.",
-        "sortPriority": 16000.0,
+        "sortPriority": 17000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -872,7 +885,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Администрирование",
         "description": "Аккаунты и роли: создаём свои и на них пробуем.",
-        "sortPriority": 17000.0,
+        "sortPriority": 18000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -7537,6 +7550,83 @@
       },
       {
         "model": "http_request",
+        "id": "rq_WrK9xk7p5T",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_ji3qMW82IV",
+        "name": "Действующая ключевая ставка",
+        "description": "The key rate in force on the date. Nothing entered for it — `KEY_RATE` from the\nsettings with `source: settings`.",
+        "method": "GET",
+        "url": "${[ base_url ]}/market/key-rate",
+        "urlParameters": [
+          {
+            "enabled": false,
+            "name": "on",
+            "value": ""
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 1000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_az6dfZkLua",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_ji3qMW82IV",
+        "name": "История ключевой ставки",
+        "description": "The history, newest first, and the rate in force today (`current`).\n\nТокен: администратор.",
+        "method": "GET",
+        "url": "${[ base_url ]}/market/key-rates",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 2000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_18390m3eRo",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_ji3qMW82IV",
+        "name": "Добавить ключевую ставку",
+        "description": "A rate from a date on; the date is the admin's (the Bank of Russia's rate takes effect\non the next working day after the decision). A rate from this date exists — 409\n`conflict`; `decided_on` after `effective_from` — 422.\n\nСтавка с 2030-01-01: цены демо до этой даты не меняются. Повторный запуск — 409: дата занята; убрать её — «Удалить будущую ставку».\n\nТокен: администратор.",
+        "method": "POST",
+        "url": "${[ base_url ]}/market/key-rates",
+        "urlParameters": [],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"value\": \"13.50\",\n  \"effective_from\": \"2030-01-01\",\n  \"note\": \"Из коллекции Yaak\"\n}"
+        },
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_o7QbQULdK0",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_IzRxHh5qB6",
@@ -10778,6 +10868,34 @@
         "bodyType": null,
         "body": {},
         "sortPriority": 10000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_admin ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_l9Kgy6465D",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_ji3qMW82IV",
+        "name": "Удалить будущую ставку",
+        "description": "Only a rate not in force yet or from today: one that has been in force is history —\n409 `invalid_transition`. No such rate — 404.\n\nТокен: администратор.",
+        "method": "DELETE",
+        "url": "${[ base_url ]}/market/key-rates/:effective_from",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":effective_from",
+            "value": "2030-01-01"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 4000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_admin ]}",

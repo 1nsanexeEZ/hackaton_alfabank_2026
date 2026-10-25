@@ -4,7 +4,6 @@ from fastapi import FastAPI
 
 from src.core.messaging.subscriber import Subscription
 from src.modules.products.api import router
-from src.modules.products.application.services import rate_shift_of
 from src.modules.products.facade import ProductsFacade
 from src.modules.products.infrastructure.facade_impl import ProductsFacadeImpl
 
@@ -16,9 +15,10 @@ def register(app: FastAPI) -> None:
 
 
 def wire(app: FastAPI) -> None:
-    shift = rate_shift_of(app.state.settings)
+    catalog_key_rate = app.state.settings.catalog_key_rate
     app.state.facades.register(
-        ProductsFacade, lambda session: ProductsFacadeImpl(session, app.state.facades, shift)
+        ProductsFacade,
+        lambda session: ProductsFacadeImpl(session, app.state.facades, catalog_key_rate),
     )
 
 

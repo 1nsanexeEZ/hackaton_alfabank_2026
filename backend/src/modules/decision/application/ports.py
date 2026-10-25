@@ -17,6 +17,7 @@ from src.core.uow import UnitOfWork
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.domain.policy_version import PolicyVersion
 from src.modules.decision.domain.result import DecisionResult
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -123,6 +124,9 @@ class PreApprovalTransaction(UnitOfWork, Protocol):
 
     @property
     def scoring(self) -> ScoringFacade: ...
+
+    @property
+    def market(self) -> MarketFacade: ...
 
     @property
     def outbox(self) -> OutboxWriter: ...

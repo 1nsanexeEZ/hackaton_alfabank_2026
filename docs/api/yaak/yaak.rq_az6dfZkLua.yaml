@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_az6dfZkLua
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_ji3qMW82IV
+name: История ключевой ставки
+description: |-
+  The history, newest first, and the rate in force today (`current`).
+
+  Токен: администратор.
+method: GET
+url: ${[ base_url ]}/market/key-rates
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

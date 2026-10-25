@@ -983,6 +983,173 @@
         }
       }
     },
+    "/market/key-rate": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Key Rate",
+        "description": "The key rate in force on the date. Nothing entered for it — `KEY_RATE` from the\nsettings with `source: settings`.",
+        "operationId": "get_key_rate_market_key_rate_get",
+        "parameters": [
+          {
+            "name": "on",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Moscow date; today by default",
+              "title": "On"
+            },
+            "description": "Moscow date; today by default"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyRateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/key-rates": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "List Key Rates",
+        "description": "The history, newest first, and the rate in force today (`current`).",
+        "operationId": "list_key_rates_market_key_rates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyRateHistoryRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Add Key Rate",
+        "description": "A rate from a date on; the date is the admin's (the Bank of Russia's rate takes effect\non the next working day after the decision). A rate from this date exists — 409\n`conflict`; `decided_on` after `effective_from` — 422.",
+        "operationId": "add_key_rate_market_key_rates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyRateCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyRateRecordRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/market/key-rates/{effective_from}": {
+      "delete": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Remove Key Rate",
+        "description": "Only a rate not in force yet or from today: one that has been in force is history —\n409 `invalid_transition`. No such rate — 404.",
+        "operationId": "remove_key_rate_market_key_rates__effective_from__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "effective_from",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Effective From"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/products": {
       "get": {
         "tags": [
@@ -13914,6 +14081,203 @@
           "keys"
         ],
         "title": "JwksResponse"
+      },
+      "KeyRateCreate": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value",
+            "examples": [
+              "13.50"
+            ]
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From",
+            "description": "Moscow date the rate is in force from (the next working day after the board's decision, as the Bank of Russia announces)"
+          },
+          "decided_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided On",
+            "description": "Date of the board's decision, on or before effective_from"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "effective_from"
+        ],
+        "title": "KeyRateCreate"
+      },
+      "KeyRateHistoryRead": {
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/KeyRateRead"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KeyRateRecordRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Newest effective_from first"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "items"
+        ],
+        "title": "KeyRateHistoryRead"
+      },
+      "KeyRateRead": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "examples": [
+              "14.00"
+            ]
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "cbr",
+              "settings"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "effective_from",
+          "source"
+        ],
+        "title": "KeyRateRead",
+        "description": "The key rate in force: `source: settings` and `effective_from: null` — nothing is\nentered for this day, `KEY_RATE` from the settings is used."
+      },
+      "KeyRateRecordRead": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          },
+          "decided_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided On"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "cbr",
+              "settings"
+            ],
+            "title": "Source"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "in_force": {
+            "type": "boolean",
+            "title": "In Force",
+            "description": "The rate in force today"
+          },
+          "removable": {
+            "type": "boolean",
+            "title": "Removable",
+            "description": "Not in force yet (or from today): may be deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "effective_from",
+          "decided_on",
+          "source",
+          "note",
+          "created_at",
+          "in_force",
+          "removable"
+        ],
+        "title": "KeyRateRecordRead"
       },
       "LicenseDTO": {
         "properties": {

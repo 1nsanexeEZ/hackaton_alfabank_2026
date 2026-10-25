@@ -14,6 +14,7 @@ def test_every_module_is_wired() -> None:
     names = [module.NAME for module in MODULES]
     assert names == [
         "identity",
+        "market",
         "products",
         "clients",
         "applications",

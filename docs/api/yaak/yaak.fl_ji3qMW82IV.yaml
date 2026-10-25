@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_ji3qMW82IV
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Ключевая ставка
+description: 'Действующая ключевая (открыто) и её история: ставка с датой начала, удаление будущей.'
+sortPriority: 12000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

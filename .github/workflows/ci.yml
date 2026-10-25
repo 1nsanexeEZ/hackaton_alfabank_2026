@@ -41,7 +41,7 @@ jobs:
 
       # Модули, в которых mypy чист; остальные добавляются сюда по мере починки.
       - name: Types
-        run: uv run mypy src/modules/scoring src/modules/products src/modules/decision src/modules/assistant
+        run: uv run mypy src/modules/scoring src/modules/products src/modules/decision src/modules/assistant src/modules/market
 
       - name: Tests
         run: uv run pytest -q

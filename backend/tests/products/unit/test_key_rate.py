@@ -5,19 +5,54 @@ from decimal import Decimal
 import pytest
 
 from src.core.config import Settings
-from src.modules.products.application.services import rate_shift_of
+from src.modules.products.application.services import ProductService
+from src.modules.products.domain.product import CreditProduct
 from src.modules.products.domain.value_objects import MAX_RATE, RateRange
 from tests.products.factories import catalog_product
 
 
 def test_key_rate_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """KEY_RATE is the fallback: the market module uses it while no rate is entered."""
     monkeypatch.delenv("KEY_RATE", raising=False)
     monkeypatch.delenv("CATALOG_KEY_RATE", raising=False)
     settings = Settings(_env_file=None)
     assert (settings.key_rate, settings.catalog_key_rate) == (Decimal("14.00"), Decimal("16.50"))
-    assert rate_shift_of(settings) == Decimal("-2.50")
-    monkeypatch.setenv("KEY_RATE", "18.25")
-    assert rate_shift_of(Settings(_env_file=None)) == Decimal("1.75")
+
+
+class _Products:
+    def __init__(self, *products: CreditProduct) -> None:
+        self._products = {p.code.value: p for p in products}
+
+    async def get_current(self, code: str) -> CreditProduct | None:
+        return self._products.get(code)
+
+    async def list_active(self) -> list[CreditProduct]:
+        return list(self._products.values())
+
+
+class _KeyRates:
+    def __init__(self, value: str) -> None:
+        self.value = Decimal(value)
+
+    async def current(self) -> Decimal:
+        return self.value
+
+
+async def test_service_moves_rates_by_the_key_rate_on_every_call() -> None:
+    key_rates = _KeyRates("14.00")
+    service = ProductService(
+        _Products(catalog_product("UNSECURED")),  # type: ignore[arg-type]
+        key_rates=key_rates,
+        catalog_key_rate=Decimal("16.50"),
+    )
+    assert (await service.get("UNSECURED")).rate.base == Decimal("21")
+    key_rates.value = Decimal("18.25")
+    assert [p.rate.base for p in await service.list_active()] == [Decimal("25.25")]
+
+
+async def test_without_key_rates_nothing_moves() -> None:
+    service = ProductService(_Products(catalog_product("UNSECURED")))  # type: ignore[arg-type]
+    assert (await service.get("UNSECURED")).rate.base == Decimal("23.5")
 
 
 def test_rate_range_and_support_cap_move_with_the_key_rate() -> None:

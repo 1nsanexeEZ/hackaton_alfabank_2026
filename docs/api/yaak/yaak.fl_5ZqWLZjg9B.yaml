@@ -5,7 +5,7 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_LRnXWnQzgy
 name: Лента и новости
 description: События по заявкам, поток SSE, персональные новости.
-sortPriority: 12000.0
+sortPriority: 13000.0
 authenticationType: null
 authentication: {}
 createdAt: '2026-10-24T00:00:00'
