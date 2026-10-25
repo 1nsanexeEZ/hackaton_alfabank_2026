@@ -19,6 +19,7 @@ from src.core.messaging.contracts.applications import OfferTerms
 from src.core.messaging.contracts.decision import (
     DecisionMade,
     MakeDecision,
+    ManualDecisionRejected,
     RecordManualDecision,
     RequestedInfo,
 )
@@ -39,6 +40,8 @@ class Responders:
     """What the neighbours answer; `hold` — the module stays silent."""
 
     decisions: deque[str] = field(default_factory=deque)
+    # Reasons to reject the next manual decisions with (`ManualDecisionRejected`).
+    manual_rejections: deque[str] = field(default_factory=deque)
     hold: set[str] = field(default_factory=set)
     received: list[str] = field(default_factory=list)
 
@@ -131,6 +134,18 @@ def responder_subscriptions(target: World, responders: Responders) -> list[Subsc
     async def decision(ctx: HandlerContext, command: MakeDecision | RecordManualDecision) -> None:
         responders.received.append(command.TYPE)
         manual = isinstance(command, RecordManualDecision)
+        if manual and responders.manual_rejections:
+            await ctx.outbox.add(
+                ManualDecisionRejected(
+                    application_id=command.application_id,
+                    task_id=command.task_id,
+                    reason=responders.manual_rejections.popleft(),
+                ),
+                key=command.application_id,
+                correlation_id=command.application_id,
+                causation_id=ctx.envelope.event_id,
+            )
+            return
         outcome = command.outcome if manual else responders.decisions.popleft()
         offer = None
         if outcome in ("APPROVE", "COUNTER_OFFER"):

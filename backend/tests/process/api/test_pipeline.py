@@ -1,6 +1,7 @@
 """Applications go through the route via the message bus."""
 
 from datetime import timedelta
+from typing import Any
 
 from src.modules.process.presentation.timeouts import time_out_stuck_steps
 from tests.applications.api.conftest import PASSWORD
@@ -125,6 +126,51 @@ def test_information_request_and_second_round(pipeline: Pipeline) -> None:
     process = p.process(application_id)
     iterations = [s for s in process["steps"] if s["step_code"] == "fetch_enrichment"]
     assert [s["iteration"] for s in iterations] == [1, 2]
+
+
+APPROVE = {
+    "decision": "approve",
+    "amount": "3000000",
+    "term_months": 24,
+    "rate": "23.5",
+    "comment": "Риск снижен",
+}
+
+
+def complete_task(p: Pipeline, result: dict[str, Any]) -> dict[str, Any]:
+    """The underwriter takes the only open task and closes it; returns the task."""
+    [task] = p.world.client.get("/tasks", headers=p.underwriter()).json()
+    p.world.client.post(f"/tasks/{task['id']}/claim", headers=p.underwriter())
+    done = p.world.client.post(
+        f"/tasks/{task['id']}/complete", json=result, headers=p.underwriter()
+    )
+    assert done.status_code == 200, done.text
+    p.drain()
+    return task
+
+
+def test_rejected_manual_decision_is_explained_to_the_underwriter(pipeline: Pipeline) -> None:
+    p, client = pipeline, pipeline.world.client
+    p.responders.decisions.append("MANUAL_REVIEW")
+    p.responders.manual_rejections.append("Сумма больше полномочий андеррайтера")
+    application_id = p.submit()
+    [first] = client.get("/tasks", headers=p.underwriter()).json()
+    assert first["reason"] is None
+
+    rejected = complete_task(p, APPROVE)
+
+    reason = "Ручное решение не принято: Сумма больше полномочий андеррайтера"
+    [task] = client.get("/tasks", headers=p.underwriter()).json()
+    assert task["id"] != rejected["id"] and task["reason"] == reason
+    detail = client.get(f"/tasks/{task['id']}", headers=p.underwriter()).json()
+    assert detail["task"]["reason"] == reason
+    assert detail["process"]["manual_review_reason"] == reason
+    assert p.process(application_id)["manual_review_reason"] == reason
+
+    complete_task(p, APPROVE)
+    process = p.process(application_id)
+    assert process["current_node_id"] == "wait_offer_answer"
+    assert process["manual_review_reason"] is None
 
 
 def test_cancel_stops_the_process(pipeline: Pipeline) -> None:

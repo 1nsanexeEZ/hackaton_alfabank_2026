@@ -238,10 +238,18 @@ async def test_rejected_manual_decision_goes_back_to_review() -> None:
         "comment": "ok",
         "completed_by": "x",
     }
-    await d.send(Trigger("UserTaskCompleted", result, task_id=d.tasks[-1].id))
+    [first] = d.tasks
+    assert first.reason is None  # the decision itself sent the application to a person
+    await d.send(Trigger("UserTaskCompleted", result, task_id=first.id))
     assert await d.reply("ManualDecisionRejected", "RecordManualDecision", reason="limit 50 mln")
     assert len(d.tasks) == 2
-    assert d.process.context.manual_review_reason == "manual decision rejected: limit 50 mln"
+    reason = "Ручное решение не принято: limit 50 mln"
+    assert d.process.context.manual_review_reason == reason
+    # The underwriter sees why the task came back.
+    assert d.tasks[-1].reason == reason
+
+    await d.send(Trigger("UserTaskCompleted", {**result, "amount": 9e6}, task_id=d.tasks[-1].id))
+    assert d.process.context.manual_review_reason is None
 
 
 async def test_rejection() -> None:
@@ -273,6 +281,7 @@ async def test_failed_enrichment_goes_to_manual_review() -> None:
     assert await d.reply("EnrichmentFailed", "FetchEnrichment", reason="all sources down")
     assert d.process.current_node_id == "underwriter_review"
     assert d.process.context.manual_review_reason == "enrichment: all sources down"
+    assert d.tasks[-1].reason == "enrichment: all sources down"
     failed = [s for s in d.process.steps if s.outcome == "failed"]
     assert [s.step_code for s in failed] == ["fetch_enrichment"]
 

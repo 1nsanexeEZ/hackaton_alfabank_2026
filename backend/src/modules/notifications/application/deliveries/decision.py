@@ -96,9 +96,8 @@ class DecisionDeliveries:
     async def _manual_decision_rejected(self, event: ManualDecisionRejected) -> list[Delivery]:
         app = await self._ctx.application(event.application_id)
         rendered = t.BANK_MANUAL_DECISION_REJECTED.render(number=app.number, reason=event.reason)
-        entry = bank_entry(
-            app, rendered, "high", action_required=True, link=f"/backoffice/tasks/{event.task_id}"
-        )
+        # To the application: the task of the rejected decision is closed, process opens a new one.
+        entry = bank_entry(app, rendered, "high", action_required=True)
         return [Delivery(entry, (UNDERWRITERS,))]
 
     async def _pre_approved(self, event: PreApprovedOffersUpdated) -> list[Delivery]:

@@ -33,3 +33,6 @@ class ProcessOut(BaseModel):
     steps: list[StepOut]
     started_at: datetime
     finished_at: datetime | None
+    # Why the application is with a person beyond the decision's reasons, e.g. the
+    # underwriter's decision was not accepted; null once the task is closed.
+    manual_review_reason: str | None

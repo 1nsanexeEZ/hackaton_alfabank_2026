@@ -28,6 +28,8 @@ class UserTaskDTO:
     due_at: datetime | None
     result: dict[str, Any] | None = None
     completed_by: UUID | None = None
+    # Why the task is opened beyond the decision's reasons; None — the decision sent it.
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +49,7 @@ class TaskDTO:
     overdue: bool
     result: dict[str, Any] | None
     completed_by: UUID | None
+    reason: str | None
 
 
 @dataclass(frozen=True, slots=True)

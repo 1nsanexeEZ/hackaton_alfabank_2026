@@ -107,6 +107,7 @@ def task_in(record: UserTaskRecord) -> UserTask:
         form_schema=dict(record.form_schema),
         created_at=aware(record.created_at),  # type: ignore[arg-type]
         due_at=aware(record.due_at),
+        reason=record.reason,
         status=TaskStatus(record.status),
         assignee_id=record.assignee_id,
         result=dict(record.result) if record.result is not None else None,

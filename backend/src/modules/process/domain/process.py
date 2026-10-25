@@ -319,6 +319,7 @@ class ProcessInstance:
                 form_schema=dict(result.task.form_schema),
                 created_at=now,
                 due_at=result.task.due_at,
+                reason=result.task.reason,
             )
             self._new_tasks.append(task)
             self.context.last_task_id = task.id
