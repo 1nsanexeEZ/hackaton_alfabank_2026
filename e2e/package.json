@@ -10,6 +10,7 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
+    "test:ui:web": "playwright test --ui-host=127.0.0.1 --ui-port=9323",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"
   },

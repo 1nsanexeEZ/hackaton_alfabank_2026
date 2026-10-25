@@ -11,20 +11,39 @@ cd e2e
 npm ci
 npx playwright install chromium   # один раз: браузер для тестов
 npm test                          # все тесты, отчёт — npm run report
+npx playwright test application-approved   # один файл
 ```
-
-| Переменная | По умолчанию | Что задаёт |
-|---|---|---|
-| `E2E_BASE_URL` | `http://localhost:8080` | адрес стенда; на другом порту — `E2E_BASE_URL=http://localhost:8081 npm test` |
-| `E2E_DEMO_PASSWORD` | `Demo-2026!` | пароль демо-учёток, если на стенде другой `DEMO_PASSWORD` |
 
 Стенд не отвечает на `/api/ready` — тесты сразу останавливаются с подсказкой, как его поднять.
 
-- `npm run test:headed` — с окном браузера;
-- `npm run test:ui` — пошагово в интерфейсе Playwright;
-- `npx playwright test application-approved` — один файл.
+| Переменная | По умолчанию | Что задаёт |
+|---|---|---|
+| `E2E_BASE_URL` | `http://localhost:8080` | адрес стенда |
+| `E2E_DEMO_PASSWORD` | `Demo-2026!` | пароль демо-учёток, если на стенде другой `DEMO_PASSWORD` |
 
-Упавший тест оставляет в `test-results/` скриншот, видео и трассу: `npx playwright show-trace <путь к trace.zip>`.
+Стенд на другом порту — адрес задаётся переменной, в каждой оболочке по-своему:
+
+| Оболочка | Команда |
+|---|---|
+| bash, Git Bash, macOS, Linux | `E2E_BASE_URL=http://localhost:8081 npm test` |
+| Windows cmd | `set "E2E_BASE_URL=http://localhost:8081" && npm test` |
+| PowerShell | `$env:E2E_BASE_URL="http://localhost:8081"; npm test` |
+
+В cmd и PowerShell переменная живёт до закрытия окна: дальше хватит `npm test`. Кавычки в `set "…"` нужны — без них в адрес попадёт пробел перед `&&`.
+
+## Посмотреть, как тест кликает
+
+| Команда | Что видно |
+|---|---|
+| `npm run test:ui` | интерфейс Playwright: список тестов, запуск по одному, лента шагов со снимком страницы на каждом — куда кликнул, что ввёл, какие запросы ушли |
+| `npm run test:ui:web` | то же в обычном браузере: откройте адрес из консоли, `http://127.0.0.1:9323` |
+| `npm run test:headed -- application-approved` | тест идёт в живом окне браузера — быстро, S-1 проходит секунд за 15 |
+| `npx playwright test application-approved --debug` | пошагово: тест встаёт на каждом действии, Playwright Inspector показывает, на какой элемент он нацелен |
+| `npx playwright test --trace on`, затем `npm run report` | после прогона: в отчёте у каждого теста трасса с той же лентой шагов |
+
+Упавший тест и без этого оставляет в `test-results/` скриншот, видео и трассу: `npx playwright show-trace <путь к trace.zip>`.
+
+**Окно `test:ui` не открывается** с ошибкой `net::ERR_NETWORK_ACCESS_DENIED at http://[::1]:…` — антивирус или фаервол не пускают в сеть Chromium, который скачал Playwright. Запустите `npm run test:ui:web` и откройте адрес в своём браузере. Живое окно (`test:headed`, «Show browser» в UI-режиме) заработает, когда папка `%LOCALAPPDATA%\ms-playwright` будет в исключениях антивируса; обычный `npm test`, UI-режим в браузере и трассы от этого не зависят.
 
 ## Что проверяется
 
