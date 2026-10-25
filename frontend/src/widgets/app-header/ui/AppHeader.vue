@@ -49,7 +49,8 @@ function closeMenu() {
 }
 
 const router = useRouter()
-const onLanding = computed(() => route.path === ROUTE_PATH.home)
+/** На главной и в профиле «Оформить заявку» есть на самой странице — в шапке не дублируем */
+const applyOnPage = computed(() => route.path === ROUTE_PATH.home || route.path === ROUTE_PATH.profile)
 
 /** Выход «чёрной дырой»: сессия стирается сразу, открывается главная */
 function signOut() {
@@ -173,8 +174,7 @@ watch(
           <LogIn class="size-4" aria-hidden="true" />
           Войти
         </BaseButton>
-        <!-- На главной «Оформить заявку» уже есть в первом экране — в шапке не дублируем -->
-        <BaseButton v-if="!onLanding" size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
+        <BaseButton v-if="!applyOnPage" size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
         <button
           type="button"
           class="relative -mr-2 flex size-10 items-center justify-center rounded-lg text-on-night transition-colors hover:bg-night-glass lg:hidden"
