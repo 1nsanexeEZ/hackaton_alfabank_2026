@@ -4,6 +4,8 @@ import {
   APPLICATION_STATUS_META,
   fileProblem,
   loanDraft,
+  STATEMENT_TYPE,
+  statementProblem,
   toClientStatus,
   uploadApplicationDocument,
 } from '@/entities/application'
@@ -636,7 +638,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
   async function uploadDocument(type: string, file: File) {
     const current = application.value
     if (!current) return
-    const problem = fileProblem(type, file)
+    const problem = fileProblem(type, file) ?? (type === STATEMENT_TYPE ? await statementProblem(file) : null)
     if (problem) {
       uploads[type] = { uploading: false, error: problem }
       return

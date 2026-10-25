@@ -184,15 +184,23 @@ export interface CreditHistoryDto {
 }
 
 /** Бухотчётность из ГИР БО за год */
+/** Годовая отчётность ГИР БО: отчёт о финансовых результатах и баланс, рубли строками */
 export interface AccountingPeriodDto {
   year: number
   revenue: string
+  cost_of_sales: string
+  sales_profit: string
+  interest_payable: string
   net_profit: string
-  equity: string
-  total_assets: string
-  total_liabilities: string
+  fixed_assets: string
+  inventories: string
   receivables: string
   cash: string
+  equity: string
+  total_assets: string
+  long_term_liabilities: string
+  short_term_liabilities: string
+  total_liabilities: string
 }
 
 /** Контур: надёжность, суды, приставы, банкротство, госконтракты */
@@ -376,6 +384,8 @@ export interface DecisionDto {
   rule_trace: { rule: string; matched: boolean; detail: string }[]
   limits: LimitsDto
   decided_by_type: 'auto' | 'underwriter'
+  /** Решение андеррайтера заменило это решение (id прежнего); null — первое решение */
+  override_of?: string | null
   comment: string | null
   decided_at: string
   /** Мягкие триггеры, из-за которых заявка ушла на ручную проверку */

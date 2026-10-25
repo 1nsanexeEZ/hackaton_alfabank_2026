@@ -2,7 +2,7 @@
 import { CircleCheck, FileUp, MessageSquareWarning } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import { DOCUMENT_TITLE, documentFormat } from '@/entities/application'
+import { DOCUMENT_TITLE, documentFormat, STATEMENT_TYPE, StatementFormatHint } from '@/entities/application'
 import type { CardDocumentDto, InfoRequestDto } from '@/shared/api'
 import { formatDateTime } from '@/shared/lib'
 import { BaseButton } from '@/shared/ui'
@@ -65,6 +65,7 @@ function onChange(type: string, event: Event) {
               {{ DOCUMENT_TITLE[type] ?? type }}
             </p>
             <p class="mt-0.5 text-xs text-ink-secondary">{{ documentFormat(type).kinds }}, до 20 МБ</p>
+            <StatementFormatHint v-if="type === STATEMENT_TYPE" />
           </div>
           <template v-if="canUpload">
             <input

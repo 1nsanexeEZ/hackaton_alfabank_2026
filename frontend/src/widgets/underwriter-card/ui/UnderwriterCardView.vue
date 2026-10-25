@@ -28,7 +28,7 @@ import {
   type GradeZone,
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
-import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
+import { backofficeApi, type AccountingPeriodDto, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
 import {
   errorMessage,
   formatDate,
@@ -197,6 +197,24 @@ const bureaus = computed(() => {
 
 /** Бухотчётность ГИР БО — последние годы сверху */
 const accountingPeriods = computed(() => [...(data.value?.enrichment?.gir_bo?.periods ?? [])].sort((a, b) => b.year - a.year).slice(0, 3))
+
+/** Строки отчётности ГИР БО: отчёт о финансовых результатах, затем баланс; negative — подсветить минус */
+const ACCOUNTING_ROWS: readonly { key: keyof AccountingPeriodDto; label: string; group: 'results' | 'balance'; negative?: boolean }[] = [
+  { key: 'revenue', label: 'Выручка', group: 'results' },
+  { key: 'cost_of_sales', label: 'Себестоимость продаж', group: 'results' },
+  { key: 'sales_profit', label: 'Прибыль от продаж', group: 'results', negative: true },
+  { key: 'interest_payable', label: 'Проценты к уплате', group: 'results' },
+  { key: 'net_profit', label: 'Чистая прибыль', group: 'results', negative: true },
+  { key: 'fixed_assets', label: 'Основные средства', group: 'balance' },
+  { key: 'inventories', label: 'Запасы', group: 'balance' },
+  { key: 'receivables', label: 'Дебиторская задолженность', group: 'balance' },
+  { key: 'cash', label: 'Денежные средства', group: 'balance' },
+  { key: 'total_assets', label: 'Активы всего', group: 'balance' },
+  { key: 'equity', label: 'Капитал', group: 'balance', negative: true },
+  { key: 'long_term_liabilities', label: 'Долгосрочные обязательства', group: 'balance' },
+  { key: 'short_term_liabilities', label: 'Краткосрочные обязательства', group: 'balance' },
+  { key: 'total_liabilities', label: 'Обязательства всего', group: 'balance' },
+]
 
 /** Лимиты движка, какие посчитаны; binding — тот, что дал итоговую сумму */
 const limits = computed(() => {
@@ -538,19 +556,29 @@ const RATE_PARTS = [
                   <table class="w-full min-w-[22rem] text-left text-xs">
                     <thead class="text-ink-secondary">
                       <tr>
-                        <th class="py-1.5 font-medium">Год</th>
-                        <th class="py-1.5 text-right font-medium">Выручка</th>
-                        <th class="py-1.5 text-right font-medium">Чистая прибыль</th>
-                        <th class="py-1.5 text-right font-medium">Капитал</th>
+                        <th class="py-1.5 font-medium">Показатель</th>
+                        <th v-for="period in accountingPeriods" :key="period.year" class="py-1.5 text-right font-medium">{{ period.year }}</th>
                       </tr>
                     </thead>
-                    <tbody class="divide-y divide-line tabular-nums">
-                      <tr v-for="period in accountingPeriods" :key="period.year">
-                        <td class="py-1.5">{{ period.year }}</td>
-                        <td class="py-1.5 text-right">{{ money(period.revenue) }}</td>
-                        <td class="py-1.5 text-right" :class="Number(period.net_profit) < 0 && 'text-brand'">{{ money(period.net_profit) }}</td>
-                        <td class="py-1.5 text-right" :class="Number(period.equity) < 0 && 'text-brand'">{{ money(period.equity) }}</td>
-                      </tr>
+                    <tbody class="tabular-nums">
+                      <template v-for="(row, index) in ACCOUNTING_ROWS" :key="row.key">
+                        <tr v-if="index === 0 || row.group !== ACCOUNTING_ROWS[index - 1]!.group">
+                          <th :colspan="accountingPeriods.length + 1" class="pt-2.5 pb-1 text-left text-[11px] font-semibold tracking-wide text-ink-secondary uppercase">
+                            {{ row.group === 'results' ? 'Финансовые результаты' : 'Баланс' }}
+                          </th>
+                        </tr>
+                        <tr class="border-t border-line">
+                          <td class="py-1.5 text-ink">{{ row.label }}</td>
+                          <td
+                            v-for="period in accountingPeriods"
+                            :key="period.year"
+                            class="py-1.5 text-right"
+                            :class="row.negative && Number(period[row.key]) < 0 && 'text-brand'"
+                          >
+                            {{ money(String(period[row.key])) }}
+                          </td>
+                        </tr>
+                      </template>
                     </tbody>
                   </table>
                 </div>
@@ -578,6 +606,7 @@ const RATE_PARTS = [
                         <th class="py-1.5 font-medium">Месяц</th>
                         <th class="py-1.5 text-right font-medium">Приход</th>
                         <th class="py-1.5 text-right font-medium">Расход</th>
+                        <th class="py-1.5 text-right font-medium">Чистый поток</th>
                         <th class="py-1.5 text-right font-medium">Остаток</th>
                       </tr>
                     </thead>
@@ -586,11 +615,12 @@ const RATE_PARTS = [
                         <td class="py-1.5">{{ month.month }}</td>
                         <td class="py-1.5 text-right tabular-nums">{{ money(month.inflow) }}</td>
                         <td class="py-1.5 text-right tabular-nums">{{ money(month.outflow) }}</td>
+                        <td class="py-1.5 text-right tabular-nums" :class="Number(month.net) < 0 ? 'text-brand' : 'text-success'">{{ money(month.net) }}</td>
                         <td class="py-1.5 text-right tabular-nums" :class="Number(month.balance) < 0 && 'text-brand'">{{ money(month.balance) }}</td>
                       </tr>
                       <tr v-for="month in data.enrichment.cashflow.forecast" :key="`f-${month.month}`" class="text-ink-secondary">
                         <td class="py-1.5">{{ month.month }} (прогноз)</td>
-                        <td class="py-1.5" colspan="2" />
+                        <td class="py-1.5" colspan="3" />
                         <td class="py-1.5 text-right tabular-nums" :class="Number(month.projected_balance) < 0 && 'text-brand'">
                           {{ money(month.projected_balance) }}
                         </td>
@@ -677,6 +707,7 @@ const RATE_PARTS = [
                 <span class="min-w-0">
                   <span class="text-ink">{{ label(FACTOR_LABEL, factor.code) }}</span>
                   <span v-if="factorDetail(factor)" class="block text-xs text-ink-secondary">{{ factorDetail(factor) }}</span>
+                  <span v-if="factor.client_hint" class="mt-0.5 block text-xs text-info">Клиенту: {{ factor.client_hint }}</span>
                 </span>
                 <span
                   class="shrink-0 font-semibold tabular-nums"
@@ -701,6 +732,9 @@ const RATE_PARTS = [
                 {{ formatDateTime(data.decision.decided_at) }}
               </span>
             </div>
+            <p v-if="data.decision.override_of" class="mt-2 rounded-lg bg-info-soft p-2.5 text-xs text-ink">
+              Решение андеррайтера заменило автоматическое: в журнале остались оба, действует это
+            </p>
             <ul v-if="data.decision.reason_codes.length" class="mt-3 space-y-1 text-sm text-ink">
               <li v-for="code in data.decision.reason_codes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
             </ul>

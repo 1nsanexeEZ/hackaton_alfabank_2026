@@ -831,6 +831,8 @@ export interface ContractVerificationDto {
   created_at: string
   borrower: string
   signatures: ContractSignatureDto[]
+  /** Журнал подписания цел: хеш-цепочка записей не нарушена */
+  log_intact: boolean
   /** Ключ банка — демо-стенда, не квалифицированный */
   demo: boolean
 }
