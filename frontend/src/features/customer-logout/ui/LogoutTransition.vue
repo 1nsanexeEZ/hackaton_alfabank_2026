@@ -5,32 +5,40 @@ import { LOGOUT_TIMING as T, registerLogoutPlayer, type LogoutPlan } from '../mo
 
 /**
  * Анимация выхода — «чёрная дыра», зеркало входа «сборка в знак»:
- * 1. берём снимок букв на экране и подменяем их своими копиями, сессия стирается сразу;
- * 2. страница гаснет, копии букв по спирали втягиваются в дыру в центре, светлея, сжимаясь и затухая;
+ * 1. сессия стирается сразу, экран плавно гаснет до чёрного, в центре проступает дыра с красным кольцом;
+ * 2. буквы «А» — те же, что фон входа: красные и белые с объёмом и полупрозрачные — появляются со всех
+ *    сторон, их немного и каждый раз разное число, и по прямой втягиваются в дыру, сжимаясь и затухая;
  * 3. дыра схлопывается в точку со вспышкой — под ней уже главная лендинга;
  * 4. главная раскрывается кругом из центра.
  *
- * Только transform, opacity, color и clip-path через Web Animations API. Клик или Esc — сразу главная.
- * При `prefers-reduced-motion` — без полёта: выход и переход.
+ * Только transform, opacity и clip-path через Web Animations API. Клик или Esc — сразу главная.
+ * При `prefers-reduced-motion` — без анимации: выход и переход.
  */
 
-interface Letter {
+type Tone = 'red' | 'white' | 'ghost'
+
+interface Glyph {
   key: number
-  char: string
-  style: Record<string, string>
-  /** Смещение от центра экрана — для спирали */
-  dx: number
-  dy: number
+  tone: Tone
+  /** Откуда летит: смещение от центра экрана, px */
+  x: number
+  y: number
+  rotate: number
+  size: number
+  delay: number
 }
 
-const MAX_LETTERS = 220
+const GLYPH = 'А'
+/** Сколько букв: каждый раз случайно в этих пределах — хаотично, но без перегруза */
+const COUNT = { min: 7, max: 12 } as const
+/** Красных и белых больше, полупрозрачных — для глубины */
+const TONES: readonly Tone[] = ['red', 'red', 'white', 'white', 'ghost']
 
 const running = ref(false)
-const letters = shallowRef<Letter[]>([])
-const letterEls = ref<HTMLElement[]>([])
+const glyphs = shallowRef<Glyph[]>([])
+const glyphEls = ref<HTMLElement[]>([])
 const backdrop = ref<HTMLElement>()
 const hole = ref<HTMLElement>()
-const disk = ref<HTMLElement>()
 const flash = ref<HTMLElement>()
 
 let animations: Animation[] = []
@@ -51,76 +59,47 @@ function play(target: Element | null | undefined, keyframes: Keyframe[], options
   )
 }
 
-/** Буквы видимого текста страницы: позиция каждой и её шрифт; длинный текст — равномерной выборкой */
-function snapshot(root: Element): Letter[] {
-  const width = window.innerWidth
-  const height = window.innerHeight
-  const cx = width / 2
-  const cy = height / 2
-  const found: Omit<Letter, 'key'>[] = []
-  const range = document.createRange()
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => (node.nodeValue?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
-  })
-  for (let node = walker.nextNode(); node && found.length < 2400; node = walker.nextNode()) {
-    const parent = node.parentElement
-    if (!parent) continue
-    const css = getComputedStyle(parent)
-    if (css.visibility === 'hidden' || Number(css.opacity) === 0) continue
-    const text = node.nodeValue ?? ''
-    for (let index = 0; index < text.length; index += 1) {
-      const char = text[index]!
-      if (/\s/.test(char)) continue
-      range.setStart(node, index)
-      range.setEnd(node, index + 1)
-      const box = range.getBoundingClientRect()
-      if (!box.width || box.bottom < 0 || box.top > height || box.right < 0 || box.left > width) continue
-      found.push({
-        char,
-        dx: box.left + box.width / 2 - cx,
-        dy: box.top + box.height / 2 - cy,
-        style: {
-          left: `${box.left}px`,
-          top: `${box.top}px`,
-          fontSize: css.fontSize,
-          fontWeight: css.fontWeight,
-          fontFamily: css.fontFamily,
-          lineHeight: `${box.height}px`,
-          color: css.color,
-        },
-      })
+/** Случайный набор букв по кругу экрана: угол с разбросом, разная дальность, кегль, тон и наклон */
+function scatter(): Glyph[] {
+  const count = COUNT.min + Math.floor(Math.random() * (COUNT.max - COUNT.min + 1))
+  const radiusX = window.innerWidth * 0.44
+  const radiusY = window.innerHeight * 0.43
+  // На телефоне буквы мельче, на широком экране — как на входе
+  const scale = Math.min(Math.max(window.innerWidth / 1280, 0.55), 1.2)
+  return Array.from({ length: count }, (_, key) => {
+    const sector = (Math.PI * 2) / count
+    const angle = key * sector + (Math.random() - 0.5) * sector * 0.8
+    const reach = 0.72 + Math.random() * 0.45
+    return {
+      key,
+      tone: TONES[Math.floor(Math.random() * TONES.length)]!,
+      x: Math.cos(angle) * radiusX * reach,
+      y: Math.sin(angle) * radiusY * reach,
+      rotate: Math.round((Math.random() - 0.5) * 50),
+      size: Math.round((34 + Math.random() * Math.random() * 110) * scale),
+      delay: Math.round(T.blackout * 0.6 + Math.random() * T.stagger),
     }
-  }
-  const step = Math.max(found.length / MAX_LETTERS, 1)
-  const picked = found.length > MAX_LETTERS ? Array.from({ length: MAX_LETTERS }, (_, k) => found[Math.floor(k * step)]!) : found
-  return picked.map((letter, key) => ({ ...letter, key }))
+  })
 }
 
-/** Путь буквы к центру: спираль с сужением, буква светлеет, вращается, сжимается и гаснет у горизонта */
-function spiral(letter: Letter, turn: number): Keyframe[] {
-  const radius = Math.hypot(letter.dx, letter.dy)
-  const start = Math.atan2(letter.dy, letter.dx)
-  const steps = 8
-  return Array.from({ length: steps + 1 }, (_, k) => {
-    const t = k / steps
-    const r = radius * (1 - t) ** 1.7
-    const angle = start + turn * t
-    const x = r * Math.cos(angle) - letter.dx
-    const y = r * Math.sin(angle) - letter.dy
-    const scale = 1 - 0.92 * t ** 1.3
-    return {
-      offset: t,
-      transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${((turn * t * 180) / Math.PI).toFixed(0)}deg) scale(${scale.toFixed(3)})`,
-      opacity: t < 0.78 ? 1 : Math.max(1 - (t - 0.78) / 0.22, 0),
-      color: t < 0.25 ? letter.style.color! : 'rgba(255, 255, 255, 0.92)',
-    }
-  })
+function glyphStyle(glyph: Glyph): Record<string, string> {
+  return { fontSize: `${glyph.size}px`, marginLeft: `${-glyph.size * 0.36}px`, marginTop: `${-glyph.size * 0.5}px` }
+}
+
+/** По прямой к центру: буква проступает на месте, разгоняется, сжимается в точку и гаснет у горизонта */
+function suck(glyph: Glyph): Keyframe[] {
+  return [
+    { transform: `translate(${glyph.x.toFixed(0)}px, ${glyph.y.toFixed(0)}px) rotate(${glyph.rotate}deg) scale(1)`, opacity: 0 },
+    { opacity: 1, offset: 0.14 },
+    { opacity: 1, offset: 0.82 },
+    { transform: 'translate(0px, 0px) rotate(0deg) scale(0.04)', opacity: 0 },
+  ]
 }
 
 function hideShell(): void {
   shell = document.querySelector<HTMLElement>('[data-app-shell]')
   if (!shell) return
-  void play(shell, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, easing: 'ease-out' })
+  void play(shell, [{ opacity: 1 }, { opacity: 0 }], { duration: T.blackout, easing: 'ease-in' })
 }
 
 /** Главная поверх дыры и раскрывается кругом из центра */
@@ -146,7 +125,7 @@ function cleanup(): void {
     shell.style.zIndex = ''
   }
   shell = null
-  letters.value = []
+  glyphs.value = []
   running.value = false
   document.removeEventListener('keydown', onKeydown, true)
 }
@@ -159,14 +138,13 @@ function onKeydown(event: KeyboardEvent): void {
 
 async function start(plan: LogoutPlan): Promise<void> {
   if (running.value) return
-  const root = document.querySelector('[data-app-shell]')
-  if (!root || reducedMotion()) {
+  if (!document.querySelector('[data-app-shell]') || reducedMotion()) {
     plan.logout()
     await plan.navigate()
     return
   }
   const current = ++run
-  letters.value = snapshot(root)
+  glyphs.value = scatter()
   running.value = true
   document.addEventListener('keydown', onKeydown, true)
   await nextTick()
@@ -176,26 +154,23 @@ async function start(plan: LogoutPlan): Promise<void> {
   plan.logout()
   const navigation = plan.navigate().catch(() => undefined)
 
-  void play(backdrop.value, [{ opacity: 0 }, { opacity: 1 }], { duration: T.fade, easing: 'ease-out' })
-  void play(hole.value, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: T.fade + 120, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' })
-  void play(disk.value, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(540deg)' }], { duration: T.fade + T.suck + T.stagger, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' })
+  void play(backdrop.value, [{ opacity: 0 }, { opacity: 1 }], { duration: T.blackout, easing: 'ease-in-out' })
+  void play(hole.value, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], {
+    duration: 240,
+    delay: T.blackout * 0.5,
+    easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  })
 
-  const turn = Math.PI * 1.6
-  const farthest = Math.max(...letters.value.map((letter) => Math.hypot(letter.dx, letter.dy)), 1)
-  const flights = letters.value.map((letter, index) =>
-    play(letterEls.value[index], spiral(letter, turn), {
-      duration: T.suck,
-      delay: 80 + (Math.hypot(letter.dx, letter.dy) / farthest) * T.stagger,
-      easing: 'cubic-bezier(0.55, 0, 0.85, 0.3)',
-    }),
+  const flights = glyphs.value.map((glyph, index) =>
+    play(glyphEls.value[index], suck(glyph), { duration: T.suck, delay: glyph.delay, easing: 'cubic-bezier(0.55, 0, 0.9, 0.35)' }),
   )
   await Promise.all(flights)
   if (current !== run) return
 
-  // Схлопывание: дыра в точку, вспышка, кольцо расходится
-  void play(hole.value, [{ transform: 'scale(1)' }, { transform: 'scale(0.08)' }], { duration: T.collapse, easing: 'cubic-bezier(0.7, 0, 0.9, 0.4)' })
-  void play(flash.value, [{ opacity: 0, transform: 'scale(0.2)' }, { opacity: 1, transform: 'scale(1)', offset: 0.35 }, { opacity: 0, transform: 'scale(2.6)' }], {
-    duration: T.collapse + 260,
+  // Схлопывание: дыра в точку, вспышка с кольцом
+  void play(hole.value, [{ transform: 'scale(1)' }, { transform: 'scale(0.06)' }], { duration: T.collapse, easing: 'cubic-bezier(0.7, 0, 0.9, 0.4)' })
+  void play(flash.value, [{ opacity: 0, transform: 'scale(0.2)' }, { opacity: 1, transform: 'scale(1)', offset: 0.35 }, { opacity: 0, transform: 'scale(3.2)' }], {
+    duration: T.collapse + 280,
     easing: 'ease-out',
   })
   await Promise.all([navigation, sleep(T.collapse)])
@@ -217,59 +192,99 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="running" class="fixed inset-0 z-[140] cursor-default select-none" aria-hidden="true" @click="cleanup">
+  <div v-if="running" class="fixed inset-0 z-[140] cursor-default overflow-hidden select-none" aria-hidden="true" @click="cleanup">
     <div ref="backdrop" class="absolute inset-0 bg-[#050506]" />
-    <span
-      v-for="letter in letters"
-      :key="letter.key"
-      ref="letterEls"
-      class="absolute whitespace-pre will-change-transform"
-      :style="letter.style"
-      >{{ letter.char }}</span
-    >
-    <div class="pointer-events-none absolute top-1/2 left-1/2 size-0">
-      <div ref="hole" class="logout__hole">
-        <span ref="disk" class="logout__disk" />
-        <span class="logout__core" />
-      </div>
+    <div class="absolute top-1/2 left-1/2 size-0">
+      <span
+        v-for="glyph in glyphs"
+        :key="glyph.key"
+        ref="glyphEls"
+        class="logout__glyph"
+        :class="`is-${glyph.tone}`"
+        :style="glyphStyle(glyph)"
+        >{{ GLYPH }}</span
+      >
+      <span ref="hole" class="logout__hole" />
       <span ref="flash" class="logout__flash" />
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Те же буквы, что у фона входа (shared/ui/FloatingLetters): Inter 900, три тона, объём тенью */
+.logout__glyph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.logout__glyph.is-red {
+  color: var(--color-brand);
+  text-shadow:
+    0.01em 0.01em 0 #c42619,
+    0.02em 0.02em 0 #b02217,
+    0.03em 0.03em 0 #9c1e14,
+    0.04em 0.04em 0 #881a11,
+    0.05em 0.05em 0 #74160f,
+    0.06em 0.06em 0 #60120c,
+    0.08em 0.12em 0.16em rgb(0 0 0 / 0.5);
+}
+
+.logout__glyph.is-white {
+  color: #fff;
+  text-shadow:
+    0.01em 0.01em 0 #dcdce2,
+    0.02em 0.02em 0 #c8c8d0,
+    0.03em 0.03em 0 #b4b4be,
+    0.04em 0.04em 0 #a0a0ac,
+    0.05em 0.05em 0 #8c8c9a,
+    0.06em 0.06em 0 #787888,
+    0.08em 0.12em 0.16em rgb(0 0 0 / 0.5);
+}
+
+.logout__glyph.is-ghost {
+  color: rgb(255 255 255 / 0.18);
+  text-shadow: 0.08em 0.12em 0.16em rgb(0 0 0 / 0.35);
+}
+
+/* Дыра: чёрная точка с красным кольцом, кольцо мягко дышит */
 .logout__hole {
   position: absolute;
-  width: 15rem;
-  height: 15rem;
-  margin: -7.5rem 0 0 -7.5rem;
-}
-
-/* Диск аккреции в фирменном красном */
-.logout__disk {
-  position: absolute;
-  inset: 0;
+  width: 2.875rem;
+  height: 2.875rem;
+  margin: -1.4375rem 0 0 -1.4375rem;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, rgb(239 49 36 / 0), rgb(239 49 36 / 0.7), rgb(255 170 120 / 0.45), rgb(239 49 36 / 0) 62%);
-  opacity: 0.85;
-}
-
-.logout__core {
-  position: absolute;
-  inset: 32%;
-  border-radius: 50%;
-  background: radial-gradient(circle, #000 58%, rgb(0 0 0 / 0.85) 66%, rgb(239 49 36 / 0) 76%);
-  box-shadow: 0 0 3rem 0.5rem rgb(239 49 36 / 0.4);
+  background: radial-gradient(circle, #000 60%, #120404 100%);
+  transform: scale(0);
+  animation: logout-pulse 1.2s ease-in-out infinite;
 }
 
 .logout__flash {
   position: absolute;
-  width: 8rem;
-  height: 8rem;
-  margin: -4rem 0 0 -4rem;
+  width: 6.25rem;
+  height: 6.25rem;
+  margin: -3.125rem 0 0 -3.125rem;
   border-radius: 50%;
   opacity: 0;
-  background: radial-gradient(circle, #fff 0 6%, rgb(255 255 255 / 0.6) 12%, rgb(239 49 36 / 0.35) 40%, transparent 70%);
+  background: radial-gradient(circle, #fff 0 7%, rgb(255 255 255 / 0.55) 14%, rgb(239 49 36 / 0.35) 42%, transparent 70%);
   box-shadow: 0 0 0 2px rgb(239 49 36 / 0.8);
+}
+
+@keyframes logout-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(239 49 36 / 0.85),
+      0 0 1.75rem 0.375rem rgb(239 49 36 / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgb(239 49 36 / 1),
+      0 0 2.75rem 0.75rem rgb(239 49 36 / 0.5);
+  }
 }
 </style>

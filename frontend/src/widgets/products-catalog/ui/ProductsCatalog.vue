@@ -393,17 +393,13 @@ function onFocusOut(event: FocusEvent) {
 
 <style>
 /*
- * Не scoped: ширину раскрытой карточки ряд передаёт через переменную, а при наведении на полоску
- * (она расширяется на 2rem) забирает эти 2rem у раскрытой — иначе ряд вылез бы за окно.
+ * Не scoped: ширину раскрытой карточки ряд передаёт через переменную. Наведение на полоску её
+ * только приподнимает, поэтому ширины в ряду постоянны.
  */
 @media (width >= 64rem) {
   .catalog-track > .flex-card.is-expanded {
     --flex-card-expanded-w: var(--catalog-expanded-w);
     --flex-card-expanded-grow: 0;
-  }
-
-  .catalog-track:has(> .flex-card:not(.is-expanded):hover) > .flex-card.is-expanded {
-    --flex-card-expanded-w: calc(var(--catalog-expanded-w) - 2rem);
   }
 }
 </style>

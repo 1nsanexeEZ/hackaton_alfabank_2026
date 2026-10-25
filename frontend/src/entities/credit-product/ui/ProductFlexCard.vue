@@ -279,8 +279,8 @@ const art = computed(() => productArt(props.product.code))
     min-height: 0;
   }
 
+  /* Наведение только приподнимает полоску: ширины в ряду не меняются, соседей не трясёт */
   .flex-card:not(.is-expanded):hover {
-    flex-basis: 7.5rem;
     translate: 0 -0.5rem;
     box-shadow: 0 1.5rem 2.5rem rgb(18 18 19 / 0.22);
     filter: brightness(1.12);
