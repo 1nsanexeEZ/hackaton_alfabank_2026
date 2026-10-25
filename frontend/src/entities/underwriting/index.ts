@@ -1,6 +1,7 @@
 export {
   AML_LIST_LABEL,
   AML_ROLE_LABEL,
+  amlRiskGroup,
   BENEFICIAL_BASIS_LABEL,
   BUSINESS_PLAN_GRADE,
   CATEGORY_LABEL,
@@ -12,6 +13,7 @@ export {
   label,
   LIMIT_LABEL,
   OUTCOME_LABEL,
+  OWNER_DISCREPANCY_LABEL,
   PEP_KIND_LABEL,
   qualityReasonLabel,
   REASON_LABEL,
@@ -25,5 +27,6 @@ export {
   UNRELIABLE_LABEL,
   ZONE_LABEL,
   ZSK_LEVEL_LABEL,
+  type AmlRiskGroup,
   type GradeZone,
 } from './model/labels'

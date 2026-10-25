@@ -39,6 +39,7 @@ import {
   type BeneficiaryForm,
   type ThirdPartyForm,
 } from './thirdParty'
+import { emptyOwners, ownersProblems, toOwnersForm, toOwnersInput, type OwnersForm } from './owners'
 import { describeViolations, type ViolationView, type WizardStep } from './violations'
 
 export interface CollateralForm {
@@ -71,6 +72,9 @@ const MISSING_LABEL: Record<string, string> = {
   'beneficiary.beneficiary.inn': 'ИНН третьего лица',
   'beneficiary.basis': 'Основание',
   'documents.other': 'Договор с третьим лицом',
+  'beneficiary.beneficiary.country': 'Страна третьего лица',
+  'collateral.owner_party.country': 'Страна владельца залога',
+  beneficial_owners: 'Бенефициары',
   'consents.personal_data': 'Согласие на обработку данных',
   'consents.credit_bureau': 'Согласие на запрос в БКИ',
 }
@@ -123,6 +127,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
    * управлению (115-ФЗ). Спрашиваем у всех на шаге согласий: без ответа дальше не пускаем.
    */
   const beneficiary = reactive<BeneficiaryForm>({ acts: null, party: emptyThirdParty(), basis: '' })
+  /** Бенефициары со слов клиента (115-ФЗ, policy_v9) — на шаге согласий; бэкенд без ответа подаёт, форма — нет */
+  const owners = reactive<OwnersForm>(emptyOwners())
   const productFields = ref<FieldValues>({})
   /**
    * Галочки согласий. Действующие согласия из профиля (ПДн — личное, БКИ — компании) черновик берёт сам
@@ -288,6 +294,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     headConsent.give = false
     Object.assign(collateral, { description: '', declaredValue: '', owner: 'self', ownerParty: emptyThirdParty() })
     Object.assign(beneficiary, { acts: null, party: emptyThirdParty(), basis: '' })
+    Object.assign(owners, emptyOwners())
     terms.purposeComment = ''
     for (const key of Object.keys(uploads)) delete uploads[key]
   }
@@ -458,6 +465,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
         basis: existing.beneficiary.basis ?? '',
       })
     }
+    if (existing.beneficial_owners) Object.assign(owners, toOwnersForm(existing.beneficial_owners))
     if (Object.keys(existing.product_fields).length) {
       productFields.value = toFormValues(product.value.fieldsSchema, existing.product_fields)
     }
@@ -532,6 +540,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       if (!beneficiary.basis) errors['beneficiary.basis'] = 'Выберите основание'
       if (!contractSlot.value.files.length) errors[`documents.${BENEFICIARY_CONTRACT}`] = 'Загрузите договор'
     }
+    if (owners.answer === null) errors.beneficial_owners = 'Ответьте на вопрос'
+    Object.assign(errors, ownersProblems(owners))
     if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
     if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'
     return errors
@@ -561,6 +571,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     if (MISSING_LABEL[key]) return MISSING_LABEL[key]
     if (key.startsWith('documents.')) return documentTitle(key.slice('documents.'.length))
     if (key.startsWith('product_fields.')) return fieldTitle(product.value.fieldsSchema, key.slice('product_fields.'.length))
+    if (key.startsWith('beneficial_owners.')) return key.endsWith('.country') ? 'Страна бенефициара' : 'Бенефициар'
     return MISSING_LABEL[key] ?? key
   }
 
@@ -601,8 +612,10 @@ export function useApplicationWizard(products: () => ProductCatalog) {
 
     await run(async () => {
       // Уже данные согласия бэкенд не перезаписывает: момент и ссылка на профиль сохраняются
+      const declaredOwners = toOwnersInput(owners)
       await patch({
         beneficiary: toBeneficiaryInput(beneficiary),
+        ...(declaredOwners && { beneficial_owners: declaredOwners }),
         consents: { personal_data: true, credit_bureau: true, automated_decision: isEntrepreneur.value && consents.automatedDecision },
       })
       // Согласие руководителя — до подачи: проверка данных банком начнётся сразу после неё
@@ -674,6 +687,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
     terms,
     collateral,
     beneficiary,
+    owners,
     productFields,
     consents,
     isEntrepreneur,

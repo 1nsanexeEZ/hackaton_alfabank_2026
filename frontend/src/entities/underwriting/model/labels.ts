@@ -5,7 +5,7 @@
  * Грейды — общая шкала A–J PD- и ML-модели, зоны — policy_v7.yaml (strategy.two_models).
  */
 
-import type { Grade, ReviewKind } from '@/shared/api'
+import type { DecisionDto, Grade, ReviewKind } from '@/shared/api'
 import { formatPercent } from '@/shared/lib'
 
 type Tone = 'success' | 'info' | 'warning' | 'brand' | 'neutral'
@@ -56,6 +56,8 @@ export const REASON_LABEL: Record<string, string> = {
   ROUTE_AUTOMATED_DECISION_CONSENT: 'ИП не дал согласия на автоматическое решение',
   ROUTE_THIRD_PARTY_BENEFICIARY: 'Клиент действует в интересах третьего лица',
   ROUTE_THIRD_PARTIES_UNKNOWN: 'Нет сведений о выгодоприобретателе или владельце залога',
+  ROUTE_AML_HIGH_RISK: 'Высокая группа риска по 115-ФЗ',
+  STOP_UNLICENSED_ACTIVITY: 'Нет лицензии на основной вид деятельности',
   INFO_REVENUE_NOT_CONFIRMED: 'Нужна выписка для подтверждения выручки',
   LIMIT_BY_PRODUCT: 'Лимит продукта',
   LIMIT_BY_REVENUE: 'Лимит по выручке',
@@ -158,6 +160,8 @@ export const AML_ROLE_LABEL: Record<string, string> = {
   representative: 'представитель',
   beneficiary: 'выгодоприобретатель',
   pledgor: 'залогодатель',
+  founder: 'учредитель',
+  declared_owner: 'бенефициар со слов клиента',
 }
 export const BENEFICIAL_BASIS_LABEL: Record<string, string> = {
   ownership: 'владение',
@@ -173,6 +177,12 @@ export const REGISTRY_STATUS_LABEL: Record<string, string> = {
   bankrupt: 'Банкротство',
   reorganizing: 'Реорганизуется',
   excluded: 'Исключена из реестра',
+}
+
+/** Бенефициары со слов клиента против ЕГРЮЛ (policy_v9) */
+export const OWNER_DISCREPANCY_LABEL: Record<string, string> = {
+  not_declared: 'бенефициар по ЕГРЮЛ, клиент его не назвал',
+  not_in_registry: 'клиент назвал владельцем больше 25%, по ЕГРЮЛ — нет',
 }
 
 /** Отметки ЕГРЮЛ о недостоверности сведений */
@@ -274,4 +284,29 @@ export function qualityReasonLabel(code: string): string {
   if (kind === 'source_failed') return `не ответил источник «${SOURCE_LABEL[value] ?? value}»`
   if (kind === 'completeness_below') return `данные есть только по ${formatPercent(Number(value) * 100)} признаков`
   return code
+}
+
+export interface AmlRiskGroup {
+  level: 'low' | 'medium' | 'high'
+  label: string
+  tone: 'success' | 'warning' | 'brand'
+  /** Факторы словами, как их записала политика */
+  factors: string
+}
+
+const RISK_GROUP: Record<string, Omit<AmlRiskGroup, 'factors'>> = {
+  низкая: { level: 'low', label: 'низкая', tone: 'success' },
+  средняя: { level: 'medium', label: 'средняя', tone: 'warning' },
+  высокая: { level: 'high', label: 'высокая', tone: 'brand' },
+}
+
+/**
+ * Группа риска клиента по 115-ФЗ (policy_v9). Отдельным полем её нет — она в трассе решения:
+ * «группа риска по 115-ФЗ: высокая — <факторы>»; без правила aml.risk_group — null
+ */
+export function amlRiskGroup(decision: Pick<DecisionDto, 'rule_trace'> | null | undefined): AmlRiskGroup | null {
+  const detail = decision?.rule_trace.find((step) => step.rule === 'aml.risk_group')?.detail
+  const match = detail && /группа риска по 115-ФЗ: (\S+) — (.+)$/.exec(detail)
+  const group = match ? RISK_GROUP[match[1] ?? ''] : undefined
+  return group && match ? { ...group, factors: match[2] ?? '' } : null
 }

@@ -2,10 +2,11 @@
 import { CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
+import { beneficialOwnersLine, beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import { ProcessMap } from '@/entities/process'
 import {
+  amlRiskGroup,
   CATEGORY_LABEL,
   FACTOR_LABEL,
   FLAG_LABEL,
@@ -290,6 +291,13 @@ const RATE_PARTS = [
                 <dt class="text-ink-secondary">Выгодоприобретатель</dt>
                 <dd class="font-medium" :class="data.application.beneficiary?.acts_for_third_party ? 'text-warning' : 'text-ink'">
                   {{ data.application.beneficiary ? beneficiaryLine(data.application.beneficiary) : 'Клиент не ответил' }}
+                </dd>
+              </div>
+              <!-- Бенефициары со слов клиента (policy_v9): сверяются с ЕГРЮЛ и проверяются по перечням -->
+              <div class="sm:col-span-2">
+                <dt class="text-ink-secondary">Бенефициары со слов клиента</dt>
+                <dd class="font-medium text-ink">
+                  {{ data.application.beneficial_owners ? beneficialOwnersLine(data.application.beneficial_owners) : 'Клиент не ответил' }}
                 </dd>
               </div>
               <div v-if="data.application.submitted_at">
@@ -592,7 +600,7 @@ const RATE_PARTS = [
                 </div>
               </section>
 
-              <AmlCheckSection v-if="data.enrichment.aml" :aml="data.enrichment.aml" />
+              <AmlCheckSection v-if="data.enrichment.aml" :aml="data.enrichment.aml" :risk-group="amlRiskGroup(data.decision)" />
               <BankDataSection
                 v-if="data.enrichment.bank_stop_list || data.enrichment.bank_turnover"
                 :stop-list="data.enrichment.bank_stop_list"
