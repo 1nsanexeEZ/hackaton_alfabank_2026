@@ -16,13 +16,16 @@ import {
   UserRound,
 } from 'lucide-vue-next'
 import { computed, shallowRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { CLIENT_STATUS_META, ACTION_REQUIRED_LABEL, isActiveApplication, myApplications } from '@/entities/application'
 import { useProductCatalog } from '@/entities/credit-product'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
+import { signOutWithTransition } from '@/features/customer-logout'
 import { ClientProfileForm, CompanyConsents, PersonalConsents } from '@/features/edit-client-profile'
 import { clientApi, type OrganizationSummaryDto } from '@/shared/api'
+import { ROUTE_PATH } from '@/shared/config'
 import { formatDate, formatMoney, formatMoneyShort, formatRelativeTime } from '@/shared/lib'
 import { BaseBadge, BaseButton, BaseContainer, PanelCard, PatternBackground } from '@/shared/ui'
 import { openApplicationCard, openCabinet, openLogin, startApplication } from '@/widgets/apply-flow'
@@ -122,9 +125,17 @@ const stats = computed(() => [
   { label: 'Новых уведомлений', value: String(liveFeed.state.unread), icon: Bell },
 ])
 
+const router = useRouter()
+
+/** Выход «чёрной дырой»: сессия стирается сразу, открывается главная */
 function signOut() {
-  logout()
-  myApplications.clear()
+  signOutWithTransition({
+    logout: () => {
+      logout()
+      myApplications.clear()
+    },
+    navigate: () => router.push(ROUTE_PATH.home),
+  })
 }
 </script>
 
