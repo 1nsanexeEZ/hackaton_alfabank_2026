@@ -24,7 +24,7 @@ const BENEFITS = [
   },
   {
     title: 'Без повторного ввода',
-    text: 'Данные о компании подтягиваем из ЕГРЮЛ и ФНС, документы загружаются один раз.',
+    text: 'Данные о компании подтягиваем по ИНН, документы загружаются один раз.',
     icon: FileCheck2,
     tone: 'sky',
   },
@@ -32,13 +32,13 @@ const BENEFITS = [
 </script>
 
 <template>
-  <section class="relative -mt-10 rounded-t-[2.5rem] bg-white pt-12 pb-4 lg:-mt-16 lg:rounded-t-sheet lg:pt-20">
+  <section class="relative bg-white pt-12 pb-4 lg:pt-20">
     <BaseContainer class="relative">
       <HintCard
         class="absolute top-0 right-6"
         :icon="Building2"
         tone="info"
-        title="Данные из ЕГРЮЛ"
+        title="Данные по ИНН"
         caption="подтянули сами"
       />
       <HintCard
