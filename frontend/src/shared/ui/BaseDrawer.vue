@@ -2,6 +2,8 @@
 import { X } from 'lucide-vue-next'
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
+import { markModalEnter, markModalLeave } from './modalMotion'
+
 /**
  * Панель, которая выезжает справа поверх страницы. Страница под ней размывается, в слот
  * `backdrop` кладётся декоративный слой для открытой части экрана. Закрывается по Esc, крестику
@@ -35,6 +37,8 @@ function close() {
 }
 
 function markLeaving(el: Element) {
+  // Окно, открытое в тот же кадр (вход → мастер заявки), считает это переходом и не проявляет своё затемнение
+  markModalLeave()
   if (props.exit !== 'close') el.setAttribute('data-exit', props.exit)
   el.querySelector('.drawer__decor')?.setAttribute('data-leaving', '')
 }
@@ -81,7 +85,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <!-- Длительность — по самым долгим вложенным переходам: фон, панель и декор двигаются сами -->
-    <Transition name="drawer" :duration="{ enter: 520, leave: 560 }" @before-leave="markLeaving">
+    <Transition name="drawer" :duration="{ enter: 520, leave: 560 }" @before-enter="markModalEnter" @before-leave="markLeaving">
       <div v-if="open" class="drawer fixed inset-0 z-[100]">
         <div class="drawer__backdrop absolute inset-0" aria-hidden="true" @click="close" />
         <div class="drawer__decor pointer-events-none absolute">

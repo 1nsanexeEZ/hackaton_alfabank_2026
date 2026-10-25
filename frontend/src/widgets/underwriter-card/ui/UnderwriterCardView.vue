@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
+import { AlertTriangle, CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
 import { beneficialOwnersLine, beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
@@ -20,6 +20,7 @@ import {
   REGISTRY_STATUS_LABEL,
   RELIABILITY,
   REVIEW_LABEL,
+  reviewReasonText,
   SEGMENT_LABEL,
   SOURCE_LABEL,
   TASK_TYPE_LABEL,
@@ -646,7 +647,28 @@ const RATE_PARTS = [
             :title="TASK_TYPE_LABEL[data.task.type] ?? 'Задача андеррайтера'"
             :description="data.task.type === 'project_assessment' ? 'Стартап: бизнес-план, финмодель, обеспечение и господдержка' : undefined"
           >
+            <p
+              v-if="data.task.reason || data.process?.manual_review_reason"
+              class="mb-4 flex items-start gap-2 rounded-lg bg-warning-soft p-3 text-sm text-ink"
+              role="note"
+            >
+              <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              <span>
+                <span class="block font-semibold">Почему задача вернулась</span>
+                {{ reviewReasonText(data.task.reason ?? data.process?.manual_review_reason ?? '') }}
+              </span>
+            </p>
             <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
+          </PanelCard>
+          <!-- Задачи нет, а причина есть: решение андеррайтера не принято и шаг остановился — видно, почему -->
+          <PanelCard v-else-if="data.process?.manual_review_reason" title="Почему заявка у специалиста">
+            <p class="flex items-start gap-2 rounded-lg bg-warning-soft p-3 text-sm text-ink" role="note">
+              <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              {{ reviewReasonText(data.process.manual_review_reason) }}
+            </p>
+            <p v-if="data.process.status === 'failed'" class="mt-2 text-xs text-ink-secondary">
+              Процесс по заявке остановлен, задачи для решения нет — нужен разбор на стороне банка.
+            </p>
           </PanelCard>
 
           <StartupProjectPanel v-if="data.startup" :project="data.startup" />

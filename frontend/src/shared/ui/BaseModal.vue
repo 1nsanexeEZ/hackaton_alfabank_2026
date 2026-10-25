@@ -10,12 +10,26 @@ let lockedBy = 0
 import { X } from 'lucide-vue-next'
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
+import {
+  afterThisFlush,
+  isSheet,
+  isSwapIn,
+  isSwapOut,
+  markModalEnter,
+  markModalLeave,
+  prefersReducedMotion,
+} from './modalMotion'
+
 /**
  * Модальное окно: закрывается по Esc и клику по фону, фокус уходит внутрь окна.
  * Пока окно открыто, у <html> класс `has-modal`: анимации страницы под затемнением встают на паузу
  * (правило в app/styles), иначе их перерисовка мешает плавно прокручивать окно.
  * `bare` — окно без своей шапки, прокрутки и подвала: их рисует содержимое (карточка заявки).
  * Слот получает `close` и `titleId` — id заголовка, на который ссылается aria-labelledby окна.
+ *
+ * Появление и уход анимированы (modalMotion): затемнение проявляется, окно поднимается с лёгким
+ * масштабом, на телефоне выезжает шторкой снизу. Если одно окно сменяет другое в тот же кадр —
+ * затемнение одно и не моргает, старое окно уходит влево, новое приходит справа.
  */
 withDefaults(defineProps<{ title: string; description?: string; wide?: boolean; bare?: boolean }>(), {
   description: undefined,
@@ -66,28 +80,93 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
   lockPage(false)
 })
+
+// --- Анимация: Web Animations, чтобы решить «переход или нет» уже после всех хуков этого кадра ---
+
+const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const EASE_IN = 'cubic-bezier(0.4, 0, 1, 1)'
+
+const parts = (el: Element) => ({
+  backdrop: el.querySelector<HTMLElement>('.modal__backdrop'),
+  panel: el.querySelector<HTMLElement>('.modal__panel'),
+})
+
+function onBeforeEnter(el: Element) {
+  markModalEnter()
+  // До первого кадра окно невидимо: решение, как появиться, принимается микрозадачей позже
+  ;(el as HTMLElement).style.opacity = '0'
+}
+
+async function onEnter(el: Element, done: () => void) {
+  await afterThisFlush()
+  const root = el as HTMLElement
+  root.style.opacity = ''
+  const { backdrop, panel } = parts(el)
+  if (prefersReducedMotion()) {
+    await root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120 }).finished.catch(() => undefined)
+    return done()
+  }
+  const swap = isSwapIn()
+  const sheet = isSheet()
+  const animations: Animation[] = []
+  if (backdrop && !swap) animations.push(backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' }))
+  if (panel) {
+    const from = swap
+      ? { opacity: 0, transform: sheet ? 'translateY(1.5rem)' : 'translateX(2.5rem) scale(0.98)' }
+      : { opacity: sheet ? 1 : 0, transform: sheet ? 'translateY(100%)' : 'translateY(1rem) scale(0.97)' }
+    animations.push(
+      panel.animate([from, { opacity: 1, transform: 'none' }], { duration: sheet && !swap ? 380 : 320, easing: EASE_OUT }),
+    )
+  }
+  await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)))
+  done()
+}
+
+function onBeforeLeave() {
+  markModalLeave()
+}
+
+async function onLeave(el: Element, done: () => void) {
+  await afterThisFlush()
+  const { backdrop, panel } = parts(el)
+  if (prefersReducedMotion()) {
+    await (el as HTMLElement).animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished.catch(() => undefined)
+    return done()
+  }
+  const swap = isSwapOut()
+  const sheet = isSheet()
+  const animations: Animation[] = []
+  if (backdrop) {
+    // При переходе под уходящим уже лежит затемнение нового окна — своё гасим сразу, иначе вдвое темнее
+    animations.push(
+      backdrop.animate([{ opacity: 1 }, { opacity: 0 }], swap ? { duration: 0, fill: 'forwards' } : { duration: 200, delay: 40, easing: 'ease-in', fill: 'forwards' }),
+    )
+  }
+  if (panel) {
+    const to = swap
+      ? { opacity: 0, transform: sheet ? 'translateY(1rem)' : 'translateX(-2.5rem) scale(0.98)' }
+      : { opacity: sheet ? 1 : 0, transform: sheet ? 'translateY(100%)' : 'translateY(0.75rem) scale(0.97)' }
+    animations.push(
+      panel.animate([{ opacity: 1, transform: 'none' }, to], { duration: sheet && !swap ? 280 : 200, easing: EASE_IN, fill: 'forwards' }),
+    )
+  }
+  await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)))
+  done()
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition
-      enter-from-class="opacity-0"
-      enter-active-class="transition duration-150"
-      leave-to-class="opacity-0"
-      leave-active-class="transition duration-100"
-    >
-      <div
-        v-if="open"
-        class="fixed inset-0 z-[100] flex items-end justify-center bg-night/50 p-0 sm:items-center sm:p-6"
-        @click.self="close"
-      >
+    <Transition :css="false" @before-enter="onBeforeEnter" @enter="onEnter" @before-leave="onBeforeLeave" @leave="onLeave">
+      <div v-if="open" class="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-6">
+        <div class="modal__backdrop absolute inset-0 bg-night/50" aria-hidden="true" @click="close" />
         <div
           ref="panel"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="`${id}-title`"
           :class="[
-            'modal__panel flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
+            'modal__panel relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
             wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
             // Тонкая светлая обводка: край окна с тёмной шапкой виден и на тёмной странице
             bare && 'overflow-hidden ring-1 ring-white/10',

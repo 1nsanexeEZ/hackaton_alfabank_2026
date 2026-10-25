@@ -48,6 +48,7 @@ const years = computed(() =>
         maxlength="2000"
         class="w-full rounded-lg bg-white px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-ink/20"
         :class="errors.summary && 'ring-2 ring-brand/40'"
+        :aria-invalid="Boolean(errors.summary)"
         placeholder="Например: кофейня у метро — зерно от обжарщика, завтраки, доставка по району"
       />
       <span v-if="errors.summary" class="mt-1 block text-sm text-brand">{{ errors.summary }}</span>

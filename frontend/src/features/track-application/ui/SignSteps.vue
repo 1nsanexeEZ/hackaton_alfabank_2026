@@ -67,7 +67,7 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
 
     <form :id="formId" class="space-y-4" @submit.prevent="emit('submit')">
       <ol class="space-y-4">
-        <li v-if="withDocument" class="flex items-start gap-3.5">
+        <li v-if="withDocument" class="flex items-start gap-3.5" data-sign="draft">
           <span
             class="flex size-7 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-extrabold"
             :class="draftOpened ? 'bg-success text-white' : 'border-[3px] border-brand text-brand-active'"
@@ -104,7 +104,7 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
           </span>
           <div class="min-w-0 flex-1 space-y-2 pt-0.5">
             <p class="text-[0.9375rem] font-semibold text-ink">Примите Правила электронного взаимодействия</p>
-            <CheckboxField v-if="rules" v-model="rulesAccepted">
+            <CheckboxField v-if="rules" v-model="rulesAccepted" data-sign="rules">
               Принимаю
               <button type="button" class="font-medium text-info underline underline-offset-2" @click.prevent="rulesOpen = true">
                 Правила электронного взаимодействия</button
@@ -128,6 +128,7 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
           <div class="min-w-0 flex-1 pt-0.5">
             <TextField
               v-model="password"
+              data-sign="password"
               label="Подтвердите паролем от кабинета"
               type="password"
               autocomplete="current-password"
