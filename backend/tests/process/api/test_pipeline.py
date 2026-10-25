@@ -149,6 +149,38 @@ def complete_task(p: Pipeline, result: dict[str, Any]) -> dict[str, Any]:
     return task
 
 
+def test_underwriter_request_info_then_approve(pipeline: Pipeline) -> None:
+    p, world = pipeline, pipeline.world
+    p.responders.decisions.extend(["MANUAL_REVIEW", "MANUAL_REVIEW"])
+    application_id = p.submit()
+
+    complete_task(
+        p,
+        {
+            "decision": "request_info",
+            "requested_documents": ["financial_statement"],
+            "comment": "Нужна отчётность",
+        },
+    )
+    card = p.card(application_id)
+    assert card["status"] == "info_requested"
+    [request] = card["info_requests"]
+    world.upload(card, "financial_statement", content=b"%PDF-1.7", content_type="application/pdf")
+    answered = world.client.post(
+        f"/applications/{application_id}/info-requests/{request['id']}/answer",
+        headers=world.headers(world.director),
+    )
+    assert answered.status_code == 200
+    p.drain()
+    # The client answered: the route runs again and the decision hands it to a person again.
+    assert p.process(application_id)["current_node_id"] == "underwriter_review"
+
+    complete_task(p, APPROVE)
+    assert p.process(application_id)["current_node_id"] == "wait_offer_answer"
+    assert p.card(application_id)["status"] == "offer_ready"
+    assert p.dead_letters == []
+
+
 def test_rejected_manual_decision_is_explained_to_the_underwriter(pipeline: Pipeline) -> None:
     p, client = pipeline, pipeline.world.client
     p.responders.decisions.append("MANUAL_REVIEW")
