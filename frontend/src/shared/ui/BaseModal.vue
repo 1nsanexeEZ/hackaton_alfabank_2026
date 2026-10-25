@@ -25,16 +25,18 @@ import {
  * Пока окно открыто, у <html> класс `has-modal`: анимации страницы под затемнением встают на паузу
  * (правило в app/styles), иначе их перерисовка мешает плавно прокручивать окно.
  * `bare` — окно без своей шапки, прокрутки и подвала: их рисует содержимое (карточка заявки).
+ * `tall` — окно всегда во всю высоту: содержимое с вкладками меняется внутри, окно не прыгает по центру.
  * Слот получает `close` и `titleId` — id заголовка, на который ссылается aria-labelledby окна.
  *
  * Появление и уход анимированы (modalMotion): затемнение проявляется, окно поднимается с лёгким
  * масштабом, на телефоне выезжает шторкой снизу. Если одно окно сменяет другое в тот же кадр —
  * затемнение одно и не моргает, старое окно уходит влево, новое приходит справа.
  */
-withDefaults(defineProps<{ title: string; description?: string; wide?: boolean; bare?: boolean }>(), {
+withDefaults(defineProps<{ title: string; description?: string; wide?: boolean; bare?: boolean; tall?: boolean }>(), {
   description: undefined,
   wide: false,
   bare: false,
+  tall: false,
 })
 
 const open = defineModel<boolean>('open', { required: true })
@@ -168,6 +170,7 @@ async function onLeave(el: Element, done: () => void) {
           :class="[
             'modal__panel relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
             wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
+            tall && 'h-[92dvh]',
             // Тонкая светлая обводка: край окна с тёмной шапкой виден и на тёмной странице
             bare && 'overflow-hidden ring-1 ring-white/10',
           ]"

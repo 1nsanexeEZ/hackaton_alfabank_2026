@@ -102,8 +102,9 @@ function applyWith(
     <MyApplicationsList v-if="applicationsOpen" @open="openApplicationCard" @apply="startApplication()" />
   </BaseModal>
 
-  <!-- Окно заявки рисует себя целиком: тёмная шапка с этапами, вкладки, действия в подвале -->
-  <BaseModal v-model:open="cardOpen" title="Заявка" wide bare>
+  <!-- Окно заявки рисует себя целиком: тёмная шапка с этапами, вкладки, действия в подвале.
+       Высота постоянная: вкладки разной длины не двигают окно -->
+  <BaseModal v-model:open="cardOpen" title="Заявка" wide bare tall>
     <template #default="{ close, titleId }">
       <ApplicationCard
         v-if="cardOpen && applyFlow.cardId"
