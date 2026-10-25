@@ -74,6 +74,7 @@ const MISSING_LABEL: Record<string, string> = {
   'documents.other': 'Договор с третьим лицом',
   'beneficiary.beneficiary.country': 'Страна третьего лица',
   'collateral.owner_party.country': 'Страна владельца залога',
+  beneficial_owners: 'Бенефициары',
   'consents.personal_data': 'Согласие на обработку данных',
   'consents.credit_bureau': 'Согласие на запрос в БКИ',
 }
@@ -126,7 +127,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
    * управлению (115-ФЗ). Спрашиваем у всех на шаге согласий: без ответа дальше не пускаем.
    */
   const beneficiary = reactive<BeneficiaryForm>({ acts: null, party: emptyThirdParty(), basis: '' })
-  /** Бенефициары со слов клиента (115-ФЗ, policy_v9) — на шаге согласий, подачу не блокируют */
+  /** Бенефициары со слов клиента (115-ФЗ, policy_v9) — на шаге согласий; бэкенд без ответа подаёт, форма — нет */
   const owners = reactive<OwnersForm>(emptyOwners())
   const productFields = ref<FieldValues>({})
   /**
@@ -539,6 +540,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       if (!beneficiary.basis) errors['beneficiary.basis'] = 'Выберите основание'
       if (!contractSlot.value.files.length) errors[`documents.${BENEFICIARY_CONTRACT}`] = 'Загрузите договор'
     }
+    if (owners.answer === null) errors.beneficial_owners = 'Ответьте на вопрос'
     Object.assign(errors, ownersProblems(owners))
     if (!consents.personalData) errors['consents.personal_data'] = 'Без этого согласия заявку не рассмотреть'
     if (!consents.creditBureau) errors['consents.credit_bureau'] = 'Без этого согласия заявку не рассмотреть'

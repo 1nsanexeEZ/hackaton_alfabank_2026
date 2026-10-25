@@ -32,6 +32,15 @@ function stepOf(field: string): ViolationView['step'] {
   return 'details'
 }
 
+/** beneficial_owners.owners.N.name / .basis / .country — номер бенефициара для клиента с единицы */
+function ownerLabel(field: string): string | undefined {
+  const match = /^beneficial_owners\.owners\.(\d+)\.(\w+)$/.exec(field)
+  if (!match) return field.startsWith('beneficial_owners') ? FIELD_LABEL.beneficial_owners : undefined
+  const [, index, part] = match
+  const what = ({ name: 'ФИО', basis: 'основание', country: 'страна' } as Record<string, string>)[part ?? ''] ?? 'данные'
+  return `${what} бенефициара № ${Number(index) + 1}`
+}
+
 /** Нарушения комплектности бэкенда (GET …/completeness, 422 на submit) — понятным текстом */
 export function describeViolations(
   violations: ApiViolation[],
@@ -45,7 +54,7 @@ export function describeViolations(
     if (field.startsWith('documents.')) {
       return { step, message: `Не загружен документ: ${context.documentTitle(field.slice('documents.'.length))}` }
     }
-    const label = field.startsWith('product_fields.') ? `«${context.fieldTitle(field)}»` : (FIELD_LABEL[field] ?? field)
+    const label = field.startsWith('product_fields.') ? `«${context.fieldTitle(field)}»` : (FIELD_LABEL[field] ?? ownerLabel(field) ?? field)
     if (code === 'missing') return { step, message: `Не заполнено: ${label}` }
     if (code === 'out_of_range') return { step, message: `Вне условий продукта: ${label}` }
     if (code === 'bad_checksum') return { step, message: `Неверный ИНН: ${label}` }

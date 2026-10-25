@@ -8,7 +8,7 @@ import CountryField from './CountryField.vue'
 
 /**
  * Бенефициары со слов клиента (115-ФЗ ст. 6.1): банк сверяет их с ЕГРЮЛ и проверяет по перечням.
- * Подачу ответ не блокирует, но без него специалисту придётся спрашивать отдельно.
+ * Бэкенд подачу без ответа не блокирует, но в форме вопрос обязателен, как вопрос о третьем лице.
  */
 defineProps<{ errors: Record<string, string> }>()
 
@@ -38,11 +38,10 @@ function remove(index: number) {
 
 <template>
   <section class="space-y-4">
-    <div>
+    <div data-field="beneficial_owners">
       <p id="owners-question" class="text-sm font-semibold text-ink">
         Кто владеет больше чем 25% компании — напрямую или через другие компании — или иначе контролирует её действия?
       </p>
-      <p class="mt-1 text-xs text-ink-secondary">Банк сверит ответ с ЕГРЮЛ. Подачу он не задерживает, но ускорит проверку.</p>
       <div class="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby="owners-question">
         <button
           v-for="item in ANSWERS"
@@ -57,6 +56,7 @@ function remove(index: number) {
           {{ item.label }}
         </button>
       </div>
+      <p v-if="errors.beneficial_owners" class="mt-1.5 text-sm text-brand">{{ errors.beneficial_owners }}</p>
     </div>
 
     <div v-if="form.answer === 'list'" class="space-y-3">

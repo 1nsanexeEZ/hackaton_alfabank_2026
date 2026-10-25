@@ -56,9 +56,10 @@ const owner = (item: AmlCheckDto['beneficial_owners'][number]) =>
       <li v-for="item in aml.owner_discrepancies ?? []" :key="`${item.kind}-${item.name}`" class="text-brand">
         Расхождение: {{ item.name }} — {{ OWNER_DISCREPANCY_LABEL[item.kind] ?? item.kind }}
       </li>
-      <li v-if="aml.licenses === null" class="text-warning">Реестр лицензий не ответил — лицензия не проверена</li>
-      <li v-else-if="aml.licenses?.length">
-        Лицензии: {{ aml.licenses.map((item) => `№ ${item.number} — ${item.activity} (ОКВЭД ${item.okved})`).join('; ') }}
+      <!-- licenses: null — реестр лицензий по заявке не запрашивали (старые заявки), строку не показываем -->
+      <li v-if="aml.licenses">
+        Лицензии:
+        {{ aml.licenses.length ? aml.licenses.map((item) => `№ ${item.number}, ${item.activity} (ОКВЭД ${item.okved})`).join('; ') : 'нет' }}
       </li>
     </ul>
     <p class="mt-1 text-xs text-ink-secondary">

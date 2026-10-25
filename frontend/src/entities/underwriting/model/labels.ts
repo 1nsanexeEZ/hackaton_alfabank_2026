@@ -57,7 +57,7 @@ export const REASON_LABEL: Record<string, string> = {
   ROUTE_THIRD_PARTY_BENEFICIARY: 'Клиент действует в интересах третьего лица',
   ROUTE_THIRD_PARTIES_UNKNOWN: 'Нет сведений о выгодоприобретателе или владельце залога',
   ROUTE_AML_HIGH_RISK: 'Высокая группа риска по 115-ФЗ',
-  STOP_UNLICENSED_ACTIVITY: 'Деятельность без обязательной лицензии',
+  STOP_UNLICENSED_ACTIVITY: 'Нет лицензии на основной вид деятельности',
   INFO_REVENUE_NOT_CONFIRMED: 'Нужна выписка для подтверждения выручки',
   LIMIT_BY_PRODUCT: 'Лимит продукта',
   LIMIT_BY_REVENUE: 'Лимит по выручке',
