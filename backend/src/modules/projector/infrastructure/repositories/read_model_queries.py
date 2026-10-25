@@ -69,7 +69,23 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
     async def queue_of(
         self, role: str, statuses: tuple[str, ...], sort: QueueSort, limit: int, offset: int
     ) -> tuple[list[QueueItem], int]:
-        conditions = [Q.candidate_role == role, Q.status.in_(statuses)]
+        # One row per application — its latest task: a returned application has
+        # several, and it belongs to the tab of the one it is on now.
+        ranked = (
+            select(
+                Q.task_id,
+                func.row_number()
+                .over(
+                    partition_by=Q.application_id,
+                    order_by=(Q.created_at.desc(), Q.task_id.desc()),
+                )
+                .label("rank"),
+            )
+            .where(Q.candidate_role == role)
+            .subquery()
+        )
+        latest = select(ranked.c.task_id).where(ranked.c.rank == 1)
+        conditions = [Q.candidate_role == role, Q.status.in_(statuses), Q.task_id.in_(latest)]
         total = await self._session.scalar(select(func.count()).select_from(Q).where(*conditions))
         stmt = (
             select(Q)

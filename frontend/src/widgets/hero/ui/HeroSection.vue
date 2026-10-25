@@ -34,10 +34,9 @@ const stats = computed(() => heroStats(props.products))
             офис и повторного ввода данных.
           </p>
           <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-            <BaseButton size="l" :href="sectionHref(SECTION_ID.picker)">Подобрать кредит</BaseButton>
-            <BaseButton size="l" variant="glass" :href="sectionHref(SECTION_ID.calculator)">
-              Рассчитать платёж
-            </BaseButton>
+            <!-- Подбор и расчёт — один блок, поэтому и кнопка одна; вторая — то же, что «Оформить заявку» в шапке -->
+            <BaseButton size="l" :href="sectionHref(SECTION_ID.picker)">Подобрать и рассчитать</BaseButton>
+            <BaseButton size="l" variant="glass" @click="emit('apply')">Оформить заявку</BaseButton>
           </div>
         </div>
 
@@ -73,20 +72,18 @@ const stats = computed(() => heroStats(props.products))
 
 <style scoped>
 /*
- * Hero занимает весь первый экран. Следующая секция наезжает на него
- * скруглённым листом на --r, поэтому добавляем эту высоту сверх экрана.
+ * Hero занимает весь первый экран под шапкой. Высоту, на которую наезжает следующий лист,
+ * добавляет сам лист лендинга (LandingSheet) своим отступом снизу.
  */
 .hero {
-  --r: 2.5rem;
   /* Высота шапки */
   --header: 4rem;
 
-  min-height: calc(100dvh - var(--header) + var(--r));
+  min-height: calc(100dvh - var(--header));
 }
 
 @media (width >= 64rem) {
   .hero {
-    --r: var(--radius-sheet);
     --header: 4.5rem;
   }
 }

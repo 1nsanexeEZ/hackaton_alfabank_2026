@@ -4,35 +4,46 @@ import { CircleCheck } from 'lucide-vue-next'
 import { SECTION_ID } from '@/shared/config'
 import { BaseBadge, BaseContainer, SectionHeader } from '@/shared/ui'
 
+import productArt from '../assets/step-1-vyberite-produkt.svg'
+import sendArt from '../assets/step-2-otpravte-zayavku.svg'
+import checkArt from '../assets/step-3-proverka-dannyh.svg'
+import decisionArt from '../assets/step-4-ocenka-i-reshenie.svg'
+import signArt from '../assets/step-5-podpisanie-i-dengi.svg'
+
 type Actor = 'client' | 'bank'
 
 const ACTOR_LABEL: Record<Actor, string> = { client: 'Вы', bank: 'Банк' }
 
-const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
+const STEPS: readonly { title: string; text: string; actor: Actor; art: string }[] = [
   {
     title: 'Выберите продукт',
     text: 'Сравните условия и рассчитайте платёж в калькуляторе.',
     actor: 'client',
+    art: productArt,
   },
   {
     title: 'Отправьте заявку',
     text: 'Нужны только ИНН, сумма и цель. Данные о компании подтянутся автоматически.',
     actor: 'client',
+    art: sendArt,
   },
   {
     title: 'Проверка данных',
-    text: 'Банк сверяет сведения с ЕГРЮЛ/ЕГРИП, ФНС и бюро кредитных историй.',
+    text: 'Банк сверяет сведения о компании и заявке по своим данным и открытым источникам.',
     actor: 'bank',
+    art: checkArt,
   },
   {
     title: 'Оценка и решение',
     text: 'Скоринг оценивает риск, кредитная политика определяет условия. Если нужны документы — попросим в кабинете.',
     actor: 'bank',
+    art: decisionArt,
   },
   {
     title: 'Подписание и деньги',
     text: 'Подпишите договор в кабинете, деньги поступят на расчётный счёт.',
     actor: 'client',
+    art: signArt,
   },
 ]
 </script>
@@ -77,7 +88,16 @@ const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
               </span>
               <BaseBadge :tone="step.actor === 'bank' ? 'neutral' : 'brand'">{{ ACTOR_LABEL[step.actor] }}</BaseBadge>
             </div>
-            <h3 class="mt-6 text-lg font-bold text-ink">{{ step.title }}</h3>
+            <img
+              :src="step.art"
+              alt=""
+              width="400"
+              height="400"
+              loading="lazy"
+              decoding="async"
+              class="step-art mx-auto mt-2 size-32 lg:size-36"
+            />
+            <h3 class="mt-2 text-lg font-bold text-ink">{{ step.title }}</h3>
             <p class="mt-2 text-sm text-ink-secondary">{{ step.text }}</p>
           </li>
         </ol>
