@@ -61,7 +61,7 @@ process/
 
 - **`workflows/` остаётся в корне модуля.** BPMN-файлы — данные: их грузит
   `infrastructure/adapters/workflow_catalog.py` (`WORKFLOWS_DIR`), на этот путь опираются тесты,
-  фронт рисует их через bpmn-js (`GET /workflows/{code}/diagram`). Битый файл останавливает старт
+  фронт разбирает XML и рисует граф маршрута (`GET /workflows/{code}/diagram`). Битый файл останавливает старт
   приложения списком проблем.
 - **`bpmn.py` — не адаптер порта.** Разбор BPMN нужен только инфраструктуре: каталогу маршрутов и
   репозиторию процессов (снимок графа из БД). Use case'ы получают уже готовый `WorkflowDefinition`
@@ -95,7 +95,7 @@ process/
 | POST | `/tasks/{task_id}/complete` | решение андеррайтера (комментарий обязателен), закрывает только исполнитель |
 | GET | `/processes/{application_id}` | где заявка в маршруте: шаги, `visited_node_ids` для подсветки пути |
 | GET | `/workflows` | загруженные маршруты |
-| GET | `/workflows/{code}/diagram` | BPMN XML для bpmn-js |
+| GET | `/workflows/{code}/diagram` | BPMN XML: по нему бэк-офис рисует граф маршрута |
 
 Экран бэк-офиса читает очередь из `projector`, эти ручки — для работы с задачей и схемы маршрута.
 
