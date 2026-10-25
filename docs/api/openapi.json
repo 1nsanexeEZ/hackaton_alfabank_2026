@@ -6430,6 +6430,209 @@
         }
       }
     },
+    "/assistant/status": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Get Status",
+        "description": "Open to anyone: the site shows the assistant's state before login.",
+        "operationId": "get_status_assistant_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assistant/applications": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "List Applications",
+        "description": "The applications of the client's companies to pick one for the chat; bank staff\nask by an application id.",
+        "operationId": "list_applications_assistant_applications_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantApplicationOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Applications Assistant Applications Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/assistant/conversations": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Start Conversation",
+        "operationId": "start_conversation_assistant_conversations_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationCreatedOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/assistant/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Get Conversation",
+        "description": "The history: someone else's conversation is 404.",
+        "operationId": "get_conversation_assistant_conversations__conversation_id__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assistant/conversations/{conversation_id}/messages": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_assistant_conversations__conversation_id__messages_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantQuestionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantReplyOut"
+                }
+              },
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -7857,6 +8060,321 @@
           "defendant_sum"
         ],
         "title": "ArbitrationDTO"
+      },
+      "AssistantApplicationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "client_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Stage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "product_code",
+          "status",
+          "client_stage"
+        ],
+        "title": "AssistantApplicationOut"
+      },
+      "AssistantConversationCreatedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "AssistantConversationCreatedOut"
+      },
+      "AssistantConversationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessageOut"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "messages"
+        ],
+        "title": "AssistantConversationOut"
+      },
+      "AssistantMessageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "llm",
+                  "rules"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "text",
+          "created_at",
+          "application_id",
+          "mode"
+        ],
+        "title": "AssistantMessageOut"
+      },
+      "AssistantQuestionIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id",
+            "description": "The application the question is about; without it the only active application of the user is taken when the question needs one"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AssistantQuestionIn"
+      },
+      "AssistantReplyOut": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Message Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "rules"
+            ],
+            "title": "Mode"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/Intent"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Reason",
+            "description": "Why the template answered: template_only, disabled, busy, timeout, unavailable, postcheck; null — the model's answer passed the post-check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message_id",
+          "text",
+          "mode",
+          "intent",
+          "application_id",
+          "fallback_reason"
+        ],
+        "title": "AssistantReplyOut"
+      },
+      "AssistantStatusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "A model is configured and allowed"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "rules"
+            ],
+            "title": "Mode",
+            "description": "Who answers now: the model or templates"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "off",
+              "local",
+              "api"
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable",
+            "description": "The server answers and serves the model"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Why the model is off"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "mode",
+          "provider",
+          "model",
+          "host",
+          "reachable",
+          "reason"
+        ],
+        "title": "AssistantStatusOut"
       },
       "BackofficeMetricsDTO": {
         "properties": {
@@ -13366,6 +13884,20 @@
         "title": "InnCheckRequest",
         "description": "The INN and, if the client named them, the requisites from their documents: the INN is\nmatched against each one passed."
       },
+      "Intent": {
+        "type": "string",
+        "enum": [
+          "injection",
+          "internal_data",
+          "payment",
+          "decision",
+          "status",
+          "products",
+          "greeting",
+          "off_topic"
+        ],
+        "title": "Intent"
+      },
       "JwksResponse": {
         "properties": {
           "keys": {
@@ -15729,7 +16261,8 @@
           "feed.read",
           "support.read",
           "support.create",
-          "support.manage"
+          "support.manage",
+          "assistant.use"
         ],
         "title": "Permissions"
       },

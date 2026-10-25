@@ -474,6 +474,11 @@
             "enabled": true,
             "name": "policy_version",
             "value": "${[ response.body.path(request='rq_iRPdpMb5PL', behavior='smart', path='$.version') ]}"
+          },
+          {
+            "enabled": true,
+            "name": "conversation_id",
+            "value": "${[ response.body.path(request='rq_imXb5xxgpz', behavior='smart', path='$.id') ]}"
           }
         ],
         "color": null,
@@ -823,12 +828,25 @@
       },
       {
         "model": "folder",
+        "id": "fl_i55ggaV5Pj",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_LRnXWnQzgy",
+        "name": "Умный помощник",
+        "description": "Кто отвечает (модель или шаблоны), заявки для чата, диалог: ответ целиком или потоком.",
+        "sortPriority": 14000.0,
+        "authenticationType": null,
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "folder",
         "id": "fl_D4y4bxXgkd",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF клиента",
         "description": "Экраны кабинета клиента одним запросом.",
-        "sortPriority": 14000.0,
+        "sortPriority": 15000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -841,7 +859,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "BFF бэк-офиса",
         "description": "Очередь, карточка андеррайтера, метрики.",
-        "sortPriority": 15000.0,
+        "sortPriority": 16000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -854,7 +872,7 @@
         "folderId": "fl_LRnXWnQzgy",
         "name": "Администрирование",
         "description": "Аккаунты и роли: создаём свои и на них пробуем.",
-        "sortPriority": 16000.0,
+        "sortPriority": 17000.0,
         "authenticationType": null,
         "authentication": {},
         "createdAt": "2026-10-24T00:00:00",
@@ -10481,6 +10499,133 @@
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_7XCEmqhNfc",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_i55ggaV5Pj",
+        "name": "Статус помощника",
+        "description": "Open to anyone: the site shows the assistant's state before login.\n\nБез входа. `mode: llm` — отвечает модель, `rules` — шаблоны; `provider` — `local`, `api` или `off`, см. docs/ai.md.",
+        "method": "GET",
+        "url": "${[ base_url ]}/assistant/status",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 1000.0,
+        "authenticationType": "none",
+        "authentication": {},
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_rvk8sdO4Pd",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_i55ggaV5Pj",
+        "name": "Заявки для чата",
+        "description": "The applications of the client's companies to pick one for the chat; bank staff\nask by an application id.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/assistant/applications",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 2000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_imXb5xxgpz",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_i55ggaV5Pj",
+        "name": "Новый диалог",
+        "description": "Start Conversation\n\nДиалог Ромашки: отсюда `conversation_id` справочника, им пользуются вопрос и история.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/assistant/conversations",
+        "urlParameters": [],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 3000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_hwpeVosNxY",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_i55ggaV5Pj",
+        "name": "История диалога",
+        "description": "The history: someone else's conversation is 404.\n\nТокен: директор ООО «Ромашка».",
+        "method": "GET",
+        "url": "${[ base_url ]}/assistant/conversations/:conversation_id",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":conversation_id",
+            "value": "${[ conversation_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 4000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_hsAWvNA3RK",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_i55ggaV5Pj",
+        "name": "Вопрос помощнику",
+        "description": "Ask\n\nОтвет целиком; с заголовком `Accept: text/event-stream` — поток SSE: `status`, `delta`, `done`. `fallback_reason` — почему ответил шаблон.\n\nТокен: директор ООО «Ромашка».",
+        "method": "POST",
+        "url": "${[ base_url ]}/assistant/conversations/:conversation_id/messages",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":conversation_id",
+            "value": "${[ conversation_id ]}"
+          }
+        ],
+        "headers": [
+          {
+            "enabled": true,
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "application/json",
+        "body": {
+          "text": "{\n  \"text\": \"Что решил банк по моей заявке?\",\n  \"application_id\": \"${[ application_id ]}\"\n}"
+        },
+        "sortPriority": 5000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
           "prefix": "Bearer"
         },
         "createdAt": "2026-10-24T00:00:00",

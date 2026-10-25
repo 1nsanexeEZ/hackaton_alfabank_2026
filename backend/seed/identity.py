@@ -48,6 +48,7 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.PROFILE_UPDATE,
             Permissions.SUPPORT_READ,
             Permissions.SUPPORT_CREATE,
+            Permissions.ASSISTANT_USE,
         ),
         policies={
             Permissions.REQUESTS_READ: ORG_MEMBER,
@@ -58,6 +59,8 @@ ROLES: tuple[RoleSpec, ...] = (
             # Support tickets: only the ones the client opened.
             Permissions.SUPPORT_READ: OWN_ONLY,
             Permissions.SUPPORT_CREATE: OWN_ONLY,
+            # The assistant answers about the applications of the client's companies.
+            Permissions.ASSISTANT_USE: ORG_MEMBER,
         },
     ),
     RoleSpec(
@@ -82,6 +85,7 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.PROFILE_UPDATE_NAME,
             # The support queue: take a ticket, answer, resolve.
             Permissions.SUPPORT_MANAGE,
+            Permissions.ASSISTANT_USE,
         ),
     ),
 )

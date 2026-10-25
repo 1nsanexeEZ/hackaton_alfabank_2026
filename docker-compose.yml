@@ -130,6 +130,20 @@ services:
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-Demo-2026!}
       DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-true}
+      # Smart assistant (docs/ai.md): local — open-weights model in the `ai` profile (without it
+      # the assistant answers by templates), api — any OpenAI-compatible API, off — templates only.
+      ASSISTANT_LLM_PROVIDER: ${ASSISTANT_LLM_PROVIDER:-local}
+      ASSISTANT_LLM_BASE_URL: ${ASSISTANT_LLM_BASE_URL:-http://ollama:11434/v1}
+      ASSISTANT_LLM_API_KEY: ${ASSISTANT_LLM_API_KEY:-}
+      ASSISTANT_LLM_MODEL: ${ASSISTANT_LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      ASSISTANT_LLM_TIMEOUT_S: ${ASSISTANT_LLM_TIMEOUT_S:-25}
+      ASSISTANT_LLM_CONCURRENCY: ${ASSISTANT_LLM_CONCURRENCY:-1}
+      ASSISTANT_LLM_MAX_QUEUE: ${ASSISTANT_LLM_MAX_QUEUE:-4}
+      ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS: ${ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS:-}
+      ASSISTANT_RATE_LIMIT_PER_MINUTE: ${ASSISTANT_RATE_LIMIT_PER_MINUTE:-10}
+    # Ollama outside Docker: ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - jwt-keys:/app/keys
     depends_on:
@@ -182,6 +196,33 @@ services:
     networks:
       - alfa_network
 
+  # --- Модель умного помощника: профиль ai, по умолчанию не запускается (docs/ai.md) ---
+  # Помощник — модуль backend; без этого контейнера он отвечает по шаблонам. Модель с открытыми
+  # весами на CPU через Ollama. Модель не скачивается при старте: один раз
+  # `backend/scripts/ai-pull-model.sh`, дальше работает офлайн из тома ollama_models.
+  ollama:
+    image: ollama/ollama:0.40.0
+    container_name: alfa_credit_ollama
+    profiles: ["ai"]
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_CONTEXT_LENGTH: 4096
+    volumes:
+      - ollama_models:/root/.ollama
+    mem_limit: ${OLLAMA_MEM_LIMIT:-4g}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    networks:
+      - alfa_network
+
 volumes:
   pgdata:
     name: alfa_credit_pgdata
@@ -191,6 +232,8 @@ volumes:
     name: alfa_credit_minio_data
   kafka_data:
     name: alfa_credit_kafka_data
+  ollama_models:
+    name: alfa_credit_ollama_models
 
 networks:
   alfa_network:

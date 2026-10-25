@@ -113,6 +113,25 @@ curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/
 
 **Внешние моки.** Сервис `external-mocks` входит в `docker-compose.yml`, наружу порт не открыт; backend стартует после его healthcheck и ходит к нему по `http://external-mocks:8100`: обогащение (ЕГРЮЛ/ЕГРИП, ФНС, БКИ компании и руководителя, ГИР БО, Контур, проверка по 115-ФЗ: перечни Росфинмониторинга, ПДЛ, ЗСК), подписание (ЭДО) и выдача (АБС). Для демо «хаос» выключен: задержка 100–400 мс, без случайных `503`; чтобы показать ретраи и деградацию, поднимите `MOCK_FAILURE_RATE` в `.env` (например, `0.1`). БКИ по ООО «Сбой» недоступно всегда — сценарий S-6.
 
+**Умный помощник (ИИ по желанию).** Чат, который объясняет решение по заявке, статус и продукты, — модуль `assistant` backend (`/api/assistant/…`). Решений он не принимает: факты собирает код, модель только переформулирует их, а постпроверка не пропускает выдуманные числа и обещания. Без модели помощник отвечает по шаблонам, поэтому обычный `docker compose up -d` его уже включает. Модель с открытыми весами (Qwen3-4B-Instruct, Apache-2.0) работает на CPU через Ollama в профиле `ai`; скачивается один раз явной командой, дальше — офлайн:
+
+```bash
+backend/scripts/ai-pull-model.sh          # один раз, нужен интернет
+docker compose --profile ai up -d         # + ollama, ещё ≈ 4 ГБ по mem_limit
+backend/scripts/ai-smoke.sh               # проверка: статус, вопрос, поток, injection
+```
+
+**Свой провайдер модели.** Модель подключается через любой OpenAI-совместимый API (`POST {base URL}/chat/completions`): нужно задать base URL, ключ и название модели. Например, OpenRouter с моделью с открытыми весами — в `.env` рядом с `docker-compose.yml`:
+
+```bash
+ASSISTANT_LLM_PROVIDER=api
+ASSISTANT_LLM_BASE_URL=https://openrouter.ai/api/v1
+ASSISTANT_LLM_API_KEY=<ваш ключ>
+ASSISTANT_LLM_MODEL=qwen/qwen-2.5-72b-instruct
+```
+
+Затем `docker compose up -d backend` и проверка `curl http://localhost:8080/api/assistant/status`: `"provider": "api"`, `"mode": "llm"` — модель отвечает; `"mode": "rules"` и `reason` — почему нет. Ключ в репозитории не хранится. Закрытые модели (GPT, Claude, Gemini, GigaChat, YandexGPT) отклоняются по названию: условия кейса допускают только открытые веса. Во внешний API не уходит текст, который клиент сам написал в анкете, — только факты банка. Модели, все настройки, деградация, защита и метрики — [`docs/ai.md`](docs/ai.md).
+
 **Фронтенд** собирается в compose (сервис `frontend`). Для разработки его запускают отдельно: `cd frontend && npm ci && npm run dev` → http://localhost:5173. Весь сайт, включая рабочее место сотрудника (`/admin`), всегда работает с настоящим backend: dev-сервер проксирует `/api` в запущенный бэк. Подробно — в [`frontend/README.md`](frontend/README.md).
 
 Остановить стенд — `docker compose down`; удалить ещё и данные (БД, документы, Kafka, ключи JWT) — `docker compose down -v`.
@@ -245,6 +264,7 @@ Compose читает `.env` из корня репозитория; в конт�
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
 | Проверка клиента по 115-ФЗ на каждой заявке, автоматизированное решение (ст. 16 152-ФЗ) | [`docs/compliance-115.md`](docs/compliance-115.md) |
 | SLA, отказоустойчивость, деградация | [`docs/sla.md`](docs/sla.md) |
+| Умный помощник: модели, свой провайдер, деградация, защита, качество | [`docs/ai.md`](docs/ai.md) |
 | Сторонние компоненты и смоделированные интеграции | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) |
 | Правила команды (ветки, коммиты) | [`settings/`](settings/) |
 
@@ -261,7 +281,7 @@ uv run python -m scripts.export_openapi   # обновить docs/api/openapi.js
 uv run python -m scripts.export_yaak      # и коллекцию Yaak в docs/api/yaak/ (--check — свежая ли)
 ```
 
-Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков, сборка фронтенда и подъём всего стенда так, как его запускает жюри (`docker compose up --wait` и проверка сайта, API, входа и кабинета). Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.
+Без Docker backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`. Моки: `cd external-mocks && uv sync && uv run pytest`. Тесты умного помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети). CI (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`: ruff, import-linter, тесты, миграции Alembic на Postgres (upgrade → downgrade → upgrade, одна голова, `alembic check`), интеграционные тесты, тесты моков, сборка фронтенда и подъём всего стенда так, как его запускает жюри (`docker compose up --wait` и проверка сайта, API, входа и кабинета). Версии зафиксированы: Python 3.12 (`backend/.python-version`), `backend/uv.lock`, `external-mocks/uv.lock`, `frontend/package-lock.json`.
 
 ## Что вошло и что дальше
 

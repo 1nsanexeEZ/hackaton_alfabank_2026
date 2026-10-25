@@ -1,0 +1,24 @@
+type: http_request
+model: http_request
+id: rq_rvk8sdO4Pd
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_i55ggaV5Pj
+name: Заявки для чата
+description: |-
+  The applications of the client's companies to pick one for the chat; bank staff
+  ask by an application id.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/assistant/applications
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

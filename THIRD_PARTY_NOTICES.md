@@ -29,7 +29,15 @@
 
 ## Модели и датасеты
 
-- **LLM не используются, сторонних и предобученных моделей нет.** Подбор продукта, проверки и решение — детерминированные правила в коде. Платных API и подписок в проверяемой версии нет.
+- **Подбор продукта, проверки и решение — детерминированные правила в коде.** Платных API и подписок в проверяемой версии нет.
+- **LLM — только в умном помощнике** (модуль backend `assistant`; контейнер `ollama` — профиль compose `ai`, по умолчанию не запускается). Модели с открытыми весами, без дообучения, запускаются локально через Ollama; веса не входят в репозиторий и образы, скачиваются явной командой `backend/scripts/ai-pull-model.sh`. Вместо локальной модели можно подключить любой OpenAI-совместимый API с моделью с открытыми весами (например, OpenRouter) — ключ задаётся в `.env`, в репозитории его нет. Помощник ничего не решает и без модели отвечает по шаблонам. Подробно — [`docs/ai.md`](docs/ai.md).
+
+  | Модель | Где взята | Лицензия | Параметров | Роль |
+  |---|---|---|---|---|
+  | Qwen3-4B-Instruct-2507 | [huggingface.co/Qwen/Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507); в Ollama — `qwen3:4b-instruct-2507-q4_K_M` (GGUF Q4_K_M) | Apache-2.0 | 4,0 млрд | основная: формулирует ответ ассистента по фактам |
+  | Qwen2.5-1.5B-Instruct | [huggingface.co/Qwen/Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct); в Ollama — `qwen2.5:1.5b` (GGUF Q4_K_M) | Apache-2.0 | 1,5 млрд | лёгкая: для машин с 8 ГБ памяти |
+  | Qwen2.5-7B-Instruct | [huggingface.co/Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct); в Ollama — `qwen2.5:7b` (GGUF Q4_K_M) | Apache-2.0 | 7,6 млрд | необязательная: для машин с 16 ГБ, если нужен русский получше |
+
 - **ML-модель скоринга `ml_logreg_v1` обучена командой** — логистическая регрессия на синтетической популяции заявок (`backend/ml/population.py`, `backend/ml/train.py`); в образ попадают только её коэффициенты (`backend/src/modules/scoring/infrastructure/config/ml_logreg_v1.yaml`), инференс — чистый Python без ML-библиотек. Библиотеки обучения (scikit-learn, numpy, pandas, matplotlib, jupyter, nbconvert) — группа зависимостей `ml` в `backend/pyproject.toml`, ставятся только локально и в образ не входят.
 - **Внешних датасетов нет.** Все данные синтетические и созданы командой: компании, люди, финансовые показатели и кредитные истории (`backend/seed/demo_data.py`, `external-mocks/app/data.py`), каталог продуктов (`backend/seed/products.py`), тексты новостей ленты (`backend/seed/notifications.py`), досье для рабочего места сотрудника в режиме `mock` (`frontend/mocks/external-sources.json`, генератор `frontend/mocks/generate.py` с фиксированным seed). ИНН и ОГРН собраны с правильными контрольными цифрами; совпадение с реальными субъектами случайно.
 
@@ -42,6 +50,7 @@
 | `apache/kafka` | `3.8.0` | `docker-compose.yml`, сервис `kafka` | Apache-2.0 |
 | `nginx` | `1.31.7-alpine` | `docker-compose.yml`, сервис `nginx`; база образа `frontend/Dockerfile` (раздача статики) | BSD-2-Clause |
 | `node` | `22.23.4-alpine` | стадия сборки `frontend/Dockerfile`, в итоговый образ не входит | MIT (Node.js) |
+| `ollama/ollama` | `0.40.0` | `docker-compose.yml`, сервис `ollama` (профиль `ai`): рантайм моделей с OpenAI-совместимым API | MIT |
 | `python` | `3.12-slim` | база образов `backend/Dockerfile` и `external-mocks/Dockerfile` | PSF-2.0 (CPython) |
 | `ghcr.io/astral-sh/uv` | `0.12.10` (backend), `0.13.4` (external-mocks) | из образа копируются только бинарники `uv` (и `uvx` у external-mocks) для установки зависимостей и запуска | MIT OR Apache-2.0 |
 

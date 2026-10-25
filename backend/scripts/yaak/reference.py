@@ -40,6 +40,11 @@ FOLDERS: list[tuple[str, str, str]] = [
     ),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
     ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
+    (
+        "assistant",
+        "Умный помощник",
+        "Кто отвечает (модель или шаблоны), заявки для чата, диалог: ответ целиком или потоком.",
+    ),
     ("bff", "BFF клиента", "Экраны кабинета клиента одним запросом."),
     ("backoffice", "BFF бэк-офиса", "Очередь, карточка андеррайтера, метрики."),
     ("admin", "Администрирование", "Аккаунты и роли: создаём свои и на них пробуем."),
@@ -146,6 +151,11 @@ NAMES: dict[str, str] = {
     "POST /support/queue/{ticket_id}/messages": "Ответить клиенту",
     "POST /support/queue/{ticket_id}/resolve": "Решить обращение",
     "POST /support/queue/{ticket_id}/close": "Закрыть обращение",
+    "GET /assistant/status": "Статус помощника",
+    "GET /assistant/applications": "Заявки для чата",
+    "POST /assistant/conversations": "Новый диалог",
+    "GET /assistant/conversations/{conversation_id}": "История диалога",
+    "POST /assistant/conversations/{conversation_id}/messages": "Вопрос помощнику",
     "GET /bff/dashboard": "Главный экран клиента",
     "GET /bff/applications": "Заявки компании",
     "GET /bff/applications/{application_id}": "Карточка заявки для клиента",
@@ -279,6 +289,17 @@ NOTES: dict[str, str] = {
     ),
     "POST /support/tickets": (
         "Обращение Ромашки: отсюда `ticket_id` справочника, с ним работают и запросы очереди."
+    ),
+    "GET /assistant/status": (
+        "Без входа. `mode: llm` — отвечает модель, `rules` — шаблоны; `provider` — `local`, "
+        "`api` или `off`, см. docs/ai.md."
+    ),
+    "POST /assistant/conversations": (
+        "Диалог Ромашки: отсюда `conversation_id` справочника, им пользуются вопрос и история."
+    ),
+    "POST /assistant/conversations/{conversation_id}/messages": (
+        "Ответ целиком; с заголовком `Accept: text/event-stream` — поток SSE: `status`, "
+        "`delta`, `done`. `fallback_reason` — почему ответил шаблон."
     ),
     "POST /support/tickets/{ticket_id}/close": (
         "Закрытое обращение финально: в него больше не пишет никто. Для запросов очереди "
@@ -483,6 +504,10 @@ def _bodies() -> dict[str, Any]:
             "text": "Добрый день! Можно продлить овердрафт без новой заявки?",
         },
         "POST /support/tickets/{ticket_id}/messages": {"text": "Уточню: лимит нужен тот же."},
+        "POST /assistant/conversations/{conversation_id}/messages": {
+            "text": "Что решил банк по моей заявке?",
+            "application_id": var("application_id"),
+        },
         "POST /support/queue/{ticket_id}/messages": {
             "text": "Здравствуйте! Да, за месяц до конца срока придёт предложение продлить.",
         },
@@ -535,6 +560,7 @@ def reference_variables() -> dict[str, str]:
         "ticket_id": answer(ref("POST", "/support/tickets"), "$.id"),
         "model_version": answer(ref("POST", "/scoring/models"), "$.version"),
         "policy_version": answer(ref("POST", "/decision/policies"), "$.version"),
+        "conversation_id": answer(ref("POST", "/assistant/conversations"), "$.id"),
     }
 
 

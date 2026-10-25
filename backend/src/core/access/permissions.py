@@ -50,3 +50,6 @@ class Permissions(StrEnum):
     SUPPORT_READ = "support.read"
     SUPPORT_CREATE = "support.create"
     SUPPORT_MANAGE = "support.manage"
+    # Smart assistant (module `assistant`): the right to ask it. Clients ask about the
+    # applications of their companies (`org_member`); staff without a policy, by id.
+    ASSISTANT_USE = "assistant.use"

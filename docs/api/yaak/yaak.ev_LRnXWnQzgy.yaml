@@ -55,6 +55,9 @@ variables:
 - enabled: true
   name: policy_version
   value: ${[ response.body.path(request='rq_iRPdpMb5PL', behavior='smart', path='$.version') ]}
+- enabled: true
+  name: conversation_id
+  value: ${[ response.body.path(request='rq_imXb5xxgpz', behavior='smart', path='$.id') ]}
 color: null
 sortPriority: 1000.0
 createdAt: '2026-10-24T00:00:00'

@@ -57,7 +57,7 @@ def test_client_token_carries_org_member(login: Login) -> None:
 
     assert token["policies"]["requests.read"] == ["org_member"]
     assert token["policies"]["organizations.read"] == ["org_member"]
-    assert {"requests.create", "feed.read"} <= set(token["permissions"])
+    assert {"requests.create", "feed.read", "assistant.use"} <= set(token["permissions"])
     assert "tasks.read" not in token["permissions"]
 
 
@@ -65,7 +65,9 @@ def test_underwriter_token_has_no_policies(login: Login) -> None:
     token = claims(login("underwriter@bank.test", DEMO_PASSWORD))
 
     assert token["policies"] == {}
-    assert {"requests.read", "tasks.update", "decisions.read"} <= set(token["permissions"])
+    assert {"requests.read", "tasks.update", "decisions.read", "assistant.use"} <= set(
+        token["permissions"]
+    )
     assert "requests.create" not in token["permissions"]
 
 
@@ -141,3 +143,10 @@ def test_demo_accounts_list(demo_client: TestClient) -> None:
     }
     assert items[-1]["role"] == "underwriter"
     assert items[-1]["full_name"] == "Андеррайтеров Андрей"
+
+
+@pytest.mark.parametrize("email", ["owner@romashka.test", "underwriter@bank.test"])
+def test_profile_lists_the_assistant_right(client: TestClient, login: Login, email: str) -> None:
+    me = client.get("/me", headers=bearer(login(email, DEMO_PASSWORD))).json()
+
+    assert "assistant.use" in me["permissions"]
