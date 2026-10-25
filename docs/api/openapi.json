@@ -17465,6 +17465,17 @@
               }
             ],
             "title": "Finished At"
+          },
+          "manual_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Review Reason"
           }
         },
         "type": "object",
@@ -17479,7 +17490,8 @@
           "visited_node_ids",
           "steps",
           "started_at",
-          "finished_at"
+          "finished_at",
+          "manual_review_reason"
         ],
         "title": "ProcessOut"
       },
@@ -17566,6 +17578,17 @@
               }
             ],
             "title": "Finished At"
+          },
+          "manual_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Review Reason"
           }
         },
         "type": "object",
@@ -21324,6 +21347,17 @@
               }
             ],
             "title": "Completed By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",
@@ -21340,7 +21374,8 @@
           "due_at",
           "overdue",
           "result",
-          "completed_by"
+          "completed_by",
+          "reason"
         ],
         "title": "TaskOut"
       },
@@ -22535,6 +22570,17 @@
               }
             ],
             "title": "Completed By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",

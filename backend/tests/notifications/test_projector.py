@@ -363,17 +363,19 @@ async def test_cash_gap_advice_is_skipped_for_a_credit_line(
     assert await feed.rows() == []
 
 
-async def test_manual_decision_rejected_returns_to_the_task(
+async def test_manual_decision_rejected_leads_to_the_application(
     feed: FeedHarness, world: World
 ) -> None:
-    task_id = uuid4()
     await feed.deliver(
         ManualDecisionRejected(
-            application_id=world.card.id, task_id=task_id, reason="rate below the floor"
+            application_id=world.card.id, task_id=uuid4(), reason="rate below the floor"
         )
     )
     [row] = await feed.rows()
-    assert row.recipient_id == "underwriter" and row.link == f"/backoffice/tasks/{task_id}"
+    assert row.recipient_id == "underwriter" and row.action_required
+    # The task of the rejected decision is closed: the link goes to the application.
+    assert row.link == f"/backoffice/applications/{world.card.id}"
+    assert "rate below the floor" in row.body
 
 
 async def test_pre_approved_offers_replace_each_other(feed: FeedHarness, world: World) -> None:

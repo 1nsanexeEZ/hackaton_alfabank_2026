@@ -76,7 +76,7 @@ notifications/
 | `ProcessFailed` | `role:underwriter` | `status_changed` «Процесс остановлен» | high | ✓ |
 | `DecisionMade` (auto) | `role:underwriter` | `status_changed` «Автоматическое решение: …» | low | — |
 | `DecisionMade` | участники | `advice` — советы из флагов (см. ниже) и `improvement_hints` | normal / low | — |
-| `ManualDecisionRejected` | `role:underwriter` | `status_changed`, ссылка на задачу | high | ✓ |
+| `ManualDecisionRejected` | `role:underwriter` | `status_changed`, ссылка на заявку (задача отклонённого решения уже закрыта) | high | ✓ |
 | `PreApprovedOffersUpdated` | участники | `advice` — список предодобренных (одна запись на компанию, обновляется); сюда же входят проектные предложения стартапа | normal | — |
 | `PreApprovedOffersUpdated` без предложений у компании, не прошедшей сверку | участники, у которых есть запись предодобрения | `advice` «Уточните данные компании» — **заменяет** запись «вам предодобрено»; ссылка на карточку компании | normal | — |
 | `OrganizationVerified` | участники | `status_changed` | low | — |

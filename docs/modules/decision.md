@@ -794,7 +794,7 @@ ML-модель. В эталоне ещё грейд и PD ML-модели и в
   с условиями, REQUEST_INFO — с документами или полями, MANUAL_REVIEW вручную нельзя; сумма, срок и
   ставка — в рамках продукта из заявки; сумма ≤ полномочий `underwriter` 50 млн (выше — кредитный
   комитет). Нарушение → `ManualDecisionRejected {application_id, task_id, reason}`, решение не
-  пишется. Успех → новая запись `decided_by=underwriter`, `override_of` = последнее авторешение
+  пишется; process открывает андеррайтеру новую задачу, `reason` — в её поле `reason`. Успех → новая запись `decided_by=underwriter`, `override_of` = последнее авторешение
   (оно остаётся для аудита), проверки — в `rule_trace`, комментарий клиенту не уходит.
 
 **Консьюмер `clients.events`** (group `decision.clients-events`): `FinancialReportSubmitted`,

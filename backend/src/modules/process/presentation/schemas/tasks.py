@@ -45,6 +45,9 @@ class TaskOut(BaseModel):
     overdue: bool
     result: dict[str, Any] | None
     completed_by: UUID | None
+    # Why the task is opened beyond the decision's reasons: the previous manual decision
+    # was not accepted, a step failed or repeated too often. null — the decision sent it.
+    reason: str | None
 
 
 class TaskDetailOut(BaseModel):

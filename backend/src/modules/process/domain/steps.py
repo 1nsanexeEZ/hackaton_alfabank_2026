@@ -35,6 +35,8 @@ class TaskSpec:
     candidate_role: str
     form_schema: Mapping[str, Any]
     due_at: datetime | None
+    # Why the task is opened beyond the decision's own reasons, for the employee.
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,12 +339,13 @@ async def _make_decision(step: StepInput) -> StepResult:
 
 def _decision_reply(step: StepInput, trigger: Trigger) -> StepResult:
     if trigger.type == "ManualDecisionRejected":
-        # The underwriter went beyond their authority or the product: back to review.
+        # The underwriter went beyond their authority or the product: back to review. The
+        # reason is decision's text for the underwriter, the new task carries it.
         reason = trigger.payload.get("reason")
         return StepResult.done(
             {
                 "outcome": "MANUAL_REVIEW",
-                "manual_review_reason": f"manual decision rejected: {reason}",
+                "manual_review_reason": f"Ручное решение не принято: {reason}",
             }
         )
     payload = trigger.payload
@@ -445,6 +448,7 @@ async def _underwriter_review(step: StepInput) -> StepResult:
             candidate_role=step.node.config.candidate_role or "underwriter",
             form_schema=_FORMS[form],
             due_at=_due(step, timedelta(hours=8)),
+            reason=step.context.manual_review_reason,
         )
     )
 

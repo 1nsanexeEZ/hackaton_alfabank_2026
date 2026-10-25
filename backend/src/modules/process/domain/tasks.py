@@ -28,6 +28,9 @@ class UserTask:
     form_schema: dict[str, Any]
     created_at: datetime
     due_at: datetime | None
+    # Why the task is opened: a manual decision was not accepted, a step failed or repeated
+    # too often. None — the decision itself sent the application to a person.
+    reason: str | None = None
     status: TaskStatus = TaskStatus.OPEN
     assignee_id: UUID | None = None
     result: dict[str, Any] | None = None
