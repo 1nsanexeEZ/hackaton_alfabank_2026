@@ -15,7 +15,7 @@ export default async function globalSetup(config: FullConfig) {
     throw new Error(
       `Стенд ${baseURL} не готов (${url}: ${problem}).\n` +
         'Поднимите его из корня репозитория: docker compose up -d --build --wait\n' +
-        'Стенд на другом порту — укажите адрес: E2E_BASE_URL=http://localhost:8081 npm test',
+        'Стенд на другом порту — задайте переменную E2E_BASE_URL (например, http://localhost:8081): как это сделать в bash, cmd и PowerShell — в e2e/README.md',
     )
   }
 }
