@@ -264,7 +264,6 @@ onBeforeUnmount(() => observer?.disconnect())
           :max="bounds.termMax"
           :step="3"
           :format-value="formatTerm"
-          :editable="false"
         />
 
         <div v-if="company && preApproved" class="rounded-2xl p-4 text-sm" :class="overLimit ? 'bg-warning-soft' : 'bg-success-soft'">
@@ -311,11 +310,14 @@ onBeforeUnmount(() => observer?.disconnect())
         <p v-else-if="items && !list.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
           Под эту цель продуктов нет — выберите другую цель или посмотрите каталог ниже.
         </p>
-        <!-- Отступ внутри прокрутки: рамка выбранного продукта рисуется снаружи карточки и иначе обрезается -->
+        <!--
+          Отступ внутри прокрутки: рамка выбранного продукта рисуется снаружи карточки и иначе обрезается.
+          Без overscroll-contain: долистали список до края — прокрутка уходит странице
+        -->
         <ol
           v-else
           ref="listBox"
-          class="-mx-1 mt-2 max-h-60 space-y-2 overflow-y-auto overscroll-contain p-1 pr-2 transition-opacity lg:max-h-[26rem]"
+          class="-mx-1 mt-2 max-h-60 space-y-2 overflow-y-auto p-1 pr-2 transition-opacity lg:max-h-[26rem]"
           :class="loading && 'opacity-60'"
           aria-label="Продукты под цель"
           @scroll.passive="measureList"
@@ -394,7 +396,10 @@ onBeforeUnmount(() => observer?.disconnect())
           </li>
         </ul>
 
-        <BaseButton class="mt-6 lg:mt-auto" size="l" block :disabled="blocked" @click="apply">Оформить заявку</BaseButton>
+        <!-- Итог отделён от действия отступом; на десктопе кнопка прижата к низу колонки, но отступ остаётся -->
+        <div class="mt-auto pt-8">
+          <BaseButton size="l" block :disabled="blocked" @click="apply">Оформить заявку</BaseButton>
+        </div>
         <p class="mt-3 text-xs text-on-night-secondary">
           <template v-if="blocked">{{ notEligible.length ? 'Компании продукт не подходит' : 'Под эту задачу продукт не подходит' }} — выберите другой. </template>
           <template v-if="estimated && !pending">Банк сейчас не отвечает — показан приблизительный расчёт. </template>
