@@ -3,9 +3,9 @@ import { ArrowUp, FileText, LoaderCircle, RotateCcw, ShieldCheck, Sparkles, Squa
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 import { assistant, ASSISTANT_AVAILABILITY_LABEL, ASSISTANT_MAX_QUESTION } from '@/entities/assistant'
-import { CLIENT_STATUS_META, toClientStatus } from '@/entities/application'
 import { customer } from '@/entities/customer'
-import type { ApplicationStatusCode, AssistantApplicationDto } from '@/shared/api'
+
+import ApplicationPicker from './ApplicationPicker.vue'
 
 /**
  * Окно «Умный помощник»: панель справа поверх любой страницы сайта (на телефоне — на весь экран).
@@ -44,17 +44,8 @@ const showRetry = computed(() => banner.value?.kind === 'unavailable' || banner.
 
 const subtitle = computed(() => ASSISTANT_AVAILABILITY_LABEL[state.availability])
 
-function applicationLabel(item: AssistantApplicationDto): string {
-  const status = toClientStatus(item.status as ApplicationStatusCode, item.client_stage)
-  return `№ ${item.number} · ${status ? CLIENT_STATUS_META[status].label : (item.client_stage ?? item.status)}`
-}
-
 function applicationNumber(applicationId: string | null): string | null {
   return state.applications.find((item) => item.id === applicationId)?.number ?? null
-}
-
-function onSelectApplication(event: Event) {
-  assistant.selectApplication((event.target as HTMLSelectElement).value || null)
 }
 
 function resizeField() {
@@ -247,16 +238,7 @@ onBeforeUnmount(() => {
 
           <!-- Выбор заявки, о которой спрашиваем -->
           <div v-if="state.applications.length && !isOff" class="px-5 pb-3">
-            <label :for="`${id}-application`" class="mb-1 block text-xs text-on-night-secondary">Спрашиваю про заявку</label>
-            <select
-              :id="`${id}-application`"
-              class="assistant__select h-10 w-full rounded-xl border border-night-line bg-night-glass px-3 text-sm text-on-night"
-              :value="state.applicationId ?? ''"
-              @change="onSelectApplication"
-            >
-              <option v-for="item in state.applications" :key="item.id" :value="item.id">{{ applicationLabel(item) }}</option>
-              <option value="">Без привязки к заявке</option>
-            </select>
+            <ApplicationPicker :applications="state.applications" :selected-id="state.applicationId" @select="assistant.selectApplication" />
           </div>
 
           <!-- Диалог -->
@@ -431,10 +413,6 @@ onBeforeUnmount(() => {
 
 .assistant__dot[data-state='rules'] {
   background: var(--color-signal-warn);
-}
-
-.assistant__select {
-  color-scheme: dark;
 }
 
 .assistant__chips {

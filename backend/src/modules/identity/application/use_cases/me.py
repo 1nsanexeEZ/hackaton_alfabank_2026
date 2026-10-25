@@ -23,7 +23,8 @@ class GetMeUseCase:
         return AccountDTO.from_entity(await get_current_account(self._accounts, user_id))
 
 
-NAME_FIELDS = ("last_name", "first_name", "middle_name")
+# ФИО — по паспорту, должность руководителя — по ЕГРЮЛ: обе подтверждает банк
+LOCKED_FIELDS = ("last_name", "first_name", "middle_name", "position")
 
 
 class UpdateMyProfileUseCase:
@@ -35,14 +36,15 @@ class UpdateMyProfileUseCase:
         self, user_id: UUID, data: ProfileChangesDTO, *, may_change_name: bool
     ) -> AccountDTO:
         """`may_change_name` — the caller holds `profile.update_name`. Without it the
-        name is locked; sending it unchanged is fine, a form may send every field."""
+        name and the position are locked; sending them unchanged is fine, a form may
+        send every field."""
         async with self._uow:
             account = await get_current_account(self._accounts, user_id)
             changes = data.changes()
             if not may_change_name:
                 renamed = [
                     field
-                    for field in NAME_FIELDS
+                    for field in LOCKED_FIELDS
                     if field in changes and changes[field] != getattr(account.profile, field)
                 ]
                 if renamed:

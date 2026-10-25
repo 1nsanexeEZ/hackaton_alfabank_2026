@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { CONSENT_TEXT, PersonalConsentPrompt, personalConsents } from '@/entities/customer'
 import type { ConsentDto, ConsentType } from '@/shared/api'
 import { errorMessage, formatDate, formatDateTime } from '@/shared/lib'
-import { AsyncState, BaseBadge, BaseButton } from '@/shared/ui'
+import { AsyncState } from '@/shared/ui'
+
+import ConsentCard from './ConsentCard.vue'
 
 /**
  * Личные согласия человека: на обработку ПДн (бессрочно) и на запрос своей кредитной истории (6 месяцев).
@@ -16,7 +18,6 @@ const { state } = personalConsents
 onMounted(() => void personalConsents.load(true))
 
 const revoking = ref<ConsentType | null>(null)
-const confirm = ref<ConsentType | null>(null)
 const error = ref<string | null>(null)
 
 async function revoke(type: ConsentType) {
@@ -24,7 +25,6 @@ async function revoke(type: ConsentType) {
   error.value = null
   try {
     await personalConsents.revoke(type)
-    confirm.value = null
   } catch (caught) {
     error.value = errorMessage(caught)
   } finally {
@@ -40,65 +40,99 @@ function lapse(item: ConsentDto | null): string {
   if (item.revoked_at) return `Отозвано ${formatDate(item.revoked_at)}`
   return item.valid_until ? `Истекло ${formatDate(item.valid_until)}` : 'Не действует'
 }
+
+/** Простыми словами: что даёт банку согласие и по какой норме */
+const ABOUT: Partial<Record<ConsentType, { description: string; law: string; icon: 'personal' | 'bureau'; confirm: string }>> = {
+  credit_bureau_personal: {
+    description: 'Банк запрашивает ваш отчёт в бюро кредитных историй — только чтобы рассмотреть заявки компаний, где вы руководитель или учредитель.',
+    law: '218-ФЗ, ст. 6',
+    icon: 'bureau',
+    confirm: 'Запросы, уже сделанные по заявкам, отзыв не отменяет, а новые банк делать не будет.',
+  },
+  personal_data: {
+    description: 'ФИО, должность и контакты — чтобы рассматривать заявки ваших компаний и готовить договоры. Без него заявку не подать.',
+    law: '152-ФЗ, ст. 9',
+    icon: 'personal',
+    confirm: 'Новые заявки без него подать будет нельзя. Поданные рассмотрим до конца.',
+  },
+}
+
+const cards = computed(() =>
+  TYPES.map((type) => {
+    const about = ABOUT[type]!
+    const active = personalConsents.active(type) ?? null
+    return { type, about, active, version: (active ?? latest(type))?.text_version ?? null }
+  }),
+)
+
+/** Сводка над списком: сколько согласий действует — своих и компаний — и какое истекает первым */
+const summary = computed(() => {
+  const own = cards.value.map((card) => card.active).filter((item): item is ConsentDto => item !== null)
+  const companies = (state.overview ?? [])
+    .map((company) => company.consents.find((consent) => consent.type === 'credit_bureau_company'))
+    .filter((consent) => consent?.given)
+  const ends = [...own.map((item) => item.valid_until), ...companies.map((consent) => consent?.valid_until ?? null)]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+  return { active: own.length + companies.length, nearest: ends[0] ?? null }
+})
 </script>
 
 <template>
-  <section class="space-y-3 border-t border-line pt-5">
-    <div>
+  <section class="space-y-4">
+    <div v-if="summary.active" class="flex flex-wrap gap-2">
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-[0.8125rem] font-bold text-success">
+        <span class="size-1.5 rounded-full bg-success" aria-hidden="true" />
+        {{ summary.active }} {{ summary.active === 1 ? 'действует' : 'действуют' }}
+      </span>
+      <span v-if="summary.nearest" class="rounded-full bg-surface px-3 py-1 text-[0.8125rem] font-semibold text-ink-secondary">
+        Ближайшее истекает {{ formatDate(summary.nearest) }}
+      </span>
+    </div>
+
+    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h3 class="text-base font-bold text-ink">Мои согласия</h3>
-      <p class="mt-1 text-sm text-ink-secondary">
-        Даются за себя, а не за компанию: заявку может заполнять бухгалтер, но свою кредитную историю руководитель
-        открывает банку сам.
-      </p>
+      <span class="text-[0.8125rem] text-ink-secondary">за себя, а не за компанию</span>
     </div>
 
     <AsyncState :loading="state.loading && !state.items" :error="state.items ? null : state.error" @retry="personalConsents.load(true)">
-      <ul class="space-y-3">
-        <li v-for="type in TYPES" :key="type" class="rounded-2xl bg-surface-soft p-4">
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <p class="font-semibold text-ink">{{ CONSENT_TEXT[type].title }}</p>
-            <BaseBadge v-if="personalConsents.active(type)" tone="success">
-              {{ personalConsents.active(type)!.valid_until ? `до ${formatDate(personalConsents.active(type)!.valid_until!)}` : 'бессрочно' }}
-            </BaseBadge>
-            <BaseBadge v-else>{{ lapse(latest(type)) }}</BaseBadge>
-          </div>
-
-          <template v-if="personalConsents.active(type)">
-            <p class="mt-1 text-xs text-ink-secondary">Дано {{ formatDateTime(personalConsents.active(type)!.given_at) }}</p>
-            <div v-if="confirm === type" class="mt-3 space-y-2">
-              <p class="text-sm text-ink">
-                Отозвать согласие? Запросы, уже сделанные по заявкам, отзыв не отменяет, а новые банк делать не будет.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <BaseButton variant="secondary" :loading="revoking === type" @click="revoke(type)">Отозвать</BaseButton>
-                <BaseButton variant="ghost" :disabled="revoking === type" @click="confirm = null">Оставить</BaseButton>
-              </div>
-            </div>
-            <button
-              v-else
-              type="button"
-              class="mt-2 text-sm font-medium text-ink-secondary underline underline-offset-2 hover:text-brand"
-              @click="confirm = type"
-            >
-              Отозвать
-            </button>
-          </template>
-          <PersonalConsentPrompt v-else class="mt-3" :type="type" action="Дать согласие" />
-        </li>
-      </ul>
+      <div class="space-y-3">
+        <ConsentCard
+          v-for="card in cards"
+          :key="card.type"
+          :icon="card.about.icon"
+          :title="CONSENT_TEXT[card.type].title"
+          :description="card.about.description"
+          :law="card.about.law"
+          :body="CONSENT_TEXT[card.type].body"
+          :active="card.active !== null"
+          :inactive-label="lapse(latest(card.type))"
+          :given-at="card.active?.given_at ?? null"
+          :valid-until="card.active?.valid_until ?? null"
+          :text-version="card.version"
+          revocable
+          :revoking="revoking === card.type"
+          :confirm-text="card.about.confirm"
+          @revoke="revoke(card.type)"
+        >
+          <PersonalConsentPrompt :type="card.type" action="Дать согласие" />
+        </ConsentCard>
+      </div>
 
       <p v-if="error" class="mt-3 text-sm text-brand" role="alert">{{ error }}</p>
 
-      <details v-if="state.items?.length" class="mt-3 text-sm">
-        <summary class="cursor-pointer font-medium text-ink-secondary hover:text-ink">История · {{ state.items.length }}</summary>
-        <ul class="mt-2 space-y-1.5 text-xs text-ink-secondary">
-          <li v-for="item in state.items" :key="`${item.type}-${item.given_at}`">
-            {{ CONSENT_TEXT[item.type]?.title ?? item.type }}: дано {{ formatDateTime(item.given_at) }}
-            <template v-if="item.revoked_at"> · отозвано {{ formatDateTime(item.revoked_at) }}</template>
-            <template v-else-if="item.valid_until"> · до {{ formatDate(item.valid_until) }}</template>
+      <details v-if="state.items?.length" class="mt-4 rounded-2xl bg-surface-soft px-4 py-3 text-sm">
+        <summary class="cursor-pointer font-semibold text-ink">История · {{ state.items.length }}</summary>
+        <ol class="mt-3 space-y-2.5 border-l-2 border-surface-strong pl-4">
+          <li v-for="item in state.items" :key="`${item.type}-${item.given_at}`" class="text-[0.8125rem] leading-relaxed text-ink-secondary">
+            <b class="font-semibold text-ink">{{ formatDateTime(item.revoked_at ?? item.given_at) }}</b>
+            — {{ item.revoked_at ? 'отозвано' : 'дано' }} согласие «{{ CONSENT_TEXT[item.type]?.title ?? item.type }}»<template
+              v-if="!item.revoked_at && item.valid_until"
+              >, до {{ formatDate(item.valid_until) }}</template
+            >
             · редакция {{ item.text_version }}
           </li>
-        </ul>
+        </ol>
       </details>
     </AsyncState>
   </section>

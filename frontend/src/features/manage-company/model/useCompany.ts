@@ -151,7 +151,7 @@ export function useCompany() {
         detail.value = result.organization
         verification.value = result
       },
-      'Сверили с реестром',
+      'Реквизиты обновлены',
     )
 
   const changeMemberRole = (accountId: string, role: MemberRole) =>

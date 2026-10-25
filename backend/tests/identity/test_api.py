@@ -273,7 +273,9 @@ def test_profile_update_needs_permission(
     client: TestClient, admin_token: str, login: Login
 ) -> None:
     plain = create_role(client, admin_token, name="plain")
-    editor = create_role(client, admin_token, name="editor", permissions=["profile.update"])
+    editor = create_role(
+        client, admin_token, name="editor", permissions=["profile.update", "profile.update_name"]
+    )
     create_account(client, admin_token, plain["id"], email="plain@example.com")
     create_account(client, admin_token, editor["id"], email="editor@example.com")
     body = {"position": "Финансовый директор"}
@@ -301,25 +303,36 @@ def test_name_is_locked_without_update_name(
         headers=auth(token),
     )
     assert response.status_code == 422
-    assert response.json()["details"] == {"code": "identity_locked", "fields": ["last_name"]}
+    assert response.json()["details"] == {
+        "code": "identity_locked",
+        "fields": ["last_name", "position"],
+    }
     me = client.get("/me", headers=auth(token)).json()
     assert me["profile"]["last_name"] == "Петрова"
     assert me["profile"]["position"] is None
 
 
-def test_same_name_with_position_passes(client: TestClient, admin_token: str, login: Login) -> None:
-    """The form sends every field: the unchanged name doesn't block the position."""
+def test_position_is_locked_too(client: TestClient, admin_token: str, login: Login) -> None:
+    """The head's position comes from the registry: the client can't change it either.
+    The form sends every field, so the same name and position pass."""
     client_role = create_role(client, admin_token, name="client", permissions=["profile.update"])
     create_account(client, admin_token, client_role["id"], email="anna@example.com")
     token = login("anna@example.com", PASSWORD)
 
-    response = client.patch(
+    changed = client.patch(
         "/me/profile",
         json={"last_name": "Петрова", "first_name": "Анна", "position": "Директор"},
         headers=auth(token),
     )
-    assert response.status_code == 200
-    assert response.json()["profile"]["position"] == "Директор"
+    assert changed.status_code == 422
+    assert changed.json()["details"] == {"code": "identity_locked", "fields": ["position"]}
+
+    same = client.patch(
+        "/me/profile",
+        json={"last_name": "Петрова", "first_name": "Анна", "position": None},
+        headers=auth(token),
+    )
+    assert same.status_code == 200
 
 
 def test_staff_change_their_own_name(client: TestClient, admin_token: str, login: Login) -> None:

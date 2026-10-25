@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Bell, Building2, FileText, LogIn, LogOut, Menu, MessagesSquare, UserRound, X, type LucideIcon } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { assistant } from '@/entities/assistant'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
+import { signOutWithTransition } from '@/features/customer-logout'
 import { LANDING_NAV, ROUTE_PATH, sectionHref } from '@/shared/config'
 import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
 
@@ -47,9 +48,14 @@ function closeMenu() {
   isMenuOpen.value = false
 }
 
+const router = useRouter()
+/** На главной и в профиле «Оформить заявку» есть на самой странице — в шапке не дублируем */
+const applyOnPage = computed(() => route.path === ROUTE_PATH.home || route.path === ROUTE_PATH.profile)
+
+/** Выход «чёрной дырой»: сессия стирается сразу, открывается главная */
 function signOut() {
   closeMenu()
-  logout()
+  signOutWithTransition({ logout, navigate: () => router.push(ROUTE_PATH.home) })
 }
 
 function apply() {
@@ -168,7 +174,7 @@ watch(
           <LogIn class="size-4" aria-hidden="true" />
           Войти
         </BaseButton>
-        <BaseButton size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
+        <BaseButton v-if="!applyOnPage" size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
         <button
           type="button"
           class="relative -mr-2 flex size-10 items-center justify-center rounded-lg text-on-night transition-colors hover:bg-night-glass lg:hidden"

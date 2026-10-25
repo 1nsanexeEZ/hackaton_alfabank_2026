@@ -105,7 +105,7 @@ async function submit() {
       <TextField v-model="form.middleName" label="Отчество" dense />
       <TextField v-model="form.position" label="Должность" dense />
       <TextField v-model="form.email" label="Email" type="email" dense :error="errors.email" />
-      <TextField v-model="form.phone" label="Телефон" type="tel" inputmode="tel" dense :error="errors.phone" placeholder="+7 999 123-45-67" />
+      <TextField v-model="form.phone" filter="phone" label="Телефон" dense :error="errors.phone" placeholder="+7 999 123-45-67" />
       <TextField
         v-model="form.password"
         label="Пароль"

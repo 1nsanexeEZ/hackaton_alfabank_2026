@@ -84,10 +84,12 @@ class EmptyNameError(IdentityError):
 
 
 class NameLockedError(IdentityError):
-    """The name is confirmed by the bank: the account itself can't change it."""
+    """The name (passport) and the position (registry) are confirmed by the bank:
+    the account itself can't change them."""
 
     def __init__(self, fields: list[str]) -> None:
         super().__init__(
-            "The name is confirmed by the bank and changes only through the bank's staff"
+            "The name and the position are confirmed by the bank "
+            "and change only through the bank's staff"
         )
         self.details = {"code": "identity_locked", "fields": fields}

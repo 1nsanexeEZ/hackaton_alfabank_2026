@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { CONSENT_TEXT, PersonalConsentPrompt, personalConsents } from '@/entities/customer'
-import { errorMessage, formatDate, formatDateTime } from '@/shared/lib'
-import { BaseBadge, BaseButton } from '@/shared/ui'
+import { errorMessage } from '@/shared/lib'
+
+import ConsentCard from './ConsentCard.vue'
 
 /**
  * Согласия компаний на запрос их кредитной истории (POST/DELETE /organizations/{id}/consents) — до заявки,
@@ -20,7 +21,6 @@ const companies = computed(() =>
   })),
 )
 
-const confirm = ref<string | null>(null)
 const revoking = ref<string | null>(null)
 const error = ref<string | null>(null)
 
@@ -29,7 +29,6 @@ async function revoke(organizationId: string) {
   error.value = null
   try {
     await personalConsents.revokeCompany(organizationId)
-    confirm.value = null
   } catch (caught) {
     error.value = errorMessage(caught)
   } finally {
@@ -39,59 +38,40 @@ async function revoke(organizationId: string) {
 </script>
 
 <template>
-  <section v-if="companies.length" class="space-y-3 border-t border-line pt-5">
-    <div>
+  <section v-if="companies.length" class="space-y-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h3 class="text-base font-bold text-ink">Согласия компаний</h3>
-      <p class="mt-1 text-sm text-ink-secondary">
-        {{ CONSENT_TEXT.credit_bureau_company.title }} — даётся за компанию до заявки, действует
-        {{ CONSENT_TEXT.credit_bureau_company.validity }}. С ним заявку не придётся подтверждать галочкой.
-      </p>
+      <span class="text-[0.8125rem] text-ink-secondary">даёт представитель с правом подавать заявки</span>
     </div>
 
-    <ul class="space-y-3">
-      <li v-for="company in companies" :key="company.organizationId" class="rounded-2xl bg-surface-soft p-4">
-        <div class="flex flex-wrap items-start justify-between gap-2">
-          <p class="font-semibold text-ink">{{ company.organizationName }}</p>
-          <BaseBadge v-if="company.consent?.given" tone="success">
-            {{ company.consent.valid_until ? `до ${formatDate(company.consent.valid_until)}` : 'действует' }}
-          </BaseBadge>
-          <BaseBadge v-else>Не дано</BaseBadge>
-        </div>
-
-        <template v-if="company.consent?.given">
-          <p v-if="company.consent.given_at" class="mt-1 text-xs text-ink-secondary">Дано {{ formatDateTime(company.consent.given_at) }}</p>
-          <template v-if="company.canGive">
-            <div v-if="confirm === company.organizationId" class="mt-3 space-y-2">
-              <p class="text-sm text-ink">
-                Отозвать согласие компании? Поданные заявки отзыв не трогает, а для новых согласие понадобится снова.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <BaseButton variant="secondary" :loading="revoking === company.organizationId" @click="revoke(company.organizationId)">
-                  Отозвать
-                </BaseButton>
-                <BaseButton variant="ghost" :disabled="revoking === company.organizationId" @click="confirm = null">Оставить</BaseButton>
-              </div>
-            </div>
-            <button
-              v-else
-              type="button"
-              class="mt-2 text-sm font-medium text-ink-secondary underline underline-offset-2 hover:text-brand"
-              @click="confirm = company.organizationId"
-            >
-              Отозвать
-            </button>
-          </template>
-        </template>
+    <div class="space-y-3">
+      <ConsentCard
+        v-for="company in companies"
+        :key="company.organizationId"
+        icon="company"
+        :caption="company.organizationName"
+        :title="CONSENT_TEXT.credit_bureau_company.title"
+        description="С ним заявку не нужно подтверждать галочкой — банк сразу запросит отчёт по компании."
+        law="218-ФЗ, ст. 6"
+        :body="CONSENT_TEXT.credit_bureau_company.body"
+        :active="Boolean(company.consent?.given)"
+        inactive-label="Не дано"
+        :given-at="company.consent?.given_at ?? null"
+        :valid-until="company.consent?.valid_until ?? null"
+        :revocable="company.canGive"
+        :revoking="revoking === company.organizationId"
+        confirm-text="Поданные заявки отзыв не трогает, а для новых согласие понадобится снова."
+        @revoke="revoke(company.organizationId)"
+      >
         <PersonalConsentPrompt
-          v-else-if="company.canGive"
-          class="mt-3"
+          v-if="company.canGive"
           type="credit_bureau_company"
           :organization-id="company.organizationId"
           action="Дать согласие"
         />
-        <p v-else class="mt-1 text-xs text-ink-secondary">Даёт представитель компании с правом подавать заявки.</p>
-      </li>
-    </ul>
+        <p v-else class="text-xs text-ink-secondary">Даёт представитель компании с правом подавать заявки.</p>
+      </ConsentCard>
+    </div>
 
     <p v-if="error" class="text-sm text-brand" role="alert">{{ error }}</p>
   </section>

@@ -4,6 +4,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { assistant } from '@/entities/assistant'
 import { customer } from '@/entities/customer'
+import { LogoutTransition } from '@/features/customer-logout'
 import { liveFeed } from '@/entities/notification'
 import { ROUTE_PATH } from '@/shared/config'
 import { AppFooter } from '@/widgets/app-footer'
@@ -56,4 +57,6 @@ watch(
     <!-- Окно «Умного помощника» открывается кнопкой в шапке поверх любой страницы сайта -->
     <AssistantChat @login="loginFromAssistant" @open-application="openApplicationFromAssistant" />
   </div>
+  <!-- Выход «чёрной дырой»: поверх всего и вне data-app-shell — сайт под ней гаснет и раскрывается главной -->
+  <LogoutTransition />
 </template>

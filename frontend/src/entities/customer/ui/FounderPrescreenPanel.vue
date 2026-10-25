@@ -94,7 +94,7 @@ async function run() {
       </template>
       <BaseButton v-else :loading="busy" @click="run">{{ prescreen ? 'Пройти проверку снова' : 'Пройти проверку' }}</BaseButton>
       <p v-if="!isFounder && !needsConsent" class="mt-2 text-xs text-ink-secondary">
-        Проверяется учредитель по реестру — для проверки нужно его согласие на запрос кредитной истории в его кабинете.
+        Проверяется учредитель компании — для проверки нужно его согласие на запрос кредитной истории в его кабинете.
       </p>
       <p v-if="error" class="mt-2 text-sm text-brand" role="alert">{{ error }}</p>
     </div>

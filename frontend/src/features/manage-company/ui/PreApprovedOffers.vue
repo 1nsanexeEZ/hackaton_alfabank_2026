@@ -18,10 +18,10 @@ const emit = defineEmits<{ apply: [code: string, maxAmount: number] }>()
   <section>
     <h3 class="text-base font-bold text-ink">Предварительно одобрено</h3>
     <p class="mt-0.5 text-sm text-ink-secondary">
-      Оценка по данным банка, без бюро кредитных историй и выписок. Окончательное решение — после заявки.
+      Предварительная оценка банка. Окончательное решение — после заявки.
     </p>
     <p v-if="!offers.length && !verified" class="mt-3 rounded-2xl bg-warning-soft p-4 text-sm text-ink">
-      Предложения появятся после сверки компании с ЕГРЮЛ — проверьте реквизиты выше и сверьте их с реестром
+      Предложения появятся, когда реквизиты компании будут актуальны — обновите их выше
     </p>
     <p v-else-if="!offers.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
       Пока нет — подайте финансовую отчётность, и банк пересчитает предложение

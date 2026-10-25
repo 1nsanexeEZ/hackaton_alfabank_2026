@@ -76,7 +76,7 @@ function pick(input: InnCheckInput) {
   <div>
     <form novalidate @submit.prevent="submit">
       <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <TextField v-model="form.inn" label="ИНН компании или ИП" inputmode="numeric" :maxlength="12" dense :error="errors.inn" placeholder="7701158817" />
+        <TextField v-model="form.inn" filter="digits" label="ИНН компании или ИП" :maxlength="12" dense :error="errors.inn" placeholder="7701158817" />
         <BaseButton type="submit" :loading="pending" class="sm:mt-7">
           <Search class="size-4" aria-hidden="true" />
           Проверить
@@ -93,7 +93,7 @@ function pick(input: InnCheckInput) {
         <ChevronDown class="size-4 transition-transform" :class="showMatch && 'rotate-180'" aria-hidden="true" />
       </button>
       <div v-if="showMatch" class="mt-3 grid gap-3 sm:grid-cols-3">
-        <TextField v-model="form.ogrn" label="ОГРН или ОГРНИП" inputmode="numeric" :maxlength="15" dense :error="errors.ogrn" />
+        <TextField v-model="form.ogrn" filter="digits" label="ОГРН или ОГРНИП" :maxlength="15" dense :error="errors.ogrn" />
         <TextField v-model="form.kpp" label="КПП" :maxlength="9" dense :error="errors.kpp" />
         <TextField v-model="form.name" label="Наименование" dense placeholder="ООО «Ромашка»" />
       </div>

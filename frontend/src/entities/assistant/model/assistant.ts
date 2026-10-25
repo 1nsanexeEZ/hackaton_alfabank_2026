@@ -152,8 +152,16 @@ async function loadHistory(): Promise<void> {
   }
 }
 
+/** Загрузка окна, пока она идёт: вопрос ждёт её, иначе ушёл бы без заявки, выбранной по умолчанию */
+let loading: Promise<void> | null = null
+
 /** Всё, что нужно окну при открытии: статус, заявки, история. Ошибки — в state.error */
-async function load(): Promise<void> {
+function load(): Promise<void> {
+  loading = loadAll().finally(() => (loading = null))
+  return loading
+}
+
+async function loadAll(): Promise<void> {
   state.loading = true
   state.error = null
   try {
@@ -206,6 +214,7 @@ async function send(text: string): Promise<void> {
     state.error = { kind: 'invalid', message: `Вопрос длиннее ${ASSISTANT_MAX_QUESTION} символов — сократите его`, retryAfter: null }
     return
   }
+  if (loading) await loading
   // Вопросы без ответа из прошлых попыток не копим: повторить можно только последний
   state.messages = state.messages.filter((item) => !item.failed)
   const message: ChatMessage = { id: nextLocalId(), role: 'user', text: question, mode: null, applicationId: state.applicationId }

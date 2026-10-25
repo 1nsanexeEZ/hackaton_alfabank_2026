@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 
+import { inputModeFor, sanitizeInput, type InputFilter } from '../lib/input'
+
 const props = withDefaults(
   defineProps<{
     label: string
@@ -13,6 +15,8 @@ const props = withDefaults(
     maxlength?: number
     /** Компактная высота — для таблиц и форм админки */
     dense?: boolean
+    /** Что можно вводить: digits — только цифры, decimal — число с запятой, amount — сумма с разделителями тысяч */
+    filter?: InputFilter
     required?: boolean
   }>(),
   {
@@ -24,6 +28,7 @@ const props = withDefaults(
     autocomplete: 'off',
     maxlength: undefined,
     dense: false,
+    filter: undefined,
     required: false,
   },
 )
@@ -32,6 +37,15 @@ const model = defineModel<string>({ required: true })
 
 const id = useId()
 const describedBy = computed(() => (props.error || props.hint ? `${id}-description` : undefined))
+const mode = computed(() => (props.filter ? inputModeFor(props.filter) : props.inputmode))
+
+/** Недопустимый символ не попадает ни в модель, ни в поле: возвращаем очищенное значение и в DOM */
+function onInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const next = props.filter ? sanitizeInput(input.value, props.filter) : input.value
+  if (next !== input.value) input.value = next
+  model.value = next
+}
 </script>
 
 <template>
@@ -39,15 +53,16 @@ const describedBy = computed(() => (props.error || props.hint ? `${id}-descripti
     <label :for="id" class="mb-2 block text-sm font-medium text-ink">{{ label }}</label>
     <input
       :id="id"
-      v-model="model"
+      :value="model"
       :type="type"
       :placeholder="placeholder"
-      :inputmode="inputmode"
+      :inputmode="mode"
       :autocomplete="autocomplete"
       :maxlength="maxlength"
       :required="required"
       :aria-invalid="Boolean(error)"
       :aria-describedby="describedBy"
+      @input="onInput"
       :class="[
         'w-full bg-surface px-4 text-base text-ink transition outline-none placeholder:text-ink-muted',
         'focus:bg-white focus:ring-2 focus:ring-ink/20',
