@@ -34,10 +34,9 @@ const stats = computed(() => heroStats(props.products))
             офис и повторного ввода данных.
           </p>
           <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-            <BaseButton size="l" :href="sectionHref(SECTION_ID.picker)">Подобрать кредит</BaseButton>
-            <BaseButton size="l" variant="glass" :href="sectionHref(SECTION_ID.calculator)">
-              Рассчитать платёж
-            </BaseButton>
+            <!-- Подбор и расчёт — один блок, поэтому и кнопка одна; вторая — то же, что «Оформить заявку» в шапке -->
+            <BaseButton size="l" :href="sectionHref(SECTION_ID.picker)">Подобрать и рассчитать</BaseButton>
+            <BaseButton size="l" variant="glass" @click="emit('apply')">Оформить заявку</BaseButton>
           </div>
         </div>
 
