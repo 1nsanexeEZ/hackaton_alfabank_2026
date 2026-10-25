@@ -12,6 +12,9 @@ import type {
   PreApprovedOfferDto,
   ProductDto,
   ProjectAssessmentDto,
+  SupportTicketDto,
+  SupportTicketListItemDto,
+  SupportTicketStatus,
   ThirdPartyDto,
 } from '../client/types'
 import type { DownloadedFile } from '../http'
@@ -650,4 +653,20 @@ export interface BackofficeApi {
   workflows(): Promise<WorkflowDto[]>
   /** Проверка по ИНН до заявки, только для банка (backoffice.read); реестр не ответил — 503 */
   innCheck(input: InnCheckInput): Promise<InnCheckDto>
+  /** Очередь обращений: all — все, unassigned — никто не взял, mine — взятые мной */
+  supportQueue(query?: {
+    status?: SupportTicketStatus[]
+    scope?: 'all' | 'unassigned' | 'mine'
+    limit?: number
+    offset?: number
+  }): Promise<SupportTicketListItemDto[]>
+  supportTicket(id: string): Promise<SupportTicketDto>
+  /** Уже взято — 409 already_taken, кто взял — в details.assignee_id */
+  takeSupportTicket(id: string): Promise<SupportTicketDto>
+  /** Вернуть в очередь: исполнитель или админ */
+  releaseSupportTicket(id: string): Promise<SupportTicketDto>
+  /** Не взято — 409 not_taken, взял другой — 403 not_assignee */
+  replySupportTicket(id: string, text: string): Promise<SupportTicketDto>
+  resolveSupportTicket(id: string): Promise<SupportTicketDto>
+  closeSupportTicketByStaff(id: string): Promise<SupportTicketDto>
 }

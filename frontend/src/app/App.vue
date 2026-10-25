@@ -12,9 +12,10 @@ import { ApplyFlowModals, openCabinet, openLogin, startApplication, type Cabinet
 const route = useRoute()
 const router = useRouter()
 
-/** Профиль — отдельная страница, остальные разделы кабинета пока модалками поверх сайта */
-function openSection(section: CabinetSection) {
+/** Профиль и поддержка — отдельные страницы, остальные разделы кабинета пока модалками поверх сайта */
+function openSection(section: CabinetSection | 'support') {
   if (section === 'profile') void router.push(ROUTE_PATH.profile)
+  else if (section === 'support') void router.push(ROUTE_PATH.support)
   else openCabinet(section)
 }
 

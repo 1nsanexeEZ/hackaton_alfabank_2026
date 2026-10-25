@@ -10,7 +10,7 @@ import { AsyncState, BaseButton, SegmentedControl, SelectField } from '@/shared/
 import { useNotifications } from '../model/useNotifications'
 
 /** Уведомления клиента: события по заявкам (живые) и новости, подобранные под его бизнес */
-const emit = defineEmits<{ openApplication: [applicationId: string] }>()
+const emit = defineEmits<{ openApplication: [applicationId: string]; openLink: [path: string] }>()
 
 const notifications = useNotifications()
 const { items, total, feedLoading, feedError, organizations, organizationId, news, newsLoading, newsError } = notifications
@@ -37,7 +37,9 @@ function openEvent(id: string) {
   const item = items.value.find((entry) => entry.id === id)
   if (!item) return
   void notifications.markRead(item)
-  if (item.application_id) emit('openApplication', item.application_id)
+  // Ответ поддержки ведёт в чат обращения (/support/{id}), события заявки — в её карточку
+  if (item.link?.startsWith('/support/')) emit('openLink', item.link)
+  else if (item.application_id) emit('openApplication', item.application_id)
 }
 
 // В причинах новости бэкенд пишет код продукта («продукт CREDIT_LINE — предодобрен») — показываем название
@@ -84,7 +86,10 @@ const PRIORITY_DOT: Record<string, string> = { high: 'bg-brand', normal: 'bg-inf
                   <p v-if="item.body" class="mt-1 text-sm whitespace-pre-line text-ink-secondary">{{ item.body }}</p>
                   <p class="mt-2 flex items-center justify-between gap-3 text-xs text-ink-muted">
                     <span>{{ formatRelativeTime(item.created_at) }}</span>
-                    <span v-if="item.application_id" class="flex items-center gap-1 font-medium text-ink-secondary">
+                    <span v-if="item.link?.startsWith('/support/')" class="flex items-center gap-1 font-medium text-ink-secondary">
+                      К обращению <ArrowRight class="size-3.5" aria-hidden="true" />
+                    </span>
+                    <span v-else-if="item.application_id" class="flex items-center gap-1 font-medium text-ink-secondary">
                       К заявке <ArrowRight class="size-3.5" aria-hidden="true" />
                     </span>
                   </p>

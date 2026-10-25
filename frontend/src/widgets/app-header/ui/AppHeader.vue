@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, Building2, FileText, LogIn, LogOut, Menu, UserRound, X, type LucideIcon } from 'lucide-vue-next'
+import { Bell, Building2, FileText, LogIn, LogOut, Menu, MessagesSquare, UserRound, X, type LucideIcon } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
@@ -14,12 +14,13 @@ import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
  */
 const emit = defineEmits<{ apply: []; login: []; open: [section: CabinetSection] }>()
 
-/** Разделы кабинета клиента — открываются модалками поверх сайта (widgets/apply-flow) */
-type CabinetSection = 'applications' | 'notifications' | 'company' | 'profile'
+/** Разделы кабинета клиента: модалки поверх сайта (widgets/apply-flow), профиль и поддержка — страницы */
+type CabinetSection = 'applications' | 'notifications' | 'support' | 'company' | 'profile'
 
 const CABINET_LINKS: readonly { section: CabinetSection; label: string; icon: LucideIcon }[] = [
   { section: 'applications', label: 'Мои заявки', icon: FileText },
   { section: 'notifications', label: 'Уведомления', icon: Bell },
+  { section: 'support', label: 'Поддержка', icon: MessagesSquare },
   { section: 'company', label: 'Компания', icon: Building2 },
   { section: 'profile', label: 'Профиль', icon: UserRound },
 ]
@@ -124,6 +125,15 @@ watch(
             >
               {{ unread > 99 ? '99+' : unread }}
             </span>
+          </button>
+          <button
+            type="button"
+            class="flex size-10 items-center justify-center rounded-lg bg-night-glass text-on-night transition-colors hover:bg-white/15 max-sm:hidden"
+            aria-label="Поддержка"
+            title="Поддержка"
+            @click="openSection('support')"
+          >
+            <MessagesSquare class="size-[18px]" aria-hidden="true" />
           </button>
           <BaseButton variant="glass" size="s" class="max-sm:hidden" :aria-label="`Профиль: ${name}`" @click="openSection('profile')">
             <UserRound class="size-4 shrink-0" aria-hidden="true" />

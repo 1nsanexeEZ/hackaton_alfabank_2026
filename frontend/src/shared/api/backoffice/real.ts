@@ -1,5 +1,10 @@
 import { http, httpFile } from '../http'
+import { decodeTicket, decodeTicketItem } from '../client/support'
+import type { SupportTicketDto, SupportTicketListItemDto } from '../client/types'
 import type { BackofficeApi } from './types'
+
+/** Карточка обращения с раскодированными темой и сообщениями */
+const ticket = (path: string, options?: Parameters<typeof http>[1]) => http<SupportTicketDto>(path, options).then(decodeTicket)
 
 /** Рабочее место андеррайтера: запросы подписываются токеном сотрудника */
 export const backofficeApi: BackofficeApi = {
@@ -29,4 +34,14 @@ export const backofficeApi: BackofficeApi = {
   withdrawProduct: (code) => http(`/products/${code}`, { method: 'DELETE' }),
   workflows: () => http('/workflows'),
   innCheck: (input) => http('/organizations/inn-check', { method: 'POST', body: input }),
+  supportQueue: (query = {}) =>
+    http<SupportTicketListItemDto[]>('/support/queue', {
+      query: { status: query.status, scope: query.scope, limit: query.limit, offset: query.offset },
+    }).then((tickets) => tickets.map(decodeTicketItem)),
+  supportTicket: (id) => ticket(`/support/queue/${id}`),
+  takeSupportTicket: (id) => ticket(`/support/queue/${id}/take`, { method: 'POST' }),
+  releaseSupportTicket: (id) => ticket(`/support/queue/${id}/release`, { method: 'POST' }),
+  replySupportTicket: (id, text) => ticket(`/support/queue/${id}/messages`, { method: 'POST', body: { text } }),
+  resolveSupportTicket: (id) => ticket(`/support/queue/${id}/resolve`, { method: 'POST' }),
+  closeSupportTicketByStaff: (id) => ticket(`/support/queue/${id}/close`, { method: 'POST' }),
 }
