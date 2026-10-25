@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Calculator, Target } from 'lucide-vue-next'
+import { BadgeCheck } from 'lucide-vue-next'
 
 import type { ProductCatalog } from '@/entities/credit-product'
 import { LoanCalculator } from '@/features/calculate-loan'
 import type { LoanPurpose } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
-import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseContainer, FloatCard, SectionHeader } from '@/shared/ui'
 
 /**
  * Подбор и расчёт кредита одной секцией: к ней ведут и «Подобрать кредит», и «Калькулятор» —
@@ -32,22 +32,13 @@ const organizationId = defineModel<string>('organizationId', { default: '' })
   <section :id="SECTION_ID.calculator" class="scroll-mt-20 bg-surface py-16 lg:py-24">
     <span :id="SECTION_ID.picker" class="block scroll-mt-20" aria-hidden="true" />
     <BaseContainer class="relative">
-      <DecorSticker
-        class="absolute -top-10 right-10"
-        :icon="Target"
-        title="Под вашу задачу"
-        caption="с объяснением"
-        :tilt="-5"
+      <FloatCard
+        class="absolute -top-8 right-10"
+        :icon="BadgeCheck"
+        eyebrow="Предодобрение"
+        title="До 19,2 млн ₽ без справок"
+        text="по оборотам на расчётном счёте"
         :delay="2"
-      />
-      <DecorSticker
-        class="absolute top-2 right-[19rem]"
-        :icon="Calculator"
-        tone="sun"
-        title="Расчёт за секунду"
-        caption="меняйте сумму и срок"
-        :tilt="4"
-        :delay="3"
       />
       <SectionHeader
         title="Подберём кредит и рассчитаем платёж"
@@ -58,7 +49,6 @@ const organizationId = defineModel<string>('organizationId', { default: '' })
         "
       />
       <div class="relative isolate mt-8 lg:mt-12">
-        <PeekSticker art="banknote" class="absolute -top-16 right-14 -z-10" :tilt="-10" :delay="3" />
         <LoanCalculator
           v-model:product-id="productId"
           v-model:amount="amount"

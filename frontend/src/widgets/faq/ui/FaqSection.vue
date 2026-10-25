@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { MessageCircleQuestion } from 'lucide-vue-next'
+import { MessagesSquare } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import { SECTION_ID } from '@/shared/config'
-import { AccordionItem, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { AccordionItem, BaseContainer, FloatCard, SectionHeader } from '@/shared/ui'
 
 const QUESTIONS = [
   {
@@ -51,17 +51,17 @@ const openStates = ref(QUESTIONS.map((_, index) => index === 0))
         class="lg:self-start"
       >
         <template #after>
-          <DecorSticker
-            class="mt-10 ml-4 w-max"
-            :icon="MessageCircleQuestion"
+          <FloatCard
+            class="mt-10"
+            :icon="MessagesSquare"
+            tone="neutral"
+            eyebrow="Поддержка"
             title="Остались вопросы?"
-            caption="задайте их в кабинете"
-            :tilt="-4"
+            text="Задайте их в кабинете — ответит специалист банка"
           />
         </template>
       </SectionHeader>
       <div class="relative isolate">
-        <PeekSticker art="question" class="absolute -top-16 right-12 -z-10" :tilt="12" :delay="1" />
         <div class="rounded-card bg-white px-6 py-2 lg:px-8">
           <AccordionItem
             v-for="(item, index) in QUESTIONS"

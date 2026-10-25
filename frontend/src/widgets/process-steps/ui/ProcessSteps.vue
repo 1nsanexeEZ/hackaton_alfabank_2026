@@ -2,7 +2,7 @@
 import { CircleCheck } from 'lucide-vue-next'
 
 import { SECTION_ID } from '@/shared/config'
-import { BaseBadge, BaseContainer, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseBadge, BaseContainer, FloatCard, SectionHeader } from '@/shared/ui'
 
 type Actor = 'client' | 'bank'
 
@@ -41,29 +41,19 @@ const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
   <section :id="SECTION_ID.process" class="py-16 lg:py-24">
     <BaseContainer class="relative">
       <!-- Чем заканчивается путь: уведомление о решении, как его покажет кабинет -->
-      <div
-        class="decision-card pointer-events-none absolute -top-6 right-8 hidden w-76 items-start gap-3 rounded-2xl bg-white p-4 shadow-[0_1.25rem_2.5rem_-1rem_rgb(20_20_30/0.25)] ring-1 ring-line select-none lg:flex"
-        aria-hidden="true"
-      >
-        <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
-          <CircleCheck class="size-5" />
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="flex items-center justify-between gap-2 text-xs text-ink-secondary">
-            Решение по заявке
-            <span>только что</span>
-          </p>
-          <p class="mt-0.5 font-semibold text-ink">Кредит одобрен</p>
-          <p class="mt-0.5 text-sm text-ink-secondary">5 000 000 ₽ · 36 мес. · от 18,9%</p>
-        </div>
-      </div>
+      <FloatCard
+        class="absolute -top-6 right-8"
+        :icon="CircleCheck"
+        eyebrow="Решение по заявке"
+        meta="только что"
+        title="Кредит одобрен"
+        text="5 000 000 ₽ · 36 мес. · от 18,9%"
+      />
       <SectionHeader
         title="Как проходит заявка"
         description="Каждый этап отражается в кабинете — вы всегда знаете, где заявка и что будет дальше."
       />
       <div class="relative isolate mt-8 lg:mt-12">
-        <PeekSticker art="piggy" from="bottom" class="absolute -right-6 -bottom-16 -z-10" :tilt="-8" :delay="2" />
-        <PeekSticker art="chart" class="absolute -top-16 left-[42%] -z-10" :tilt="-10" :delay="4" />
         <ol class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <li
             v-for="(step, index) in STEPS"
@@ -87,22 +77,3 @@ const STEPS: readonly { title: string; text: string; actor: Actor }[] = [
     </BaseContainer>
   </section>
 </template>
-
-<style scoped>
-/* Карточка решения слегка покачивается на месте — без наклонов и вспышек */
-.decision-card {
-  animation: decision-float 6s ease-in-out infinite;
-}
-
-@keyframes decision-float {
-  50% {
-    translate: 0 -0.375rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .decision-card {
-    animation: none;
-  }
-}
-</style>

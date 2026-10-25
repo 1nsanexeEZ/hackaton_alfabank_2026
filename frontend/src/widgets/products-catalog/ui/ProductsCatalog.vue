@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Calculator, ChevronLeft, ChevronRight, Zap } from 'lucide-vue-next'
+import { Calculator, ChevronLeft, ChevronRight, Timer } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { ProductFlexCard, type ProductCatalog } from '@/entities/credit-product'
 import { ProductFilterControl, useProductFilter } from '@/features/filter-products'
 import { SECTION_ID } from '@/shared/config'
-import { BaseButton, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseButton, BaseContainer, FloatCard, SectionHeader } from '@/shared/ui'
 
 import { useCardWindow } from '../model/useCardWindow'
 
@@ -148,12 +148,13 @@ function onFocusOut(event: FocusEvent) {
   <!-- overflow-x-clip: стикер справа выглядывает из-за края окна, но не расширяет страницу -->
   <section :id="SECTION_ID.products" class="overflow-x-clip py-16 lg:py-24">
     <BaseContainer class="relative">
-      <DecorSticker
-        class="absolute -top-12 right-24"
-        :icon="Zap"
-        title="Решение онлайн"
-        caption="без похода в банк"
-        :tilt="6"
+      <FloatCard
+        class="absolute -top-16 right-24"
+        :icon="Timer"
+        tone="brand"
+        eyebrow="Предварительное решение"
+        title="Обычно за 5 минут"
+        text="онлайн, без похода в банк"
         :delay="1"
       />
       <SectionHeader
@@ -199,7 +200,6 @@ function onFocusOut(event: FocusEvent) {
         @focusin="hasFocusInside = true"
         @focusout="onFocusOut"
       >
-        <PeekSticker art="rocket" from="right" class="absolute top-28 -right-20 -z-10" :tilt="62" :delay="1" />
         <!-- Телефон: лента с прокруткой до краёв экрана. Десктоп: окно, лишнее обрезано по бокам, но не сверху — карточки подпрыгивают -->
         <div
           ref="viewport"
