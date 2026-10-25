@@ -126,6 +126,7 @@ class RecalculatePreApprovedUseCase:
                     factors_summary=approval.factors_summary,
                     valid_until=valid_until,
                     computed_at=now,
+                    key_rate=self._key_rate,
                 )
             )
         await self._repository.replace_for_organization(organization_id, offers)

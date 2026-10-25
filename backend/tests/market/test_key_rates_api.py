@@ -8,6 +8,7 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from seed.products import seed
@@ -16,7 +17,11 @@ from src.core.access.permissions import Permissions
 from src.core.config import Settings
 from src.core.domain import FrozenClock
 from src.core.facades import FacadeRegistry
+from src.core.messaging.contracts.market import KeyRateChanged
+from src.core.messaging.outbox import OutboxRecord
 from src.main import create_app
+from src.modules.decision import module as decision_module
+from src.modules.market import module as market_module
 from tests.helpers import bearer, create_schema, token_for
 
 TODAY = "2026-10-21"
@@ -173,3 +178,56 @@ def test_catalog_rates_follow_the_rate_in_force(world: World) -> None:
     )
     assert stored.status_code == 200, stored.text
     assert Decimal(stored.json()[0]["rate_base"]) == Decimal("23.5")
+
+
+# --- KeyRateChanged ------------------------------------------------------------------
+
+
+def announced(world: World, settings: Settings) -> list[dict]:
+    async def read() -> list[dict]:
+        engine = create_async_engine(settings.database_url)
+        async with engine.connect() as conn:
+            stmt = (
+                select(OutboxRecord.envelope)
+                .where(OutboxRecord.message_type == KeyRateChanged.TYPE)
+                .order_by(OutboxRecord.id)
+            )
+            rows = list((await conn.scalars(stmt)).all())
+        await engine.dispose()
+        return [row["payload"] for row in rows]
+
+    return asyncio.run(read())
+
+
+def test_rate_from_today_is_announced_at_once(world: World, settings: Settings) -> None:
+    add(world, "14.00", TODAY)
+    assert announced(world, settings) == [{"value": "14.00", "effective_from": TODAY}]
+    # The job has nothing left to send.
+    assert world.api.portal.call(market_module.announce_due_once, world.api.app) == 0
+
+
+def test_rate_entered_ahead_is_announced_on_its_day_once(world: World, settings: Settings) -> None:
+    add(world, "13.50", TOMORROW)
+    assert announced(world, settings) == []
+    assert world.api.portal.call(market_module.announce_due_once, world.api.app) == 0
+
+    world.clock.advance(timedelta(days=1))
+    assert world.api.portal.call(market_module.announce_due_once, world.api.app) == 1
+    assert world.api.portal.call(market_module.announce_due_once, world.api.app) == 0
+    assert announced(world, settings) == [{"value": "13.50", "effective_from": TOMORROW}]
+
+
+def test_removing_todays_rate_announces_the_previous_one(world: World, settings: Settings) -> None:
+    add(world, "14.00", YESTERDAY)
+    add(world, "13.75", TODAY)
+    assert world.api.delete(f"/market/key-rates/{TODAY}", headers=world.editor).status_code == 204
+    assert announced(world, settings)[-1] == {"value": "14.00", "effective_from": YESTERDAY}
+
+
+def test_key_rate_changed_wakes_the_pre_approval_refresh(world: World) -> None:
+    wake = decision_module._current().wake
+    wake.clear()
+    world.api.portal.call(
+        decision_module._on_key_rate_changed, None, KeyRateChanged(value=Decimal("14"))
+    )
+    assert wake.is_set()

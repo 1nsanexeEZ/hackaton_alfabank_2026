@@ -20,6 +20,7 @@ from src.core.messaging.contracts.decision import PreApprovedOffersUpdated
 from src.core.messaging.outbox import OutboxRecord
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
 from src.modules.decision.application.policy_versions import ActivePolicyProvider
+from src.modules.decision.application.ports import PreApprovedOffer
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
 from src.modules.decision.application.refresh_pre_approved import (
     RefreshExpiringPreApprovedUseCase,
@@ -30,6 +31,7 @@ from src.modules.decision.infrastructure.config_loader import (
     default_policy,
 )
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
+from src.modules.decision.infrastructure.models import PreApprovedOfferRecord
 from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
 from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
 from src.modules.market.facade import MarketFacade
@@ -250,14 +252,16 @@ async def test_expired_offers_are_not_shown(session_factory: Sessions) -> None:
 # --- ночной пакет ---------------------------------------------------------------
 
 
-def _refresh(sessions: Sessions, world: _World) -> RefreshExpiringPreApprovedUseCase:
+def _refresh(
+    sessions: Sessions, world: _World, key_rate: Decimal = KEY_RATE
+) -> RefreshExpiringPreApprovedUseCase:
     """Ночной пакет на настоящих транзакциях; соседи — фейки `world`, политика — активная в БД
     (версий нет — встроенная)."""
     facades = FacadeRegistry()
     facades.register(ClientsFacade, lambda _session: world.clients)
     facades.register(ProductsFacade, lambda _session: world.products)
     facades.register(ScoringFacade, lambda _session: world.scoring)
-    facades.register(MarketFacade, lambda _session: FakeMarketFacade(KEY_RATE))
+    facades.register(MarketFacade, lambda _session: FakeMarketFacade(key_rate))
     clock = FrozenClock(NOW)
     transactions = partial(SqlAlchemyPreApprovalTransaction, sessions, facades, clock)
     policies = ActivePolicyProvider(CreditPolicyDocuments())
@@ -330,3 +334,72 @@ async def test_nightly_refresh_failure_does_not_stop_others(session_factory: Ses
     assert [e["payload"]["organization_id"] for e in await _published(session_factory)] == [
         str(world.company.id)
     ]
+
+
+# --- смена ключевой ставки -----------------------------------------------------------
+
+
+async def _key_rates(sessions: Sessions, world: _World) -> set[Decimal | None]:
+    async with sessions() as session:
+        stmt = select(PreApprovedOfferRecord.key_rate).where(
+            PreApprovedOfferRecord.organization_id == world.company.id
+        )
+        return {None if v is None else Decimal(str(v)) for v in await session.scalars(stmt)}
+
+
+async def test_new_key_rate_reprices_offers(session_factory: Sessions) -> None:
+    """Предложения свежие, но посчитаны по 16,50: ключевая 14 — пересчёт сразу, без истечения."""
+    world = _World("romashka")
+    other = _World("progress")
+    world.joins(other)
+    await world.recalculate(session_factory)
+    await other.recalculate(session_factory)
+    assert await _key_rates(session_factory, world) == {KEY_RATE}
+
+    new_rate = Decimal("14.00")
+    assert await _refresh(session_factory, world, new_rate).execute(within_days=3) == 2
+
+    assert await _key_rates(session_factory, world) == {new_rate}
+    assert await _key_rates(session_factory, other) == {new_rate}
+    published = await _published(session_factory)
+    assert {e["payload"]["organization_id"] for e in published} == {
+        str(world.company.id),
+        str(other.company.id),
+    }
+    # Ставка та же — пересчитывать нечего.
+    assert await _refresh(session_factory, world, new_rate).execute(within_days=3) == 0
+
+
+def _stored(organization: Any, basis: str, key_rate: str | None, at: datetime) -> PreApprovedOffer:
+    return PreApprovedOffer(
+        organization_id=organization,
+        product_code="UNSECURED",
+        max_amount=Decimal("1000000"),
+        rate_from=Decimal("21"),
+        term_max_months=36,
+        basis=basis,  # type: ignore[arg-type]
+        factors_summary=(),
+        valid_until=(at + timedelta(days=30)).date(),
+        computed_at=at,
+        key_rate=None if key_rate is None else Decimal(key_rate),
+    )
+
+
+async def test_companies_priced_at_another_key_rate(session_factory: Sessions) -> None:
+    """Старая ставка и незаписанная — устаревшие, раньше посчитанные первыми; проектные — нет."""
+    old, unknown, project, current = uuid4(), uuid4(), uuid4(), uuid4()
+    async with session_factory() as session:
+        offers = SqlAlchemyPreApprovedOfferRepository(session)
+        await offers.replace_for_organization(old, [_stored(old, "estimate", "16.50", NOW)])
+        await offers.replace_for_organization(
+            unknown, [_stored(unknown, "estimate", None, NOW - timedelta(days=1))]
+        )
+        await offers.replace_project_offers(project, [_stored(project, "project", None, NOW)])
+        await offers.replace_for_organization(current, [_stored(current, "estimate", "14", NOW)])
+        await session.commit()
+
+        assert await offers.organizations_priced_at_other_key_rate(Decimal("14"), 10) == [
+            unknown,
+            old,
+        ]
+        assert await offers.organizations_priced_at_other_key_rate(Decimal("14"), 1) == [unknown]

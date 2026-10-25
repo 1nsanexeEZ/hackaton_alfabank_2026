@@ -320,6 +320,7 @@ erDiagram
         numeric rate_from
         string basis "estimate / project"
         date valid_until
+        numeric key_rate "ключевая, с которой посчитано; NULL — проектное или до decision_0006"
     }
     decision_founder_prescreens {
         uuid id PK
@@ -443,6 +444,10 @@ erDiagram
 ```
 
 Модели чтения `projector_*` — денормализованные таблицы под экраны, их можно удалить и перестроить из Kafka ([architecture.md](architecture/architecture.md#модели-чтения)): `application_overview`, `underwriting_queue`, `application_timeline`, `organization_dashboard`, `backoffice_metrics`.
+
+## Ключевая ставка: market
+
+`market_key_rates` — ключевая ставка Банка России с даты (`effective_from`, ключ): `value`, `decided_on`, `source` (`admin` / `cbr`), `note`, `created_by`, `created_at`, `announced_at` (когда ушло `KeyRateChanged`). На дату действует строка с наибольшим `effective_from` не позже её; строк нет — `KEY_RATE` из настроек. Прошлые строки не меняются и не удаляются — [market.md](modules/market.md).
 
 ## Каталог продуктов: products
 

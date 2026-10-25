@@ -39,6 +39,9 @@ class PreApprovedOffer:
     factors_summary: tuple[str, ...]
     valid_until: date
     computed_at: datetime
+    # Ключевая, с которой посчитано; None — проектное предложение или посчитано до того, как
+    # предложение стало её помнить (такие считаются устаревшими).
+    key_rate: Decimal | None = None
 
 
 class DecisionRepository(Protocol):
@@ -102,6 +105,14 @@ class PreApprovedOfferRepository(Protocol):
         """Компании, у которых хоть одно предложение по оценке без заявки действует не дольше
         `day` (и уже истекшие); раньше истекающие — первыми. Проектные не считаются: их не
         продлить пересчётом, только новой проектной оценкой."""
+        ...
+
+    async def organizations_priced_at_other_key_rate(
+        self, key_rate: Decimal, limit: int
+    ) -> list[UUID]:
+        """Компании, у которых хоть одно предложение по оценке без заявки посчитано не по этой
+        ключевой (или ставка не записана). Проектные не считаются, как и в
+        `organizations_expiring_by`."""
         ...
 
 

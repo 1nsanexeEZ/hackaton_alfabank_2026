@@ -6,6 +6,7 @@ from src.core.messaging.contracts import (  # noqa: F401  registers every contra
     decision,
     enrichment,
     identity,
+    market,
     process,
     scoring,
     support,

@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.market.application.interfaces.repositories import KeyRateRepository
@@ -65,3 +65,21 @@ class SqlAlchemyKeyRateRepository(KeyRateRepository):
         if record is not None:
             await self._session.delete(record)
             await self._session.flush()
+
+    async def unannounced_until(self, day: date) -> list[KeyRate]:
+        stmt = (
+            select(KeyRateRecord)
+            .where(KeyRateRecord.effective_from <= day, KeyRateRecord.announced_at.is_(None))
+            .order_by(KeyRateRecord.effective_from)
+        )
+        return [_to_domain(record) for record in await self._session.scalars(stmt)]
+
+    async def mark_announced(self, days: list[date], at: datetime) -> None:
+        if not days:
+            return
+        await self._session.execute(
+            update(KeyRateRecord)
+            .where(KeyRateRecord.effective_from.in_(days))
+            .values(announced_at=at)
+            .execution_options(synchronize_session=False)
+        )

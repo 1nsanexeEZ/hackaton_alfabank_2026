@@ -56,6 +56,7 @@ EXPECTED = {
     "SupportTicketOpened",
     "SupportMessagePosted",
     "SupportTicketStatusChanged",
+    "KeyRateChanged",
 }
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
