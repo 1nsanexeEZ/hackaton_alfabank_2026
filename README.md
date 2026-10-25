@@ -362,6 +362,7 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check 
 - **Без Docker** backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`.
 - **Моки:** `cd external-mocks && uv sync && uv run pytest`. Тесты помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети).
 - **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)).
+- **E2E-тесты** кабинета клиента на Playwright — на запущенном стенде: `cd e2e && npm ci && npx playwright install chromium && npm test` ([`e2e/README.md`](e2e/README.md)).
 - **CI** (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`:
   - ruff, import-linter, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
