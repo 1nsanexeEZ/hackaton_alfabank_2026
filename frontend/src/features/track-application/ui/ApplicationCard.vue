@@ -250,7 +250,10 @@ function setTabButton(id: Tab, element: unknown) {
 }
 function placeIndicator() {
   const button = tabButtons.get(currentTab.value)
-  if (button) indicator.value = { left: button.offsetLeft, width: button.offsetWidth }
+  if (!button) return
+  const { offsetLeft: left, offsetWidth: width } = button
+  // Линия на месте (resize, обновление заявки) — новый объект зря перерисовал бы всю карточку
+  if (left !== indicator.value.left || width !== indicator.value.width) indicator.value = { left, width }
 }
 watch([currentTab, tabs], () => nextTick(placeIndicator), { flush: 'post' })
 onMounted(() => {

@@ -155,9 +155,12 @@ async function loadHistory(): Promise<void> {
 /** Загрузка окна, пока она идёт: вопрос ждёт её, иначе ушёл бы без заявки, выбранной по умолчанию */
 let loading: Promise<void> | null = null
 
-/** Всё, что нужно окну при открытии: статус, заявки, история. Ошибки — в state.error */
+/**
+ * Всё, что нужно окну при открытии: статус, заявки, история. Ошибки — в state.error.
+ * Окно открыли снова, пока загрузка идёт, — ждём ту же, а не запрашиваем всё второй раз
+ */
 function load(): Promise<void> {
-  loading = loadAll().finally(() => (loading = null))
+  loading ??= loadAll().finally(() => (loading = null))
   return loading
 }
 
