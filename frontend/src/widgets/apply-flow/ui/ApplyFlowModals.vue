@@ -73,7 +73,12 @@ function applyWith(
 </script>
 
 <template>
-  <CustomerLoginDrawer v-model:open="loginOpen" :description="loginDescription" @success="onLoggedIn" />
+  <CustomerLoginDrawer
+    v-model:open="loginOpen"
+    :description="loginDescription"
+    :next="applyFlow.continueToApplication ? 'application' : 'profile'"
+    @success="onLoggedIn"
+  />
 
   <ApplicationModal v-if="products" v-model:open="applicationOpen" :products="products" @switch-account="switchAccount" />
   <!-- Нажали «Оформить», пока каталог ещё грузится или не загрузился -->

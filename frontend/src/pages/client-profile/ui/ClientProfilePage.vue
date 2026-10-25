@@ -31,6 +31,7 @@ import { openApplicationCard, openCabinet, openLogin, startApplication } from '@
  * Профиль клиента отдельной страницей: кто вошёл, сводка по заявкам и предодобрению, личные данные,
  * согласия, компании с ролью и правами, последние заявки, вход и безопасность.
  * Остальные разделы кабинета (заявка, уведомления, компания) пока открываются модалками поверх страницы.
+ * `data-rise` — блоки, которые после входа поднимаются лесенкой (анимация входа в features/customer-login).
  */
 const { me, name, logout } = useCustomer()
 const { products } = useProductCatalog()
@@ -152,7 +153,7 @@ function signOut() {
       />
       <BaseContainer class="relative py-10 lg:py-14">
         <div class="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <div class="flex items-center gap-5">
+          <div class="flex items-center gap-5" data-rise>
             <span
               class="flex size-20 shrink-0 items-center justify-center rounded-3xl bg-brand text-2xl font-bold text-white shadow-[0_1rem_2.5rem_rgb(239_49_36/0.35)] lg:size-24 lg:text-3xl"
               aria-hidden="true"
@@ -161,7 +162,7 @@ function signOut() {
             </span>
             <div class="min-w-0">
               <p class="text-sm text-on-night-secondary">Личный кабинет</p>
-              <h1 class="mt-1 text-2xl font-bold lg:text-4xl">{{ fullName }}</h1>
+              <h1 class="mt-1 text-2xl font-bold outline-none lg:text-4xl" tabindex="-1">{{ fullName }}</h1>
               <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-on-night-secondary">
                 <span v-if="me.profile?.position">{{ me.profile.position }}</span>
                 <span v-if="me.email" class="flex items-center gap-1.5"><Mail class="size-4" aria-hidden="true" />{{ me.email }}</span>
@@ -169,7 +170,7 @@ function signOut() {
               </p>
             </div>
           </div>
-          <div class="flex flex-col gap-3 sm:flex-row">
+          <div class="flex flex-col gap-3 sm:flex-row" data-rise>
             <BaseButton size="l" @click="startApplication()">
               <Plus class="size-4" aria-hidden="true" />
               Оформить заявку
@@ -183,6 +184,7 @@ function signOut() {
             v-for="stat in stats"
             :key="stat.label"
             class="flex min-h-28 flex-col justify-between gap-3 rounded-3xl bg-night-glass p-4 lg:p-5"
+            data-rise
           >
             <span
               class="flex size-9 items-center justify-center rounded-full"
@@ -204,18 +206,18 @@ function signOut() {
       <BaseContainer>
         <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
           <div class="space-y-6">
-            <PanelCard title="Личные данные" description="Как к вам обращаться в кабинете и в документах">
+            <PanelCard data-rise title="Личные данные" description="Как к вам обращаться в кабинете и в документах">
               <ClientProfileForm :key="me.id" />
             </PanelCard>
 
-            <PanelCard title="Согласия" description="Действуют для всех заявок — повторно давать их не нужно">
+            <PanelCard data-rise title="Согласия" description="Действуют для всех заявок — повторно давать их не нужно">
               <PersonalConsents />
               <CompanyConsents class="mt-6" />
             </PanelCard>
           </div>
 
           <aside class="space-y-6">
-            <PanelCard title="Мои компании" flush>
+            <PanelCard data-rise title="Мои компании" flush>
               <template #actions>
                 <button
                   type="button"
@@ -270,7 +272,7 @@ function signOut() {
               </div>
             </PanelCard>
 
-            <PanelCard title="Последние заявки" flush>
+            <PanelCard data-rise title="Последние заявки" flush>
               <template #actions>
                 <button
                   type="button"
@@ -320,7 +322,7 @@ function signOut() {
               </div>
             </PanelCard>
 
-            <PanelCard title="Вход и безопасность">
+            <PanelCard data-rise title="Вход и безопасность">
               <dl class="space-y-3 text-sm">
                 <div class="flex items-start gap-3">
                   <KeyRound class="mt-0.5 size-4 shrink-0 text-ink-secondary" aria-hidden="true" />
