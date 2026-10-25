@@ -4,6 +4,7 @@ import { computed } from 'vue'
 
 import { BaseBadge } from '@/shared/ui'
 
+import { productArt } from '../model/art'
 import type { CreditProduct } from '../model/types'
 
 /**
@@ -39,6 +40,7 @@ const TONES = [
 
 const tone = computed(() => TONES[props.index % TONES.length])
 const number = computed(() => String(props.index + 1).padStart(2, '0'))
+const art = computed(() => productArt(props.product.code))
 </script>
 
 <template>
@@ -57,7 +59,7 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
       @click="emit('expand')"
     />
 
-    <!-- Крупный номер — графический акцент вместо картинки -->
+    <!-- Крупный номер — графический акцент; у раскрытой карточки он слева, справа — иллюстрация продукта -->
     <span
       class="flex-card__number pointer-events-none absolute font-bold leading-none select-none"
       aria-hidden="true"
@@ -79,6 +81,16 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     </span>
 
     <div class="flex-card__content relative flex h-full flex-col justify-end p-6 lg:p-8">
+      <!-- Иллюстрация — украшение: продукт назван в заголовке. Сверху справа, сжимается, если тексту тесно -->
+      <img
+        v-if="art"
+        :src="art"
+        alt=""
+        width="400"
+        height="400"
+        decoding="async"
+        class="flex-card__art -mt-2 -mr-2 mb-auto self-end"
+      />
       <BaseBadge v-if="product.tag" tone="glass" class="flex-card__rise self-start">{{ product.tag }}</BaseBadge>
 
       <h3 class="flex-card__rise text-title mt-4" style="--rise-delay: 0.05s">{{ product.title }}</h3>
@@ -144,8 +156,35 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
 }
 
 .is-expanded .flex-card__number {
+  right: auto;
+  left: 1.5rem;
   font-size: 7rem;
   opacity: 0.15;
+}
+
+.flex-card__art {
+  flex: 0 1 9rem;
+  width: auto;
+  min-height: 5rem;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+/* Иллюстрация чуть покачивается на месте, пока карточка раскрыта */
+.is-expanded .flex-card__art {
+  animation:
+    flex-card-rise 0.6s var(--spring) both 0.25s,
+    flex-card-float 6s ease-in-out infinite 0.85s;
+}
+
+.is-paused .flex-card__art {
+  animation-play-state: running, paused;
+}
+
+@keyframes flex-card-float {
+  50% {
+    translate: 0 -0.5rem;
+  }
 }
 
 .flex-card__label {
@@ -263,9 +302,9 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
 
   .is-expanded .flex-card__number {
     top: 1.5rem;
-    right: 2rem;
+    right: auto;
     bottom: auto;
-    left: auto;
+    left: 2rem;
     translate: none;
     animation: flex-card-number 0.8s var(--spring) both;
   }
@@ -297,6 +336,10 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   .flex-card__content {
     /* Контент не сжимается вместе с карточкой, а уезжает за край */
     min-width: 30rem;
+  }
+
+  .flex-card__art {
+    flex-basis: 12rem;
   }
 }
 
@@ -342,7 +385,8 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   .flex-card__hint,
   .flex-card__chevron,
   .flex-card__rise,
-  .flex-card__number {
+  .flex-card__number,
+  .flex-card__art {
     animation: none !important;
   }
 }
