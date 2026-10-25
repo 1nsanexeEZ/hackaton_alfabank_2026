@@ -178,6 +178,7 @@
           "me"
         ],
         "summary": "Update My Profile",
+        "description": "Own profile. The name needs `profile.update_name` as well: clients don't have it,\ntheir name is confirmed by the bank — a changed name is 422 `identity_locked` with the\n`fields`; the same name sent again is accepted.",
         "operationId": "update_my_profile_me_profile_patch",
         "requestBody": {
           "content": {
@@ -15708,6 +15709,7 @@
           "roles.update",
           "roles.delete",
           "profile.update",
+          "profile.update_name",
           "requests.read",
           "requests.create",
           "requests.update",

@@ -21,6 +21,11 @@ const WITH_CONTRACT = new Set(['signing', 'issued'])
 const DOCUMENT_POLL_MS = 2_000
 const DOCUMENT_WAIT_MS = 60_000
 
+/** Ответы API — простой JSON, сравнить его строкой дешевле, чем перерисовать карточку с графиком */
+function sameData(previous: unknown, next: unknown): boolean {
+  return previous === next || JSON.stringify(previous) === JSON.stringify(next)
+}
+
 /** Бэкенд с PDF договора: у старого поля document в ответе нет вовсе */
 export function hasContractDocument(contract: ContractDto | null): contract is ContractDto {
   return Boolean(contract && 'document' in contract)
@@ -52,6 +57,8 @@ export function useApplicationCard(applicationId: () => string | null) {
   /** Какое действие выполняется: accept, decline, sign, answer, cancel, upload:<type> */
   const busy = ref<string | null>(null)
   const actionError = ref<string | null>(null)
+  /** Код ошибки действия (details.code): по нему окно показывает ошибку рядом с полем, а не общим текстом */
+  const actionErrorCode = ref<string | null>(null)
   const uploadErrors = ref<Record<string, string>>({})
   const signature = shallowRef<{ signed_at: string; edo_document_id: string; simulated: boolean } | null>(null)
   /** Договор: на подписи — что клиент подписывает (и его offer_hash), после — что подписано */
@@ -82,9 +89,10 @@ export function useApplicationCard(applicationId: () => string | null) {
         next.organization = { id: full.organization_id, name: name ?? 'Компания', inn: '' }
       }
       if (current !== requestId) return
-      card.value = next
-      details.value = full
-      contract.value = nextContract
+      // Те же данные — тот же объект: опрос и события ленты не перерисовывают договор и график зря
+      if (!sameData(card.value, next)) card.value = next
+      if (!sameData(details.value, full)) details.value = full
+      if (!sameData(contract.value, nextContract)) contract.value = nextContract
       error.value = null
     } catch (caught) {
       if (current === requestId && !quiet) error.value = errorMessage(caught)
@@ -186,6 +194,7 @@ export function useApplicationCard(applicationId: () => string | null) {
     if (!id) return false
     busy.value = name
     actionError.value = null
+    actionErrorCode.value = null
     try {
       await action(id)
       await load(true)
@@ -193,6 +202,7 @@ export function useApplicationCard(applicationId: () => string | null) {
       return true
     } catch (caught) {
       actionError.value = errorMessage(caught)
+      actionErrorCode.value = caught instanceof ApiError ? (caught.details.code ?? caught.code) : null
       return false
     } finally {
       busy.value = null
@@ -298,6 +308,7 @@ export function useApplicationCard(applicationId: () => string | null) {
     error,
     busy,
     actionError,
+    actionErrorCode,
     uploadErrors,
     signature,
     contract,

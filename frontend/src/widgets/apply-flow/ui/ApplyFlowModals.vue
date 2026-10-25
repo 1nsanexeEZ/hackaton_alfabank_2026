@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ArrowLeft } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 
 import { loanDraft, myApplications } from '@/entities/application'
@@ -91,23 +90,21 @@ function applyWith(
     <MyApplicationsList v-if="applicationsOpen" @open="openApplicationCard" @apply="startApplication()" />
   </BaseModal>
 
-  <BaseModal v-model:open="cardOpen" title="Заявка" wide>
-    <button
-      v-if="applyFlow.cardFrom"
-      type="button"
-      class="mb-4 flex items-center gap-1.5 text-sm font-medium text-ink-secondary hover:text-ink"
-      @click="backFromCard"
-    >
-      <ArrowLeft class="size-4" aria-hidden="true" />
-      {{ applyFlow.cardFrom === 'notifications' ? 'К уведомлениям' : 'Ко всем заявкам' }}
-    </button>
-    <ApplicationCard
-      v-if="cardOpen && applyFlow.cardId"
-      :application-id="applyFlow.cardId"
-      :products="products"
-      @continue-draft="(draft) => applyWith(draft.productCode, draft)"
-      @apply-product="(code) => applyWith(code)"
-    />
+  <!-- Окно заявки рисует себя целиком: тёмная шапка с этапами, вкладки, действия в подвале -->
+  <BaseModal v-model:open="cardOpen" title="Заявка" wide bare>
+    <template #default="{ close, titleId }">
+      <ApplicationCard
+        v-if="cardOpen && applyFlow.cardId"
+        :application-id="applyFlow.cardId"
+        :products="products"
+        :title-id="titleId"
+        :back-label="applyFlow.cardFrom ? (applyFlow.cardFrom === 'notifications' ? 'К уведомлениям' : 'Ко всем заявкам') : null"
+        @back="backFromCard"
+        @close="close"
+        @continue-draft="(draft) => applyWith(draft.productCode, draft)"
+        @apply-product="(code) => applyWith(code)"
+      />
+    </template>
   </BaseModal>
 
   <BaseModal v-model:open="notificationsOpen" title="Уведомления" description="События по заявкам и новости для вашего бизнеса" wide>

@@ -47,6 +47,12 @@ const canEditProfile = computed({
   set: (value) => toggle('profile.update', value),
 })
 
+// Своё ФИО — отдельное право: клиентам его не дают, их ФИО подтверждено банком
+const canEditName = computed({
+  get: () => form.permissions.has('profile.update_name'),
+  set: (value) => toggle('profile.update_name', value),
+})
+
 function toggle(permission: Permission, value = !form.permissions.has(permission)) {
   const next = new Set(form.permissions)
   if (value) next.add(permission)
@@ -109,6 +115,11 @@ async function submit() {
       <div class="space-y-3 rounded-xl bg-surface-soft p-4">
         <ToggleSwitch v-model="isAdmin" label="Полный доступ" description="Право admin обходит все остальные права и политики" />
         <ToggleSwitch v-model="canEditProfile" label="Правка своего профиля" />
+        <ToggleSwitch
+          v-model="canEditName"
+          label="Правка своего ФИО"
+          description="Сотрудникам. Клиентам не давайте: их ФИО подтверждено банком, по нему сверяется руководитель с ЕГРЮЛ"
+        />
       </div>
 
       <div class="overflow-x-auto" :class="isAdmin && 'pointer-events-none opacity-40'">
