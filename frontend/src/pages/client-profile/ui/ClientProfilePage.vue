@@ -27,7 +27,7 @@ import { ClientProfileForm, CompanyConsents, PersonalConsents } from '@/features
 import { clientApi, type OrganizationSummaryDto } from '@/shared/api'
 import { ROUTE_PATH } from '@/shared/config'
 import { formatDate, formatMoney, formatMoneyShort, formatRelativeTime } from '@/shared/lib'
-import { BaseBadge, BaseButton, BaseContainer, PanelCard, PatternBackground } from '@/shared/ui'
+import { AnimatedNumber, BaseBadge, BaseButton, BaseContainer, PanelCard, PatternBackground } from '@/shared/ui'
 import { openApplicationCard, openCabinet, openLogin, startApplication } from '@/widgets/apply-flow'
 
 /**
@@ -118,11 +118,26 @@ const bestOffer = computed(() => {
   return offers.length ? Math.max(...offers.map((item) => item.preApprovedMax!)) : null
 })
 
+const count = (value: number) => String(value)
+
+/** Счётчики шапки: value — число (null — ещё грузится), empty — показать «—» вместо нуля */
 const stats = computed(() => [
-  { label: 'Заявок в работе', value: myApplications.state.items ? String(active.value.length) : null, icon: FileText },
-  { label: 'Ждут вашего действия', value: myApplications.state.items ? String(waiting.value.length) : null, icon: Sparkles, accent: waiting.value.length > 0 },
-  { label: 'Предодобрено до', value: companies.value ? (bestOffer.value ? formatMoneyShort(bestOffer.value) : '—') : null, icon: BadgeCheck },
-  { label: 'Новых уведомлений', value: String(liveFeed.state.unread), icon: Bell },
+  { label: 'Заявок в работе', value: myApplications.state.items ? active.value.length : null, format: count, icon: FileText },
+  {
+    label: 'Ждут вашего действия',
+    value: myApplications.state.items ? waiting.value.length : null,
+    format: count,
+    icon: Sparkles,
+    accent: waiting.value.length > 0,
+  },
+  {
+    label: 'Предодобрено до',
+    value: companies.value ? (bestOffer.value ?? 0) : null,
+    empty: companies.value !== null && !bestOffer.value,
+    format: formatMoneyShort,
+    icon: BadgeCheck,
+  },
+  { label: 'Новых уведомлений', value: liveFeed.state.unread, format: count, icon: Bell },
 ])
 
 const router = useRouter()
@@ -204,7 +219,10 @@ function signOut() {
               <component :is="stat.icon" class="size-4" aria-hidden="true" />
             </span>
             <div>
-              <p v-if="stat.value !== null" class="text-xl font-bold lg:text-2xl">{{ stat.value }}</p>
+              <p v-if="stat.value !== null" class="text-xl font-bold lg:text-2xl">
+                <template v-if="stat.empty">—</template>
+                <AnimatedNumber v-else :value="stat.value" :format="stat.format" animate-on-mount />
+              </p>
               <p v-else class="h-7 w-16 animate-pulse rounded-lg bg-white/10" aria-label="Загружаем" />
               <p class="mt-0.5 text-sm text-on-night-secondary">{{ stat.label }}</p>
             </div>
