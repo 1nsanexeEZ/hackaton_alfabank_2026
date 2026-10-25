@@ -406,6 +406,12 @@ export interface UnderwriterTaskDto {
   created_at: string
   due_at: string | null
   result: Record<string, unknown> | null
+  /**
+   * Почему задача у андеррайтера помимо причин решения: ручное решение, которое decision не принял
+   * («Ручное решение не принято: …»), или шаг процесса упал либо повторился сверх лимита. null — заявку
+   * отдало человеку само решение (MANUAL_REVIEW). У закрытой задачи остаётся
+   */
+  reason?: string | null
 }
 
 /** Карточка андеррайтера (GET /bff/backoffice/applications/{id}) */
@@ -422,6 +428,8 @@ export interface UnderwriterCardDto {
     status: string
     client_stage: string | null
     steps: { node_id: string; step_code: string | null; kind: string; started_at: string; finished_at: string | null; outcome: string | null; error: string | null }[]
+    /** То же, что reason задачи, но сбрасывается, когда андеррайтер закрывает задачу */
+    manual_review_reason?: string | null
   } | null
   task: UnderwriterTaskDto | null
   degraded: string[]
@@ -497,6 +505,8 @@ export interface ProcessDto {
   client_stage: string | null
   /** Пройденные узлы без повторов, в порядке первого прохода */
   visited_node_ids: string[]
+  /** Почему заявка у андеррайтера помимо причин решения; null — отдало само решение или задача закрыта */
+  manual_review_reason?: string | null
   /** Шаги по времени, с повторами */
   steps: ProcessStepDto[]
   started_at: string

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Sparkles } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import type { ApplicationDraft } from '@/entities/application'
 import type { CreditProduct } from '@/entities/credit-product'
 import { SECTION_ID, sectionHref } from '@/shared/config'
-import { BaseBadge, BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
+import { BaseButton, BaseContainer, PatternBackground } from '@/shared/ui'
 
 import { heroStats } from '../model/content'
 import HeroApplication from './HeroApplication.vue'
@@ -27,11 +26,7 @@ const stats = computed(() => heroStats(props.products))
     <BaseContainer class="relative pt-8 pb-20 lg:pt-16 lg:pb-32">
       <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-16">
         <div>
-          <BaseBadge tone="glass">
-            <Sparkles class="size-3.5" aria-hidden="true" />
-            Предварительное решение онлайн
-          </BaseBadge>
-          <h1 class="text-display mt-5 max-w-2xl">
+          <h1 class="text-display max-w-2xl">
             Кредит для бизнеса — от заявки до решения в одном кабинете
           </h1>
           <p class="text-lead mt-5 max-w-xl text-on-night-secondary">

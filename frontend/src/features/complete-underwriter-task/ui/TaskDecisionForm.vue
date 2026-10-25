@@ -161,7 +161,11 @@ async function complete() {
           <CheckboxField v-model="form.supportProgram">Господдержка — льготная ставка по программе</CheckboxField>
         </fieldset>
 
-        <fieldset v-if="form.decision === 'request_info'" class="space-y-2">
+        <fieldset
+          v-if="form.decision === 'request_info'"
+          class="space-y-2 rounded-lg"
+          :data-invalid="errors.documents ? 'true' : undefined"
+        >
           <legend class="mb-1 text-sm font-medium text-ink">Что запросить у клиента</legend>
           <CheckboxField v-for="type in REQUESTABLE" :key="type" v-model="form.documents[type]">
             {{ DOCUMENT_TITLE[type] ?? type }}
@@ -176,6 +180,7 @@ async function complete() {
             rows="3"
             class="w-full rounded-lg bg-surface px-3 py-2 text-sm text-ink outline-none focus:bg-white focus:ring-2 focus:ring-ink/20"
             :class="errors.comment && 'ring-2 ring-brand/40'"
+            :aria-invalid="Boolean(errors.comment)"
             placeholder="Почему такое решение"
           />
           <span v-if="errors.comment" class="mt-1 block text-sm text-brand">{{ errors.comment }}</span>

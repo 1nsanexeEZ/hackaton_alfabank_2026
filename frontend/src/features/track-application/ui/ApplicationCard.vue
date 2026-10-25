@@ -7,7 +7,7 @@ import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, REPAYMENT_LABEL, type ProductCata
 import { customer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
 import type { LoanPurpose, Repayment } from '@/shared/api'
-import { formatDateTime, formatMoney, formatTerm } from '@/shared/lib'
+import { formatDateTime, formatMoney, formatTerm, shakeInvalid } from '@/shared/lib'
 import { AsyncState, BaseButton, TextField } from '@/shared/ui'
 
 import { timeLeft } from '../model/presentation'
@@ -288,8 +288,29 @@ const canSubmitSign = computed(() => {
   return draftReady && rulesAccepted.value && Boolean(rules.value)
 })
 
+/** «Подписать» без всего нужного: вздрагивает то, чего не хватает — проект, согласие с Правилами, пароль */
+function shakeMissingSign() {
+  const form = document.getElementById(SIGN_FORM_ID)
+  const value = contract.value
+  if (!form || !value) return
+  const missing: string[] = []
+  if (hasContractDocument(value)) {
+    if (!(value.document?.kind === 'draft' && value.document.status === 'ready')) missing.push('draft')
+    if (!rulesAccepted.value || !rules.value) missing.push('rules')
+  }
+  if (!password.value) missing.push('password')
+  // У пароля трясём само поле, у Правил — строку с галочкой, у проекта — весь шаг
+  const target: Record<string, string> = {
+    draft: '[data-sign="draft"]',
+    rules: '[data-sign="rules"] label',
+    password: '[data-sign="password"] input',
+  }
+  shakeInvalid(missing.map((step) => form.querySelector(target[step]!)))
+}
+
 async function submitSign() {
-  if (!canSubmitSign.value) return
+  if (busy.value) return
+  if (!canSubmitSign.value) return shakeMissingSign()
   if (await application.sign(password.value, rulesAccepted.value)) password.value = ''
 }
 
@@ -580,7 +601,7 @@ const footerHint = computed(() => {
             type="submit"
             :form="SIGN_FORM_ID"
             :loading="busy === 'sign'"
-            :disabled="!canSubmitSign"
+            :disabled="Boolean(busy)"
           >
             <PenLine class="size-4" aria-hidden="true" />
             Подписать договор

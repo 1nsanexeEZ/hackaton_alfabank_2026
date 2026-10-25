@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Building2, CircleCheck } from 'luci
 import { computed, nextTick, ref, watch } from 'vue'
 
 import type { ProductCatalog } from '@/entities/credit-product'
+import { shakeInvalid } from '@/shared/lib'
 import { AsyncState, BaseButton, BaseModal } from '@/shared/ui'
 
 import { useApplicationWizard } from '../model/useApplicationWizard'
@@ -75,23 +76,35 @@ function fieldElement(key: string): HTMLElement | null {
   return null
 }
 
+/** Что трясти у пропуска: группу вариантов выбора, иначе само поле, иначе весь блок */
+function shakeTarget(element: HTMLElement): HTMLElement {
+  return (
+    element.querySelector<HTMLElement>('[role="radiogroup"]') ??
+    element.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+    element.querySelector<HTMLElement>('input:not([type=file]):not([type=checkbox]), textarea') ??
+    element.querySelector<HTMLElement>('input[type=checkbox]')?.closest('label') ??
+    element
+  )
+}
+
 function goToField(key: string) {
   const element = fieldElement(key)
   if (!element) return
   element.scrollIntoView({ behavior: 'smooth', block: 'center' })
   element.querySelector<HTMLElement>('input:not([type=file]), textarea, button')?.focus({ preventScroll: true })
-  element.classList.remove('is-flagged')
-  void element.offsetWidth
-  element.classList.add('is-flagged')
+  shakeInvalid([shakeTarget(element)])
 }
 
-// Нажали «Далее» с пропусками: список у кнопок вздрагивает, форма прокручивается к первому пропуску
+// Нажали «Далее» с пропусками: список у кнопок вздрагивает, каждый пропуск вздрагивает красным, форма — к первому
 watch(nudge, async () => {
   shaking.value = false
   await nextTick()
   shaking.value = true
   const first = missing.value[0]
-  if (first) goToField(first.key)
+  if (!first) return
+  goToField(first.key)
+  const rest = missing.value.slice(1).map((item) => fieldElement(item.key))
+  shakeInvalid(rest.filter((element): element is HTMLElement => Boolean(element)).map(shakeTarget))
 })
 </script>
 
@@ -238,25 +251,8 @@ watch(nudge, async () => {
   }
 }
 
-/* Поле, к которому перешли из списка: мягкая красная подсветка */
-:deep(.is-flagged) {
-  border-radius: 0.875rem;
-  animation: missing-flag 1.6s ease-out;
-}
-
-@keyframes missing-flag {
-  0%,
-  30% {
-    box-shadow: 0 0 0 4px rgb(239 49 36 / 0.35);
-  }
-  100% {
-    box-shadow: 0 0 0 4px rgb(239 49 36 / 0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .missing.is-shaking,
-  :deep(.is-flagged) {
+  .missing.is-shaking {
     animation: none;
   }
 }

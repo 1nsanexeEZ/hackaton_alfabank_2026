@@ -17,5 +17,6 @@ export {
   onlyDigits,
   pluralize,
 } from './format'
+export { shakeInvalid, shakeInvalidIn, shakeInvalidOnSubmit } from './shake'
 export { isValidInn } from './validation'
 export { readStorage, writeStorage } from './storage'
