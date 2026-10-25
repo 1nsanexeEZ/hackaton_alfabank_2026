@@ -134,9 +134,9 @@ async function complete() {
         <SegmentedControl v-model="form.decision" :options="OUTCOMES" label="Решение" />
 
         <div v-if="withTerms" class="grid gap-3 sm:grid-cols-3">
-          <TextField v-model="form.amount" label="Сумма, ₽" inputmode="decimal" :error="errors.amount" dense />
-          <TextField v-model="form.termMonths" label="Срок, мес." inputmode="numeric" :error="errors.termMonths" dense />
-          <TextField v-model="form.rate" label="Ставка, %" inputmode="decimal" :error="errors.rate" dense />
+          <TextField v-model="form.amount" filter="amount" label="Сумма, ₽" :error="errors.amount" dense />
+          <TextField v-model="form.termMonths" filter="digits" label="Срок, мес." :error="errors.termMonths" dense />
+          <TextField v-model="form.rate" filter="decimal" label="Ставка, %" :error="errors.rate" dense />
         </div>
         <label v-if="withTerms" class="block">
           <span class="mb-2 block text-sm font-medium text-ink">Условия, по одному на строку</span>

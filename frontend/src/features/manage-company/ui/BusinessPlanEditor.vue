@@ -55,9 +55,9 @@ const years = computed(() =>
     </label>
 
     <div class="grid gap-3 sm:grid-cols-3">
-      <TextField v-model="form.loanAmount" label="Кредит, ₽" inputmode="decimal" :error="errors.loanAmount" dense />
-      <TextField v-model="form.loanTermMonths" label="Срок, мес." inputmode="numeric" :error="errors.loanTermMonths" dense />
-      <TextField v-model="form.ownFunds" label="Свои средства, ₽" inputmode="decimal" :error="errors.ownFunds" dense />
+      <TextField v-model="form.loanAmount" filter="amount" label="Кредит, ₽" :error="errors.loanAmount" dense />
+      <TextField v-model="form.loanTermMonths" filter="digits" label="Срок, мес." :error="errors.loanTermMonths" dense />
+      <TextField v-model="form.ownFunds" filter="amount" label="Свои средства, ₽" :error="errors.ownFunds" dense />
     </div>
 
     <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
@@ -73,7 +73,7 @@ const years = computed(() =>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
-      <TextField v-model="form.collateralValue" label="Залог, ₽" inputmode="decimal" hint="0 — без залога" :error="errors.collateralValue" dense />
+      <TextField v-model="form.collateralValue" filter="amount" label="Залог, ₽" hint="0 — без залога" :error="errors.collateralValue" dense />
       <TextField v-model="form.collateralDescription" label="Обеспечение" placeholder="Например: поручительство учредителя" dense />
     </div>
 
@@ -82,9 +82,9 @@ const years = computed(() =>
       <p class="text-sm font-medium text-ink">Финмодель на {{ PLAN_MONTHS }} месяца от начала проекта</p>
       <p class="text-xs text-ink-secondary">Операционные выручка и расходы, без платежей по кредиту.</p>
       <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)_auto]">
-        <TextField v-model="quick.revenue" label="Выручка в 1-й месяц, ₽" inputmode="decimal" dense />
-        <TextField v-model="quick.growth" label="Рост в месяц, %" inputmode="decimal" dense />
-        <TextField v-model="quick.expenses" label="Расходы в месяц, ₽" inputmode="decimal" dense />
+        <TextField v-model="quick.revenue" filter="amount" label="Выручка в 1-й месяц, ₽" dense />
+        <TextField v-model="quick.growth" filter="decimal" label="Рост в месяц, %" dense />
+        <TextField v-model="quick.expenses" filter="amount" label="Расходы в месяц, ₽" dense />
         <BaseButton
           type="button"
           variant="secondary"

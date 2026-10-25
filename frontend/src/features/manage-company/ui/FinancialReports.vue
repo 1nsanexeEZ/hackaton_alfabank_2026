@@ -82,12 +82,12 @@ const money = (value: string | null) => (value === null ? '—' : formatMoney(Nu
 
     <form v-if="open" class="mt-4 space-y-4 rounded-2xl bg-surface-soft p-4" @submit.prevent="submit">
       <div class="grid gap-4 sm:grid-cols-2">
-        <TextField v-model="form.year" label="Год" inputmode="numeric" :error="errors.year" dense />
+        <TextField v-model="form.year" filter="digits" label="Год" :error="errors.year" dense />
         <SelectField v-model="form.quarter" label="Период" :options="QUARTERS" dense />
-        <TextField v-model="form.revenue" label="Выручка, ₽" inputmode="decimal" :error="errors.revenue" dense required />
-        <TextField v-model="form.expenses" label="Расходы, ₽" inputmode="decimal" placeholder="Необязательно" :error="errors.expenses" dense />
+        <TextField v-model="form.revenue" filter="amount" label="Выручка, ₽" :error="errors.revenue" dense required />
+        <TextField v-model="form.expenses" filter="amount" label="Расходы, ₽" placeholder="Необязательно" :error="errors.expenses" dense />
         <TextField v-model="form.netProfit" label="Чистая прибыль, ₽" inputmode="decimal" placeholder="Необязательно" :error="errors.netProfit" dense />
-        <TextField v-model="form.liabilities" label="Обязательства, ₽" inputmode="decimal" placeholder="Необязательно" :error="errors.liabilities" dense />
+        <TextField v-model="form.liabilities" filter="amount" label="Обязательства, ₽" placeholder="Необязательно" :error="errors.liabilities" dense />
         <TextField
           v-model="form.debtPayments"
           label="Платежи по долгам в месяц, ₽"

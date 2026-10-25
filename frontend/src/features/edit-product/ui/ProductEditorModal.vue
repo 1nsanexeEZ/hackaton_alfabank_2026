@@ -175,12 +175,12 @@ async function submit() {
       <section>
         <h3 class="mb-3 text-sm font-semibold text-ink">Условия</h3>
         <div class="grid gap-3 sm:grid-cols-2">
-          <TextField v-model="form.amountMin" label="Сумма от, ₽" inputmode="numeric" dense :error="errors.amountMin" />
-          <TextField v-model="form.amountMax" label="Сумма до, ₽" inputmode="numeric" dense :error="errors.amountMax" />
-          <TextField v-model="form.termMin" label="Срок от, мес." inputmode="numeric" dense :error="errors.termMin" />
-          <TextField v-model="form.termMax" label="Срок до, мес." inputmode="numeric" dense :error="errors.termMax" />
-          <TextField v-model="form.rateBase" label="Ставка от, %" inputmode="decimal" dense :error="errors.rateBase" />
-          <TextField v-model="form.rateMax" label="Ставка до, %" inputmode="decimal" dense :error="errors.rateMax" />
+          <TextField v-model="form.amountMin" filter="amount" label="Сумма от, ₽" dense :error="errors.amountMin" />
+          <TextField v-model="form.amountMax" filter="amount" label="Сумма до, ₽" dense :error="errors.amountMax" />
+          <TextField v-model="form.termMin" filter="digits" label="Срок от, мес." dense :error="errors.termMin" />
+          <TextField v-model="form.termMax" filter="digits" label="Срок до, мес." dense :error="errors.termMax" />
+          <TextField v-model="form.rateBase" filter="decimal" label="Ставка от, %" dense :error="errors.rateBase" />
+          <TextField v-model="form.rateMax" filter="decimal" label="Ставка до, %" dense :error="errors.rateMax" />
           <TextField
             v-model="form.autoDecisionLimit"
             label="Авторешение до, ₽"
@@ -201,8 +201,8 @@ async function submit() {
         <div class="space-y-4">
           <OptionChips v-model="form.legalForms" label="Формы бизнеса" :options="LEGAL_FORMS" :error="errors.legalForms" />
           <div class="grid gap-3 sm:grid-cols-2">
-            <TextField v-model="form.minBusinessAge" label="Бизнесу не меньше, мес." inputmode="numeric" dense />
-            <TextField v-model="form.minRevenue" label="Выручка за год от, ₽" inputmode="numeric" dense hint="Пусто — без требования" />
+            <TextField v-model="form.minBusinessAge" filter="digits" label="Бизнесу не меньше, мес." dense />
+            <TextField v-model="form.minRevenue" filter="amount" label="Выручка за год от, ₽" dense hint="Пусто — без требования" />
           </div>
           <ToggleSwitch
             v-model="form.startupOnly"
