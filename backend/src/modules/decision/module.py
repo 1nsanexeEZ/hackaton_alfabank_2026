@@ -68,7 +68,7 @@ class _Runtime:
 
 # Встроенная политика грузится один раз на процесс (невалидный YAML → приложение не стартует).
 # Решают активной версией админа из БД или встроенной: провайдер спрашивает БД на каждую команду,
-# событие и проход ночного пакета. Ключевая ставка и ночной пакет — из DECISION_*.
+# событие и проход ночного пакета. Ключевая ставка — KEY_RATE, ночной пакет — DECISION_*.
 _runtime: _Runtime | None = None
 
 
@@ -83,7 +83,8 @@ def wire(app: FastAPI) -> None:
     global _runtime
     settings = DecisionSettings()
     default_policy()  # невалидный YAML → не стартуем
-    _runtime = _Runtime(ActivePolicyProvider(CreditPolicyDocuments()), settings.key_rate, settings)
+    key_rate = app.state.settings.key_rate
+    _runtime = _Runtime(ActivePolicyProvider(CreditPolicyDocuments()), key_rate, settings)
     # Ручкам — тот же провайдер: собранные версии кэшируются один раз на процесс.
     app.state.decision_policies = _runtime.policies
     clock = app.state.clock

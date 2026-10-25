@@ -18,7 +18,6 @@ from src.modules.decision.application.policy_versions import (
     PolicyProvider,
     PolicyVersions,
 )
-from src.modules.decision.config import DecisionSettings
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.infrastructure.config_loader import CreditPolicyDocuments
 from src.modules.decision.infrastructure.repository import (
@@ -86,8 +85,9 @@ def get_input_builders(
     return builder
 
 
-def get_key_rate() -> Decimal:
-    return DecisionSettings().key_rate
+def get_key_rate(request: Request) -> Decimal:
+    key_rate: Decimal = request.app.state.settings.key_rate
+    return key_rate
 
 
 PolicyVersionsDep = Annotated[PolicyVersions, Depends(get_policy_versions)]

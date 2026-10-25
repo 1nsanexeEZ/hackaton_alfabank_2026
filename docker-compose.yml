@@ -122,8 +122,10 @@ services:
       ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
       ENRICHMENT_SOURCE_TIMEOUT_SECONDS: ${ENRICHMENT_SOURCE_TIMEOUT_SECONDS:-3}
       ENRICHMENT_RETRIES: ${ENRICHMENT_RETRIES:-3}
-      # Key rate of the Bank of Russia, % per year: the base of the offer rate in decision.
-      DECISION_KEY_RATE: ${DECISION_KEY_RATE:-16.50}
+      # Key rate of the Bank of Russia, % per year: the funding part of the offer rate; the
+      # catalog rates, set at CATALOG_KEY_RATE, follow it.
+      KEY_RATE: ${KEY_RATE:-14.00}
+      CATALOG_KEY_RATE: ${CATALOG_KEY_RATE:-16.50}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}

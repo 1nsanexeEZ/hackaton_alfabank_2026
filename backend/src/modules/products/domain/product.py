@@ -8,7 +8,8 @@ the decision on an application is taken elsewhere.
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -34,6 +35,7 @@ from src.modules.products.domain.value_objects import (
     SupportProgram,
     TermRange,
     invalid,
+    shift_rate,
 )
 from src.modules.products.facade import STARTUP_AGE_MONTHS
 
@@ -151,6 +153,21 @@ class CreditProduct:
         self.status = ProductStatus.ARCHIVED
 
     # --- terms ----------------------------------------------------------------
+
+    def at_key_rate(self, shift: Decimal) -> "CreditProduct":
+        """The product on today's market: the catalog keeps rates at the key rate they were
+        set at, the rate range and the support program cap follow the key rate by `shift`
+        percentage points. The stored product does not change."""
+        if not shift:
+            return self
+        program = self.support_program
+        return replace(
+            self,
+            rate=self.rate.shifted(shift),
+            support_program=replace(program, rate_cap=shift_rate(program.rate_cap, shift))
+            if program is not None
+            else None,
+        )
 
     @property
     def client_rate(self) -> RateRange:

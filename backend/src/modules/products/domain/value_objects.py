@@ -130,6 +130,14 @@ class RateRange:
     def contains(self, rate: Decimal) -> bool:
         return self.base <= rate <= self.max
 
+    def shifted(self, points: Decimal) -> "RateRange":
+        return RateRange(shift_rate(self.base, points), shift_rate(self.max, points))
+
+
+def shift_rate(rate: Decimal, points: Decimal) -> Decimal:
+    """The rate moved by `points` percentage points, kept within 0..MAX_RATE."""
+    return min(max(rate + points, Decimal(0)), MAX_RATE)
+
 
 @dataclass(frozen=True, slots=True)
 class SecurityRequirement:

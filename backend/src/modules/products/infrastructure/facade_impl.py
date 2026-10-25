@@ -30,12 +30,15 @@ def borrower_profiles(facades: FacadeRegistry, session: AsyncSession) -> Borrowe
 
 
 class ProductsFacadeImpl:
-    """Access to the organization is checked by the caller."""
+    """Access to the organization is checked by the caller. Rates follow the key rate by
+    `rate_shift`, as the catalog shows them to clients."""
 
-    def __init__(self, session: AsyncSession, facades: FacadeRegistry) -> None:
+    def __init__(
+        self, session: AsyncSession, facades: FacadeRegistry, rate_shift: Decimal = Decimal(0)
+    ) -> None:
         self._session = session
         self._facades = facades
-        self._service = ProductService(SqlAlchemyProductRepository(session))
+        self._service = ProductService(SqlAlchemyProductRepository(session), rate_shift=rate_shift)
 
     async def get_product(self, code: str) -> ProductDTO:
         return mappers.product_dto(await self._service.get(code))

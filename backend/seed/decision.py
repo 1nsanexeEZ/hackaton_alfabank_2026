@@ -16,7 +16,6 @@ from src.modules.clients.infrastructure.repositories.organization import (
 )
 from src.modules.decision.application.policy_versions import ActivePolicyProvider
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
-from src.modules.decision.config import DecisionSettings
 from src.modules.decision.infrastructure.config_loader import CreditPolicyDocuments
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyPolicyVersionRepository,
@@ -38,7 +37,7 @@ async def seed(context: "SeedContext") -> None:
     if missing:
         logger.warning("Pre-approved offers are skipped, facades are not registered: %s", missing)
         return
-    key_rate = DecisionSettings().key_rate
+    key_rate = context.settings.key_rate
     async with context.session_factory() as session:
         # Как у консьюмера: активная версия политики админа или встроенная.
         policy = await ActivePolicyProvider(CreditPolicyDocuments()).active(

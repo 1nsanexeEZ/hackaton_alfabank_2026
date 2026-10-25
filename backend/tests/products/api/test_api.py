@@ -542,3 +542,29 @@ def test_off_sale_a_published_product_is_archived_and_a_draft_deleted(
     assert "FACTORING" not in [p["code"] for p in api.get("/products/all", headers=headers).json()]
     # The code is free again.
     assert api.post("/products", json=new_product(), headers=headers).status_code == 201
+
+
+# --- rates follow the key rate ------------------------------------------------------------
+
+
+def test_clients_get_rates_at_the_key_rate(settings: Settings) -> None:
+    """Key rate 14 against the catalog's 16.5: clients get every rate 2.5 points lower, the
+    catalog is kept with the rates it was set at."""
+    settings = settings.model_copy(update={"key_rate": Decimal("14.00")})
+    create_schema(settings.database_url)
+    asyncio.run(_seed(settings))
+    app = create_app(settings)
+    with TestClient(app) as api:
+        unsecured = api.get("/products/UNSECURED").json()
+        rates = (Decimal(unsecured["rate_base"]), Decimal(unsecured["rate_max"]))
+        assert rates == (Decimal(21), Decimal("27.5"))
+        gov = next(p for p in api.get("/products").json() if p["code"] == "GOV_SUPPORT")
+        assert Decimal(gov["rate_base"]) == Decimal("9.5")
+        assert Decimal(gov["support_program"]["rate_cap"]) == Decimal("12.5")
+        schedule = api.post(
+            "/products/UNSECURED/calculate", json={"amount": "1000000", "term_months": 12}
+        ).json()
+        assert Decimal(schedule["rate"]) == 21
+        kept = api.get("/products/all", headers=manager(app)).json()
+        stored_rate = next(p for p in kept if p["code"] == "UNSECURED")["rate_base"]
+        assert Decimal(stored_rate) == Decimal("23.5")
