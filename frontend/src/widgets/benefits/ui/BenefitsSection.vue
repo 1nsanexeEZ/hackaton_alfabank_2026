@@ -24,7 +24,7 @@ const BENEFITS = [
   },
   {
     title: 'Без повторного ввода',
-    text: 'Данные о компании подтягиваем из ЕГРЮЛ и ФНС, документы загружаются один раз.',
+    text: 'Данные о компании подтягиваем по ИНН, документы загружаются один раз.',
     icon: FileCheck2,
     tone: 'sky',
   },
@@ -38,7 +38,7 @@ const BENEFITS = [
         class="absolute top-0 right-6"
         :icon="Building2"
         tone="info"
-        title="Данные из ЕГРЮЛ"
+        title="Данные по ИНН"
         caption="подтянули сами"
       />
       <HintCard
