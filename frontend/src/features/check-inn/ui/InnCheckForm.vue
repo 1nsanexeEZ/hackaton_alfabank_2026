@@ -47,7 +47,7 @@ function validate(): InnCheckInput | null {
 
 function explain(caught: unknown): string {
   if (caught instanceof ApiError && caught.status === 503) return 'Реестр временно недоступен, повторите позже'
-  if (caught instanceof ApiError && caught.status === 403) return 'Проверка по ИНН доступна сотрудникам с правом backoffice.read'
+  if (caught instanceof ApiError && caught.status === 403) return 'Нет доступа к проверке по ИНН'
   return errorMessage(caught)
 }
 

@@ -632,7 +632,7 @@ const RATE_PARTS = [
               {{ modelsVerdict }}
             </p>
             <p v-else-if="data.scoring.ml_not_applicable === 'no_revenue'" class="mb-3 text-xs text-ink-secondary">
-              ML-модель не применяется: у компании нет выручки ни в заявке, ни по ФНС, а модель обучена на действующих компаниях
+              <span class="font-semibold text-ink">ML-модель не применяется</span> — у компании нет выручки ни в заявке, ни по ФНС. Модель обучена на действующих компаниях, и её оценка здесь была бы недостоверной. Риск оценивают PD-модель и андеррайтер.
             </p>
             <p v-else class="mb-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
 

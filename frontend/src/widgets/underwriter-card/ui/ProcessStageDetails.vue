@@ -309,6 +309,9 @@ const models = computed(() => {
         </div>
       </div>
       <p v-else class="text-ink-secondary">Скоринг ещё не посчитан.</p>
+      <p v-if="card.scoring?.ml_not_applicable === 'no_revenue'" class="text-xs text-ink-secondary">
+        ML-модель не применяется: у компании нет выручки, риск оценивают PD-модель и андеррайтер.
+      </p>
       <p v-if="card.scoring?.quality === 'degraded'" class="rounded-lg bg-warning-soft p-2.5 text-ink">
         Данные неполные — решение за специалистом<template v-if="card.scoring.quality_reasons?.length"
           >: {{ card.scoring.quality_reasons.map(qualityReasonLabel).join(', ') }}</template
