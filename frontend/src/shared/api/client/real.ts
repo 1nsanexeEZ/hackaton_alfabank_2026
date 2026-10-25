@@ -1,5 +1,6 @@
 import { ApiError, http, httpFile } from '../http'
-import type { ClientApi } from './types'
+import { decodeTicket, decodeTicketItem } from './support'
+import type { ClientApi, SupportTicketDto, SupportTicketListItemDto } from './types'
 
 type Options = NonNullable<Parameters<typeof http>[1]>
 
@@ -134,9 +135,12 @@ export const realClientApi: ClientApi = {
     }
   },
   supportTickets: (query = {}) =>
-    call('/support/tickets', { query: { status: query.status, limit: query.limit, offset: query.offset } }),
-  supportTicket: (id) => call(`/support/tickets/${id}`),
-  openSupportTicket: (input) => call('/support/tickets', { method: 'POST', body: input }),
-  postSupportMessage: (id, text) => call(`/support/tickets/${id}/messages`, { method: 'POST', body: { text } }),
-  closeSupportTicket: (id) => call(`/support/tickets/${id}/close`, { method: 'POST' }),
+    call<SupportTicketListItemDto[]>('/support/tickets', { query: { status: query.status, limit: query.limit, offset: query.offset } }).then(
+      (tickets) => tickets.map(decodeTicketItem),
+    ),
+  supportTicket: (id) => call<SupportTicketDto>(`/support/tickets/${id}`).then(decodeTicket),
+  openSupportTicket: (input) => call<SupportTicketDto>('/support/tickets', { method: 'POST', body: input }).then(decodeTicket),
+  postSupportMessage: (id, text) =>
+    call<SupportTicketDto>(`/support/tickets/${id}/messages`, { method: 'POST', body: { text } }).then(decodeTicket),
+  closeSupportTicket: (id) => call<SupportTicketDto>(`/support/tickets/${id}/close`, { method: 'POST' }).then(decodeTicket),
 }

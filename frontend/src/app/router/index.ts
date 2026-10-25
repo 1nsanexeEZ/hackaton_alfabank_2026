@@ -51,10 +51,14 @@ export const router = createRouter({
       component: () => import('@/pages/client-support').then((module) => module.ClientSupportPage),
       meta: { title: 'Поддержка' },
     },
-    // Записи ленты банка ведут на /backoffice/support/{id} — это карточка обращения в рабочем месте
+    // Ссылки ленты банка (link) в формате бэкенда: /backoffice/support/{id} и /backoffice/applications/{id} — в рабочее место
     {
       path: '/backoffice/support/:id',
       redirect: (to) => ({ name: ADMIN_ROUTE.supportTicket, params: { id: to.params.id } }),
+    },
+    {
+      path: '/backoffice/applications/:id',
+      redirect: (to) => ({ name: ADMIN_ROUTE.application, params: { id: to.params.id } }),
     },
     {
       path: `${ROUTE_PATH.admin}/login`,
