@@ -311,6 +311,7 @@ onBeforeUnmount(() => observer?.disconnect())
         <p v-else-if="items && !list.length" class="mt-3 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">
           Под эту цель продуктов нет — выберите другую цель или посмотрите каталог ниже.
         </p>
+        <!-- Отступ внутри прокрутки: рамка выбранного продукта рисуется снаружи карточки и иначе обрезается -->
         <ol
           v-else
           ref="listBox"
@@ -324,7 +325,7 @@ onBeforeUnmount(() => observer?.disconnect())
             <button
               type="button"
               class="w-full rounded-xl p-3 text-left transition-colors"
-              :class="item.code === product.code ? 'bg-surface-soft ring-2 ring-ink' : 'bg-surface-soft/60 hover:bg-surface-soft'"
+              :class="item.code === product.code ? 'bg-brand-soft ring-2 ring-brand' : 'bg-surface-soft/60 hover:bg-surface-soft'"
               :aria-pressed="item.code === product.code"
               @click="choose(item)"
             >
