@@ -88,15 +88,33 @@ export interface ProductDto {
   collateral_required_from: string | null
   collateral_types: string[]
   guarantee: 'none' | 'owner' | 'msp_corporation'
+  /** Деньги идут на заявленную цель: транспорт, недвижимость, другие кредиты */
+  target_use_confirmation: boolean
+  /** Программа господдержки: клиенту — не выше её ставки */
+  support_program: SupportProgramDto | null
   min_business_age_months: number
   allowed_legal_forms: string[]
   min_annual_revenue: string | null
   required_documents: RequiredDocumentDto[]
   application_fields_schema: FieldsSchema
+  /** BPMN-маршрут заявки (GET /workflows) */
+  workflow_code: string
   auto_decision_limit: string
-  status: 'draft' | 'active' | 'archived'
+  status: ProductStatus
   /** Только для стартапа (бизнес младше 6 месяцев или без годового отчёта) */
   startup_only?: boolean
+}
+
+/** draft — ещё не в каталоге, active — в продаже, archived — снят с продажи или заменён новой версией */
+export type ProductStatus = 'draft' | 'active' | 'archived'
+
+export interface SupportProgramDto {
+  code: string
+  name: string
+  rate_cap: string
+  msp_registry_required: boolean
+  /** Двузначные классы ОКВЭД; пусто — любая отрасль */
+  okved_whitelist: string[]
 }
 
 export interface CalculateInput {

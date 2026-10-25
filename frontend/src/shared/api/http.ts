@@ -2,13 +2,6 @@ import { humanMessage } from './errorMessages'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-/**
- * Режим API рабочего места сотрудников: mock — всё в браузере на синтетических данных,
- * real — вход, пользователи, роли и бэк-офис идут в бэкенд. Сайт для клиентов всегда ходит в бэкенд.
- * VITE_API_MODE не задан — решает тип сборки: npm run build (стенд) — real, npm run dev — mock.
- */
-export const API_MODE: 'mock' | 'real' = (import.meta.env.VITE_API_MODE ?? (import.meta.env.PROD ? 'real' : 'mock')) === 'real' ? 'real' : 'mock'
-
 /** Нарушение в поле: `{ code: "missing", field: "consents.credit_bureau" }` */
 export interface ApiViolation {
   code: string
@@ -179,11 +172,10 @@ function toApiError(status: number, data: unknown, authorized: boolean): ApiErro
       }))
       return new ApiError(status, 'validation_error', 'Проверьте введённые данные', { violations })
     }
+    // Такой ручки на бэкенде нет: роутер FastAPI отвечает { detail: "Not Found" } без кода бэкенда
+    if (status === 404 && detail === 'Not Found') {
+      return new ApiError(status, 'route_not_found', 'На бэкенде пока нет этой ручки')
+    }
   }
   return new ApiError(status, 'error', humanMessage(status, undefined, {}, authorized))
-}
-
-/** Имитация сетевой задержки для моков, чтобы были видны состояния загрузки */
-export function delay(ms = 300): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

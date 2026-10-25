@@ -16,6 +16,7 @@ import {
   OUTCOME_LABEL,
   qualityReasonLabel,
   REASON_LABEL,
+  REGISTRY_STATUS_LABEL,
   RELIABILITY,
   REVIEW_LABEL,
   SEGMENT_LABEL,
@@ -66,14 +67,6 @@ const isStartup = computed(() => Boolean(products.value?.find((product) => produ
 const prelude = usePrelude(data, isStartup)
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 
-const REGISTRY_STATUS: Record<string, string> = {
-  active: 'Действует',
-  liquidating: 'Ликвидируется',
-  liquidated: 'Ликвидирована',
-  bankrupt: 'Банкротство',
-  reorganizing: 'Реорганизуется',
-  excluded: 'Исключена из реестра',
-}
 const REPORT_SOURCE: Record<string, string> = { declared: 'Заявлено', fns: 'ФНС', bank_statement: 'Выписки' }
 
 /**
@@ -229,6 +222,7 @@ const RATE_PARTS = [
         :application-id="applicationId"
         :prelude="prelude.stages.value"
         :fallback-workflow="data.application.product_terms.workflow_code ?? null"
+        :policy-version="data.decision?.policy_version ?? null"
         @advance="card.reload"
       >
         <template #details="stage">
@@ -357,7 +351,7 @@ const RATE_PARTS = [
               <div>
                 <dt class="text-ink-secondary">Статус в реестре</dt>
                 <dd class="font-medium text-ink">
-                  {{ REGISTRY_STATUS[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
+                  {{ REGISTRY_STATUS_LABEL[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
                 </dd>
               </div>
               <div>
@@ -428,7 +422,7 @@ const RATE_PARTS = [
               <section v-if="data.enrichment.egrul" class="text-sm">
                 <p class="font-semibold text-ink">ЕГРЮЛ / ЕГРИП</p>
                 <ul class="mt-2 space-y-1 text-ink">
-                  <li>Статус: {{ REGISTRY_STATUS[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
+                  <li>Статус: {{ REGISTRY_STATUS_LABEL[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
                   <li v-if="data.enrichment.egrul.kpp">КПП: {{ data.enrichment.egrul.kpp }}</li>
                   <li>
                     Руководитель: {{ data.enrichment.egrul.head_last_name }} {{ data.enrichment.egrul.head_first_name }}
@@ -636,6 +630,9 @@ const RATE_PARTS = [
             </p>
             <p v-if="modelsVerdict" class="mb-3 text-sm font-semibold" :class="modelsAgree ? 'text-ink' : 'text-warning'">
               {{ modelsVerdict }}
+            </p>
+            <p v-else-if="data.scoring.ml_not_applicable === 'no_revenue'" class="mb-3 text-xs text-ink-secondary">
+              <span class="font-semibold text-ink">ML-модель не применяется</span> — у компании нет выручки ни в заявке, ни по ФНС. Модель обучена на действующих компаниях, и её оценка здесь была бы недостоверной. Риск оценивают PD-модель и андеррайтер.
             </p>
             <p v-else class="mb-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
 

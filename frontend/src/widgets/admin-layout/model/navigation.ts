@@ -31,14 +31,14 @@ export const ADMIN_NAVIGATION: readonly NavGroup[] = [
     items: [
       { route: ADMIN_ROUTE.dashboard, label: 'Обзор', icon: LayoutDashboard, permission: 'requests.read' },
       { route: ADMIN_ROUTE.applications, label: 'Заявки', icon: Inbox, permission: 'requests.read' },
-      { route: ADMIN_ROUTE.innCheck, label: 'Проверка по ИНН', icon: FileSearch, permission: 'requests.read' },
+      { route: ADMIN_ROUTE.innCheck, label: 'Проверка по ИНН', icon: FileSearch, permission: 'backoffice.read' },
     ],
   },
   {
     title: 'Настройки',
     items: [
       { route: ADMIN_ROUTE.products, label: 'Продукты', icon: Package, permission: 'credits.read' },
-      { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'requests.read' },
+      { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'backoffice.read' },
     ],
   },
   {

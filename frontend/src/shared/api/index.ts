@@ -1,5 +1,4 @@
 export {
-  API_MODE,
   ApiError,
   apiUrl,
   configureAuth,
@@ -12,6 +11,5 @@ export {
 } from './http'
 export { eligibilityMessage } from './errorMessages'
 export * from './identity'
-export * from './credit'
 export * from './client'
 export * from './backoffice'

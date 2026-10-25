@@ -5,7 +5,6 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { roleTitle } from '@/entities/role'
 import { useSession } from '@/entities/session'
-import { API_MODE } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
 import { AppLogo } from '@/shared/ui'
 
@@ -108,12 +107,6 @@ watch(() => route.fullPath, () => (isMenuOpen.value = false))
       </nav>
 
       <div class="shrink-0 border-t border-night-line p-3">
-        <p
-          v-if="API_MODE === 'mock'"
-          class="mb-3 rounded-lg bg-night-glass px-3 py-2 text-xs leading-snug text-on-night-secondary"
-        >
-          Демо-режим: данные синтетические и хранятся в браузере
-        </p>
         <div class="flex items-center gap-2">
           <RouterLink
             :to="{ name: ADMIN_ROUTE.profile }"
