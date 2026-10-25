@@ -1,5 +1,7 @@
 export { toClientStatus } from './model/clientStatus'
 export { contentTypeOf, documentFormat, fileProblem, MAX_FILE_BYTES, type DocumentFormat } from './model/documentFormats'
+export { STATEMENT_TYPE, statementProblem } from './model/statement'
+export { default as StatementFormatHint } from './ui/StatementFormatHint.vue'
 export { uploadApplicationDocument } from './model/documents'
 export { loanDraft } from './model/draft'
 export { isActiveApplication, myApplications, type MyApplication } from './model/myApplications'

@@ -314,7 +314,7 @@ onBeforeUnmount(() => observer?.disconnect())
         <ol
           v-else
           ref="listBox"
-          class="mt-3 max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1 transition-opacity lg:max-h-[26rem]"
+          class="-mx-1 mt-2 max-h-60 space-y-2 overflow-y-auto overscroll-contain p-1 pr-2 transition-opacity lg:max-h-[26rem]"
           :class="loading && 'opacity-60'"
           aria-label="Продукты под цель"
           @scroll.passive="measureList"
