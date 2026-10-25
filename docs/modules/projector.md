@@ -148,7 +148,7 @@ docker compose exec backend python -m scripts.projector_rebuild
 |---|---|
 | `list_applications(organization_id, status=None, limit, offset)` | заявки компании, новые изменения первыми, `total` — до пагинации |
 | `get_organization_dashboard(organization_id)` | дашборд или `None`, если по компании ещё не было событий |
-| `get_underwriting_queue(role, status="open", sort, limit, offset)` | задачи роли; `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
+| `get_underwriting_queue(role, status="open", sort, limit, offset)` | задачи роли, по строке на заявку — её последняя задача (у заявки, вернувшейся андеррайтеру, их несколько); заявка попадает в выборку по статусу этой задачи, `total` — по заявкам. `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
 | `get_timeline(application_id, audience)` | записи по времени; клиенту — только клиентские |
 | `get_backoffice_metrics(date_from, date_to)` | см. «Метрики для SLA» |
 
