@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CircleCheck, FileUp, Trash2 } from 'lucide-vue-next'
 
-import { documentFormat } from '@/entities/application'
+import { documentFormat, STATEMENT_TYPE, StatementFormatHint } from '@/entities/application'
 import { BaseButton } from '@/shared/ui'
 
 import type { DocumentSlot } from '../model/useApplicationWizard'
@@ -45,6 +45,7 @@ function size(bytes: number) {
             {{ slot.title }}
           </p>
           <p class="mt-0.5 text-xs text-ink-secondary">{{ documentFormat(slot.type).kinds }}, до 20 МБ</p>
+          <StatementFormatHint v-if="slot.type === STATEMENT_TYPE" />
         </div>
         <input
           :ref="(element) => (inputs[slot.type] = element as HTMLInputElement | null)"

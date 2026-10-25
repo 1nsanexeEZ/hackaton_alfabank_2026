@@ -134,6 +134,17 @@ const rows = computed(() => {
           </dl>
         </section>
 
+        <p
+          class="flex items-start gap-2 rounded-2xl p-4 text-sm text-ink"
+          :class="contract.log_intact ? 'bg-success-soft' : 'bg-brand-soft'"
+          :role="contract.log_intact ? 'note' : 'alert'"
+        >
+          <CircleCheck v-if="contract.log_intact" class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+          <AlertCircle v-else class="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
+          <template v-if="contract.log_intact">Журнал подписания цел: записи о подписях не менялись и не удалялись.</template>
+          <template v-else>Журнал подписания нарушен: цепочка записей о подписях не сходится. Обратитесь в банк.</template>
+        </p>
+
         <p v-if="contract.demo" class="flex items-start gap-2 rounded-2xl bg-warning-soft p-4 text-sm text-ink" role="note">
           <Info class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           Демо-стенд: ключ банка не квалифицированный. Подпись банка показывает, что файл не менялся после подписания,

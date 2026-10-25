@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
-import { fileProblem, myApplications, uploadApplicationDocument } from '@/entities/application'
+import { fileProblem, myApplications, STATEMENT_TYPE, statementProblem, uploadApplicationDocument } from '@/entities/application'
 import { liveFeed } from '@/entities/notification'
 import {
   ApiError,
@@ -261,7 +261,7 @@ export function useApplicationCard(applicationId: () => string | null) {
   async function upload(type: string, file: File) {
     const id = applicationId()
     if (!id) return
-    const problem = fileProblem(type, file)
+    const problem = fileProblem(type, file) ?? (type === STATEMENT_TYPE ? await statementProblem(file) : null)
     if (problem) {
       uploadErrors.value = { ...uploadErrors.value, [type]: problem }
       return

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Building2, FileCheck2, Laptop, ListChecks, Target, Zap } from 'lucide-vue-next'
 
-import { BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseContainer, HintCard, SectionHeader } from '@/shared/ui'
 
 const BENEFITS = [
   {
@@ -34,21 +34,19 @@ const BENEFITS = [
 <template>
   <section class="relative -mt-10 rounded-t-[2.5rem] bg-white pt-12 pb-4 lg:-mt-16 lg:rounded-t-sheet lg:pt-20">
     <BaseContainer class="relative">
-      <DecorSticker
+      <HintCard
         class="absolute top-0 right-6"
         :icon="Building2"
-        tone="sky"
+        tone="info"
         title="Данные из ЕГРЮЛ"
         caption="подтянули сами"
-        :tilt="5"
       />
-      <DecorSticker
+      <HintCard
         class="absolute top-28 right-36"
         :icon="Laptop"
-        tone="mint"
+        tone="success"
         title="Без визита в офис"
         caption="всё в кабинете"
-        :tilt="-6"
         :delay="2"
       />
       <SectionHeader
@@ -56,8 +54,6 @@ const BENEFITS = [
         description="Кабинет связывает вас и банк: заявка, проверки, решение и подписание проходят в одном месте."
       />
       <div class="relative isolate mt-8 lg:mt-12">
-        <PeekSticker art="coin" class="absolute -top-16 right-20 -z-10" :tilt="14" />
-        <PeekSticker art="document" from="left" class="absolute bottom-6 -left-16 -z-10" :tilt="-12" :delay="2" />
         <ul class="grid gap-4 md:grid-cols-2 lg:gap-6">
           <li
             v-for="benefit in BENEFITS"
