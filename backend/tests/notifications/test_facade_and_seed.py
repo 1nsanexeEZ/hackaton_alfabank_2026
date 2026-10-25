@@ -114,7 +114,7 @@ async def test_facade_without_identity_shows_own_records_only(
         assert await facade.personal_news(uuid4()) == [], "unknown company and no news seeded"
 
 
-def test_subscriptions_cover_the_four_source_topics() -> None:
+def test_subscriptions_cover_the_five_source_topics() -> None:
     subscriptions = module.subscribers()
     validate_subscriptions(subscriptions)
     assert {s.topic for s in subscriptions} == {
@@ -122,12 +122,14 @@ def test_subscriptions_cover_the_four_source_topics() -> None:
         "process.events",
         "decision.events",
         "clients.events",
+        "support.events",
     }
     assert {s.group_id for s in subscriptions} == {
         "notifications.feed.applications",
         "notifications.feed.process",
         "notifications.feed.decision",
         "notifications.feed.clients",
+        "notifications.feed.support",
     }
     for subscription in subscriptions:
         assert subscription.message_types, subscription.topic

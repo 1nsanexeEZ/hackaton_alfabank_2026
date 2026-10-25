@@ -169,15 +169,19 @@ function onClick() {
   scale: 0.95;
 }
 
-/* Блик: светлая полоса пробегает раз в несколько секунд и сразу — при наведении */
+/*
+ * Блик: светлая полоса пробегает раз в несколько секунд и сразу — при наведении.
+ * Двигается transform, а не left: полоса едет на композиторе и не перерисовывает кнопку каждый кадр.
+ * Ширина полосы — 40% кнопки, поэтому -150% и 325% её ширины — это -60% и 130% кнопки.
+ */
 .btn--primary .btn__clip::before,
 .btn--inverted .btn__clip::before {
   content: '';
   position: absolute;
-  inset: -20% auto -20% -60%;
+  inset: -20% auto -20% 0;
   width: 40%;
   background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.5), transparent);
-  transform: skewX(-20deg);
+  transform: translateX(-150%) skewX(-20deg);
   animation: btn-glint 5s ease-in-out infinite;
 }
 
@@ -193,25 +197,37 @@ function onClick() {
 @keyframes btn-glint {
   0%,
   72% {
-    left: -60%;
+    transform: translateX(-150%) skewX(-20deg);
   }
   88%,
   100% {
-    left: 130%;
+    transform: translateX(325%) skewX(-20deg);
   }
 }
 
 @keyframes btn-glint-once {
   from {
-    left: -60%;
+    transform: translateX(-150%) skewX(-20deg);
   }
   to {
-    left: 130%;
+    transform: translateX(325%) skewX(-20deg);
   }
 }
 
-/* Дышащее кольцо главной кнопки; при наведении сменяется тенью */
-.btn--primary {
+/*
+ * Дышащее кольцо главной кнопки; при наведении сменяется тенью. Кольцо — отдельный слой, который
+ * растёт и гаснет (transform и opacity), а не анимированный box-shadow: тот перерисовывал кнопку
+ * каждый кадр. Слой красный, как кнопка, поэтому поверх её фона его не видно — только снаружи.
+ */
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -20;
+  border-radius: inherit;
+  background: rgb(239 49 36 / 0.4);
+  opacity: 0;
+  pointer-events: none;
   animation: btn-pulse 2.6s ease-out infinite;
 }
 
@@ -219,8 +235,11 @@ function onClick() {
  * Наведение: кнопка увеличивается с лёгкой пружиной, по ней пробегает блик и снизу разгорается
  * красное свечение. scale не меняет размер в потоке — соседние элементы остаются на месте.
  */
-.btn--primary:hover:not(:active) {
+.btn--primary:hover:not(:active)::after {
   animation: none;
+}
+
+.btn--primary:hover:not(:active) {
   scale: 1.05;
   transition-duration: 0.45s;
   transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -229,19 +248,34 @@ function onClick() {
     0 0 0 0.25rem rgb(239 49 36 / 0.12);
 }
 
-.btn--primary:disabled,
-.btn--primary[aria-busy='true'] {
+.btn--primary:disabled::after,
+.btn--primary[aria-busy='true']::after {
   animation: none;
 }
 
+/* Кольцо шире по высоте, чем по ширине: так у кнопки обычных пропорций оно расходится почти равномерно */
 @keyframes btn-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgb(239 49 36 / 0.4);
+    opacity: 1;
+    transform: scale(1);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 0.875rem rgb(239 49 36 / 0);
+    opacity: 0;
+    transform: scale(1.12, 1.55);
   }
+}
+
+/*
+ * В окнах и панелях кнопки не дышат и блик не бегает сам: там договор и подпись, движение
+ * отвлекает, а постоянная перерисовка внутри прокрутки заставляла кнопки отставать от окна.
+ * Реакция на наведение и нажатие остаётся.
+ */
+:where([role='dialog']) .btn--primary::after,
+:where([role='dialog']) .btn--primary .btn__clip::before,
+:where([role='dialog']) .btn--inverted .btn__clip::before,
+:where([role='dialog']) .btn--glass .btn__clip::before {
+  animation: none;
 }
 
 /* Второстепенная: тёмная заливка выезжает слева, иконка покачивается */

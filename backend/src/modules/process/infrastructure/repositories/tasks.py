@@ -27,6 +27,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
             form_schema=dict(task.form_schema),
             created_at=task.created_at,
             due_at=task.due_at,
+            reason=task.reason,
         )
         apply_task(task, record)
         self._session.add(record)

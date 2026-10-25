@@ -1,7 +1,7 @@
-import type { ApplicationStatus, ClientStatus, LoanPurpose } from '@/shared/api'
+import type { ClientStatus, LoanPurpose } from '@/shared/api'
 
-/** Статусы заявки описаны в контракте API; финальный набор фиксируем в стейт-машине (docs/state-machine.md) */
-export type { ApplicationStatus }
+/** Этап заявки для клиента — client_status без закрытых без решения банка (docs/state-machine.md) */
+export type ApplicationStatus = Exclude<ClientStatus, 'cancelled' | 'declined' | 'expired'>
 
 /** Параметры кредита, которые клиент выбрал до отправки заявки */
 export interface ApplicationDraft {

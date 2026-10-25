@@ -14,6 +14,12 @@ from src.modules.applications.infrastructure.adapters.abs_client import (
     HttpAbsClient,
     SimulatedAbsClient,
 )
+from src.modules.applications.infrastructure.adapters.contract_archive import (
+    MinioContractArchive,
+)
+from src.modules.applications.infrastructure.adapters.contract_sealer import (
+    PyHankoContractSealer,
+)
 from src.modules.applications.infrastructure.adapters.document_storage import (
     MinioDocumentStorage,
 )
@@ -22,7 +28,9 @@ from src.modules.applications.infrastructure.adapters.edo_client import (
     SimulatedEdoClient,
 )
 from src.modules.applications.infrastructure.config import ApplicationsSettings
+from src.modules.applications.infrastructure.contract_pdf.renderer import FpdfContractRenderer
 from src.modules.applications.presentation.api.applications import router
+from src.modules.applications.presentation.api.contracts import router as contracts_router
 from src.modules.applications.presentation.consumers import subscriptions
 from src.modules.applications.presentation.dependencies import applications_facade
 from src.modules.applications.presentation.expiry import run_offer_expiry
@@ -34,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 def register(app: FastAPI) -> None:
     app.include_router(router)
+    app.include_router(contracts_router)
 
 
 def wire(app: FastAPI) -> None:
@@ -47,6 +56,19 @@ def wire(app: FastAPI) -> None:
         secret_key=settings.minio_root_password,
         bucket=settings.minio_bucket_name,
     )
+    # Contract PDFs: tests replace the archive with a fake after create_app().
+    app.state.contract_archive = MinioContractArchive(
+        endpoint=settings.minio_endpoint,
+        access_key=settings.minio_root_user,
+        secret_key=settings.minio_root_password,
+        bucket=config.contracts_bucket,
+        retention_days=config.contracts_retention_days,
+    )
+    # The demo CA keys live next to the JWT keys (the `jwt-keys` volume in docker).
+    app.state.contract_sealer = PyHankoContractSealer(settings.jwt_private_key_path.parent)
+    app.state.contract_renderer = FpdfContractRenderer()
+    # The site address people see: QR codes of the contracts lead to its /verify page.
+    app.state.public_base_url = settings.minio_public_endpoint or "http://localhost:8080"
     app.state.edo_client = (
         HttpEdoClient(config.external_mocks_url)
         if config.external_mocks_url
@@ -75,6 +97,12 @@ async def startup(app: FastAPI) -> None:
         except (InfrastructureError, TimeoutError):
             # Uploads answer 503 until the storage is back; the rest keeps working.
             logger.warning("Document storage is not reachable on startup")
+    archive = app.state.contract_archive
+    if settings.minio_ensure_bucket and isinstance(archive, MinioContractArchive):
+        try:
+            await asyncio.wait_for(archive.ensure_bucket(), timeout=15)
+        except (InfrastructureError, TimeoutError):
+            logger.warning("Contract archive is not reachable on startup")
     if settings.run_background_jobs:
         stop = asyncio.Event()
         app.state.applications_jobs = (

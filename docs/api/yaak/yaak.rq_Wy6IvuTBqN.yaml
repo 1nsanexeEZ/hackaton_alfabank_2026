@@ -1,0 +1,32 @@
+type: http_request
+model: http_request
+id: rq_Wy6IvuTBqN
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Активировать версию модели
+description: |-
+  A draft or an archived version (rollback) is put in force, the active one goes to
+  the archive. The built-in version: the admin's active version goes to the archive and
+  the YAML model is in force again. Already active — 409 `invalid_transition`.
+  New applications and pre-approvals are scored by it; old results keep their
+  `model_version`.
+
+  С этого момента новые заявки и предодобрения считаются этой версией. Вернуть встроенную — тот же запрос с `pd_model_v2` вместо версии черновика.
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/scoring/models/:version/activate
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 6000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

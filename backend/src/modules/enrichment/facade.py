@@ -30,6 +30,7 @@ from src.modules.enrichment.application.dto.cashflow import (
     CashflowMonthDTO,
     CashflowProjectionDTO,
 )
+from src.modules.enrichment.application.dto.company import CompanyLookupDTO
 from src.modules.enrichment.application.dto.counterparty import (
     ArbitrationDTO,
     BankruptcyMessageDTO,
@@ -64,6 +65,7 @@ __all__ = [
     "CashflowForecastDTO",
     "CashflowMonthDTO",
     "CashflowProjectionDTO",
+    "CompanyLookupDTO",
     "CounterpartyRiskDTO",
     "CreditHistoryDTO",
     "EnforcementDTO",
@@ -92,6 +94,13 @@ class EnrichmentFacade(Protocol):
     async def lookup_registry(self, inn: str, *, fresh: bool = False) -> RegistryExtractDTO | None:
         """None — the registry does not know the INN; InfrastructureError — it
         did not answer. `fresh` — past the cache (a check on request)."""
+        ...
+
+    async def lookup_company(self, inn: str) -> CompanyLookupDTO | None:
+        """The company before any application: the registry past the cache, the tax service,
+        Kontur and the bank stop list. None — the registry does not know the INN;
+        InfrastructureError — the registry did not answer. Another source that did not
+        answer is None in the result and named in `sources_failed`."""
         ...
 
     async def lookup_person_bureau(

@@ -14,6 +14,7 @@ from src.core.http.request_id import RequestIdMiddleware, configure_logging
 from src.core.infrastructure.database.session import build_engine, build_session_factory
 from src.core.messaging.runtime import MessagingRuntime
 from src.modules.applications import module as applications_module
+from src.modules.assistant import module as assistant_module
 from src.modules.bff import module as bff_module
 from src.modules.clients import module as clients_module
 from src.modules.decision import module as decision_module
@@ -24,6 +25,7 @@ from src.modules.process import module as process_module
 from src.modules.products import module as products_module
 from src.modules.projector import module as projector_module
 from src.modules.scoring import module as scoring_module
+from src.modules.support import module as support_module
 
 # Explicit list: no discovery by string. Each module owns only its module.py.
 MODULES = (
@@ -36,8 +38,10 @@ MODULES = (
     scoring_module,
     decision_module,
     notifications_module,
+    support_module,
     projector_module,
     bff_module,
+    assistant_module,
 )
 
 

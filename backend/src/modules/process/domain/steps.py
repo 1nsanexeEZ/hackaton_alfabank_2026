@@ -35,6 +35,8 @@ class TaskSpec:
     candidate_role: str
     form_schema: Mapping[str, Any]
     due_at: datetime | None
+    # Why the task is opened beyond the decision's own reasons, for the employee.
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +108,16 @@ class ThirdPartyFact:
     kind: str  # person | organization
     name: str
     inn: str | None = None
+    country: str | None = None  # ISO 3166-1 alpha-2, when not Russia
+
+
+@dataclass(frozen=True, slots=True)
+class DeclaredOwnerFact:
+    """A beneficial owner as named by the client (115-FZ art. 6.1)."""
+
+    name: str
+    basis: str  # ownership | control
+    country: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +131,8 @@ class EnrichmentRequestFact:
     # Who submitted the application, when not the head: a representative for the 115-FZ check.
     representative: PersonFact | None = None
     third_parties: tuple[ThirdPartyFact, ...] = ()
+    # None — the client has not named its beneficial owners.
+    declared_owners: tuple[DeclaredOwnerFact, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,8 +234,20 @@ async def _fetch_enrichment(step: StepInput) -> StepResult:
                 "head_bki_consent_at": fact.head_bki_consent_at,
                 "representative": _person(fact.representative),
                 "third_parties": [
-                    {"role": p.role, "kind": p.kind, "name": p.name, "inn": p.inn}
+                    {
+                        "role": p.role,
+                        "kind": p.kind,
+                        "name": p.name,
+                        "inn": p.inn,
+                        "country": p.country,
+                    }
                     for p in fact.third_parties
+                ],
+                "declared_owners": None
+                if fact.declared_owners is None
+                else [
+                    {"name": o.name, "basis": o.basis, "country": o.country}
+                    for o in fact.declared_owners
                 ],
             },
         ),
@@ -313,12 +339,13 @@ async def _make_decision(step: StepInput) -> StepResult:
 
 def _decision_reply(step: StepInput, trigger: Trigger) -> StepResult:
     if trigger.type == "ManualDecisionRejected":
-        # The underwriter went beyond their authority or the product: back to review.
+        # The underwriter went beyond their authority or the product: back to review. The
+        # reason is decision's text for the underwriter, the new task carries it.
         reason = trigger.payload.get("reason")
         return StepResult.done(
             {
                 "outcome": "MANUAL_REVIEW",
-                "manual_review_reason": f"manual decision rejected: {reason}",
+                "manual_review_reason": f"Ручное решение не принято: {reason}",
             }
         )
     payload = trigger.payload
@@ -421,6 +448,7 @@ async def _underwriter_review(step: StepInput) -> StepResult:
             candidate_role=step.node.config.candidate_role or "underwriter",
             form_schema=_FORMS[form],
             due_at=_due(step, timedelta(hours=8)),
+            reason=step.context.manual_review_reason,
         )
     )
 

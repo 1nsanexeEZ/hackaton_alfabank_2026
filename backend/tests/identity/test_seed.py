@@ -24,6 +24,9 @@ CLIENT_PERMISSIONS = [
     "organizations.update",
     "feed.read",
     "profile.update",
+    "support.read",
+    "support.create",
+    "assistant.use",
 ]
 CLIENT_POLICIES = {
     "requests.read": ["org_member"],
@@ -31,6 +34,9 @@ CLIENT_POLICIES = {
     "requests.update": ["org_member"],
     "organizations.read": ["org_member"],
     "organizations.update": ["org_member"],
+    "support.read": ["own_only"],
+    "support.create": ["own_only"],
+    "assistant.use": ["org_member"],
 }
 UNDERWRITER_PERMISSIONS = [
     "requests.read",
@@ -40,9 +46,13 @@ UNDERWRITER_PERMISSIONS = [
     "tasks.read",
     "tasks.update",
     "decisions.read",
+    "scoring.read",
     "backoffice.read",
     "feed.read",
     "profile.update",
+    "profile.update_name",
+    "support.manage",
+    "assistant.use",
 ]
 
 

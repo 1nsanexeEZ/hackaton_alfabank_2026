@@ -1,6 +1,7 @@
-"""Порты decision: хранилища решений, предодобрений, предскринов учредителей и проектных оценок
-стартапов, транзакция ночного пакета. Соседние модули (applications, enrichment, scoring,
-products, clients, identity) decision читает через их фасады прямо в use case."""
+"""Порты decision: хранилища решений, предодобрений, предскринов учредителей, проектных оценок
+стартапов и версий политики, транзакция ночного пакета. Соседние модули (applications,
+enrichment, scoring, products, clients, identity) decision читает через их фасады прямо в use
+case."""
 
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from uuid import UUID
 from src.core.messaging.outbox import OutboxWriter
 from src.core.uow import UnitOfWork
 from src.modules.clients.facade import ClientsFacade
+from src.modules.decision.domain.policy_version import PolicyVersion
 from src.modules.decision.domain.result import DecisionResult
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
@@ -50,6 +52,35 @@ class DecisionRepository(Protocol):
     async def latest_automatic(self, application_id: UUID) -> DecisionResult | None: ...
 
 
+class DecisionHistory(Protocol):
+    """Прошлые автоматические решения — для примерки версии политики."""
+
+    async def recent_automatic(self, limit: int) -> list[DecisionResult]:
+        """Последнее автоматическое решение по каждой из `limit` заявок, где такие решения
+        свежее всего; ручные решения не берём."""
+        ...
+
+
+class PolicyVersionRepository(Protocol):
+    """Версии политики админа (`decision_policy_versions`); встроенной здесь нет."""
+
+    async def list_all(self) -> list[PolicyVersion]: ...
+
+    async def get(self, version: str) -> PolicyVersion | None: ...
+
+    async def codes(self) -> list[str]: ...
+
+    async def active_version(self) -> str | None:
+        """Код активной версии — один короткий запрос на команду; None — действует встроенная."""
+        ...
+
+    async def add(self, version: PolicyVersion) -> None: ...
+
+    async def save(self, version: PolicyVersion) -> None: ...
+
+    async def delete(self, version: str) -> None: ...
+
+
 class PreApprovedOfferRepository(Protocol):
     async def replace_for_organization(
         self, organization_id: UUID, offers: Sequence[PreApprovedOffer]
@@ -80,6 +111,9 @@ class PreApprovalTransaction(UnitOfWork, Protocol):
 
     @property
     def offers(self) -> PreApprovedOfferRepository: ...
+
+    @property
+    def policy_versions(self) -> PolicyVersionRepository: ...
 
     @property
     def clients(self) -> ClientsFacade: ...

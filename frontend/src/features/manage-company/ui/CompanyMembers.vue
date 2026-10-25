@@ -73,7 +73,7 @@ function grant(accountId: string) {
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h3 class="text-base font-bold text-ink">Участники и полномочия</h3>
-        <p class="mt-0.5 text-sm text-ink-secondary">Подписать договор может руководитель по реестру или сотрудник с доверенностью</p>
+        <p class="mt-0.5 text-sm text-ink-secondary">Подписать договор может руководитель компании или сотрудник с доверенностью</p>
       </div>
       <BaseButton v-if="canManage && !adding" size="s" variant="secondary" @click="adding = true">
         <UserPlus class="size-4" aria-hidden="true" />
@@ -101,7 +101,7 @@ function grant(accountId: string) {
               {{ member.position && member.position.toLowerCase() !== ROLE[member.role].toLowerCase() ? `${ROLE[member.role]} · ${member.position}` : ROLE[member.role] }}
             </p>
             <p class="mt-1 text-xs text-ink-secondary">
-              <template v-if="member.authority === 'registry'">Полномочия подтверждены реестром</template>
+              <template v-if="member.authority === 'registry'">Руководитель компании, право подписи</template>
               <template v-else-if="member.power_of_attorney">
                 Доверенность № {{ member.power_of_attorney.number }} до {{ formatDate(member.power_of_attorney.valid_until) }}
                 <span v-if="!member.power_of_attorney.is_valid" class="text-brand"> — недействительна</span>

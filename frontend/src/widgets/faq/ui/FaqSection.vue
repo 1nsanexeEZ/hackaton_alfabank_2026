@@ -3,7 +3,7 @@ import { MessageCircleQuestion } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import { SECTION_ID } from '@/shared/config'
-import { AccordionItem, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { AccordionItem, BaseContainer, HintCard, SectionHeader } from '@/shared/ui'
 
 const QUESTIONS = [
   {
@@ -14,7 +14,7 @@ const QUESTIONS = [
   {
     question: 'Какие данные понадобятся?',
     answer:
-      'Для старта достаточно ИНН, суммы, срока и цели кредита. Сведения о компании банк получит из ЕГРЮЛ/ЕГРИП и ФНС. Если для решения нужны документы, банк запросит их в кабинете.',
+      'Для старта достаточно ИНН, суммы, срока и цели кредита. Остальные сведения о компании банк соберёт сам. Если для решения нужны документы, банк запросит их в кабинете.',
   },
   {
     question: 'Как быстро банк примет решение?',
@@ -51,17 +51,15 @@ const openStates = ref(QUESTIONS.map((_, index) => index === 0))
         class="lg:self-start"
       >
         <template #after>
-          <DecorSticker
+          <HintCard
             class="mt-10 ml-4 w-max"
             :icon="MessageCircleQuestion"
             title="Остались вопросы?"
             caption="задайте их в кабинете"
-            :tilt="-4"
           />
         </template>
       </SectionHeader>
       <div class="relative isolate">
-        <PeekSticker art="question" class="absolute -top-16 right-12 -z-10" :tilt="12" :delay="1" />
         <div class="rounded-card bg-white px-6 py-2 lg:px-8">
           <AccordionItem
             v-for="(item, index) in QUESTIONS"

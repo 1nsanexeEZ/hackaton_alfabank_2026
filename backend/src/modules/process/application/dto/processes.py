@@ -35,3 +35,6 @@ class ProcessViewDTO:
     steps: tuple[StepViewDTO, ...]
     started_at: datetime
     finished_at: datetime | None = None
+    # Why the application is with a person beyond the decision's reasons (a manual decision
+    # was not accepted, a step failed); cleared when the underwriter closes the task.
+    manual_review_reason: str | None = None

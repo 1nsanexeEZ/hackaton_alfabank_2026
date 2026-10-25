@@ -273,10 +273,12 @@ def test_profile_update_needs_permission(
     client: TestClient, admin_token: str, login: Login
 ) -> None:
     plain = create_role(client, admin_token, name="plain")
-    editor = create_role(client, admin_token, name="editor", permissions=["profile.update"])
+    editor = create_role(
+        client, admin_token, name="editor", permissions=["profile.update", "profile.update_name"]
+    )
     create_account(client, admin_token, plain["id"], email="plain@example.com")
     create_account(client, admin_token, editor["id"], email="editor@example.com")
-    body = {"middle_name": "Сергеевна"}
+    body = {"position": "Финансовый директор"}
 
     plain_token = login("plain@example.com", PASSWORD)
     assert client.patch("/me/profile", json=body, headers=auth(plain_token)).status_code == 403
@@ -284,7 +286,82 @@ def test_profile_update_needs_permission(
     editor_token = login("editor@example.com", PASSWORD)
     response = client.patch("/me/profile", json=body, headers=auth(editor_token))
     assert response.status_code == 200
+    assert response.json()["profile"]["position"] == "Финансовый директор"
+
+
+def test_name_is_locked_without_update_name(
+    client: TestClient, admin_token: str, login: Login
+) -> None:
+    """A client's name is confirmed by the bank: `profile.update` alone keeps it."""
+    client_role = create_role(client, admin_token, name="client", permissions=["profile.update"])
+    create_account(client, admin_token, client_role["id"], email="anna@example.com")
+    token = login("anna@example.com", PASSWORD)
+
+    response = client.patch(
+        "/me/profile",
+        json={"last_name": "Иванова", "first_name": "Анна", "position": "Директор"},
+        headers=auth(token),
+    )
+    assert response.status_code == 422
+    assert response.json()["details"] == {
+        "code": "identity_locked",
+        "fields": ["last_name", "position"],
+    }
+    me = client.get("/me", headers=auth(token)).json()
+    assert me["profile"]["last_name"] == "Петрова"
+    assert me["profile"]["position"] is None
+
+
+def test_position_is_locked_too(client: TestClient, admin_token: str, login: Login) -> None:
+    """The head's position comes from the registry: the client can't change it either.
+    The form sends every field, so the same name and position pass."""
+    client_role = create_role(client, admin_token, name="client", permissions=["profile.update"])
+    create_account(client, admin_token, client_role["id"], email="anna@example.com")
+    token = login("anna@example.com", PASSWORD)
+
+    changed = client.patch(
+        "/me/profile",
+        json={"last_name": "Петрова", "first_name": "Анна", "position": "Директор"},
+        headers=auth(token),
+    )
+    assert changed.status_code == 422
+    assert changed.json()["details"] == {"code": "identity_locked", "fields": ["position"]}
+
+    same = client.patch(
+        "/me/profile",
+        json={"last_name": "Петрова", "first_name": "Анна", "position": None},
+        headers=auth(token),
+    )
+    assert same.status_code == 200
+
+
+def test_staff_change_their_own_name(client: TestClient, admin_token: str, login: Login) -> None:
+    staff = create_role(
+        client,
+        admin_token,
+        name="underwriter",
+        permissions=["profile.update", "profile.update_name"],
+    )
+    create_account(client, admin_token, staff["id"], email="staff@example.com")
+    token = login("staff@example.com", PASSWORD)
+
+    response = client.patch("/me/profile", json={"middle_name": "Сергеевна"}, headers=auth(token))
+    assert response.status_code == 200
     assert response.json()["profile"]["middle_name"] == "Сергеевна"
+
+
+def test_admin_corrects_a_clients_name(client: TestClient, admin_token: str) -> None:
+    """A new passport: the bank's staff change the name, the client can't."""
+    client_role = create_role(client, admin_token, name="client", permissions=["profile.update"])
+    account = create_account(client, admin_token, client_role["id"], email="anna@example.com")
+
+    response = client.patch(
+        f"/accounts/{account['id']}",
+        json={"profile": {"last_name": "Иванова", "first_name": "Анна"}},
+        headers=auth(admin_token),
+    )
+    assert response.status_code == 200
+    assert response.json()["profile"]["last_name"] == "Иванова"
 
 
 def test_bootstrap_is_idempotent(client: TestClient, settings, login: Login) -> None:

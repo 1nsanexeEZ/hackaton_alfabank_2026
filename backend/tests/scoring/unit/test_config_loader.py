@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -10,11 +11,17 @@ import pytest
 import yaml
 
 from src.modules.scoring.infrastructure.config_loader import (
+    PdModelError,
     ScorecardConfigError,
+    builtin_pd_model_body,
+    load_pd_model,
     load_pd_model_file,
     load_scorecard,
     load_scorecard_file,
+    normalize_pd_model,
+    parse_pd_model,
 )
+from tests.scoring.scenarios import SCENARIOS
 
 _CONFIG = Path(__file__).resolve().parents[3] / "src/modules/scoring/infrastructure/config"
 _DEFAULT = _CONFIG / "scorecard_v1.yaml"
@@ -113,3 +120,51 @@ def test_broken_model_is_rejected(
 ) -> None:
     with pytest.raises(ScorecardConfigError, match=message):
         load_pd_model_file(_model(tmp_path, breaks))
+
+
+# --- документ модели в БД ----------------------------------------------------------------
+
+
+def _jsonb(body: dict[str, Any]) -> dict[str, Any]:
+    """Как документ вернётся из JSONB: ключи переставлены, порядок признаков другой."""
+    for card in body["scorecards"].values():
+        card["features"] = dict(reversed(card["features"].items()))
+    shuffled: dict[str, Any] = json.loads(json.dumps(dict(reversed(body.items()))))
+    return shuffled
+
+
+@pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+def test_builtin_document_scores_as_the_yaml(scenario: str) -> None:
+    """Копия встроенной модели, прочитанная из БД, считает бит в бит, как YAML."""
+    stored = parse_pd_model(_jsonb(builtin_pd_model_body()), "pd_model_v2.1")
+    assert stored.calculate(SCENARIOS[scenario]) == load_pd_model().calculate(SCENARIOS[scenario])
+
+
+def test_document_is_normalized() -> None:
+    body = builtin_pd_model_body()
+    assert body["grades"]["A"] == "0.0050"  # Decimal — строкой
+    features = list(body["scorecards"]["entrepreneur"]["features"])
+    assert features[:2] == ["business_age", "revenue_trend"]
+    assert normalize_pd_model(_jsonb(builtin_pd_model_body()), "db") == body
+
+
+def test_every_problem_is_listed() -> None:
+    body = builtin_pd_model_body()
+    body["scorecards"].pop("new_client")
+    _le(body)["debt_load"]["bins"].pop(1)
+    _le(body)["tax_arrears"]["bins"].pop()
+    with pytest.raises(PdModelError) as error:
+        parse_pd_model(body, "db")
+    assert [(p.path, p.message.split(" ")[0]) for p in error.value.problems] == [
+        ("scorecards", "нужны"),
+        ("scorecards.legal_entity.features.debt_load.bins", "дырка"),
+        ("scorecards.legal_entity.features.tax_arrears.bins", "нет"),
+    ]
+
+
+def test_schema_problems_carry_the_path() -> None:
+    body = builtin_pd_model_body()
+    body["scorecards"]["legal_entity"]["calibration"]["pdo"] = 0
+    with pytest.raises(PdModelError) as error:
+        parse_pd_model(body, "db")
+    assert [p.path for p in error.value.problems] == ["scorecards.legal_entity.calibration.pdo"]

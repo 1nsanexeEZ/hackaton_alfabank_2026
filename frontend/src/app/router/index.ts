@@ -2,7 +2,7 @@ import { START_LOCATION, createRouter, createWebHistory, type RouteLocationRaw }
 
 import { canEnterAdmin, onSessionExpired, session } from '@/entities/session'
 import { LandingPage } from '@/pages/landing'
-import { API_MODE, type Permission } from '@/shared/api'
+import type { Permission } from '@/shared/api'
 import { ADMIN_ROUTE, APP_NAME, ROUTE_PATH } from '@/shared/config'
 import { ADMIN_NAVIGATION, AdminLayout } from '@/widgets/admin-layout'
 
@@ -22,14 +22,43 @@ const HEADER_OFFSET = 80
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  // В режиме real обзор, заявки и карточка — на данных бэкенда (бэк-офис андеррайтера), в mock — на моке
   routes: [
     { path: ROUTE_PATH.home, name: 'landing', component: LandingPage },
+    {
+      // Публичная проверка договора по QR из PDF: без входа, без шапки сайта
+      path: `${ROUTE_PATH.verify}/:id`,
+      name: 'verify-contract',
+      props: true,
+      component: () => import('@/pages/verify-contract').then((module) => module.VerifyContractPage),
+      meta: { title: 'Проверка договора', bare: true },
+    },
     {
       path: ROUTE_PATH.profile,
       name: 'profile',
       component: () => import('@/pages/client-profile').then((module) => module.ClientProfilePage),
       meta: { title: 'Профиль' },
+    },
+    {
+      path: ROUTE_PATH.support,
+      name: 'support',
+      component: () => import('@/pages/client-support').then((module) => module.ClientSupportPage),
+      meta: { title: 'Поддержка' },
+    },
+    {
+      path: `${ROUTE_PATH.support}/:id`,
+      name: 'support-ticket',
+      props: true,
+      component: () => import('@/pages/client-support').then((module) => module.ClientSupportPage),
+      meta: { title: 'Поддержка' },
+    },
+    // Ссылки ленты банка (link) в формате бэкенда: /backoffice/support/{id} и /backoffice/applications/{id} — в рабочее место
+    {
+      path: '/backoffice/support/:id',
+      redirect: (to) => ({ name: ADMIN_ROUTE.supportTicket, params: { id: to.params.id } }),
+    },
+    {
+      path: '/backoffice/applications/:id',
+      redirect: (to) => ({ name: ADMIN_ROUTE.application, params: { id: to.params.id } }),
     },
     {
       path: `${ROUTE_PATH.admin}/login`,
@@ -46,36 +75,40 @@ export const router = createRouter({
         {
           path: 'dashboard',
           name: ADMIN_ROUTE.dashboard,
-          component: () =>
-            import('@/pages/admin-dashboard').then((module) =>
-              API_MODE === 'real' ? module.BackofficeDashboardPage : module.AdminDashboardPage,
-            ),
+          component: () => import('@/pages/admin-dashboard').then((module) => module.BackofficeDashboardPage),
           meta: { title: 'Обзор', permission: 'requests.read' },
         },
         {
           path: 'applications',
           name: ADMIN_ROUTE.applications,
-          component: () =>
-            import('@/pages/admin-applications').then((module) =>
-              API_MODE === 'real' ? module.BackofficeApplicationsPage : module.AdminApplicationsPage,
-            ),
+          component: () => import('@/pages/admin-applications').then((module) => module.BackofficeApplicationsPage),
           meta: { title: 'Заявки', permission: 'requests.read' },
         },
         {
           path: 'applications/:id',
           name: ADMIN_ROUTE.application,
           props: true,
-          component: () =>
-            import('@/pages/admin-application').then((module) =>
-              API_MODE === 'real' ? module.BackofficeApplicationPage : module.AdminApplicationPage,
-            ),
+          component: () => import('@/pages/admin-application').then((module) => module.BackofficeApplicationPage),
           meta: { title: 'Заявка', permission: 'requests.read' },
         },
         {
           path: 'inn-check',
           name: ADMIN_ROUTE.innCheck,
           component: () => import('@/pages/admin-inn-check').then((module) => module.AdminInnCheckPage),
-          meta: { title: 'Проверка по ИНН', permission: 'requests.read' },
+          meta: { title: 'Проверка по ИНН', permission: 'backoffice.read' },
+        },
+        {
+          path: 'support',
+          name: ADMIN_ROUTE.support,
+          component: () => import('@/pages/admin-support').then((module) => module.AdminSupportPage),
+          meta: { title: 'Поддержка', permission: 'support.manage' },
+        },
+        {
+          path: 'support/:id',
+          name: ADMIN_ROUTE.supportTicket,
+          props: true,
+          component: () => import('@/pages/admin-support').then((module) => module.AdminSupportTicketPage),
+          meta: { title: 'Обращение', permission: 'support.manage' },
         },
         {
           path: 'products',
@@ -87,7 +120,20 @@ export const router = createRouter({
           path: 'scoring',
           name: ADMIN_ROUTE.scoring,
           component: () => import('@/pages/admin-scoring').then((module) => module.AdminScoringPage),
-          meta: { title: 'Скоринг', permission: 'requests.read' },
+          meta: { title: 'Скоринг', permission: 'backoffice.read' },
+        },
+        {
+          path: 'versions',
+          name: ADMIN_ROUTE.versions,
+          component: () => import('@/pages/admin-versions').then((module) => module.AdminVersionsPage),
+          meta: { title: 'Модель и политика', permission: 'scoring.read' },
+        },
+        {
+          path: 'versions/:kind(model|policy)/:version',
+          name: ADMIN_ROUTE.version,
+          props: true,
+          component: () => import('@/pages/admin-versions').then((module) => module.AdminVersionPage),
+          meta: { title: 'Версия', permission: 'scoring.read' },
         },
         {
           path: 'users',

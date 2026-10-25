@@ -2,6 +2,8 @@
  * Контракт Identity API бэкенда (backend/src/identity/schemas.py).
  * Поля в snake_case, как их отдаёт бэкенд.
  */
+import type { DemoAccountDto } from '../client/types'
+
 export type Permission =
   | 'admin'
   | 'accounts.read'
@@ -13,6 +15,8 @@ export type Permission =
   | 'roles.update'
   | 'roles.delete'
   | 'profile.update'
+  /** Своё ФИО: у сотрудников; у клиента его нет — ФИО подтверждено банком */
+  | 'profile.update_name'
   | 'requests.read'
   | 'requests.create'
   | 'requests.update'
@@ -26,8 +30,17 @@ export type Permission =
   | 'tasks.read'
   | 'tasks.update'
   | 'decisions.read'
+  /** Версии PD-модели и кредитной политики: читать и примерять */
+  | 'scoring.read'
+  /** Вести версии: черновики, правка, активация и откат */
+  | 'scoring.update'
   | 'backoffice.read'
   | 'feed.read'
+  | 'support.read'
+  | 'support.create'
+  | 'support.manage'
+  /** Умный помощник: задать вопрос о своих заявках (клиенту и андеррайтеру) */
+  | 'assistant.use'
 
 /** org_member — только компании, где пользователь участник, и их заявки */
 export type Policy = 'not_deleted' | 'own_only' | 'org_member'
@@ -98,9 +111,15 @@ export interface AccountUpdateInput {
 /** Identity для рабочего места сотрудников; запросы подписываются токеном сотрудника */
 export interface IdentityApi {
   login(login: string, password: string): Promise<TokenResponse>
+  /** Демо-учётки стенда, и клиентов, и сотрудников; 404, если DEMO_LOGIN_ENABLED=false */
+  demoAccounts(): Promise<DemoAccountDto[]>
+  /** Вход в демо-учётку без пароля */
+  demoLogin(login: string): Promise<TokenResponse>
   me(): Promise<MeDto>
   updateProfile(data: Partial<ProfileDto>): Promise<MeDto>
   listAccounts(params?: { limit?: number; offset?: number }): Promise<AccountDto[]>
+  /** Все учётки: страницами по 100, пока не придёт неполная */
+  listAllAccounts(): Promise<AccountDto[]>
   createAccount(data: AccountCreateInput): Promise<AccountDto>
   updateAccount(id: string, data: AccountUpdateInput): Promise<AccountDto>
   deleteAccount(id: string): Promise<void>

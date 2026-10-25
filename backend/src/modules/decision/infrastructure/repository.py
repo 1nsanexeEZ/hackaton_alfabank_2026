@@ -7,8 +7,10 @@ from typing import cast
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.exceptions.exceptions import ConflictError, NotFoundError
 from src.modules.decision.application.ports import (
     FounderPrescreen,
     PreApprovalBasis,
@@ -21,8 +23,10 @@ from src.modules.decision.application.ports import (
     ProjectStatus,
 )
 from src.modules.decision.domain.model import Outcome
+from src.modules.decision.domain.policy_version import PolicyStatus, PolicyVersion
 from src.modules.decision.domain.result import DecidedByType, DecisionResult
 from src.modules.decision.infrastructure.models import (
+    DecisionPolicyVersionRecord,
     DecisionResultRecord,
     FounderPrescreenRecord,
     PreApprovedOfferRecord,
@@ -84,6 +88,120 @@ class SqlAlchemyDecisionRepository:
         stmt = stmt.order_by(DecisionResultRecord.sequence.desc()).limit(1)
         record = (await self._session.scalars(stmt)).first()
         return _to_domain(record) if record is not None else None
+
+    async def recent_automatic(self, limit: int) -> list[DecisionResult]:
+        """Последнее автоматическое решение по каждой из `limit` заявок со свежими такими
+        решениями: повторное решение той же заявки не считается дважды."""
+        latest = (
+            select(
+                DecisionResultRecord.application_id,
+                func.max(DecisionResultRecord.sequence).label("sequence"),
+            )
+            .where(DecisionResultRecord.decided_by_type == "auto")
+            .group_by(DecisionResultRecord.application_id)
+            .subquery()
+        )
+        stmt = (
+            select(DecisionResultRecord)
+            .join(
+                latest,
+                (DecisionResultRecord.application_id == latest.c.application_id)
+                & (DecisionResultRecord.sequence == latest.c.sequence),
+            )
+            .order_by(DecisionResultRecord.decided_at.desc(), DecisionResultRecord.id)
+            .limit(limit)
+        )
+        return [_to_domain(record) for record in (await self._session.scalars(stmt)).all()]
+
+
+class SqlAlchemyPolicyVersionRepository:
+    """Версии политики админа. Активной бывает одна (частичный уникальный индекс): гонку двух
+    активаций проигравший получает как 409."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_all(self) -> list[PolicyVersion]:
+        stmt = select(DecisionPolicyVersionRecord).order_by(
+            DecisionPolicyVersionRecord.created_at, DecisionPolicyVersionRecord.version
+        )
+        return [_version_to_domain(r) for r in (await self._session.scalars(stmt)).all()]
+
+    async def get(self, version: str) -> PolicyVersion | None:
+        record = await self._session.get(DecisionPolicyVersionRecord, version)
+        return _version_to_domain(record) if record is not None else None
+
+    async def codes(self) -> list[str]:
+        stmt = select(DecisionPolicyVersionRecord.version)
+        return list((await self._session.scalars(stmt)).all())
+
+    async def active_version(self) -> str | None:
+        stmt = select(DecisionPolicyVersionRecord.version).where(
+            DecisionPolicyVersionRecord.status == "active"
+        )
+        return (await self._session.scalars(stmt)).one_or_none()
+
+    async def add(self, version: PolicyVersion) -> None:
+        self._session.add(
+            DecisionPolicyVersionRecord(
+                version=version.version,
+                status=version.status,
+                body=version.body,
+                based_on=version.based_on,
+                comment=version.comment,
+                created_by=version.created_by,
+                created_at=version.created_at,
+                updated_at=version.updated_at,
+                activated_by=version.activated_by,
+                activated_at=version.activated_at,
+            )
+        )
+        await self._flush(version.version)
+
+    async def save(self, version: PolicyVersion) -> None:
+        record = await self._session.get(DecisionPolicyVersionRecord, version.version)
+        if record is None:
+            raise NotFoundError("Policy version not found", details={"version": version.version})
+        record.status = version.status
+        record.body = version.body
+        record.comment = version.comment
+        record.updated_at = cast(datetime, version.updated_at)
+        record.activated_by = version.activated_by
+        record.activated_at = version.activated_at
+        # Flush после каждой записи: архив прежней активной должен попасть в БД раньше новой
+        # активной, иначе сработает уникальный индекс.
+        await self._flush(version.version)
+
+    async def delete(self, version: str) -> None:
+        await self._session.execute(
+            delete(DecisionPolicyVersionRecord).where(
+                DecisionPolicyVersionRecord.version == version
+            )
+        )
+        await self._session.flush()
+
+    async def _flush(self, version: str) -> None:
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "Policy version changed concurrently", details={"version": version}
+            ) from exc
+
+
+def _version_to_domain(record: DecisionPolicyVersionRecord) -> PolicyVersion:
+    return PolicyVersion(
+        version=record.version,
+        status=cast(PolicyStatus, record.status),
+        body=record.body,
+        based_on=record.based_on,
+        comment=record.comment,
+        created_by=record.created_by,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        activated_by=record.activated_by,
+        activated_at=record.activated_at,
+    )
 
 
 class SqlAlchemyPreApprovedOfferRepository:

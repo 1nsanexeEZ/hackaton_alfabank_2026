@@ -3,9 +3,9 @@ import { Calculator, ChevronLeft, ChevronRight, Zap } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { ProductFlexCard, type ProductCatalog } from '@/entities/credit-product'
-import { ProductFilterControl, useProductFilter } from '@/features/filter-products'
+import { ProductFilterControl, PurposeFilterControl, useProductFilter } from '@/features/filter-products'
 import { SECTION_ID } from '@/shared/config'
-import { BaseButton, BaseContainer, DecorSticker, PeekSticker, SectionHeader } from '@/shared/ui'
+import { BaseButton, BaseContainer, HintCard, SectionHeader } from '@/shared/ui'
 
 import { useCardWindow } from '../model/useCardWindow'
 
@@ -21,7 +21,7 @@ const emit = defineEmits<{
 /** Сколько раскрытая карточка ждёт, прежде чем ряд переключится сам */
 const AUTOPLAY_MS = 6000
 
-const { filter, filteredProducts } = useProductFilter(() => props.products)
+const { filter, purpose, purposeError, filteredProducts } = useProductFilter(() => props.products)
 
 // В ряду всегда раскрыта одна карточка
 const expandedId = ref(props.products[0].id)
@@ -145,15 +145,14 @@ function onFocusOut(event: FocusEvent) {
 </script>
 
 <template>
-  <!-- overflow-x-clip: стикер справа выглядывает из-за края окна, но не расширяет страницу -->
+  <!-- overflow-x-clip: лента карточек и тень подсказки у края окна не расширяют страницу -->
   <section :id="SECTION_ID.products" class="overflow-x-clip py-16 lg:py-24">
     <BaseContainer class="relative">
-      <DecorSticker
+      <HintCard
         class="absolute -top-12 right-24"
         :icon="Zap"
         title="Решение онлайн"
         caption="без похода в банк"
-        :tilt="6"
         :delay="1"
       />
       <SectionHeader
@@ -162,7 +161,11 @@ function onFocusOut(event: FocusEvent) {
       >
         <template #aside>
           <!-- shrink-0: на 1024 px длинное описание иначе сжимает фильтр и обрезает «Деньги частями» -->
-          <ProductFilterControl v-model="filter" class="self-start lg:shrink-0 lg:self-auto" />
+          <div class="flex flex-col gap-2 self-start sm:flex-row sm:items-center lg:shrink-0 lg:self-auto">
+            <ProductFilterControl v-model="filter" />
+            <PurposeFilterControl v-model="purpose" class="sm:w-64" />
+          </div>
+          <p v-if="purposeError" class="mt-1 text-xs text-ink-secondary">Не удалось подобрать по цели — показаны все продукты</p>
         </template>
       </SectionHeader>
 
@@ -199,7 +202,6 @@ function onFocusOut(event: FocusEvent) {
         @focusin="hasFocusInside = true"
         @focusout="onFocusOut"
       >
-        <PeekSticker art="rocket" from="right" class="absolute top-28 -right-20 -z-10" :tilt="62" :delay="1" />
         <!-- Телефон: лента с прокруткой до краёв экрана. Десктоп: окно, лишнее обрезано по бокам, но не сверху — карточки подпрыгивают -->
         <div
           ref="viewport"
@@ -318,10 +320,11 @@ function onFocusOut(event: FocusEvent) {
   display: none;
 }
 
+/* Выше и ниже ленты: накрывает и полоску, поднятую при наведении на 0.5rem, и её тень снизу */
 .catalog-fade {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: -0.75rem;
+  bottom: -3.75rem;
   z-index: 1;
   width: 4rem;
   pointer-events: none;
@@ -391,17 +394,13 @@ function onFocusOut(event: FocusEvent) {
 
 <style>
 /*
- * Не scoped: ширину раскрытой карточки ряд передаёт через переменную, а при наведении на полоску
- * (она расширяется на 2rem) забирает эти 2rem у раскрытой — иначе ряд вылез бы за окно.
+ * Не scoped: ширину раскрытой карточки ряд передаёт через переменную. Наведение на полоску её
+ * только приподнимает, поэтому ширины в ряду постоянны.
  */
 @media (width >= 64rem) {
   .catalog-track > .flex-card.is-expanded {
     --flex-card-expanded-w: var(--catalog-expanded-w);
     --flex-card-expanded-grow: 0;
-  }
-
-  .catalog-track:has(> .flex-card:not(.is-expanded):hover) > .flex-card.is-expanded {
-    --flex-card-expanded-w: calc(var(--catalog-expanded-w) - 2rem);
   }
 }
 </style>

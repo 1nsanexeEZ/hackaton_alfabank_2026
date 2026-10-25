@@ -69,7 +69,16 @@ policy_v8 — v7 и третьи лица по 115-ФЗ. Выгодоприоб�
 (STOP_AML_LISTED, как у всех). Клиент действует к выгоде третьего лица → ручная проверка
 (ROUTE_THIRD_PARTY_BENEFICIARY). Нет ответа о выгодоприобретателе или залог третьего лица без
 владельца → ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN) — правило включается ключом
-`require_answers`, когда форма заявки задаёт вопрос; пока выключено, факт пишется в трассу.
+`require_answers`, когда форма заявки задаёт вопрос; в v8 и v9 выключено, факт пишется в трассу.
+
+policy_v9 — v8 и группа риска клиента по 115-ФЗ (ст. 7 п. 1 подп. 3.1): низкая, средняя, высокая
+по факторам (перечни, ЗСК, ПДЛ, участники из государств ФАТФ, иностранные участники, расхождение
+названных клиентом бенефициаров с ЕГРЮЛ, выгодоприобретатель, ОКВЭД повышенного риска); высокая →
+ручная проверка (ROUTE_AML_HIGH_RISK). Лицензируемая деятельность без лицензии — отказ
+(STOP_UNLICENSED_ACTIVITY, ст. 7 п. 15).
+
+policy_v10 — v9 с `require_answers`: форма заявки спрашивает о третьих лицах, без ответа —
+ручная проверка (ROUTE_THIRD_PARTIES_UNKNOWN).
 
 Порог и коэффициенты — в `PolicyConfig` (YAML в инфраструктуре); `decide` — чистая функция
 входа и ключевой ставки, без IO и без `now()`. Правила policy_v2 и policy_v3 включаются своими
@@ -89,6 +98,8 @@ from src.modules.decision.domain.explanations import ExplanationCatalog, month_i
 from src.modules.decision.domain.model import (
     LEGACY_SCALE,
     AlternativeInput,
+    AmlInput,
+    AmlRiskGroup,
     CompanyInput,
     DecisionInput,
     Grade,
@@ -227,6 +238,12 @@ class PolicyConfig:
     third_party_beneficiary_review: bool = False
     third_party_answers_required: bool = False
     third_party_rules: bool = False  # раздел есть в YAML — правила пишутся в трассу
+    # policy_v9: группа риска клиента по 115-ФЗ и лицензии. Выключено в policy_v1–v8.
+    aml_risk_rules: bool = False
+    high_risk_countries: frozenset[str] = frozenset()
+    high_risk_okved: tuple[str, ...] = ()  # префиксы ОКВЭД
+    aml_high_group_review: bool = False
+    licensed_okved: tuple[str, ...] = ()  # префиксы ОКВЭД; пусто — правило выключено
     # policy_v7: стоп-факторы — до модели и до проверки, есть ли результат скоринга. False — как
     # в policy_v1–v6: без скоринга сразу ручная проверка.
     screen_before_scoring: bool = False
@@ -527,6 +544,14 @@ _BASES = {
 }
 
 
+_GROUPS = {"low": "низкая", "medium": "средняя", "high": "высокая"}
+# Почему ML-модель не оценивала заявку (скоринг, `ml_not_applicable`).
+_ML_NOT_APPLICABLE = {
+    "no_revenue": "ML-модель не применяется: у компании нет выручки, модель обучена на "
+    "действующих компаниях",
+}
+
+
 def _zsk(level: str | None) -> str:
     return {"low": "низкий", "medium": "средний", "high": "высокий"}.get(level or "", "нет данных")
 
@@ -570,6 +595,7 @@ class _Evaluation:
         self._rate: Decimal | None = None
         self._rate_breakdown: RateBreakdown | None = None
         self._triggers: list[Trigger] = []
+        self._aml_group: AmlRiskGroup | None = None
 
     def run(self) -> PolicyDecision:
         # 115-ФЗ — до всего остального: клиента из перечня банк не обслуживает при любом скоре.
@@ -1216,7 +1242,71 @@ class _Evaluation:
         self._hit("aml.zsk_stop", zsk_stop, f"уровень риска ЗСК: {_zsk(aml.zsk_level)}")
         if zsk_stop:
             reasons.append(ReasonCode.STOP_ZSK_HIGH_RISK)
+        if self._unlicensed(aml):
+            reasons.append(ReasonCode.STOP_UNLICENSED_ACTIVITY)
+        self._risk_group(aml)
         return tuple(reasons)
+
+    def _unlicensed(self, aml: AmlInput) -> bool:
+        """policy_v9, ст. 7 п. 15: лицензируемая деятельность без действующей лицензии."""
+        if not self._c.licensed_okved:
+            return False
+        okved = self._in.company.okved_main
+        required = max(
+            (p for p in self._c.licensed_okved if okved.startswith(p)), key=len, default=None
+        )
+        if required is None:
+            self._hit("aml.license", False, f"ОКВЭД {okved}: лицензия не нужна")
+            return False
+        if aml.licensed_okved is None:
+            self._hit("aml.license", False, "реестр лицензий не запрашивался")
+            return False
+        found = any(code.startswith(required) for code in aml.licensed_okved)
+        self._hit(
+            "aml.license",
+            not found,
+            f"ОКВЭД {okved} лицензируется: "
+            + ("действующая лицензия есть" if found else "действующей лицензии нет"),
+        )
+        return not found
+
+    def _risk_group(self, aml: AmlInput) -> None:
+        """policy_v9, ст. 7 п. 1 подп. 3.1: группа риска клиента по 115-ФЗ — по факторам."""
+        if not self._c.aml_risk_rules:
+            return
+        high: list[str] = []
+        medium: list[str] = []
+        if aml.list_hits:
+            high.append("совпадение с перечнями")
+        if aml.zsk_level == "high":
+            high.append("высокий риск ЗСК")
+        elif aml.zsk_level == "medium":
+            medium.append("средний риск ЗСК")
+        if aml.foreign_pep:
+            high.append("иностранное ПДЛ")
+        elif aml.pep_hits:
+            medium.append("ПДЛ")
+        for who, country in aml.foreign_participants:
+            if country in self._c.high_risk_countries:
+                high.append(f"{who} — {country}, государство не выполняет рекомендации ФАТФ")
+            else:
+                medium.append(f"{who} — иностранный участник ({country})")
+        high.extend(f"бенефициары со слов клиента: {item}" for item in aml.owner_discrepancies)
+        parties = self._in.third_parties
+        if parties is not None and parties.beneficiary == "declared":
+            medium.append("клиент действует к выгоде третьего лица")
+        okved = self._in.company.okved_main
+        if any(okved.startswith(p) for p in self._c.high_risk_okved):
+            medium.append(f"вид деятельности {okved} — повышенного риска по национальной оценке")
+        group: AmlRiskGroup = "high" if high else "medium" if medium else "low"
+        self._aml_group = group
+        factors = "; ".join((*high, *medium)) or "факторов риска нет"
+        owners = "" if aml.owners_declared else "; бенефициаров клиент не называл"
+        self._hit(
+            "aml.risk_group",
+            group == "high",
+            f"группа риска по 115-ФЗ: {_GROUPS[group]} — {factors}{owners}",
+        )
 
     def _aml_routes(self) -> list[ReasonCode]:
         """Без автоматического одобрения: проверка не выполнена, ПДЛ, средний риск ЗСК."""
@@ -1246,6 +1336,14 @@ class _Evaluation:
         if medium:
             reasons.append(ReasonCode.ROUTE_ZSK_MEDIUM_RISK)
         reasons.extend(self._third_parties())
+        if self._aml_group == "high" and self._c.aml_high_group_review:
+            self._hit(
+                "route.aml_high_risk",
+                True,
+                "высокая группа риска по 115-ФЗ — меры по снижению риска: источник средств, "
+                "документы о структуре владения и деятельности, решение уполномоченного лица",
+            )
+            reasons.append(ReasonCode.ROUTE_AML_HIGH_RISK)
         return reasons
 
     def _third_parties(self) -> list[ReasonCode]:
@@ -1481,10 +1579,11 @@ class _Evaluation:
         pd_zone = self._c.model_zones[score.grade]
         pd_side = f"PD-модель: грейд {score.grade}{_pd_note(score.pd_12m)} — {_ZONE_NAMES[pd_zone]}"
         if score.ml_grade is None:
+            why = _ML_NOT_APPLICABLE.get(score.ml_not_applicable or "", "оценки ML-модели нет")
             self._hit(
                 "strategy.two_models",
                 True,
-                f"{pd_side}; оценки ML-модели нет → {_VERDICT_NAMES['dispute']}",
+                f"{pd_side}; {why} → {_VERDICT_NAMES['dispute']}",
             )
             return "dispute"
         ml_zone = self._c.model_zones[score.ml_grade]

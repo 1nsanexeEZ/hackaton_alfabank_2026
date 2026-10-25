@@ -18,6 +18,8 @@ export function useNotifications() {
 
   const organizations = shallowRef<OrganizationSummaryDto[]>([])
   const organizationId = ref<string>('')
+  /** События одной компании; пусто — все */
+  const feedOrganizationId = ref<string>('')
   const news = ref<NewsDto[]>([])
   const newsLoading = ref(false)
   const newsError = ref<string | null>(null)
@@ -26,7 +28,11 @@ export function useNotifications() {
     feedLoading.value = true
     feedError.value = null
     try {
-      const page = await clientApi.feed({ limit: PAGE, offset: more ? items.value.length : 0 })
+      const page = await clientApi.feed({
+        organizationId: feedOrganizationId.value || undefined,
+        limit: PAGE,
+        offset: more ? items.value.length : 0,
+      })
       items.value = more ? [...items.value, ...page.items.filter((item) => !items.value.some((known) => known.id === item.id))] : page.items
       total.value = page.total
     } catch (caught) {
@@ -36,14 +42,17 @@ export function useNotifications() {
     }
   }
 
+  async function loadOrganizations() {
+    if (organizations.value.length) return
+    organizations.value = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+    organizationId.value ||= organizations.value[0]?.id ?? ''
+  }
+
   async function loadNews() {
     newsLoading.value = true
     newsError.value = null
     try {
-      if (!organizations.value.length) {
-        organizations.value = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
-        organizationId.value ||= organizations.value[0]?.id ?? ''
-      }
+      await loadOrganizations()
       news.value = await clientApi.news(organizationId.value || undefined, 20)
     } catch (caught) {
       newsError.value = errorMessage(caught)
@@ -55,6 +64,7 @@ export function useNotifications() {
   watch(organizationId, (next, previous) => {
     if (previous && next !== previous) void loadNews()
   })
+  watch(feedOrganizationId, () => void loadFeed())
 
   const stopLive = liveFeed.onItem((item) => {
     const known = items.value.findIndex((entry) => entry.id === item.id)
@@ -78,9 +88,12 @@ export function useNotifications() {
   async function markAllRead() {
     const now = new Date().toISOString()
     items.value.forEach((item) => (item.read_at ??= now))
-    liveFeed.markedAllRead()
+    const scope = feedOrganizationId.value ? { organizationId: feedOrganizationId.value } : undefined
+    if (!scope) liveFeed.markedAllRead()
     try {
-      await clientApi.readAllFeed()
+      await clientApi.readAllFeed(scope)
+      // Прочитана только одна компания — остальное непрочитанное считает бэкенд
+      if (scope) await liveFeed.refreshUnread()
     } catch (caught) {
       feedError.value = errorMessage(caught)
     }
@@ -103,6 +116,8 @@ export function useNotifications() {
     feedError,
     organizations,
     organizationId,
+    feedOrganizationId,
+    loadOrganizations,
     news,
     newsLoading,
     newsError,

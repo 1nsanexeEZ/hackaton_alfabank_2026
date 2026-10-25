@@ -36,11 +36,12 @@ enrichment/
 │   ├── enums.py              # Source, SourceStatus, INTERNAL_SOURCES
 │   └── exceptions.py         # SourceNotFound, SourceUnavailable, StatementParseError
 ├── application/
-│   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot
+│   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot,
+│   │                         # company (компания по ИНН без заявки)
 │   ├── interfaces/           # sources (порты источников + Sources), repositories,
 │   │                         # statement_parser, registry_cache
 │   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
-│                             # latest_cashflow, lookup_registry, lookup_person_bureau
+│                             # latest_cashflow, lookup_registry, lookup_person_bureau, lookup_company
 ├── infrastructure/
 │   ├── config.py             # ENRICHMENT_* из окружения
 │   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
@@ -71,7 +72,7 @@ enrichment/
 | `gir_bo` | ГИР БО: бухотчётность за два последних года | `AccountingReportsSource` → `gir_bo_http.py` | `GET /gir-bo/{inn}` | `gir_bo: AccountingReportsDTO` |
 | `kontur` | Контур.Фокус: арбитраж, исполнительные производства, банкротство, госконтракты | `CounterpartyRiskSource` → `kontur_http.py` | `GET /kontur/{inn}` | `kontur: CounterpartyRiskDTO` |
 | `bki_head` | БКИ руководителя по реестру | `PersonBureauSource` → `bki_person_http.py` | `POST /bki/person-report` | `bki_head: CreditHistoryDTO` |
-| `aml` | проверка по 115-ФЗ: бенефициары (больше 25% прямо или по цепочке учредителей-юрлиц), перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ), ПДЛ, уровень риска ЗСК — [`compliance-115.md`](../compliance-115.md) | `AmlListsSource`, `PepSource`, `ZskSource` → `aml_http.py`; цепочка — `RegistrySource`; расчёт — `check_aml.py`, `domain/beneficial_owners.py` | `POST /rfm/screen`, `POST /pep/screen`, `GET /zsk/{inn}` | `aml: AmlCheckDTO` |
+| `aml` | проверка по 115-ФЗ: бенефициары (больше 25% прямо или по цепочке учредителей-юрлиц), перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ), ПДЛ, уровень риска ЗСК, сверка бенефициаров со слов клиента с ЕГРЮЛ, действующие лицензии — [`compliance-115.md`](../compliance-115.md) | `AmlListsSource`, `PepSource`, `ZskSource` → `aml_http.py`; `LicenseSource` → `licenses_http.py`; цепочка — `RegistrySource`; расчёт — `check_aml.py`, `domain/beneficial_owners.py` | `POST /rfm/screen`, `POST /pep/screen`, `GET /zsk/{inn}`, `GET /licenses/{inn}` | `aml: AmlCheckDTO` |
 | `bank_stop_list` | внутренний стоп-лист банка (АБС): в нём ли компания и почему; собственные данные банка, согласия не требуют. Боевая АБС — другой адаптер за тем же портом | `BankStopListSource` → `bank_stop_list_http.py` | `GET /abs/stop-list/{inn}` | `bank_stop_list: BankStopListDTO` |
 | `bank_turnover` | обороты по расчётному счёту в банке (АБС): клиент банка с какой даты (`client_since`) и поступления / списания по месяцам за 24 месяца, без текущего; `annual_inflow` — поступления за 12 месяцев. Собственные данные банка, согласия не требуют | `BankTurnoverSource` → `bank_turnover_http.py` | `GET /abs/accounts/{inn}` | `bank_turnover: BankTurnoverDTO` |
 | `statement` | прогноз по выпискам клиента (внутренний, не внешний источник) | `StatementParser` → `statement_csv.py`, расчёт — `CashflowBuilder` | — | `cashflow: CashflowForecastDTO` |
@@ -105,21 +106,33 @@ aml: {
   beneficial_owners: [{ name, basis: "ownership" | "head_by_default" | "entrepreneur",
                         share_percent | null }],
   subjects: [{ role: "company" | "founder_company" | "head" | "beneficial_owner" |
-                     "representative" | "beneficiary" | "pledgor",
-                name, inn | null }],                    // кого проверили
+                     "founder" | "representative" | "beneficiary" | "pledgor" |
+                     "declared_owner",
+                name, inn | null,
+                country | null }],                      // кого проверили; страна — если не RU
   list_hits: [{ subject, list: "terrorism" | "freeze" | "wmd", record }],
-  pep_hits: [{ subject, kind: "foreign" | "russian" | "international", position }]
+  pep_hits: [{ subject, kind: "foreign" | "russian" | "international", position }],
+  declared_owners: [{ name, basis: "ownership" | "control", country | null }] | null,
+                                                      // со слов клиента; null — не ответил
+  owner_discrepancies: [{ name, kind: "not_declared" | "not_in_registry" }],
+  licenses: [{ number, activity, okved }] | null     // действующие; null — снимок до v9
 } | null                                              // null — проверка не выполнена (aml в failed)
 ```
 
 **Проверка по 115-ФЗ (`aml`)** идёт после остальных источников, потому что ей нужна выписка ЕГРЮЛ
 этого же снимка: руководитель, учредители, цепочка владения. Делается на каждой команде заново —
 повторный заёмщик проверяется так же, как новый, кеша нет. Проверяются компания и учредители-юрлица
-цепочки (по ИНН), руководитель, бенефициары и представитель — тот, кто подал заявку, если это не
-руководитель (`FetchEnrichment.representative`), а также третьи лица из заявки
-(`FetchEnrichment.third_parties`): выгодоприобретатель (`beneficiary`) и владелец залога третьего
-лица (`pledgor`) — организация по ИНН, физлицо по ФИО. Не ответил ЕГРЮЛ, не найдено звено цепочки, не
-ответили перечни, база ПДЛ или ЗСК — `aml` в `failed` с видом `incomplete` или ошибкой источника:
+цепочки (по ИНН), руководитель, бенефициары, остальные учредители-физлица с любой долей (`founder`)
+и представитель — тот, кто подал заявку, если это не руководитель
+(`FetchEnrichment.representative`), а также третьи лица из заявки (`FetchEnrichment.third_parties`):
+выгодоприобретатель (`beneficiary`) и владелец залога третьего лица (`pledgor`) — организация по
+ИНН, физлицо по ФИО. Бенефициары со слов клиента (`FetchEnrichment.declared_owners`) сверяются с
+ЕГРЮЛ: бенефициар по доле, которого клиент не назвал, — `not_declared`; названный владельцем больше
+25%, а по реестру нет, — `not_in_registry`; названный по контролю (`control`) не сверяется, но
+проверяется по перечням (`declared_owner`). Страна учредителя — из выписки ЕГРЮЛ (`Страна`, Россия —
+`null`), остальных — со слов клиента. Лицензии — из реестра лицензий, только действующие; нужна ли
+лицензия, решает `decision`. Не ответил ЕГРЮЛ, не найдено звено цепочки, не ответили перечни, база
+ПДЛ, ЗСК или реестр лицензий — `aml` в `failed` с видом `incomplete` или ошибкой источника:
 лучше «проверка не выполнена», чем молча пропущенное совпадение. Незнакомый код перечня, категории
 ПДЛ или уровня ЗСК в ответе — тоже `bad_response`.
 
@@ -207,8 +220,10 @@ date;amount;counterparty_inn;counterparty_name;purpose
   `head {account_id, last_name, first_name, middle_name}` — руководитель по реестру,
   `head_bki_consent_at` — момент его личного согласия на запрос своей кредитной истории (identity,
   `/me/consents`); без согласия — `null`. Оба поля необязательные: старые команды читаются.
-  `third_parties [{role: "beneficiary" | "pledgor", kind: "person" | "organization", name, inn}]` —
-  третьи лица для проверки по 115-ФЗ; по умолчанию пусто.
+  `third_parties [{role: "beneficiary" | "pledgor", kind: "person" | "organization", name, inn,
+  country}]` — третьи лица для проверки по 115-ФЗ; по умолчанию пусто. `declared_owners [{name,
+  basis: "ownership" | "control", country}] | null` — бенефициары со слов клиента; `null` — не
+  ответил.
 - Публикует `enrichment.events` → `EnrichmentCompleted {application_id, snapshot_id, sources_ok,
   sources_failed, cash_gap_detected}` (`cash_gap_detected = None`, если выписок не было) — если
   ответил хотя бы один внешний источник (частичный результат — нормальный исход).
@@ -227,6 +242,12 @@ date;amount;counterparty_inn;counterparty_name;purpose
 - `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
   мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
   недоступен → `InfrastructureError` (503).
+- `lookup_company(inn)` — компания до заявки, для проверки по ИНН в clients: ЕГРЮЛ мимо кеша (как
+  `lookup_registry(fresh=True)`, кеш обновляется), затем параллельно ФНС, Контур и стоп-лист банка.
+  Согласий не нужно: открытые сведения и данные самого банка, БКИ сюда не входит. Реестр не знает
+  ИНН → `None`, остальных не спрашиваем; реестр недоступен → `InfrastructureError` (503). Не
+  ответил другой источник — его поле `None`, а источник и причина — в `sources_failed`. Ничего не
+  сохраняет: снимка по заявке нет.
 - В выписке `RegistryExtractDTO` есть `kpp` (`None` у ИП и в снимках, сохранённых до него).
 
 ## Моки (для README и `THIRD_PARTY_NOTICES`)

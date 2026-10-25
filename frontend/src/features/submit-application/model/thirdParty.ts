@@ -6,6 +6,8 @@ export interface ThirdPartyForm {
   kind: 'organization' | 'person'
   name: string
   inn: string
+  /** Код страны, пусто — Россия */
+  country: string
 }
 
 /** Ответ на вопрос о третьем лице; acts = null — клиент ещё не ответил */
@@ -15,16 +17,16 @@ export interface BeneficiaryForm {
   basis: BeneficiaryBasis | ''
 }
 
-export const emptyThirdParty = (): ThirdPartyForm => ({ kind: 'organization', name: '', inn: '' })
+export const emptyThirdParty = (): ThirdPartyForm => ({ kind: 'organization', name: '', inn: '', country: '' })
 
 export function toThirdPartyForm(party: ThirdPartyDto | null | undefined): ThirdPartyForm {
   if (!party) return emptyThirdParty()
-  return { kind: party.kind === 'person' ? 'person' : 'organization', name: party.name, inn: party.inn ?? '' }
+  return { kind: party.kind === 'person' ? 'person' : 'organization', name: party.name, inn: party.inn ?? '', country: party.country ?? '' }
 }
 
 export function toThirdPartyInput(party: ThirdPartyForm): ThirdPartyInput {
   const inn = party.inn.trim()
-  return { kind: party.kind, name: party.name.trim(), inn: inn || null }
+  return { kind: party.kind, name: party.name.trim(), inn: inn || null, country: party.country || null }
 }
 
 export function toBeneficiaryInput(form: BeneficiaryForm): BeneficiaryInput {
@@ -41,5 +43,6 @@ export function thirdPartyProblems(party: ThirdPartyForm, prefix: string): Recor
   }
   if (party.kind === 'organization' && !inn) errors[`${prefix}.inn`] = 'Укажите ИНН'
   else if (inn && !isValidInn(inn)) errors[`${prefix}.inn`] = 'Проверьте ИНН — в нём ошибка'
+  if (party.country && !/^[A-Z]{2}$/.test(party.country)) errors[`${prefix}.country`] = 'Код страны — две латинские буквы'
   return errors
 }

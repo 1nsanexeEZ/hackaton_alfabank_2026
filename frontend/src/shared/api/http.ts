@@ -2,13 +2,6 @@ import { humanMessage } from './errorMessages'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-/**
- * Режим API рабочего места сотрудников: mock — всё в браузере на синтетических данных,
- * real — вход, пользователи, роли и бэк-офис идут в бэкенд. Сайт для клиентов всегда ходит в бэкенд.
- * VITE_API_MODE не задан — решает тип сборки: npm run build (стенд) — real, npm run dev — mock.
- */
-export const API_MODE: 'mock' | 'real' = (import.meta.env.VITE_API_MODE ?? (import.meta.env.PROD ? 'real' : 'mock')) === 'real' ? 'real' : 'mock'
-
 /** Нарушение в поле: `{ code: "missing", field: "consents.credit_bureau" }` */
 export interface ApiViolation {
   code: string
@@ -60,7 +53,8 @@ export function currentToken(realm: AuthRealm = 'staff'): string | null {
   return providers[realm].getToken()
 }
 
-type Query = Record<string, string | number | undefined>
+/** Массив — повторяющийся параметр: `status=open&status=in_progress` */
+type Query = Record<string, string | number | readonly string[] | undefined>
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -80,38 +74,78 @@ export function apiUrl(path: string): string {
 function buildUrl(path: string, query?: Query): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined) params.set(key, String(value))
+    if (Array.isArray(value)) value.forEach((item) => params.append(key, item))
+    else if (value !== undefined) params.set(key, String(value))
   }
   const search = params.toString()
   return `${API_BASE_URL}${path}${search ? `?${search}` : ''}`
 }
 
-export async function http<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: options.text ? '*/*' : 'application/json' }
-  const provider = providers[options.realm ?? 'staff']
-  const token = provider.getToken()
+/** Запрос с токеном нужного интерфейса; FormData уходит как есть — заголовок multipart с границей ставит браузер */
+async function send(path: string, options: RequestOptions, accept: string): Promise<{ response: Response; token: string | null }> {
+  const headers: Record<string, string> = { Accept: accept }
+  const token = providers[options.realm ?? 'staff'].getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  const form = options.body instanceof FormData
+  if (options.body !== undefined && !form) headers['Content-Type'] = 'application/json'
 
-  let response: Response
   try {
-    response = await fetch(buildUrl(path, options.query), {
+    const response = await fetch(buildUrl(path, options.query), {
       method: options.method ?? 'GET',
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : form ? (options.body as FormData) : JSON.stringify(options.body),
     })
+    return { response, token }
   } catch {
     throw new ApiError(0, 'network_error', 'Сервер недоступен. Проверьте, что бэкенд запущен')
   }
+}
+
+/** Неудачный ответ — в ApiError того же формата, что у JSON-ручек */
+async function fail(response: Response, token: string | null, realm: AuthRealm = 'staff'): Promise<never> {
+  const data: unknown = await response.json().catch(() => null)
+  if (response.status === 401 && token) providers[realm].onUnauthorized()
+  throw toApiError(response.status, data, Boolean(token))
+}
+
+export async function http<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { response, token } = await send(path, options, options.text ? '*/*' : 'application/json')
 
   if (response.status === 204) return undefined as T
   if (response.ok && options.text) return (await response.text()) as T
+  if (!response.ok) return fail(response, token, options.realm)
 
-  const data: unknown = await response.json().catch(() => null)
-  if (response.ok) return data as T
+  return (await response.json().catch(() => null)) as T
+}
 
-  if (response.status === 401 && token) provider.onUnauthorized()
-  throw toApiError(response.status, data, Boolean(token))
+/** Файл из ответа и его имя из Content-Disposition (null — бэкенд имя не назвал) */
+export interface DownloadedFile {
+  blob: Blob
+  filename: string | null
+}
+
+/**
+ * Бинарный ответ (PDF договора). Обычная ссылка не подойдёт: ручке нужен заголовок Authorization,
+ * поэтому файл забираем fetch'ем, а сохраняет его saveFile из shared/lib.
+ */
+export async function httpFile(path: string, options: Omit<RequestOptions, 'text' | 'body'> = {}): Promise<DownloadedFile> {
+  const { response, token } = await send(path, options, '*/*')
+  if (!response.ok) return fail(response, token, options.realm)
+  return { blob: await response.blob(), filename: filenameFrom(response.headers.get('Content-Disposition')) }
+}
+
+/** `attachment; filename*=UTF-8''%D0%94…` или `filename="contract.pdf"` → имя файла */
+function filenameFrom(disposition: string | null): string | null {
+  if (!disposition) return null
+  const encoded = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(disposition)?.[1]
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded.trim().replace(/^"|"$/g, ''))
+    } catch {
+      // Битая кодировка — пробуем обычное filename ниже
+    }
+  }
+  return /filename\s*=\s*"?([^";]+)"?/.exec(disposition)?.[1]?.trim() ?? null
 }
 
 interface FastApiIssue {
@@ -140,11 +174,10 @@ function toApiError(status: number, data: unknown, authorized: boolean): ApiErro
       }))
       return new ApiError(status, 'validation_error', 'Проверьте введённые данные', { violations })
     }
+    // Такой ручки на бэкенде нет: роутер FastAPI отвечает { detail: "Not Found" } без кода бэкенда
+    if (status === 404 && detail === 'Not Found') {
+      return new ApiError(status, 'route_not_found', 'На бэкенде пока нет этой ручки')
+    }
   }
   return new ApiError(status, 'error', humanMessage(status, undefined, {}, authorized))
-}
-
-/** Имитация сетевой задержки для моков, чтобы были видны состояния загрузки */
-export function delay(ms = 300): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

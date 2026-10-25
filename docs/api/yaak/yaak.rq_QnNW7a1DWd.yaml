@@ -1,0 +1,34 @@
+type: http_request
+model: http_request
+id: rq_QnNW7a1DWd
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Примерить версию на прошлых заявках
+description: |-
+  The latest `limit` applications scored by the PD model, scored again by this
+  version from their stored input: score, PD, grade and segment before and after, and
+  how the grades moved. Nothing is written. scorecard_v1 results (no PD, grades A–E)
+  are left out.
+
+  Под андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки.
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/scoring/models/:version/preview
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+- enabled: false
+  name: limit
+  value: '20'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 7000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

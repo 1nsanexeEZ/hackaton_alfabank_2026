@@ -134,9 +134,9 @@ async function complete() {
         <SegmentedControl v-model="form.decision" :options="OUTCOMES" label="Решение" />
 
         <div v-if="withTerms" class="grid gap-3 sm:grid-cols-3">
-          <TextField v-model="form.amount" label="Сумма, ₽" inputmode="decimal" :error="errors.amount" dense />
-          <TextField v-model="form.termMonths" label="Срок, мес." inputmode="numeric" :error="errors.termMonths" dense />
-          <TextField v-model="form.rate" label="Ставка, %" inputmode="decimal" :error="errors.rate" dense />
+          <TextField v-model="form.amount" filter="amount" label="Сумма, ₽" :error="errors.amount" dense />
+          <TextField v-model="form.termMonths" filter="digits" label="Срок, мес." :error="errors.termMonths" dense />
+          <TextField v-model="form.rate" filter="decimal" label="Ставка, %" :error="errors.rate" dense />
         </div>
         <label v-if="withTerms" class="block">
           <span class="mb-2 block text-sm font-medium text-ink">Условия, по одному на строку</span>
@@ -161,7 +161,11 @@ async function complete() {
           <CheckboxField v-model="form.supportProgram">Господдержка — льготная ставка по программе</CheckboxField>
         </fieldset>
 
-        <fieldset v-if="form.decision === 'request_info'" class="space-y-2">
+        <fieldset
+          v-if="form.decision === 'request_info'"
+          class="space-y-2 rounded-lg"
+          :data-invalid="errors.documents ? 'true' : undefined"
+        >
           <legend class="mb-1 text-sm font-medium text-ink">Что запросить у клиента</legend>
           <CheckboxField v-for="type in REQUESTABLE" :key="type" v-model="form.documents[type]">
             {{ DOCUMENT_TITLE[type] ?? type }}
@@ -176,6 +180,7 @@ async function complete() {
             rows="3"
             class="w-full rounded-lg bg-surface px-3 py-2 text-sm text-ink outline-none focus:bg-white focus:ring-2 focus:ring-ink/20"
             :class="errors.comment && 'ring-2 ring-brand/40'"
+            :aria-invalid="Boolean(errors.comment)"
             placeholder="Почему такое решение"
           />
           <span v-if="errors.comment" class="mt-1 block text-sm text-brand">{{ errors.comment }}</span>

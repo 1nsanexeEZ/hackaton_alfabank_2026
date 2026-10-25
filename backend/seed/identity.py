@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ORG_MEMBER = [Policies.ORG_MEMBER]
+OWN_ONLY = [Policies.OWN_ONLY]
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +36,7 @@ class RoleSpec:
 ROLES: tuple[RoleSpec, ...] = (
     RoleSpec(
         name="client",
-        description="Клиент: заявки и компании, где он участник",
+        description="Клиент: заявки и компании, где он участник, свои обращения в поддержку",
         permissions=(
             Permissions.REQUESTS_READ,
             Permissions.REQUESTS_CREATE,
@@ -45,6 +46,9 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.ORGANIZATIONS_UPDATE,
             Permissions.FEED_READ,
             Permissions.PROFILE_UPDATE,
+            Permissions.SUPPORT_READ,
+            Permissions.SUPPORT_CREATE,
+            Permissions.ASSISTANT_USE,
         ),
         policies={
             Permissions.REQUESTS_READ: ORG_MEMBER,
@@ -52,11 +56,16 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.REQUESTS_UPDATE: ORG_MEMBER,
             Permissions.ORGANIZATIONS_READ: ORG_MEMBER,
             Permissions.ORGANIZATIONS_UPDATE: ORG_MEMBER,
+            # Support tickets: only the ones the client opened.
+            Permissions.SUPPORT_READ: OWN_ONLY,
+            Permissions.SUPPORT_CREATE: OWN_ONLY,
+            # The assistant answers about the applications of the client's companies.
+            Permissions.ASSISTANT_USE: ORG_MEMBER,
         },
     ),
     RoleSpec(
         name="underwriter",
-        description="Андеррайтер: заявки, задачи и решения всех клиентов",
+        description="Андеррайтер: заявки, задачи и решения всех клиентов, обращения в поддержку",
         permissions=(
             Permissions.REQUESTS_READ,
             Permissions.CREDITS_READ,
@@ -66,9 +75,17 @@ ROLES: tuple[RoleSpec, ...] = (
             Permissions.TASKS_READ,
             Permissions.TASKS_UPDATE,
             Permissions.DECISIONS_READ,
+            # Versions of the PD model and the credit policy: read and preview, without
+            # editing.
+            Permissions.SCORING_READ,
             Permissions.BACKOFFICE_READ,
             Permissions.FEED_READ,
             Permissions.PROFILE_UPDATE,
+            # Staff edit their own name; a client's name is locked (see Permissions).
+            Permissions.PROFILE_UPDATE_NAME,
+            # The support queue: take a ticket, answer, resolve.
+            Permissions.SUPPORT_MANAGE,
+            Permissions.ASSISTANT_USE,
         ),
     ),
 )

@@ -24,9 +24,27 @@ FOLDERS: list[tuple[str, str, str]] = [
         "Каталог, подбор по потребности, калькулятор, применимость; ведение каталога.",
     ),
     ("applications", "Заявки", "Черновик, документы, подача, предложение, договор, подпись."),
+    ("contracts", "Договор: правила и проверка", "Правила ЭП и публичная проверка договора."),
     ("process", "Процесс и задачи", "BPMN-процессы и задачи андеррайтера."),
     ("decision", "Предодобрение и стартапы", "Предодобрения, проверка учредителя, проект."),
+    (
+        "scoring",
+        "Модель скоринга",
+        "Версии PD-модели: черновик, правка, примерка на прошлых заявках, активация и откат.",
+    ),
+    (
+        "policies",
+        "Политика решения",
+        "Версии кредитной политики: черновик, правка, примерка на прошлых решениях, активация "
+        "и откат.",
+    ),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
+    ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
+    (
+        "assistant",
+        "Умный помощник",
+        "Кто отвечает (модель или шаблоны), заявки для чата, диалог: ответ целиком или потоком.",
+    ),
     ("bff", "BFF клиента", "Экраны кабинета клиента одним запросом."),
     ("backoffice", "BFF бэк-офиса", "Очередь, карточка андеррайтера, метрики."),
     ("admin", "Администрирование", "Аккаунты и роли: создаём свои и на них пробуем."),
@@ -67,6 +85,7 @@ NAMES: dict[str, str] = {
     "POST /products/{code}/calculate": "Калькулятор платежей",
     "GET /products/{code}/eligibility": "Подходит ли продукт компании",
     "GET /organizations": "Компании",
+    "POST /organizations/inn-check": "Проверить компанию по ИНН",
     "GET /organizations/{organization_id}": "Карточка компании",
     "POST /organizations/{organization_id}/verification": "Сверить с реестрами",
     "GET /organizations/{organization_id}/members": "Участники компании",
@@ -96,6 +115,10 @@ NAMES: dict[str, str] = {
     "GET /applications/{application_id}/contract": "Договор перед подписанием",
     "POST /applications/{application_id}/sign": "Подписать договор",
     "POST /applications/{application_id}/cancel": "Отменить заявку",
+    "GET /applications/{application_id}/contract/document": "Договор (PDF)",
+    "GET /esign/rules": "Правила электронного взаимодействия",
+    "GET /contracts/verify/{document_id}": "Проверка договора по QR",
+    "POST /contracts/verify": "Проверка файла договора",
     "GET /tasks": "Очередь задач",
     "GET /tasks/{task_id}": "Задача",
     "POST /tasks/{task_id}/claim": "Взять задачу",
@@ -116,6 +139,23 @@ NAMES: dict[str, str] = {
     "POST /feed/{item_id}/read": "Прочитать событие",
     "GET /news": "Новости для компании",
     "POST /news/{news_id}/read": "Прочитать новость",
+    "POST /support/tickets": "Задать вопрос в поддержку",
+    "GET /support/tickets": "Мои обращения",
+    "GET /support/tickets/{ticket_id}": "Обращение с перепиской",
+    "POST /support/tickets/{ticket_id}/messages": "Написать в обращение",
+    "POST /support/tickets/{ticket_id}/close": "Закрыть своё обращение",
+    "GET /support/queue": "Очередь обращений",
+    "GET /support/queue/{ticket_id}": "Карточка обращения",
+    "POST /support/queue/{ticket_id}/take": "Взять обращение",
+    "POST /support/queue/{ticket_id}/release": "Вернуть обращение в очередь",
+    "POST /support/queue/{ticket_id}/messages": "Ответить клиенту",
+    "POST /support/queue/{ticket_id}/resolve": "Решить обращение",
+    "POST /support/queue/{ticket_id}/close": "Закрыть обращение",
+    "GET /assistant/status": "Статус помощника",
+    "GET /assistant/applications": "Заявки для чата",
+    "POST /assistant/conversations": "Новый диалог",
+    "GET /assistant/conversations/{conversation_id}": "История диалога",
+    "POST /assistant/conversations/{conversation_id}/messages": "Вопрос помощнику",
     "GET /bff/dashboard": "Главный экран клиента",
     "GET /bff/applications": "Заявки компании",
     "GET /bff/applications/{application_id}": "Карточка заявки для клиента",
@@ -124,6 +164,22 @@ NAMES: dict[str, str] = {
     "GET /bff/backoffice/queue": "Очередь андеррайтера",
     "GET /bff/backoffice/applications/{application_id}": "Карточка андеррайтера",
     "GET /bff/backoffice/metrics": "Метрики бэк-офиса",
+    "GET /scoring/models": "Версии PD-модели",
+    "GET /scoring/models/catalog": "Из чего собирается модель",
+    "GET /scoring/models/{version}": "Версия модели с документом",
+    "POST /scoring/models": "Черновик модели",
+    "PUT /scoring/models/{version}": "Править черновик модели",
+    "DELETE /scoring/models/{version}": "Удалить черновик модели",
+    "POST /scoring/models/{version}/activate": "Активировать версию модели",
+    "POST /scoring/models/{version}/preview": "Примерить версию на прошлых заявках",
+    "GET /decision/policies": "Версии кредитной политики",
+    "GET /decision/policies/catalog": "Из чего собирается политика",
+    "GET /decision/policies/{version}": "Версия политики с документом",
+    "POST /decision/policies": "Черновик политики",
+    "PUT /decision/policies/{version}": "Править черновик политики",
+    "DELETE /decision/policies/{version}": "Удалить черновик политики",
+    "POST /decision/policies/{version}/activate": "Активировать версию политики",
+    "POST /decision/policies/{version}/preview": "Примерить политику на прошлых решениях",
     "GET /health": "Сервис жив",
     "GET /ready": "Сервис готов (БД, Kafka)",
 }
@@ -139,6 +195,20 @@ _CATALOG_KEEPING = {
     ("post", "/products/{code}/activate"),
 }
 YAAK_PRODUCT = "YAAK_DEMO"
+# Keeping the versions of the PD model: the admin works on a draft of its own.
+_MODEL_KEEPING = {
+    ("post", "/scoring/models"),
+    ("put", "/scoring/models/{version}"),
+    ("delete", "/scoring/models/{version}"),
+    ("post", "/scoring/models/{version}/activate"),
+}
+# The same for the versions of the credit policy.
+_POLICY_KEEPING = {
+    ("post", "/decision/policies"),
+    ("put", "/decision/policies/{version}"),
+    ("delete", "/decision/policies/{version}"),
+    ("post", "/decision/policies/{version}/activate"),
+}
 # Changes the demo data in a way the scenarios notice.
 _CAREFUL = (
     "Меняет демо-данные: после этого запроса сценарии могут вести себя иначе, "
@@ -173,6 +243,11 @@ NOTES: dict[str, str] = {
     "DELETE /products/{code}": (
         f"Опубликованный `{YAAK_PRODUCT}` уходит в архив, черновик удаляется."
     ),
+    "POST /organizations/inn-check": (
+        "Под андеррайтером: клиенту проверка недоступна. В теле — ИНН Ромашки с ОГРН Вектора: "
+        "итог `fail`, ИНН и ОГРН от разных компаний. Уберите `ogrn` — будет `ok`. Демо-ИНН "
+        "для всех исходов — в `docs/modules/clients.md`, раздел «Проверка по ИНН до заявки»."
+    ),
     "POST /organizations/{organization_id}/members": (
         "Добавляет ИП Иванова в Ромашку сотрудником: смена роли, доверенность и удаление — "
         "над ним, бухгалтер Ромашки остаётся на месте."
@@ -200,9 +275,83 @@ NOTES: dict[str, str] = {
     "GET /tasks/{task_id}": _TASK,
     "POST /tasks/{task_id}/claim": _TASK,
     "POST /tasks/{task_id}/complete": f"{_TASK} {_CAREFUL}",
+    "POST /contracts/verify": (
+        "Файл выбирается в Yaak: Body → Multipart Form, поле `file` — PDF договора. Ответ "
+        "скажет, цела ли подпись банка и совпадает ли файл с экземпляром в архиве."
+    ),
+    "GET /contracts/verify/{document_id}": (
+        "Без входа: страница, куда ведёт QR-код договора. Документ — PDF договора самой новой "
+        "заявки Ромашки (`contract_document_id`)."
+    ),
     "GET /feed/stream": (
         "Поток не заканчивается сам: остановите запрос, когда насмотритесь. Билет одноразовый, "
         "новый берётся при каждой отправке."
+    ),
+    "POST /support/tickets": (
+        "Обращение Ромашки: отсюда `ticket_id` справочника, с ним работают и запросы очереди."
+    ),
+    "GET /assistant/status": (
+        "Без входа. `mode: llm` — отвечает модель, `rules` — шаблоны; `provider` — `local`, "
+        "`api` или `off`, см. docs/ai.md."
+    ),
+    "POST /assistant/conversations": (
+        "Диалог Ромашки: отсюда `conversation_id` справочника, им пользуются вопрос и история."
+    ),
+    "POST /assistant/conversations/{conversation_id}/messages": (
+        "Ответ целиком; с заголовком `Accept: text/event-stream` — поток SSE: `status`, "
+        "`delta`, `done`. `fallback_reason` — почему ответил шаблон."
+    ),
+    "POST /support/tickets/{ticket_id}/close": (
+        "Закрытое обращение финально: в него больше не пишет никто. Для запросов очереди "
+        "задайте новый вопрос."
+    ),
+    "POST /support/queue/{ticket_id}/take": (
+        "Второй раз — 409 `already_taken`: взятое обращение не берёт никто, даже тот, "
+        "кто его держит."
+    ),
+    "POST /support/queue/{ticket_id}/messages": (
+        "Сначала «Взять обращение»: в невзятое — 409 `not_taken`."
+    ),
+    "POST /scoring/models": (
+        "Копия встроенной модели `pd_model_v2`: отсюда `model_version` справочника "
+        "(`pd_model_v2.1`, `pd_model_v2.2`…), с ним работают запросы папки."
+    ),
+    "PUT /scoring/models/{version}": (
+        "Документ черновика как есть, из «Версия модели с документом»: поменяйте баллы или "
+        "границы и отправьте. Дырявые бины — 422 со списком `{path, message}`."
+    ),
+    "POST /scoring/models/{version}/activate": (
+        "С этого момента новые заявки и предодобрения считаются этой версией. Вернуть "
+        "встроенную — тот же запрос с `pd_model_v2` вместо версии черновика."
+    ),
+    "DELETE /scoring/models/{version}": (
+        "Удаляется только черновик: после «Активировать версию модели» — 409 `invalid_transition`."
+    ),
+    "POST /scoring/models/{version}/preview": (
+        "Под андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой "
+        "версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки."
+    ),
+    "POST /decision/policies": (
+        "Копия встроенной политики `policy_v10`: отсюда `policy_version` справочника "
+        "(`policy_v10.1`, `policy_v10.2`…), с ним работают запросы папки."
+    ),
+    "PUT /decision/policies/{version}": (
+        "Документ черновика как есть, из «Версия политики с документом»: поменяйте стоп-факторы, "
+        "лимиты или матрицу и отправьте. Код причины без текста для клиента, грейд вне шкалы — "
+        "422 со списком `{path, message}`."
+    ),
+    "POST /decision/policies/{version}/activate": (
+        "С этого момента новые решения, предодобрения и ночной пересчёт идут этой версией. "
+        "Вернуть встроенную — тот же запрос с `policy_v10` вместо версии черновика."
+    ),
+    "DELETE /decision/policies/{version}": (
+        "Удаляется только черновик: после «Активировать версию политики» — 409 "
+        "`invalid_transition`."
+    ),
+    "POST /decision/policies/{version}/preview": (
+        "Под андеррайтером: последние автоматические решения принимаются заново этой версией на "
+        "текущих данных заявки, ничего не пишется. Пусто — сначала пройдите сценарий с подачей "
+        "заявки."
     ),
 }
 
@@ -267,6 +416,8 @@ def _bodies() -> dict[str, Any]:
         "POST /auth/login": {"login": ACCOUNTS["romashka"][0], "password": var("demo_password")},
         "POST /auth/demo-login": {"login": ACCOUNTS["romashka"][0]},
         "PATCH /me/profile": {"position": "Генеральный директор"},
+        # The INN of «Ромашка» with the OGRN of «Вектор»: a mismatch.
+        "POST /organizations/inn-check": {"inn": INN["romashka"], "ogrn": "1037702309116"},
         "POST /me/consents": {"types": ["personal_data", "credit_bureau_personal"]},
         "POST /organizations/{organization_id}/consents": {"types": ["credit_bureau_company"]},
         "POST /accounts": {
@@ -324,6 +475,7 @@ def _bodies() -> dict[str, Any]:
             "version": Raw(answer(ref("GET", application), "$.version", behavior="always")),
             "request": {"amount": "1000000", "term_months": 12, "purpose": "cash_gap"},
             "consents": {"personal_data": True, "credit_bureau": True},
+            "beneficiary": {"acts_for_third_party": False},
         },
         f"POST {application}/documents": {
             "type": "bank_statement",
@@ -335,6 +487,8 @@ def _bodies() -> dict[str, Any]:
         f"POST {application}/sign": {
             "password": var("demo_password"),
             "offer_hash": answer(ref("GET", f"{application}/contract"), "$.offer_hash"),
+            "document_hash": answer(ref("GET", f"{application}/contract"), "$.document.sha256"),
+            "rules_version": answer(ref("GET", "/esign/rules"), "$.version"),
         },
         f"POST {application}/cancel": {"reason": "Передумали"},
         "POST /tasks/{task_id}/complete": {
@@ -345,6 +499,36 @@ def _bodies() -> dict[str, Any]:
             "comment": "Решение из справочника коллекции",
         },
         "POST /bff/products/{code}/calculate": {"amount": "3000000", "term_months": 24},
+        "POST /support/tickets": {
+            "subject": "Продление овердрафта",
+            "text": "Добрый день! Можно продлить овердрафт без новой заявки?",
+        },
+        "POST /support/tickets/{ticket_id}/messages": {"text": "Уточню: лимит нужен тот же."},
+        "POST /assistant/conversations/{conversation_id}/messages": {
+            "text": "Что решил банк по моей заявке?",
+            "application_id": var("application_id"),
+        },
+        "POST /support/queue/{ticket_id}/messages": {
+            "text": "Здравствуйте! Да, за месяц до конца срока придёт предложение продлить.",
+        },
+        "POST /scoring/models": {
+            "based_on": "pd_model_v2",
+            "comment": "Черновик из коллекции Yaak",
+        },
+        # The document of the draft as it is: the admin changes points or bounds in it.
+        "PUT /scoring/models/{version}": {
+            "body": Raw(answer(ref("GET", "/scoring/models/{version}"), "$.body")),
+            "comment": "Правка из коллекции Yaak",
+        },
+        "POST /decision/policies": {
+            "based_on": "policy_v10",
+            "comment": "Черновик из коллекции Yaak",
+        },
+        # The document of the draft as it is: the admin changes stop factors or limits in it.
+        "PUT /decision/policies/{version}": {
+            "body": Raw(answer(ref("GET", "/decision/policies/{version}"), "$.body")),
+            "comment": "Правка из коллекции Yaak",
+        },
     }
 
 
@@ -370,17 +554,31 @@ def reference_variables() -> dict[str, str]:
         "feed_item_id": answer(ref("GET", "/feed"), "$.items[0].id"),
         "news_id": answer(ref("GET", "/news"), "$[0].id"),
         "workflow_code": answer(ref("GET", "/workflows"), "$[0].code"),
+        "contract_document_id": answer(
+            ref("GET", "/applications/{application_id}/contract"), "$.document.id"
+        ),
+        "ticket_id": answer(ref("POST", "/support/tickets"), "$.id"),
+        "model_version": answer(ref("POST", "/scoring/models"), "$.version"),
+        "policy_version": answer(ref("POST", "/decision/policies"), "$.version"),
+        "conversation_id": answer(ref("POST", "/assistant/conversations"), "$.id"),
     }
 
 
 def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
     if not operation.get("security"):
         return None
-    if path.startswith(("/accounts", "/roles")) or (method, path) in _CATALOG_KEEPING:
+    if (
+        path.startswith(("/accounts", "/roles"))
+        or (method, path) in _CATALOG_KEEPING
+        or (method, path) in _MODEL_KEEPING
+        or (method, path) in _POLICY_KEEPING
+    ):
         return "admin"
-    if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice")):
+    if path.startswith(("/scoring/models", "/decision/policies")):
         return "underwriter"
-    if (method, path) == ("get", "/organizations"):
+    if path.startswith(("/tasks", "/processes", "/workflows", "/bff/backoffice", "/support/queue")):
+        return "underwriter"
+    if (method, path) in {("get", "/organizations"), ("post", "/organizations/inn-check")}:
         return "underwriter"
     if path.endswith(_STARTUP_PATHS):
         return "start"
@@ -392,6 +590,8 @@ def _folder(path: str, tags: list[str]) -> str:
         return "backoffice"
     if path.startswith(("/accounts", "/roles")):
         return "admin"
+    if path.startswith("/decision/policies"):
+        return "policies"
     if tags[0] == "news":
         return "feed"
     return tags[0]
@@ -404,6 +604,8 @@ def _path_value(method: str, path: str, param: str) -> str:
         return var("new_account_id" if path.startswith("/accounts") else "member_account_id")
     if param == "role_id":
         return var("new_role_id")
+    if path.startswith("/contracts/") and param == "document_id":
+        return var("contract_document_id")
     if param == "item_id":
         return var("feed_item_id")
     if param == "code":
@@ -412,6 +614,8 @@ def _path_value(method: str, path: str, param: str) -> str:
         return YAAK_PRODUCT if (method, path) in _CATALOG_KEEPING else "UNSECURED"
     if param == "type":
         return "credit_bureau_company" if path.startswith("/organizations") else "personal_data"
+    if param == "version":
+        return var("policy_version" if path.startswith("/decision/policies") else "model_version")
     return var(param)
 
 
@@ -523,4 +727,6 @@ def add_reference(collection: Collection, openapi: dict[str, Any]) -> None:
 def _empty_body(operation: dict[str, Any]) -> Any:
     """A required body with no example gets `{}`: the 422 tells what it misses."""
     body = operation.get("requestBody")
-    return {} if body and body.get("required") else None
+    if not body or not body.get("required") or "multipart/form-data" in body.get("content", {}):
+        return None  # a file is picked in Yaak itself
+    return {}

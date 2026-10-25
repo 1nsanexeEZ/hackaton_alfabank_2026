@@ -1,0 +1,29 @@
+type: http_request
+model: http_request
+id: rq_nE273FUO07
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_q0wUTDO0aH
+name: Удалить черновик политики
+description: |-
+  Only a draft; an active or archived version — 409 `invalid_transition`: decisions
+  were made by it.
+
+  Удаляется только черновик: после «Активировать версию политики» — 409 `invalid_transition`.
+
+  Токен: администратор.
+method: DELETE
+url: ${[ base_url ]}/decision/policies/:version
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ policy_version ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

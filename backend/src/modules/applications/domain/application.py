@@ -14,6 +14,7 @@ from uuid import UUID
 
 from src.core.exceptions.exceptions import ConflictError, NotFoundError, ValidationError
 from src.modules.applications.domain.entities import (
+    BENEFICIARY_CONTRACT,
     OPTIONAL_DOCUMENT_TYPES,
     Document,
     InfoRequest,
@@ -45,10 +46,12 @@ from src.modules.applications.domain.value_objects import (
     CollateralDeclaration,
     Consents,
     DecisionSummary,
+    DeclaredOwner,
     Disbursement,
     LoanRequest,
     Offer,
     OrganizationSnapshot,
+    OwnersDeclaration,
     ProductTerms,
     ProfileConsent,
     Signature,
@@ -77,6 +80,7 @@ class CreditApplication:
         collateral: CollateralDeclaration | None = None,
         consents: Consents | None = None,
         beneficiary: BeneficiaryDeclaration | None = None,
+        beneficial_owners: OwnersDeclaration | None = None,
         org_snapshot: OrganizationSnapshot | None = None,
         documents: list[Document] | None = None,
         info_requests: list[InfoRequest] | None = None,
@@ -102,6 +106,8 @@ class CreditApplication:
         self.consents = consents or Consents()
         # None — the client has not answered whether it acts for a third party (115-FZ).
         self.beneficiary = beneficiary
+        # None — the client has not named its beneficial owners (115-FZ art. 6.1).
+        self.beneficial_owners = beneficial_owners
         self.org_snapshot = org_snapshot
         self.documents: list[Document] = list(documents or [])
         self.info_requests: list[InfoRequest] = list(info_requests or [])
@@ -254,6 +260,21 @@ class CreditApplication:
         self.beneficiary = None
         self.updated_at = now
 
+    def declare_owners(
+        self, owners: tuple[DeclaredOwner, ...], *, account_id: UUID, now: datetime
+    ) -> None:
+        """The client's beneficial owners (115-FZ art. 6.1); a new answer replaces the old."""
+        self._ensure_editable("beneficial_owners")
+        self.beneficial_owners = OwnersDeclaration(
+            owners=owners, declared_by=account_id, declared_at=now
+        )
+        self.updated_at = now
+
+    def withdraw_owners(self, now: datetime) -> None:
+        self._ensure_editable("beneficial_owners")
+        self.beneficial_owners = None
+        self.updated_at = now
+
     def set_consents(
         self,
         *,
@@ -345,7 +366,12 @@ class CreditApplication:
                 )
         elif self.status is S.INFO_REQUESTED:
             request = self.open_info_request
-            if request is None or document_type not in request.requested_documents:
+            # With the beneficiary section open the client may attach the agreement itself:
+            # otherwise a changed answer would have no way to get its document uploaded.
+            if request is None or not (
+                document_type in request.requested_documents
+                or (document_type == BENEFICIARY_CONTRACT and request.allows_field("beneficiary"))
+            ):
                 raise ValidationError(
                     "The bank did not ask for this document",
                     details={"field": "type", "code": "unexpected_document"},
@@ -431,6 +457,9 @@ class CreditApplication:
             for document_type in terms.documents_for(amount, legal_form)
             if document_type not in uploaded_types
         ]
+        missing_contract = self._missing_beneficiary_contract()
+        if missing_contract is not None:
+            violations.append(missing_contract)
         if self.consents.personal_data_at is None:
             violations.append(Violation("missing", "consents.personal_data"))
         if self.consents.credit_bureau_at is None:
@@ -438,6 +467,20 @@ class CreditApplication:
         if has_other_active:
             violations.append(Violation("duplicate_active", "product_code"))
         return violations
+
+    def _missing_beneficiary_contract(self) -> Violation | None:
+        """The client acts for a third party (115-FZ), but the agreement with it is not uploaded.
+        Any uploaded `beneficiary_contract` counts, whenever it was attached."""
+        declaration = self.beneficiary
+        if declaration is None or not declaration.acts_for_third_party:
+            return None
+        if self.uploaded_documents(BENEFICIARY_CONTRACT):
+            return None
+        return Violation(
+            "missing",
+            f"documents.{BENEFICIARY_CONTRACT}",
+            {"type": BENEFICIARY_CONTRACT, "basis": declaration.basis},
+        )
 
     def submit(
         self,
@@ -552,15 +595,16 @@ class CreditApplication:
             )
         attached = [d for d in self.uploaded_documents() if d.info_request_id == request.id]
         missing = [t for t in request.requested_documents if t not in {d.type for d in attached}]
-        if missing:
+        violations = [Violation("missing", f"documents.{t}", {"type": t}) for t in missing]
+        if request.allows_field("beneficiary") and BENEFICIARY_CONTRACT not in missing:
+            # the client may have changed the answer to "acts for a third party"
+            contract = self._missing_beneficiary_contract()
+            if contract is not None:
+                violations.append(contract)
+        if violations:
             raise ValidationError(
                 "Upload the requested documents first",
-                details={
-                    "violations": [
-                        Violation("missing", f"documents.{t}", {"type": t}).as_dict()
-                        for t in missing
-                    ]
-                },
+                details={"violations": [v.as_dict() for v in violations]},
             )
         assert actor.account_id is not None
         request.answer(actor.account_id, now)

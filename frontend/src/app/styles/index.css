@@ -27,6 +27,11 @@
   --color-on-night: rgb(255 255 255 / 0.94);
   --color-on-night-secondary: rgb(238 238 251 / 0.55);
 
+  /* Индикатор состояния на тёмном фоне (точка на кнопке «Умный помощник»): работает, частично, недоступен */
+  --color-signal-ok: #4ade80;
+  --color-signal-warn: #f5c451;
+  --color-signal-off: #6b6b75;
+
   --color-surface: #f2f3f5;
   --color-surface-strong: #e6e8eb;
   --color-surface-soft: #f5f7f9;
@@ -51,7 +56,7 @@
 
   body {
     @apply bg-white font-sans text-ink antialiased;
-    /* Декоративные стикеры могут выступать за край — не даём им создать горизонтальную прокрутку */
+    /* Декор и ленты карточек могут выступать за край — не даём им создать горизонтальную прокрутку */
     overflow-x: clip;
   }
 
@@ -116,6 +121,61 @@
   }
 }
 
+/*
+ * Под открытой модалкой (BaseModal ставит has-modal) страница не анимируется: её никто не видит
+ * под затемнением, а постоянная перерисовка мешает плавно прокручивать окно. Модалки телепортированы
+ * в body — правило их не задевает.
+ */
+html.has-modal :is(main, header, footer) *,
+html.has-modal :is(main, header, footer) *::before,
+html.has-modal :is(main, header, footer) *::after {
+  animation-play-state: paused !important;
+}
+
+/*
+ * Обязательное не заполнено или нужное не выбрано: поле или кнопка вздрагивает и вспыхивает красным
+ * (shared/lib/shake.ts ставит класс и снимает его после анимации)
+ */
+.is-invalid-shake {
+  animation:
+    invalid-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97),
+    invalid-glow 1.3s ease-out;
+}
+
+label.is-invalid-shake {
+  border-radius: 0.5rem;
+}
+
+@keyframes invalid-shake {
+  10%,
+  90% {
+    translate: -1px 0;
+  }
+  20%,
+  80% {
+    translate: 2px 0;
+  }
+  30%,
+  50%,
+  70% {
+    translate: -5px 0;
+  }
+  40%,
+  60% {
+    translate: 5px 0;
+  }
+}
+
+@keyframes invalid-glow {
+  0%,
+  35% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 0%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -126,5 +186,11 @@
   *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  /* Без движения, но красная вспышка остаётся: иначе не видно, что не так */
+  .is-invalid-shake {
+    animation-name: invalid-glow !important;
+    animation-duration: 1.3s !important;
   }
 }

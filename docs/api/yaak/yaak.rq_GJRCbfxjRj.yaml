@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_GJRCbfxjRj
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Решить обращение
+description: |-
+  The question is answered; the client may still write and reopen it.
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/support/queue/:ticket_id/resolve
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 11000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

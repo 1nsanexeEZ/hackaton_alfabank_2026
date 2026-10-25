@@ -1,0 +1,28 @@
+type: http_request
+model: http_request
+id: rq_lcH0rjtIoX
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Взять обращение
+description: |-
+  The ticket becomes the caller's. Already taken (by anyone) — 409 `already_taken`.
+
+  Второй раз — 409 `already_taken`: взятое обращение не берёт никто, даже тот, кто его держит.
+
+  Токен: андеррайтер банка.
+method: POST
+url: ${[ base_url ]}/support/queue/:ticket_id/take
+urlParameters:
+- enabled: true
+  name: :ticket_id
+  value: ${[ ticket_id ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 8000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,4 +1,5 @@
-import type { FieldsSchema, LoanPurpose, Repayment } from '@/shared/api'
+import type { Facility, FieldsSchema, LoanPurpose, ProductStatus, Repayment } from '@/shared/api'
+import type { BadgeTone } from '@/shared/ui'
 
 /** Как клиент получает деньги: всей суммой сразу или частями в пределах лимита */
 export type ProductKind = 'lump-sum' | 'revolving'
@@ -91,4 +92,27 @@ export const REPAYMENT_LABEL: Record<Repayment, string> = {
   differentiated: 'Платёж уменьшается',
   interest_only: 'Проценты каждый месяц, долг в конце',
   by_contract_schedule: 'По графику контракта',
+}
+
+/* ---------- Ведение каталога в админке ---------- */
+
+export const FACILITY_LABEL: Record<Facility, string> = {
+  term_loan: 'Кредит одной суммой',
+  credit_line_revolving: 'Возобновляемая кредитная линия',
+  credit_line_non_revolving: 'Невозобновляемая кредитная линия',
+  overdraft: 'Овердрафт',
+}
+
+export const LEGAL_FORM_LABEL: Record<string, string> = { LLC: 'ООО', JSC: 'АО', IE: 'ИП' }
+
+export const PRODUCT_GUARANTEE_LABEL: Record<string, string> = {
+  none: 'Не нужно',
+  owner: 'Поручительство собственника',
+  msp_corporation: 'Гарантия Корпорации МСП',
+}
+
+export const PRODUCT_STATUS_META: Record<ProductStatus, { label: string; tone: BadgeTone }> = {
+  draft: { label: 'Черновик', tone: 'neutral' },
+  active: { label: 'В продаже', tone: 'success' },
+  archived: { label: 'Снят с продажи', tone: 'warning' },
 }

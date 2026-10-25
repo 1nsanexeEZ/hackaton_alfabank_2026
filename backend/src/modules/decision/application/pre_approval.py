@@ -82,7 +82,7 @@ class RecalculatePreApprovedUseCase:
         if company.verification_status != "verified":
             await self._repository.replace_for_organization(organization_id, offers)
             return offers
-        estimate = self._scoring.estimate(_company_profile(company))
+        estimate = await self._scoring.estimate(_company_profile(company))
         report = latest_annual_report(company)
         now = self._clock.now()
         valid_until = (now + timedelta(days=PRE_APPROVAL_VALID_DAYS)).date()

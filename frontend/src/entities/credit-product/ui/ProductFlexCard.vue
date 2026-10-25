@@ -4,6 +4,7 @@ import { computed } from 'vue'
 
 import { BaseBadge } from '@/shared/ui'
 
+import { productArt } from '../model/art'
 import type { CreditProduct } from '../model/types'
 
 /**
@@ -39,6 +40,7 @@ const TONES = [
 
 const tone = computed(() => TONES[props.index % TONES.length])
 const number = computed(() => String(props.index + 1).padStart(2, '0'))
+const art = computed(() => productArt(props.product.code))
 </script>
 
 <template>
@@ -57,7 +59,7 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
       @click="emit('expand')"
     />
 
-    <!-- Крупный номер — графический акцент вместо картинки -->
+    <!-- Крупный номер — графический акцент; у раскрытой карточки он слева, справа — иллюстрация продукта -->
     <span
       class="flex-card__number pointer-events-none absolute font-bold leading-none select-none"
       aria-hidden="true"
@@ -79,6 +81,16 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     </span>
 
     <div class="flex-card__content relative flex h-full flex-col justify-end p-6 lg:p-8">
+      <!-- Иллюстрация — украшение: продукт назван в заголовке. Одного размера у всех продуктов, текст её не сжимает -->
+      <img
+        v-if="art"
+        :src="art"
+        alt=""
+        width="400"
+        height="400"
+        decoding="async"
+        class="flex-card__art"
+      />
       <BaseBadge v-if="product.tag" tone="glass" class="flex-card__rise self-start">{{ product.tag }}</BaseBadge>
 
       <h3 class="flex-card__rise text-title mt-4" style="--rise-delay: 0.05s">{{ product.title }}</h3>
@@ -119,6 +131,8 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   --ease: cubic-bezier(0.05, 0.61, 0.41, 0.95);
   --spring: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* Картинка подстраивается под ширину карточки: у широкой раскрытой она крупнее */
+  container-type: inline-size;
   min-height: 4.5rem;
   transition:
     flex-grow 0.6s var(--ease),
@@ -144,8 +158,37 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
 }
 
 .is-expanded .flex-card__number {
+  right: auto;
+  left: 1.5rem;
   font-size: 7rem;
   opacity: 0.15;
+}
+
+/* Телефон: картинка над текстом сверху справа, одного размера у всех — карточка подрастает под текст */
+.flex-card__art {
+  flex: none;
+  align-self: flex-end;
+  width: 9rem;
+  height: 9rem;
+  margin: -0.5rem -0.5rem auto 0;
+  object-fit: contain;
+}
+
+/* Иллюстрация чуть покачивается на месте, пока карточка раскрыта */
+.is-expanded .flex-card__art {
+  animation:
+    flex-card-rise 0.6s var(--spring) both 0.25s,
+    flex-card-float 6s ease-in-out infinite 0.85s;
+}
+
+.is-paused .flex-card__art {
+  animation-play-state: running, paused;
+}
+
+@keyframes flex-card-float {
+  50% {
+    translate: 0 -0.5rem;
+  }
 }
 
 .flex-card__label {
@@ -240,8 +283,8 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
     min-height: 0;
   }
 
+  /* Наведение только приподнимает полоску: ширины в ряду не меняются, соседей не трясёт */
   .flex-card:not(.is-expanded):hover {
-    flex-basis: 7.5rem;
     translate: 0 -0.5rem;
     box-shadow: 0 1.5rem 2.5rem rgb(18 18 19 / 0.22);
     filter: brightness(1.12);
@@ -263,9 +306,9 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
 
   .is-expanded .flex-card__number {
     top: 1.5rem;
-    right: 2rem;
+    right: auto;
     bottom: auto;
-    left: auto;
+    left: 2rem;
     translate: none;
     animation: flex-card-number 0.8s var(--spring) both;
   }
@@ -297,6 +340,37 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   .flex-card__content {
     /* Контент не сжимается вместе с карточкой, а уезжает за край */
     min-width: 30rem;
+    /* Свой слой: картинка с z-index −1 уходит под текст, но не под фон карточки */
+    isolation: isolate;
+  }
+
+  /*
+   * Ряд фиксированной высоты: картинка не в потоке, а в правом верхнем углу — длинный заголовок
+   * или метка её не сжимают. Под текстом (z-index −1): если тексту тесно, он поверх.
+   */
+  .flex-card__art {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: -1;
+    width: 11.5rem;
+    height: 11.5rem;
+    margin: 0;
+    transition:
+      top 0.5s var(--spring),
+      right 0.5s var(--spring),
+      width 0.5s var(--spring),
+      height 0.5s var(--spring);
+  }
+
+  /* Широкая раскрытая карточка — в ряду два-три продукта: картинка крупно справа по центру */
+  @container (width >= 48rem) {
+    .flex-card__art {
+      top: calc(50% - 10rem);
+      right: 3rem;
+      width: 20rem;
+      height: 20rem;
+    }
   }
 }
 
@@ -342,7 +416,8 @@ const number = computed(() => String(props.index + 1).padStart(2, '0'))
   .flex-card__hint,
   .flex-card__chevron,
   .flex-card__rise,
-  .flex-card__number {
+  .flex-card__number,
+  .flex-card__art {
     animation: none !important;
   }
 }

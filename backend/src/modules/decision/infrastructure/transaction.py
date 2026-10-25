@@ -15,10 +15,14 @@ from src.core.messaging.outbox import OutboxWriter, SqlAlchemyOutboxWriter
 from src.core.uow import SqlAlchemyUnitOfWork
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.application.ports import (
+    PolicyVersionRepository,
     PreApprovalTransaction,
     PreApprovedOfferRepository,
 )
-from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
+from src.modules.decision.infrastructure.repository import (
+    SqlAlchemyPolicyVersionRepository,
+    SqlAlchemyPreApprovedOfferRepository,
+)
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -31,6 +35,7 @@ class _Bound:
 
     def __init__(self, session: AsyncSession, facades: FacadeRegistry, clock: Clock) -> None:
         self.offers = SqlAlchemyPreApprovedOfferRepository(session)
+        self.policy_versions = SqlAlchemyPolicyVersionRepository(session)
         self.clients = facades.get(ClientsFacade, session)
         self.products = facades.get(ProductsFacade, session)
         self.scoring = facades.get(ScoringFacade, session)
@@ -77,6 +82,10 @@ class SqlAlchemyPreApprovalTransaction(PreApprovalTransaction):
     @property
     def offers(self) -> PreApprovedOfferRepository:
         return self._objects().offers
+
+    @property
+    def policy_versions(self) -> PolicyVersionRepository:
+        return self._objects().policy_versions
 
     @property
     def clients(self) -> ClientsFacade:

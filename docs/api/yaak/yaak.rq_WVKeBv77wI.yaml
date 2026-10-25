@@ -27,7 +27,7 @@ body:
       "login": "ivanov@ip.test",
       "role": "employee"
     }
-sortPriority: 7000.0
+sortPriority: 8000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

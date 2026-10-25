@@ -121,6 +121,11 @@ class MlScore:
     reason_codes: tuple[str, ...]  # топ-3 признака, снизивших балл, по недобранным баллам
 
 
+# no_revenue — у компании нет выручки ни в заявке, ни по ФНС: ML-модель обучена на действующих
+# компаниях и пустой профиль принимает за средний.
+MlNotApplicable = Literal["no_revenue"]
+
+
 @dataclass(frozen=True, slots=True)
 class ScoringResult:
     id: UUID
@@ -144,6 +149,9 @@ class ScoringResult:
     reason_codes: tuple[str, ...] = ()  # топ-3 признака, снизивших балл, по потере баллов
     # ML-модель (scoring_0003); у результатов до неё — None.
     ml: MlScore | None = None
+    # Почему оценки ML нет (scoring_0006): модель не применима к этой заявке; None — посчитана
+    # или результат до scoring_0006.
+    ml_not_applicable: MlNotApplicable | None = None
     # Качество данных (scoring_0004): «Данные полные?» общей схемы; у результатов до неё — None.
     quality: QualityLevel | None = None
     quality_reasons: tuple[str, ...] = ()

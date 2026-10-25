@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeft } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 
 import { loanDraft, myApplications } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
@@ -12,6 +12,7 @@ import { NotificationsPanel } from '@/features/read-notifications'
 import { ApplicationModal } from '@/features/submit-application'
 import { ApplicationCard, MyApplicationsList } from '@/features/track-application'
 import type { LoanPurpose } from '@/shared/api'
+import { ROUTE_PATH } from '@/shared/config'
 import { clamp } from '@/shared/lib'
 import { AsyncState, BaseModal } from '@/shared/ui'
 
@@ -22,6 +23,16 @@ import { applyFlow, backFromCard, onLoggedIn, openApplicationCard, startApplicat
  * компания, профиль. Одни на весь сайт, открываются через startApplication / openLogin / openCabinet.
  */
 const { products, error, reload } = useProductCatalog()
+const router = useRouter()
+
+/** Из модалки — на страницу сайта (чат поддержки): модалку закрываем */
+function leaveTo(target: RouteLocationRaw) {
+  applyFlow.modal = null
+  void router.push(target)
+}
+
+/** Вопрос в поддержку по заявке: форма нового обращения с подставленной заявкой */
+const askAbout = (applicationId: string) => leaveTo({ path: ROUTE_PATH.support, query: { application: applicationId } })
 
 function modalModel(name: NonNullable<typeof applyFlow.modal>) {
   return computed({
@@ -74,7 +85,12 @@ function applyWith(
 </script>
 
 <template>
-  <CustomerLoginDrawer v-model:open="loginOpen" :description="loginDescription" @success="onLoggedIn" />
+  <CustomerLoginDrawer
+    v-model:open="loginOpen"
+    :description="loginDescription"
+    :next="applyFlow.continueToApplication ? 'application' : 'profile'"
+    @success="onLoggedIn"
+  />
 
   <ApplicationModal v-if="products" v-model:open="applicationOpen" :products="products" @switch-account="switchAccount" />
   <!-- Нажали «Оформить», пока каталог ещё грузится или не загрузился -->
@@ -86,27 +102,27 @@ function applyWith(
     <MyApplicationsList v-if="applicationsOpen" @open="openApplicationCard" @apply="startApplication()" />
   </BaseModal>
 
-  <BaseModal v-model:open="cardOpen" title="Заявка" wide>
-    <button
-      v-if="applyFlow.cardFrom"
-      type="button"
-      class="mb-4 flex items-center gap-1.5 text-sm font-medium text-ink-secondary hover:text-ink"
-      @click="backFromCard"
-    >
-      <ArrowLeft class="size-4" aria-hidden="true" />
-      {{ applyFlow.cardFrom === 'notifications' ? 'К уведомлениям' : 'Ко всем заявкам' }}
-    </button>
-    <ApplicationCard
-      v-if="cardOpen && applyFlow.cardId"
-      :application-id="applyFlow.cardId"
-      :products="products"
-      @continue-draft="(draft) => applyWith(draft.productCode, draft)"
-      @apply-product="(code) => applyWith(code)"
-    />
+  <!-- Окно заявки рисует себя целиком: тёмная шапка с этапами, вкладки, действия в подвале.
+       Высота постоянная: вкладки разной длины не двигают окно -->
+  <BaseModal v-model:open="cardOpen" title="Заявка" wide bare tall>
+    <template #default="{ close, titleId }">
+      <ApplicationCard
+        v-if="cardOpen && applyFlow.cardId"
+        :application-id="applyFlow.cardId"
+        :products="products"
+        :title-id="titleId"
+        :back-label="applyFlow.cardFrom ? (applyFlow.cardFrom === 'notifications' ? 'К уведомлениям' : 'Ко всем заявкам') : null"
+        @back="backFromCard"
+        @close="close"
+        @continue-draft="(draft) => applyWith(draft.productCode, draft)"
+        @apply-product="(code) => applyWith(code)"
+        @ask="askAbout"
+      />
+    </template>
   </BaseModal>
 
   <BaseModal v-model:open="notificationsOpen" title="Уведомления" description="События по заявкам и новости для вашего бизнеса" wide>
-    <NotificationsPanel v-if="notificationsOpen" @open-application="openApplicationCard" />
+    <NotificationsPanel v-if="notificationsOpen" @open-application="openApplicationCard" @open-link="leaveTo" />
   </BaseModal>
 
   <BaseModal v-model:open="companyOpen" title="Компания" wide>

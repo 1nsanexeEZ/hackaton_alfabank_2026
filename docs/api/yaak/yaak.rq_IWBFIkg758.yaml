@@ -1,0 +1,26 @@
+type: http_request
+model: http_request
+id: rq_IWBFIkg758
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Версия модели с документом
+description: |-
+  A version with its document (`body`), the same as the YAML file.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/scoring/models/:version
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

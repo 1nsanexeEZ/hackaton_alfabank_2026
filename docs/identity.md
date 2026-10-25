@@ -47,13 +47,17 @@
 {
   "name": "client",
   "permissions": ["requests.read", "requests.create", "requests.update", "credits.read",
-                  "organizations.read", "organizations.update", "feed.read", "profile.update"],
+                  "organizations.read", "organizations.update", "feed.read", "profile.update",
+                  "support.read", "support.create", "assistant.use"],
   "policies": {
     "requests.read": ["org_member"],
     "requests.create": ["org_member"],
     "requests.update": ["org_member"],
     "organizations.read": ["org_member"],
-    "organizations.update": ["org_member"]
+    "organizations.update": ["org_member"],
+    "support.read": ["own_only"],
+    "support.create": ["own_only"],
+    "assistant.use": ["org_member"]
   }
 }
 ```
@@ -74,11 +78,21 @@
 | `organizations.update` | ✓ `org_member` | ✓ только сверка с реестром | clients |
 | `tasks.read`, `tasks.update` | — | ✓ | process |
 | `decisions.read` | — | ✓ | decision |
-| `backoffice.read` | — | ✓ | bff |
+| `scoring.read` | — | ✓ | scoring: версии PD-модели, примерка; decision: версии кредитной политики, примерка |
+| `scoring.update` | — | — | scoring и decision: черновики, правка, активация и откат версий PD-модели и политики — у админа (`admin`) |
+| `backoffice.read` | — | ✓ | bff; проверка по ИНН до заявки — clients |
 | `feed.read` | ✓ | ✓ | notifications |
-| `profile.update` | ✓ | ✓ | identity |
+| `profile.update` | ✓ | ✓ | identity: своя должность |
+| `profile.update_name` | — | ✓ | identity: своё ФИО и должность (вместе с `profile.update`) |
+| `support.read`, `support.create` | ✓ `own_only` | — | support |
+| `support.manage` | — | ✓ | support |
+| `assistant.use` | ✓ `org_member` | ✓ | assistant (умный помощник): клиент спрашивает о заявках своих компаний, андеррайтер — о любой по id |
 
-`org_member` рядом с галочкой — политика на этом пермишне. У андеррайтера политик нет: он видит заявки и компании всех клиентов.
+`org_member` и `own_only` рядом с галочкой — политика на этом пермишне. У андеррайтера политик нет: он видит заявки и компании всех клиентов и всю очередь обращений в поддержку. `support.create` у клиента — «писать в свои обращения»: создать, написать сообщение, закрыть.
+
+**ФИО и должность клиента закрыты для правки.** ФИО подтверждает банк по паспорту при открытии счёта, должность руководителя — по ЕГРЮЛ, и на них держатся полномочие «по реестру» и сверка руководителя с ЕГРЮЛ (`clients`), подписант и штамп подписи в договоре (`applications`). Переименовавшись, клиент убрал бы расхождение с ЕГРЮЛ и обошёл ручную проверку. Поэтому у роли `client` нет `profile.update_name`: `PATCH /me/profile` с другим ФИО или должностью — 422 `{"code": "identity_locked", "fields": [...]}`, те же значения проходят (форма шлёт все поля). Сменился паспорт или должность — данные исправляет сотрудник через `PATCH /accounts/{id}` (`accounts.update`, у админа). Сотрудники меняют своё ФИО и должность сами.
+
+`scoring.read` и `profile.update_name` андеррайтер получает на уже поднятом стенде при следующем старте с сидом: роль приводится к объявленным правам, миграция не нужна. `scoring.update` ни одной роли сида не выдаётся — версии PD-модели и кредитной политики ведёт админ (`admin` разрешает всё), а при нужде право можно дать своей роли через `PATCH /roles/{role_id}`.
 
 ## Политики
 
@@ -112,7 +126,7 @@
 
 Чтобы эксперты не вводили пароли, есть вход без пароля в демо-учётки — организаторы разрешили «готовый демо-профиль».
 
-- Флаг `DEMO_LOGIN_ENABLED`, по умолчанию `false` (и в `Settings`, и в `docker-compose.yml`). В `.env.example` — `true` для локальной проверки.
+- Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` — `false`. В `.env.example` — `true`.
 - **На публичном стенде флаг выключен.** Ручка выдаёт токен без пароля: включать её там, где стенд доступен из интернета, нельзя.
 - Флаг выключен → обе ручки отвечают 404, как будто их нет.
 - `POST /auth/demo-login {"login": "owner@romashka.test"}` → тот же ответ, что у `/auth/login`. Логин — email или телефон демо-учётки. Логин не из списка (в том числе admin) или удалённая учётка → 404.
@@ -127,7 +141,7 @@
 | GET | `/auth/demo-accounts` | — | Список демо-учёток для кнопок входа; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
 | GET | `/.well-known/jwks.json` | — | Публичный ключ для проверки токенов |
 | GET | `/me` | любой валидный токен | Аккаунт, роль, профиль, пермишны и политики из токена |
-| PATCH | `/me/profile` | `profile.update` | Правка своего профиля |
+| PATCH | `/me/profile` | `profile.update` | Правка своего профиля; ФИО и должность — ещё и `profile.update_name`, без него другие значения — 422 `identity_locked` |
 | GET | `/me/consents` | любой валидный токен | Свои личные согласия: действующие и история, новые сверху |
 | POST | `/me/consents` | любой валидный токен | `{types: [...]}` → 201, данные согласия |
 | DELETE | `/me/consents/{type}` | любой валидный токен | Отзыв; повторный отзыв — тоже 204 |

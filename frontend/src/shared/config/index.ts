@@ -19,8 +19,9 @@ export function sectionHref(id: SectionId): string {
 
 /** Пункты навигации по лендингу — общие для шапки и футера */
 export const LANDING_NAV: readonly { label: string; section: SectionId }[] = [
-  { label: 'Продукты', section: SECTION_ID.products },
+  // Порядок — как секции на странице: калькулятор идёт раньше каталога
   { label: 'Калькулятор', section: SECTION_ID.calculator },
+  { label: 'Продукты', section: SECTION_ID.products },
   { label: 'Как это работает', section: SECTION_ID.process },
   { label: 'Вопросы', section: SECTION_ID.faq },
 ]
@@ -29,7 +30,10 @@ export const ROUTE_PATH = {
   home: '/',
   login: '/login',
   profile: '/profile',
+  support: '/support',
   admin: '/admin',
+  /** Публичная проверка договора по QR: /verify/<id документа> */
+  verify: '/verify',
 } as const
 
 /** Имена маршрутов рабочего места сотрудника */
@@ -39,8 +43,12 @@ export const ADMIN_ROUTE = {
   applications: 'admin-applications',
   application: 'admin-application',
   innCheck: 'admin-inn-check',
+  support: 'admin-support',
+  supportTicket: 'admin-support-ticket',
   products: 'admin-products',
   scoring: 'admin-scoring',
+  versions: 'admin-versions',
+  version: 'admin-version',
   users: 'admin-users',
   roles: 'admin-roles',
   profile: 'admin-profile',

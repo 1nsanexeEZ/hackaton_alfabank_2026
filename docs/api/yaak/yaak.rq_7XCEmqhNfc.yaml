@@ -1,0 +1,21 @@
+type: http_request
+model: http_request
+id: rq_7XCEmqhNfc
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_i55ggaV5Pj
+name: Статус помощника
+description: |-
+  Open to anyone: the site shows the assistant's state before login.
+
+  Без входа. `mode: llm` — отвечает модель, `rules` — шаблоны; `provider` — `local`, `api` или `off`, см. docs/ai.md.
+method: GET
+url: ${[ base_url ]}/assistant/status
+urlParameters: []
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { CircleCheck, CircleX, Download, Waves } from 'lucide-vue-next'
+import { AlertTriangle, CircleCheck, CircleX, Download, FileText, Waves } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
+import { beneficialOwnersLine, beneficiaryLine, CLIENT_STATUS_META, collateralOwnerLine, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, useProductCatalog } from '@/entities/credit-product'
 import { ProcessMap } from '@/entities/process'
 import {
+  amlRiskGroup,
   CATEGORY_LABEL,
   FACTOR_LABEL,
   FLAG_LABEL,
@@ -16,8 +17,10 @@ import {
   OUTCOME_LABEL,
   qualityReasonLabel,
   REASON_LABEL,
+  REGISTRY_STATUS_LABEL,
   RELIABILITY,
   REVIEW_LABEL,
+  reviewReasonText,
   SEGMENT_LABEL,
   SOURCE_LABEL,
   TASK_TYPE_LABEL,
@@ -26,9 +29,19 @@ import {
   type GradeZone,
 } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
-import { backofficeApi, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
-import { formatDate, formatDateTime, formatMoney, formatPercent, formatProbability, formatTerm, useAsyncData } from '@/shared/lib'
-import { AsyncState, BaseBadge, PanelCard, SegmentedControl } from '@/shared/ui'
+import { backofficeApi, type AccountingPeriodDto, type FactorDto, type Grade, type LoanPurpose } from '@/shared/api'
+import {
+  errorMessage,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatPercent,
+  formatProbability,
+  formatTerm,
+  saveFile,
+  useAsyncData,
+} from '@/shared/lib'
+import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 
 import { usePrelude } from '../model/usePrelude'
 import AmlCheckSection from './AmlCheckSection.vue'
@@ -56,14 +69,6 @@ const isStartup = computed(() => Boolean(products.value?.find((product) => produ
 const prelude = usePrelude(data, isStartup)
 const money = (value: string | null | undefined) => (value === null || value === undefined ? '—' : formatMoney(Number(value)))
 
-const REGISTRY_STATUS: Record<string, string> = {
-  active: 'Действует',
-  liquidating: 'Ликвидируется',
-  liquidated: 'Ликвидирована',
-  bankrupt: 'Банкротство',
-  reorganizing: 'Реорганизуется',
-  excluded: 'Исключена из реестра',
-}
 const REPORT_SOURCE: Record<string, string> = { declared: 'Заявлено', fns: 'ФНС', bank_statement: 'Выписки' }
 
 /**
@@ -102,6 +107,24 @@ async function refreshAfterDecision() {
 async function download(documentId: string) {
   const { url } = await backofficeApi.downloadDocument(props.applicationId, documentId)
   window.open(url, '_blank', 'noopener')
+}
+
+/** Договор в PDF — после подписи клиента: итоговый с подписью банка или, пока его нет, последний готовый */
+const contractSigned = computed(() => data.value?.application.status === 'signed' || data.value?.application.status === 'disbursed')
+const contractBusy = ref(false)
+const contractError = ref<string | null>(null)
+
+async function downloadContract() {
+  contractBusy.value = true
+  contractError.value = null
+  try {
+    const file = await backofficeApi.contractDocument(props.applicationId)
+    saveFile(file.blob, file.filename ?? `Договор ${data.value?.application.number ?? ''}.pdf`)
+  } catch (caught) {
+    contractError.value = errorMessage(caught)
+  } finally {
+    contractBusy.value = false
+  }
 }
 
 /**
@@ -176,6 +199,24 @@ const bureaus = computed(() => {
 /** Бухотчётность ГИР БО — последние годы сверху */
 const accountingPeriods = computed(() => [...(data.value?.enrichment?.gir_bo?.periods ?? [])].sort((a, b) => b.year - a.year).slice(0, 3))
 
+/** Строки отчётности ГИР БО: отчёт о финансовых результатах, затем баланс; negative — подсветить минус */
+const ACCOUNTING_ROWS: readonly { key: keyof AccountingPeriodDto; label: string; group: 'results' | 'balance'; negative?: boolean }[] = [
+  { key: 'revenue', label: 'Выручка', group: 'results' },
+  { key: 'cost_of_sales', label: 'Себестоимость продаж', group: 'results' },
+  { key: 'sales_profit', label: 'Прибыль от продаж', group: 'results', negative: true },
+  { key: 'interest_payable', label: 'Проценты к уплате', group: 'results' },
+  { key: 'net_profit', label: 'Чистая прибыль', group: 'results', negative: true },
+  { key: 'fixed_assets', label: 'Основные средства', group: 'balance' },
+  { key: 'inventories', label: 'Запасы', group: 'balance' },
+  { key: 'receivables', label: 'Дебиторская задолженность', group: 'balance' },
+  { key: 'cash', label: 'Денежные средства', group: 'balance' },
+  { key: 'total_assets', label: 'Активы всего', group: 'balance' },
+  { key: 'equity', label: 'Капитал', group: 'balance', negative: true },
+  { key: 'long_term_liabilities', label: 'Долгосрочные обязательства', group: 'balance' },
+  { key: 'short_term_liabilities', label: 'Краткосрочные обязательства', group: 'balance' },
+  { key: 'total_liabilities', label: 'Обязательства всего', group: 'balance' },
+]
+
 /** Лимиты движка, какие посчитаны; binding — тот, что дал итоговую сумму */
 const limits = computed(() => {
   const value = data.value?.decision?.limits
@@ -201,6 +242,7 @@ const RATE_PARTS = [
         :application-id="applicationId"
         :prelude="prelude.stages.value"
         :fallback-workflow="data.application.product_terms.workflow_code ?? null"
+        :policy-version="data.decision?.policy_version ?? null"
         @advance="card.reload"
       >
         <template #details="stage">
@@ -270,6 +312,13 @@ const RATE_PARTS = [
                   {{ data.application.beneficiary ? beneficiaryLine(data.application.beneficiary) : 'Клиент не ответил' }}
                 </dd>
               </div>
+              <!-- Бенефициары со слов клиента (policy_v9): сверяются с ЕГРЮЛ и проверяются по перечням -->
+              <div class="sm:col-span-2">
+                <dt class="text-ink-secondary">Бенефициары со слов клиента</dt>
+                <dd class="font-medium text-ink">
+                  {{ data.application.beneficial_owners ? beneficialOwnersLine(data.application.beneficial_owners) : 'Клиент не ответил' }}
+                </dd>
+              </div>
               <div v-if="data.application.submitted_at">
                 <dt class="text-ink-secondary">Подана</dt>
                 <dd class="font-medium text-ink">{{ formatDateTime(data.application.submitted_at) }}</dd>
@@ -306,6 +355,14 @@ const RATE_PARTS = [
                 </li>
               </ul>
             </div>
+
+            <div v-if="contractSigned" class="mt-5 flex flex-wrap items-center gap-3">
+              <BaseButton size="s" variant="secondary" :loading="contractBusy" @click="downloadContract">
+                <FileText class="size-4" aria-hidden="true" />
+                Договор (PDF)
+              </BaseButton>
+              <p v-if="contractError" class="text-sm text-brand" role="alert">{{ contractError }}</p>
+            </div>
           </PanelCard>
 
           <PanelCard v-if="data.application.org_snapshot" title="Компания" description="Снимок на момент подачи">
@@ -321,7 +378,7 @@ const RATE_PARTS = [
               <div>
                 <dt class="text-ink-secondary">Статус в реестре</dt>
                 <dd class="font-medium text-ink">
-                  {{ REGISTRY_STATUS[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
+                  {{ REGISTRY_STATUS_LABEL[data.application.org_snapshot.registry_status] ?? data.application.org_snapshot.registry_status }}
                 </dd>
               </div>
               <div>
@@ -392,7 +449,7 @@ const RATE_PARTS = [
               <section v-if="data.enrichment.egrul" class="text-sm">
                 <p class="font-semibold text-ink">ЕГРЮЛ / ЕГРИП</p>
                 <ul class="mt-2 space-y-1 text-ink">
-                  <li>Статус: {{ REGISTRY_STATUS[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
+                  <li>Статус: {{ REGISTRY_STATUS_LABEL[data.enrichment.egrul.status] ?? data.enrichment.egrul.status }}</li>
                   <li v-if="data.enrichment.egrul.kpp">КПП: {{ data.enrichment.egrul.kpp }}</li>
                   <li>
                     Руководитель: {{ data.enrichment.egrul.head_last_name }} {{ data.enrichment.egrul.head_first_name }}
@@ -500,19 +557,29 @@ const RATE_PARTS = [
                   <table class="w-full min-w-[22rem] text-left text-xs">
                     <thead class="text-ink-secondary">
                       <tr>
-                        <th class="py-1.5 font-medium">Год</th>
-                        <th class="py-1.5 text-right font-medium">Выручка</th>
-                        <th class="py-1.5 text-right font-medium">Чистая прибыль</th>
-                        <th class="py-1.5 text-right font-medium">Капитал</th>
+                        <th class="py-1.5 font-medium">Показатель</th>
+                        <th v-for="period in accountingPeriods" :key="period.year" class="py-1.5 text-right font-medium">{{ period.year }}</th>
                       </tr>
                     </thead>
-                    <tbody class="divide-y divide-line tabular-nums">
-                      <tr v-for="period in accountingPeriods" :key="period.year">
-                        <td class="py-1.5">{{ period.year }}</td>
-                        <td class="py-1.5 text-right">{{ money(period.revenue) }}</td>
-                        <td class="py-1.5 text-right" :class="Number(period.net_profit) < 0 && 'text-brand'">{{ money(period.net_profit) }}</td>
-                        <td class="py-1.5 text-right" :class="Number(period.equity) < 0 && 'text-brand'">{{ money(period.equity) }}</td>
-                      </tr>
+                    <tbody class="tabular-nums">
+                      <template v-for="(row, index) in ACCOUNTING_ROWS" :key="row.key">
+                        <tr v-if="index === 0 || row.group !== ACCOUNTING_ROWS[index - 1]!.group">
+                          <th :colspan="accountingPeriods.length + 1" class="pt-2.5 pb-1 text-left text-[11px] font-semibold tracking-wide text-ink-secondary uppercase">
+                            {{ row.group === 'results' ? 'Финансовые результаты' : 'Баланс' }}
+                          </th>
+                        </tr>
+                        <tr class="border-t border-line">
+                          <td class="py-1.5 text-ink">{{ row.label }}</td>
+                          <td
+                            v-for="period in accountingPeriods"
+                            :key="period.year"
+                            class="py-1.5 text-right"
+                            :class="row.negative && Number(period[row.key]) < 0 && 'text-brand'"
+                          >
+                            {{ money(String(period[row.key])) }}
+                          </td>
+                        </tr>
+                      </template>
                     </tbody>
                   </table>
                 </div>
@@ -540,6 +607,7 @@ const RATE_PARTS = [
                         <th class="py-1.5 font-medium">Месяц</th>
                         <th class="py-1.5 text-right font-medium">Приход</th>
                         <th class="py-1.5 text-right font-medium">Расход</th>
+                        <th class="py-1.5 text-right font-medium">Чистый поток</th>
                         <th class="py-1.5 text-right font-medium">Остаток</th>
                       </tr>
                     </thead>
@@ -548,11 +616,12 @@ const RATE_PARTS = [
                         <td class="py-1.5">{{ month.month }}</td>
                         <td class="py-1.5 text-right tabular-nums">{{ money(month.inflow) }}</td>
                         <td class="py-1.5 text-right tabular-nums">{{ money(month.outflow) }}</td>
+                        <td class="py-1.5 text-right tabular-nums" :class="Number(month.net) < 0 ? 'text-brand' : 'text-success'">{{ money(month.net) }}</td>
                         <td class="py-1.5 text-right tabular-nums" :class="Number(month.balance) < 0 && 'text-brand'">{{ money(month.balance) }}</td>
                       </tr>
                       <tr v-for="month in data.enrichment.cashflow.forecast" :key="`f-${month.month}`" class="text-ink-secondary">
                         <td class="py-1.5">{{ month.month }} (прогноз)</td>
-                        <td class="py-1.5" colspan="2" />
+                        <td class="py-1.5" colspan="3" />
                         <td class="py-1.5 text-right tabular-nums" :class="Number(month.projected_balance) < 0 && 'text-brand'">
                           {{ money(month.projected_balance) }}
                         </td>
@@ -562,7 +631,7 @@ const RATE_PARTS = [
                 </div>
               </section>
 
-              <AmlCheckSection v-if="data.enrichment.aml" :aml="data.enrichment.aml" />
+              <AmlCheckSection v-if="data.enrichment.aml" :aml="data.enrichment.aml" :risk-group="amlRiskGroup(data.decision)" />
               <BankDataSection
                 v-if="data.enrichment.bank_stop_list || data.enrichment.bank_turnover"
                 :stop-list="data.enrichment.bank_stop_list"
@@ -578,7 +647,28 @@ const RATE_PARTS = [
             :title="TASK_TYPE_LABEL[data.task.type] ?? 'Задача андеррайтера'"
             :description="data.task.type === 'project_assessment' ? 'Стартап: бизнес-план, финмодель, обеспечение и господдержка' : undefined"
           >
+            <p
+              v-if="data.task.reason || data.process?.manual_review_reason"
+              class="mb-4 flex items-start gap-2 rounded-lg bg-warning-soft p-3 text-sm text-ink"
+              role="note"
+            >
+              <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              <span>
+                <span class="block font-semibold">Почему задача вернулась</span>
+                {{ reviewReasonText(data.task.reason ?? data.process?.manual_review_reason ?? '') }}
+              </span>
+            </p>
             <TaskDecisionForm :task="data.task" :card="data" @claimed="card.reload" @decided="refreshAfterDecision" />
+          </PanelCard>
+          <!-- Задачи нет, а причина есть: решение андеррайтера не принято и шаг остановился — видно, почему -->
+          <PanelCard v-else-if="data.process?.manual_review_reason" title="Почему заявка у специалиста">
+            <p class="flex items-start gap-2 rounded-lg bg-warning-soft p-3 text-sm text-ink" role="note">
+              <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              {{ reviewReasonText(data.process.manual_review_reason) }}
+            </p>
+            <p v-if="data.process.status === 'failed'" class="mt-2 text-xs text-ink-secondary">
+              Процесс по заявке остановлен, задачи для решения нет — нужен разбор на стороне банка.
+            </p>
           </PanelCard>
 
           <StartupProjectPanel v-if="data.startup" :project="data.startup" />
@@ -600,6 +690,9 @@ const RATE_PARTS = [
             </p>
             <p v-if="modelsVerdict" class="mb-3 text-sm font-semibold" :class="modelsAgree ? 'text-ink' : 'text-warning'">
               {{ modelsVerdict }}
+            </p>
+            <p v-else-if="data.scoring.ml_not_applicable === 'no_revenue'" class="mb-3 text-xs text-ink-secondary">
+              <span class="font-semibold text-ink">ML-модель не применяется</span> — у компании нет выручки ни в заявке, ни по ФНС. Модель обучена на действующих компаниях, и её оценка здесь была бы недостоверной. Риск оценивают PD-модель и андеррайтер.
             </p>
             <p v-else class="mb-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
 
@@ -636,6 +729,7 @@ const RATE_PARTS = [
                 <span class="min-w-0">
                   <span class="text-ink">{{ label(FACTOR_LABEL, factor.code) }}</span>
                   <span v-if="factorDetail(factor)" class="block text-xs text-ink-secondary">{{ factorDetail(factor) }}</span>
+                  <span v-if="factor.client_hint" class="mt-0.5 block text-xs text-info">Клиенту: {{ factor.client_hint }}</span>
                 </span>
                 <span
                   class="shrink-0 font-semibold tabular-nums"
@@ -660,6 +754,9 @@ const RATE_PARTS = [
                 {{ formatDateTime(data.decision.decided_at) }}
               </span>
             </div>
+            <p v-if="data.decision.override_of" class="mt-2 rounded-lg bg-info-soft p-2.5 text-xs text-ink">
+              Решение андеррайтера заменило автоматическое: в журнале остались оба, действует это
+            </p>
             <ul v-if="data.decision.reason_codes.length" class="mt-3 space-y-1 text-sm text-ink">
               <li v-for="code in data.decision.reason_codes" :key="code">• {{ label(REASON_LABEL, code) }}</li>
             </ul>

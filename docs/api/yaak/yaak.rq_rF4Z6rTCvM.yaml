@@ -1,0 +1,32 @@
+type: http_request
+model: http_request
+id: rq_rF4Z6rTCvM
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_wXQZoZJb93
+name: Мои обращения
+description: |-
+  The client's tickets, newest activity first.
+
+  Токен: директор ООО «Ромашка».
+method: GET
+url: ${[ base_url ]}/support/tickets
+urlParameters:
+- enabled: false
+  name: status
+  value: ''
+- enabled: false
+  name: limit
+  value: '20'
+- enabled: false
+  name: offset
+  value: '0'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 2000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_romashka ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

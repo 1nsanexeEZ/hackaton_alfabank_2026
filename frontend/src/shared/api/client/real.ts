@@ -1,10 +1,18 @@
-import { ApiError, http } from '../http'
-import type { ClientApi } from './types'
+import { ApiError, http, httpFile } from '../http'
+import { decodeTicket, decodeTicketItem } from './support'
+import type { ClientApi, SupportTicketDto, SupportTicketListItemDto } from './types'
 
 type Options = NonNullable<Parameters<typeof http>[1]>
 
 /** Запросы сайта подписываются токеном клиента — сессия сотрудника сюда не попадает */
 const call = <T>(path: string, options: Options = {}) => http<T>(path, { ...options, realm: 'client' })
+
+/** Проверяемый файл — полем file в multipart/form-data */
+function fileForm(file: File): FormData {
+  const form = new FormData()
+  form.append('file', file)
+  return form
+}
 
 /** Клиентский путь на бэкенде: auth, products, organizations, applications */
 export const realClientApi: ClientApi = {
@@ -12,12 +20,15 @@ export const realClientApi: ClientApi = {
   demoAccounts: () => call('/auth/demo-accounts'),
   demoLogin: (login) => call('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => call('/me'),
-  listProducts: () => call('/products'),
+  listProducts: (purpose) => call('/products', { query: { purpose } }),
   calculate: (code, input) => call(`/products/${code}/calculate`, { method: 'POST', body: input }),
   eligibility: (code, organizationId) =>
     call(`/products/${code}/eligibility`, { query: { organization_id: organizationId } }),
   listOrganizations: () => call('/organizations'),
-  listApplications: (limit) => call('/applications', { query: { limit } }),
+  listApplications: (query = {}) =>
+    call('/applications', {
+      query: { organization_id: query.organizationId, status: query.status, limit: query.limit, offset: query.offset },
+    }),
   createApplication: (organizationId, productCode) =>
     call('/applications', { method: 'POST', body: { organization_id: organizationId, product_code: productCode } }),
   getApplication: (id) => call(`/applications/${id}`),
@@ -32,15 +43,26 @@ export const realClientApi: ClientApi = {
     call(`/applications/${id}/cancel`, { method: 'POST', body: reason ? { reason } : undefined }),
 
   dashboard: (organizationId) => call('/bff/dashboard', { query: { organization_id: organizationId } }),
-  listApplicationRows: (organizationId, limit = 50) =>
-    call('/bff/applications', { query: { organization_id: organizationId, limit } }),
+  listApplicationRows: (organizationId, query = {}) =>
+    call('/bff/applications', {
+      query: { organization_id: organizationId, status: query.status, limit: query.limit ?? 50, offset: query.offset },
+    }),
   getApplicationCard: (id) => call(`/bff/applications/${id}`),
   acceptOffer: (id) => call(`/applications/${id}/offer/accept`, { method: 'POST' }),
   declineOffer: (id, reason) =>
     call(`/applications/${id}/offer/decline`, { method: 'POST', body: reason ? { reason } : undefined }),
   contract: (id) => call(`/applications/${id}/contract`),
-  sign: (id, password, offerHash) =>
-    call(`/applications/${id}/sign`, { method: 'POST', body: { password, offer_hash: offerHash } }),
+  // Поля без значения JSON.stringify отбрасывает: старому бэкенду уходит прежнее тело
+  sign: (id, password, offerHash, documentHash, rulesVersion) =>
+    call(`/applications/${id}/sign`, {
+      method: 'POST',
+      body: { password, offer_hash: offerHash, document_hash: documentHash, rules_version: rulesVersion },
+    }),
+  downloadContractDocument: (id, kind) =>
+    httpFile(`/applications/${id}/contract/document`, { query: { kind }, realm: 'client' }),
+  esignRules: () => call('/esign/rules'),
+  verifyContract: (documentId) => call(`/contracts/verify/${documentId}`),
+  verifyContractFile: (file) => call('/contracts/verify', { method: 'POST', body: fileForm(file) }),
   answerInfoRequest: (id, infoRequestId) =>
     call(`/applications/${id}/info-requests/${infoRequestId}/answer`, { method: 'POST' }),
   downloadDocument: (id, documentId) => call(`/applications/${id}/documents/${documentId}/download`),
@@ -61,9 +83,14 @@ export const realClientApi: ClientApi = {
         offset: query.offset,
       },
     }),
-  unreadCount: () => call('/feed/unread-count'),
+  unreadCount: (scope = {}) =>
+    call('/feed/unread-count', { query: { organization_id: scope.organizationId, application_id: scope.applicationId } }),
   readFeedItem: (itemId) => call(`/feed/${itemId}/read`, { method: 'POST' }),
-  readAllFeed: () => call('/feed/read-all', { method: 'POST' }),
+  readAllFeed: (scope = {}) =>
+    call('/feed/read-all', {
+      method: 'POST',
+      query: { organization_id: scope.organizationId, application_id: scope.applicationId },
+    }),
   streamTicket: () => call('/feed/stream-ticket', { method: 'POST' }),
   news: (organizationId, limit) => call('/news', { query: { organization_id: organizationId, limit } }),
   readNews: (newsId) => call(`/news/${newsId}/read`, { method: 'POST' }),
@@ -117,4 +144,13 @@ export const realClientApi: ClientApi = {
       throw new ApiError(response.status, 'upload_failed', 'Хранилище не приняло файл, попробуйте ещё раз')
     }
   },
+  supportTickets: (query = {}) =>
+    call<SupportTicketListItemDto[]>('/support/tickets', { query: { status: query.status, limit: query.limit, offset: query.offset } }).then(
+      (tickets) => tickets.map(decodeTicketItem),
+    ),
+  supportTicket: (id) => call<SupportTicketDto>(`/support/tickets/${id}`).then(decodeTicket),
+  openSupportTicket: (input) => call<SupportTicketDto>('/support/tickets', { method: 'POST', body: input }).then(decodeTicket),
+  postSupportMessage: (id, text) =>
+    call<SupportTicketDto>(`/support/tickets/${id}/messages`, { method: 'POST', body: { text } }).then(decodeTicket),
+  closeSupportTicket: (id) => call<SupportTicketDto>(`/support/tickets/${id}/close`, { method: 'POST' }).then(decodeTicket),
 }

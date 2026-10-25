@@ -1,0 +1,39 @@
+type: http_request
+model: http_request
+id: rq_K0MTYV4dzB
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_q0wUTDO0aH
+name: Править черновик политики
+description: |-
+  The whole document of a draft. It is checked as the YAML file is at startup:
+  422 `validation_error` with `details.errors` — a list of `{path, message}` (a grade
+  off the scale, a broken matrix, a reason code without a client text…). Not a draft —
+  409 `invalid_transition`.
+
+  Документ черновика как есть, из «Версия политики с документом»: поменяйте стоп-факторы, лимиты или матрицу и отправьте. Код причины без текста для клиента, грейд вне шкалы — 422 со списком `{path, message}`.
+
+  Токен: администратор.
+method: PUT
+url: ${[ base_url ]}/decision/policies/:version
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ policy_version ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "body": ${[ response.body.path(request='rq_g3OgHaafbO', behavior='smart', path='$.body') ]},
+      "comment": "Правка из коллекции Yaak"
+    }
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

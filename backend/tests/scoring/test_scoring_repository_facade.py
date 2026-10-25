@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
@@ -8,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.domain.clock import FrozenClock
+from src.modules.scoring.application.model_versions import FixedModel
 from src.modules.scoring.application.serialization import dump_input, input_hash, load_input
 from src.modules.scoring.domain.model import ScoringInput, ScoringResult
 from src.modules.scoring.domain.scorecard import ScorecardOutput
@@ -56,7 +58,7 @@ async def test_pd_model_result_roundtrips(
         await session.commit()
 
     async with session_factory() as session:
-        dto = await ScoringFacadeImpl(session, _MODEL).get_result(result.application_id)
+        dto = await ScoringFacadeImpl(session, FixedModel(_MODEL)).get_result(result.application_id)
         stored_result = await SqlAlchemyScoringRepository(session).latest_for_application(
             result.application_id
         )
@@ -88,14 +90,33 @@ async def test_scorecard_v1_result_has_no_pd(
         await session.commit()
 
     async with session_factory() as session:
-        dto = await ScoringFacadeImpl(session, _CARD).get_result(result.application_id)
+        dto = await ScoringFacadeImpl(session, FixedModel(_CARD)).get_result(result.application_id)
 
     assert dto is not None
     assert (dto.segment, dto.pd_12m, dto.reason_codes, dto.ml) == (None, None, (), None)
     assert (dto.quality, dto.quality_reasons) == (None, ())
 
 
-def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:
+async def test_reason_for_no_ml_estimate_is_stored(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    result, stored = _result()
+    result = replace(result, ml=None, ml_not_applicable="no_revenue")
+    async with session_factory() as session:
+        await SqlAlchemyScoringRepository(session).add(result, input_snapshot=stored)
+        await session.commit()
+
+    async with session_factory() as session:
+        dto = await ScoringFacadeImpl(session, FixedModel(_CARD)).get_result(result.application_id)
+        stored_result = await SqlAlchemyScoringRepository(session).latest_for_application(
+            result.application_id
+        )
+
+    assert stored_result is not None and stored_result.ml_not_applicable == "no_revenue"
+    assert dto is not None and dto.ml is None and dto.ml_not_applicable == "no_revenue"
+
+
+async def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:
     profile = CompanyProfileDTO(
         legal_form="LLC",
         business_age_months=3,
@@ -105,12 +126,13 @@ def test_estimate_of_the_pd_model_carries_segment_and_pd() -> None:
         verification_status="verified",
         registry_status="active",
     )
-    estimate = ScoringFacadeImpl(None, _MODEL).estimate(profile)  # type: ignore[arg-type]
+    facade = ScoringFacadeImpl(None, FixedModel(_MODEL))  # type: ignore[arg-type]
+    estimate = await facade.estimate(profile)
     assert estimate.segment == "new_client"
     assert estimate.pd_12m is not None and estimate.grade in set("ABCDEFGHIJ")
 
 
-def test_estimate_is_dated_by_the_application_clock() -> None:
+async def test_estimate_is_dated_by_the_application_clock() -> None:
     """Оценка для предодобрения берёт дату из часов приложения, а не из системной даты."""
     seen: list[ScoringInput] = []
 
@@ -131,7 +153,8 @@ def test_estimate_is_dated_by_the_application_clock() -> None:
         registry_status="active",
     )
     clock = FrozenClock(datetime(2025, 3, 14, 23, 30, tzinfo=UTC))
-    ScoringFacadeImpl(None, Spy(), clock=clock).estimate(profile)  # type: ignore[arg-type]
+    facade = ScoringFacadeImpl(None, FixedModel(Spy()), clock=clock)  # type: ignore[arg-type]
+    await facade.estimate(profile)
     assert seen[0].as_of.isoformat() == "2025-03-14"
 
 
@@ -165,7 +188,7 @@ async def test_result_roundtrips_through_facade(
         await session.commit()
 
     async with session_factory() as session:
-        dto = await ScoringFacadeImpl(session, _CARD).get_result(result.application_id)
+        dto = await ScoringFacadeImpl(session, FixedModel(_CARD)).get_result(result.application_id)
 
     assert dto is not None
     assert dto.score == result.score
@@ -199,8 +222,8 @@ async def test_estimate_does_not_write(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_factory() as session:
-        facade = ScoringFacadeImpl(session, _CARD)
-        estimate = facade.estimate(
+        facade = ScoringFacadeImpl(session, FixedModel(_CARD))
+        estimate = await facade.estimate(
             CompanyProfileDTO(
                 legal_form="LLC",
                 business_age_months=72,
@@ -222,5 +245,5 @@ async def test_get_result_none_when_absent(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_factory() as session:
-        dto = await ScoringFacadeImpl(session, _CARD).get_result(uuid4())
+        dto = await ScoringFacadeImpl(session, FixedModel(_CARD)).get_result(uuid4())
     assert dto is None

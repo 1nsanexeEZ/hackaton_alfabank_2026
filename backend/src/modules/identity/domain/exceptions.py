@@ -7,6 +7,8 @@ class IdentityError(Exception):
 
     def __init__(self, message: str | None = None) -> None:
         self.message = message or self.default_message
+        # Machine-readable details for the response, like core AppError's.
+        self.details: dict[str, object] | None = None
         super().__init__(self.message)
 
 
@@ -79,3 +81,15 @@ class SelfDeletionError(IdentityError):
 class EmptyNameError(IdentityError):
     def __init__(self, field: str) -> None:
         super().__init__(f"{field} can't be empty")
+
+
+class NameLockedError(IdentityError):
+    """The name (passport) and the position (registry) are confirmed by the bank:
+    the account itself can't change them."""
+
+    def __init__(self, fields: list[str]) -> None:
+        super().__init__(
+            "The name and the position are confirmed by the bank "
+            "and change only through the bank's staff"
+        )
+        self.details = {"code": "identity_locked", "fields": fields}

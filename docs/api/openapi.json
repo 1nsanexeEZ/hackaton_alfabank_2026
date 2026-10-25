@@ -178,6 +178,7 @@
           "me"
         ],
         "summary": "Update My Profile",
+        "description": "Own profile. The name needs `profile.update_name` as well: clients don't have it,\ntheir name is confirmed by the bank — a changed name is 422 `identity_locked` with the\n`fields`; the same name sent again is accepted.",
         "operationId": "update_my_profile_me_profile_patch",
         "requestBody": {
           "content": {
@@ -1516,6 +1517,53 @@
             }
           }
         }
+      }
+    },
+    "/organizations/inn-check": {
+      "post": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Check Inn",
+        "description": "Check of a company by INN before an application — bank staff only (`backoffice.read`).\nThe company need not be a client. ЕГРЮЛ/ЕГРИП past the cache, the tax service, Kontur and\nthe bank stop list; `ogrn`, `kpp`, `name` from the client's documents are matched against\nthe registry. A typo in the INN — `fail`, an unknown INN — `not_found`, both with 200;\nthe registry did not answer — 503. Nothing is stored.",
+        "operationId": "check_inn_organizations_inn_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InnCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InnCheckRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
       }
     },
     "/organizations": {
@@ -2927,7 +2975,7 @@
           "applications"
         ],
         "summary": "Contract",
-        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.",
+        "description": "The loan contract to show before signing: borrower, terms, schedule\nand who may sign. From `signing` on; before that 409 `contract_not_ready`.\n`document` is its PDF: the draft until the client signs, then the copy\nsealed by the bank; `uid` — the deal identifier of the credit history.",
         "operationId": "contract_applications__application_id__contract_get",
         "security": [
           {
@@ -2970,13 +3018,78 @@
         }
       }
     },
+    "/applications/{application_id}/contract/document": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Contract Document",
+        "description": "The contract PDF: `kind` = draft or signed, by default the latest one.\n409 `contract_not_ready` before the offer is accepted, `document_pending`\nwhile it is being made.",
+        "operationId": "contract_document_applications__application_id__contract_document_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "signed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The PDF itself",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/applications/{application_id}/sign": {
       "post": {
         "tags": [
           "applications"
         ],
         "summary": "Sign",
-        "description": "Simulated signature: the password is asked once more (step-up), the\ndocument goes through the EDO mock; the response says `simulated: true`.\n`offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.",
+        "description": "The client's simple electronic signature: the password once more\n(step-up), `offer_hash` and `document_hash` of the draft it read, the\nversion of the rules it accepted. A changed offer — 409 `offer_changed`, a\nchanged draft — 422 `document_changed`, old rules — 422 `rules_outdated`.\nRight after it the bank seals the contract PDF with its signature.",
         "operationId": "sign_applications__application_id__sign_post",
         "security": [
           {
@@ -3077,6 +3190,114 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/esign/rules": {
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Rules",
+        "description": "Rules of electronic interaction: what the client accepts when it signs\n(`version` goes into `POST /applications/{id}/sign` as `rules_version`).",
+        "operationId": "rules_esign_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsignRulesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contracts/verify/{document_id}": {
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Verify",
+        "description": "The document by the QR code: who signed it and when, whether the signing\nlog is intact. 404 `document_not_found`.",
+        "operationId": "verify_contracts_verify__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractVerificationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contracts/verify": {
+      "post": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "Verify File",
+        "description": "A PDF someone has: the bank's signature intact and trusted, the file\nthe same as the sealed copy in the archive. Up to 10 MB.",
+        "operationId": "verify_file_contracts_verify_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_verify_file_contracts_verify_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileVerificationOut"
                 }
               }
             }
@@ -3473,6 +3694,360 @@
         }
       }
     },
+    "/scoring/models": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "List Versions",
+        "description": "The built-in model first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.",
+        "operationId": "list_versions_scoring_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelVersionSummaryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Versions Scoring Models Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Create Draft",
+        "description": "A draft copied from any version, under the next number: `pd_model_v2.1`,\n`pd_model_v2.2`… 404 — no such version.",
+        "operationId": "create_draft_scoring_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/scoring/models/catalog": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Get Catalog",
+        "description": "What a model document is made of: segments, features (numeric or categorical,\nthe categories that need a bin, required ones) and the grade scale.",
+        "operationId": "get_catalog_scoring_models_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelCatalogRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/scoring/models/{version}": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Get Version",
+        "description": "A version with its document (`body`), the same as the YAML file.",
+        "operationId": "get_version_scoring_models__version__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Update Draft",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}`. Not a\ndraft — 409 `invalid_transition`.",
+        "operationId": "update_draft_scoring_models__version__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Delete Draft",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: results\nwere scored by it.",
+        "operationId": "delete_draft_scoring_models__version__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scoring/models/{version}/activate": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Activate Version",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML model is in force again. Already active — 409 `invalid_transition`.\nNew applications and pre-approvals are scored by it; old results keep their\n`model_version`.",
+        "operationId": "activate_version_scoring_models__version__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scoring/models/{version}/preview": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Preview Version",
+        "description": "The latest `limit` applications scored by the PD model, scored again by this\nversion from their stored input: score, PD, grade and segment before and after, and\nhow the grades moved. Nothing is written. scorecard_v1 results (no PD, grades A–E)\nare left out.",
+        "operationId": "preview_version_scoring_models__version__preview_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizations/{organization_id}/pre-approved-offers": {
       "get": {
         "tags": [
@@ -3701,6 +4276,360 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectAssessmentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision/policies": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "List Versions",
+        "description": "The built-in policy first, then the admin's versions in the order they were made.\nThe one with `status: active` is in force.",
+        "operationId": "list_versions_decision_policies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyVersionSummaryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Versions Decision Policies Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Create Draft",
+        "description": "A draft copied from any version, under the next number: `policy_v10.1`,\n`policy_v10.2`… 404 — no such version.",
+        "operationId": "create_draft_decision_policies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/decision/policies/catalog": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Catalog",
+        "description": "What a policy document is made of: the grade scales, the outcomes, the reason codes\nwith their client texts (not editable here: a code without a text is refused), the\nstop-factor keys, registry statuses, routing flags, zones of the two models and the\nnames of collateral types and alternative products.",
+        "operationId": "get_catalog_decision_policies_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyCatalogRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/decision/policies/{version}": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Get Version",
+        "description": "A version with its document (`body`), the same as the YAML file.",
+        "operationId": "get_version_decision_policies__version__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Update Draft",
+        "description": "The whole document of a draft. It is checked as the YAML file is at startup:\n422 `validation_error` with `details.errors` — a list of `{path, message}` (a grade\noff the scale, a broken matrix, a reason code without a client text…). Not a draft —\n409 `invalid_transition`.",
+        "operationId": "update_draft_decision_policies__version__put",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Delete Draft",
+        "description": "Only a draft; an active or archived version — 409 `invalid_transition`: decisions\nwere made by it.",
+        "operationId": "delete_draft_decision_policies__version__delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision/policies/{version}/activate": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Activate Version",
+        "description": "A draft or an archived version (rollback) is put in force, the active one goes to\nthe archive. The built-in version: the admin's active version goes to the archive and\nthe YAML policy is in force again. Already active — 409 `invalid_transition`.\nNew decisions, pre-approvals and the nightly refresh go by it; old decisions keep\ntheir `policy_version`.",
+        "operationId": "activate_version_decision_policies__version__activate_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision/policies/{version}/preview": {
+      "post": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Preview Version",
+        "description": "A try-on, not an exact replay: the latest `limit` applications with an automatic\ndecision are decided again by this version — stop factors first, then the decision,\nas the process does. The input is gathered anew from the current data (the\napplication, its latest enrichment snapshot and scoring result, the product catalog)\nwith the current key rate, so `after` may differ from `before` even with the same\npolicy when the data has changed since. Outcome and reason codes before (the stored\ndecision and its `policy_version`) and after, and how the outcomes moved. Nothing is\nwritten; an application whose input cannot be gathered any more is counted in\n`skipped`.",
+        "operationId": "preview_version_decision_policies__version__preview_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyPreviewRead"
                 }
               }
             }
@@ -4215,6 +5144,698 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/tickets": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Open Ticket",
+        "description": "A question to the bank with its first message; it lands in the staff queue.",
+        "operationId": "open_ticket_support_tickets_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "List My Tickets",
+        "description": "The client's tickets, newest activity first.",
+        "operationId": "list_my_tickets_support_tickets_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketStatus"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketListItem"
+                  },
+                  "title": "Response List My Tickets Support Tickets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/tickets/{ticket_id}": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Get My Ticket",
+        "description": "The ticket with the whole chat.",
+        "operationId": "get_my_ticket_support_tickets__ticket_id__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/tickets/{ticket_id}/messages": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Post Client Message",
+        "description": "A message into the client's ticket; a closed one is 409. A message into a\nresolved ticket takes it back to the employee who handled it.",
+        "operationId": "post_client_message_support_tickets__ticket_id__messages_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/tickets/{ticket_id}/close": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Close My Ticket",
+        "description": "The question is settled: nobody writes into the ticket anymore.",
+        "operationId": "close_my_ticket_support_tickets__ticket_id__close_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "List Queue",
+        "description": "Tickets of all clients, newest activity first.",
+        "operationId": "list_queue_support_queue_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketStatus"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "unassigned",
+                "mine"
+              ],
+              "type": "string",
+              "description": "all — every ticket; unassigned — nobody took it; mine — taken by me",
+              "default": "all",
+              "title": "Scope"
+            },
+            "description": "all — every ticket; unassigned — nobody took it; mine — taken by me"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketListItem"
+                  },
+                  "title": "Response List Queue Support Queue Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Get Ticket",
+        "operationId": "get_ticket_support_queue__ticket_id__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}/take": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Take Ticket",
+        "description": "The ticket becomes the caller's. Already taken (by anyone) — 409 `already_taken`.",
+        "operationId": "take_ticket_support_queue__ticket_id__take_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}/release": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Release Ticket",
+        "description": "Back to the queue: anyone may take it again.",
+        "operationId": "release_ticket_support_queue__ticket_id__release_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}/messages": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Post Staff Message",
+        "description": "An answer to the client. Only the employee who took the ticket (the admin —\nin any taken ticket); not taken — 409 `not_taken`, taken by another — 403.",
+        "operationId": "post_staff_message_support_queue__ticket_id__messages_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}/resolve": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Resolve Ticket",
+        "description": "The question is answered; the client may still write and reopen it.",
+        "operationId": "resolve_ticket_support_queue__ticket_id__resolve_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/queue/{ticket_id}/close": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Close Ticket",
+        "description": "Final: nobody writes into the ticket anymore.",
+        "operationId": "close_ticket_support_queue__ticket_id__close_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketOut"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -4809,6 +6430,209 @@
         }
       }
     },
+    "/assistant/status": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Get Status",
+        "description": "Open to anyone: the site shows the assistant's state before login.",
+        "operationId": "get_status_assistant_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assistant/applications": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "List Applications",
+        "description": "The applications of the client's companies to pick one for the chat; bank staff\nask by an application id.",
+        "operationId": "list_applications_assistant_applications_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantApplicationOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Applications Assistant Applications Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/assistant/conversations": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Start Conversation",
+        "operationId": "start_conversation_assistant_conversations_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationCreatedOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ]
+      }
+    },
+    "/assistant/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Get Conversation",
+        "description": "The history: someone else's conversation is 404.",
+        "operationId": "get_conversation_assistant_conversations__conversation_id__get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assistant/conversations/{conversation_id}/messages": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_assistant_conversations__conversation_id__messages_post",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantQuestionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantReplyOut"
+                }
+              },
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -4885,6 +6709,30 @@
         ],
         "title": "AccountBlockDTO",
         "description": "Решение ФНС о приостановлении операций по счетам."
+      },
+      "AccountBlockRead": {
+        "properties": {
+          "decision_number": {
+            "type": "string",
+            "title": "Decision Number"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_number",
+          "date",
+          "reason"
+        ],
+        "title": "AccountBlockRead"
       },
       "AccountCreate": {
         "properties": {
@@ -5248,6 +7096,42 @@
             "type": "array",
             "title": "Pep Hits",
             "default": []
+          },
+          "declared_owners": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Owners"
+          },
+          "owner_discrepancies": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerDiscrepancyDTO"
+            },
+            "type": "array",
+            "title": "Owner Discrepancies",
+            "default": []
+          },
+          "licenses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LicenseDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Licenses"
           }
         },
         "type": "object",
@@ -5270,7 +7154,9 @@
               "founder_company",
               "representative",
               "beneficiary",
-              "pledgor"
+              "pledgor",
+              "founder",
+              "declared_owner"
             ],
             "title": "Role"
           },
@@ -5288,6 +7174,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -5494,6 +7391,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/BeneficiaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnersDTO"
               },
               {
                 "type": "null"
@@ -5875,6 +7782,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6102,6 +8019,16 @@
                 "type": "null"
               }
             ]
+          },
+          "beneficial_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeneficialOwnersIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6133,6 +8060,321 @@
           "defendant_sum"
         ],
         "title": "ArbitrationDTO"
+      },
+      "AssistantApplicationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "client_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Stage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "product_code",
+          "status",
+          "client_stage"
+        ],
+        "title": "AssistantApplicationOut"
+      },
+      "AssistantConversationCreatedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "AssistantConversationCreatedOut"
+      },
+      "AssistantConversationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessageOut"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "messages"
+        ],
+        "title": "AssistantConversationOut"
+      },
+      "AssistantMessageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "llm",
+                  "rules"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "text",
+          "created_at",
+          "application_id",
+          "mode"
+        ],
+        "title": "AssistantMessageOut"
+      },
+      "AssistantQuestionIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id",
+            "description": "The application the question is about; without it the only active application of the user is taken when the question needs one"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AssistantQuestionIn"
+      },
+      "AssistantReplyOut": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Message Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "rules"
+            ],
+            "title": "Mode"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/Intent"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Reason",
+            "description": "Why the template answered: template_only, disabled, busy, timeout, unavailable, postcheck; null — the model's answer passed the post-check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message_id",
+          "text",
+          "mode",
+          "intent",
+          "application_id",
+          "fallback_reason"
+        ],
+        "title": "AssistantReplyOut"
+      },
+      "AssistantStatusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "A model is configured and allowed"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "rules"
+            ],
+            "title": "Mode",
+            "description": "Who answers now: the model or templates"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "off",
+              "local",
+              "api"
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable",
+            "description": "The server answers and serves the model"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Why the model is off"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "mode",
+          "provider",
+          "model",
+          "host",
+          "reachable",
+          "reason"
+        ],
+        "title": "AssistantStatusOut"
       },
       "BackofficeMetricsDTO": {
         "properties": {
@@ -6195,6 +8437,41 @@
           "avg_time_to_decision_sec"
         ],
         "title": "BackofficeMetricsDTO"
+      },
+      "BankCertificateOut": {
+        "properties": {
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "serial",
+          "subject",
+          "issuer",
+          "valid_from",
+          "valid_to"
+        ],
+        "title": "BankCertificateOut"
       },
       "BankStopListDTO": {
         "properties": {
@@ -6287,6 +8564,30 @@
         ],
         "title": "BankruptcyMessageDTO"
       },
+      "BankruptcyMessageRead": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "case": {
+            "type": "string",
+            "title": "Case"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "type",
+          "case"
+        ],
+        "title": "BankruptcyMessageRead"
+      },
       "BeneficialOwnerDTO": {
         "properties": {
           "name": {
@@ -6320,6 +8621,46 @@
           "basis"
         ],
         "title": "BeneficialOwnerDTO"
+      },
+      "BeneficialOwnersIn": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerIn"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Owners"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners"
+        ],
+        "title": "BeneficialOwnersIn",
+        "description": "The client's beneficial owners (115-FZ art. 6.1, 7 p. 14). An empty list is an answer:\nnobody owns more than 25% or controls the company otherwise."
+      },
+      "BeneficialOwnersOut": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredOwnerOut"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_at"
+        ],
+        "title": "BeneficialOwnersOut"
       },
       "BeneficiaryDTO": {
         "properties": {
@@ -6456,6 +8797,20 @@
           "basis"
         ],
         "title": "BeneficiaryOut"
+      },
+      "Body_verify_file_contracts_verify_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_verify_file_contracts_verify_post"
       },
       "BusinessPlanDTO": {
         "properties": {
@@ -6767,6 +9122,52 @@
         ],
         "title": "CashflowProjectionDTO"
       },
+      "CheckRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "skipped"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "input",
+              "egrul",
+              "fns",
+              "kontur",
+              "bank"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "status",
+          "message",
+          "source"
+        ],
+        "title": "CheckRead"
+      },
       "ClientApplicationCard": {
         "properties": {
           "id": {
@@ -7070,6 +9471,25 @@
           "title"
         ],
         "title": "ClientTimelineEntry"
+      },
+      "CodeNameRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Как это называется в тексте для клиента"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "CodeNameRead"
       },
       "Collateral": {
         "properties": {
@@ -7660,6 +10080,96 @@
         ],
         "title": "ContractBorrowerOut"
       },
+      "ContractDocumentOut": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "signed"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "verify_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "sha256",
+          "created_at",
+          "filename",
+          "verify_url"
+        ],
+        "title": "ContractDocumentOut",
+        "description": "The current PDF: `draft` until the client signs, then `signed` (sealed by the bank).\n`pending` — being made, `failed` — could not be made, the contract still works."
+      },
       "ContractOut": {
         "properties": {
           "number": {
@@ -7703,6 +10213,27 @@
                 "type": "null"
               }
             ]
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractDocumentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -7717,7 +10248,7 @@
           "signature"
         ],
         "title": "ContractOut",
-        "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` goes back in `POST /applications/{id}/sign`."
+        "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` and `document.sha256` go back in `POST /applications/{id}/sign`."
       },
       "ContractPaymentOut": {
         "properties": {
@@ -7880,6 +10411,129 @@
           "authority"
         ],
         "title": "ContractSignerOut"
+      },
+      "ContractVerificationOut": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "signed"
+            ],
+            "title": "Kind"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "borrower": {
+            "type": "string",
+            "title": "Borrower"
+          },
+          "signatures": {
+            "items": {
+              "$ref": "#/components/schemas/VerifiedSignatureOut"
+            },
+            "type": "array",
+            "title": "Signatures"
+          },
+          "log_intact": {
+            "type": "boolean",
+            "title": "Log Intact"
+          },
+          "demo": {
+            "type": "boolean",
+            "title": "Demo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "number",
+          "uid",
+          "kind",
+          "sha256",
+          "created_at",
+          "borrower",
+          "signatures",
+          "log_intact",
+          "demo"
+        ],
+        "title": "ContractVerificationOut",
+        "description": "What anyone with the QR code sees: no IP, no account ids, the client by initials."
+      },
+      "CounterpartyRead": {
+        "properties": {
+          "reliability": {
+            "type": "string",
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Reliability"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "arbitration_as_defendant": {
+            "type": "integer",
+            "title": "Arbitration As Defendant"
+          },
+          "arbitration_defendant_sum": {
+            "type": "string",
+            "title": "Arbitration Defendant Sum"
+          },
+          "enforcement_active": {
+            "type": "integer",
+            "title": "Enforcement Active"
+          },
+          "enforcement_sum": {
+            "type": "string",
+            "title": "Enforcement Sum"
+          },
+          "bankruptcy_messages": {
+            "items": {
+              "$ref": "#/components/schemas/BankruptcyMessageRead"
+            },
+            "type": "array",
+            "title": "Bankruptcy Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reliability",
+          "notes",
+          "arbitration_as_defendant",
+          "arbitration_defendant_sum",
+          "enforcement_active",
+          "enforcement_sum",
+          "bankruptcy_messages"
+        ],
+        "title": "CounterpartyRead",
+        "description": "Kontur: courts, bailiffs, bankruptcy; rubles."
       },
       "CounterpartyRiskDTO": {
         "properties": {
@@ -8616,6 +11270,73 @@
         ],
         "title": "DecisionTermsDTO"
       },
+      "DeclaredOwnerIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerIn",
+        "description": "ownership — owns more than 25% directly or through other companies; control — controls\nthe company otherwise, e.g. by an agreement (115-FZ art. 3)."
+      },
+      "DeclaredOwnerOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis",
+          "country"
+        ],
+        "title": "DeclaredOwnerOut"
+      },
       "DemoAccountRead": {
         "properties": {
           "login": {
@@ -9072,6 +11793,64 @@
         ],
         "title": "DownloadOut"
       },
+      "DraftCreate": {
+        "properties": {
+          "based_on": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Based On",
+            "description": "Версия, которую копируем"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "based_on"
+        ],
+        "title": "DraftCreate"
+      },
+      "DraftUpdate": {
+        "properties": {
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ целиком; `version` внутри заменяется кодом версии"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment",
+            "description": "Не прислали — остаётся прежний"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "DraftUpdate"
+      },
       "EligibilityCheckDTO": {
         "properties": {
           "product_code": {
@@ -9372,6 +12151,101 @@
         ],
         "title": "EnrichmentSnapshotDTO"
       },
+      "EsignRulesOut": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "effective_from": {
+            "type": "string",
+            "title": "Effective From"
+          },
+          "paragraphs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Paragraphs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "title",
+          "effective_from",
+          "paragraphs"
+        ],
+        "title": "EsignRulesOut"
+      },
+      "EstimateRead": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "pd_12m": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pd 12M"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "Grade"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "legal_entity",
+                  "entrepreneur",
+                  "new_client"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "pd_12m",
+          "grade",
+          "segment",
+          "model_version"
+        ],
+        "title": "EstimateRead"
+      },
       "FactorDTO": {
         "properties": {
           "code": {
@@ -9427,6 +12301,44 @@
           "direction"
         ],
         "title": "FactorDTO"
+      },
+      "FeatureInfoRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "numeric",
+              "categorical"
+            ],
+            "title": "Kind",
+            "description": "numeric — интервальные бины [from; to), categorical — бины категорий"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "Категории, у каждой из которых обязан быть бин"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Обязателен в скоркарте каждого сегмента"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "kind",
+          "categories",
+          "required"
+        ],
+        "title": "FeatureInfoRead"
       },
       "Feed": {
         "properties": {
@@ -9719,6 +12631,111 @@
           "after"
         ],
         "title": "FieldChangeRead"
+      },
+      "FileSignatureOut": {
+        "properties": {
+          "present": {
+            "type": "boolean",
+            "title": "Present"
+          },
+          "intact": {
+            "type": "boolean",
+            "title": "Intact"
+          },
+          "trusted": {
+            "type": "boolean",
+            "title": "Trusted"
+          },
+          "signer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signer"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "timestamp_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "present",
+          "intact",
+          "trusted",
+          "signer",
+          "signed_at",
+          "timestamp_at"
+        ],
+        "title": "FileSignatureOut"
+      },
+      "FileVerificationOut": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "matches_archive": {
+            "type": "boolean",
+            "title": "Matches Archive"
+          },
+          "signature": {
+            "$ref": "#/components/schemas/FileSignatureOut"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "document_id",
+          "matches_archive",
+          "signature",
+          "problems"
+        ],
+        "title": "FileVerificationOut",
+        "description": "`problems`: not_in_archive, draft_not_signed, no_signature, signature_broken,\nuntrusted_certificate."
       },
       "FinancialModel-Input": {
         "properties": {
@@ -10272,6 +13289,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -10340,7 +13368,7 @@
             "title": "Status"
           },
           "founder": {
-            "$ref": "#/components/schemas/FounderRead"
+            "$ref": "#/components/schemas/src__modules__decision__api__schemas__FounderRead"
           },
           "checked_at": {
             "type": "string",
@@ -10376,25 +13404,6 @@
         "title": "FounderPrescreenRead",
         "description": "`failed` — «отказ (стартап)»: клиенту — `reasons[].message`. Действует 30 дней; после\n`valid_until` для заявки на STARTUP нужен новый."
       },
-      "FounderRead": {
-        "properties": {
-          "account_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Account Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "account_id",
-          "name"
-        ],
-        "title": "FounderRead"
-      },
       "GovContractsDTO": {
         "properties": {
           "count": {
@@ -10412,6 +13421,54 @@
           "sum"
         ],
         "title": "GovContractsDTO"
+      },
+      "GradeShiftRead": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "To"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "count"
+        ],
+        "title": "GradeShiftRead",
+        "description": "Клетка матрицы переходов: столько заявок было в грейде `from` и стало в `to`."
       },
       "HTTPValidationError": {
         "properties": {
@@ -10682,6 +13739,165 @@
         ],
         "title": "InfoRequestOut"
       },
+      "InnCheckRead": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "fail",
+              "not_found"
+            ],
+            "title": "Verdict"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRead"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegistryCompanyRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counterparty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CounterpartyRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn",
+          "verdict",
+          "summary",
+          "checked_at",
+          "checks",
+          "company",
+          "tax",
+          "counterparty",
+          "organization_id"
+        ],
+        "title": "InnCheckRead",
+        "description": "The verdict is the worst status of the checks: a failed one — `fail`; a warning or a\nsource that did not answer — `warning`; `not_found` — ЕГРЮЛ/ЕГРИП do not know the INN."
+      },
+      "InnCheckRequest": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "pattern": "^([0-9]{10}|[0-9]{12})$",
+            "title": "Inn",
+            "description": "10 digits — a legal entity, 12 — an entrepreneur"
+          },
+          "ogrn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9]{13}|[0-9]{15})$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ogrn",
+            "description": "ОГРН or ОГРНИП"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}[0-9A-Z]{2}[0-9]{3}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "With or without the legal form: `ООО «Ромашка»`, `Ромашка`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn"
+        ],
+        "title": "InnCheckRequest",
+        "description": "The INN and, if the client named them, the requisites from their documents: the INN is\nmatched against each one passed."
+      },
+      "Intent": {
+        "type": "string",
+        "enum": [
+          "injection",
+          "internal_data",
+          "payment",
+          "decision",
+          "status",
+          "products",
+          "greeting",
+          "off_topic"
+        ],
+        "title": "Intent"
+      },
       "JwksResponse": {
         "properties": {
           "keys": {
@@ -10698,6 +13914,30 @@
           "keys"
         ],
         "title": "JwksResponse"
+      },
+      "LicenseDTO": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "okved": {
+            "type": "string",
+            "title": "Okved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "activity",
+          "okved"
+        ],
+        "title": "LicenseDTO",
+        "description": "Действующая лицензия из реестра лицензий (ст. 7 п. 15 115-ФЗ)."
       },
       "LimitsDTO": {
         "properties": {
@@ -11281,6 +14521,68 @@
         ],
         "title": "MemberUpdate"
       },
+      "MessageCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MessageCreate"
+      },
+      "MessageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Author Id"
+          },
+          "author_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Name"
+          },
+          "side": {
+            "$ref": "#/components/schemas/Side"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author_id",
+          "author_name",
+          "side",
+          "text",
+          "created_at"
+        ],
+        "title": "MessageOut"
+      },
       "MlScoreDTO": {
         "properties": {
           "model_version": {
@@ -11337,6 +14639,323 @@
         ],
         "title": "MlScoreDTO",
         "description": "The ML model's estimate, computed next to the PD model on the same input and graded\non the same A–J scale, so the underwriter compares the two directly."
+      },
+      "ModelCatalogRead": {
+        "properties": {
+          "builtin": {
+            "type": "string",
+            "title": "Builtin",
+            "description": "Код встроенной модели"
+          },
+          "segments": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "legal_entity",
+                "entrepreneur",
+                "new_client"
+              ]
+            },
+            "type": "array",
+            "title": "Segments",
+            "description": "Скоркарта нужна каждому сегменту"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureInfoRead"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "grades": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Grades",
+            "description": "Грейды с верхней границей PD, по возрастанию"
+          },
+          "worst_grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "title": "Worst Grade",
+            "description": "PD не ниже границы последнего грейда"
+          },
+          "industry_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Industry Sections",
+            "description": "Обязательные секции `industry_sections`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "builtin",
+          "segments",
+          "features",
+          "grades",
+          "worst_grade",
+          "industry_sections"
+        ],
+        "title": "ModelCatalogRead"
+      },
+      "ModelVersionRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`pd_model_v2` — встроенная, `pd_model_v2.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ модели, как pd_model_v2.yaml: сегменты, признаки, бины, WoE и баллы, калибровка, границы грейдов; Decimal — строками"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin",
+          "body"
+        ],
+        "title": "ModelVersionRead"
+      },
+      "ModelVersionSummaryRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`pd_model_v2` — встроенная, `pd_model_v2.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin"
+        ],
+        "title": "ModelVersionSummaryRead"
       },
       "NeedBody": {
         "properties": {
@@ -12287,6 +15906,95 @@
         ],
         "title": "OrganizationSummaryRead"
       },
+      "OutcomeShiftRead": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "To"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "count"
+        ],
+        "title": "OutcomeShiftRead",
+        "description": "Клетка матрицы переходов: столько заявок было с исходом `from` и стало с `to`."
+      },
+      "OwnerDiscrepancyDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "not_declared",
+              "not_in_registry"
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "OwnerDiscrepancyDTO"
+      },
+      "OwnersDTO": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/src__modules__applications__application__dto__applications__DeclaredOwnerDTO"
+            },
+            "type": "array",
+            "title": "Owners"
+          },
+          "declared_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Declared By"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners",
+          "declared_by",
+          "declared_at"
+        ],
+        "title": "OwnersDTO",
+        "description": "The client's beneficial owners in its own words (115-FZ art. 6.1); empty — nobody."
+      },
       "Payment": {
         "properties": {
           "number": {
@@ -12533,6 +16241,7 @@
           "roles.update",
           "roles.delete",
           "profile.update",
+          "profile.update_name",
           "requests.read",
           "requests.create",
           "requests.update",
@@ -12546,8 +16255,14 @@
           "tasks.read",
           "tasks.update",
           "decisions.read",
+          "scoring.read",
+          "scoring.update",
           "backoffice.read",
-          "feed.read"
+          "feed.read",
+          "support.read",
+          "support.create",
+          "support.manage",
+          "assistant.use"
         ],
         "title": "Permissions"
       },
@@ -12777,6 +16492,517 @@
           "org_member"
         ],
         "title": "Policies"
+      },
+      "PolicyCatalogRead": {
+        "properties": {
+          "builtin": {
+            "type": "string",
+            "title": "Builtin",
+            "description": "Код встроенной политики"
+          },
+          "legacy_scale": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Legacy Scale",
+            "description": "Шкала `grades` scorecard_v1"
+          },
+          "pd_scale": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J"
+              ]
+            },
+            "type": "array",
+            "title": "Pd Scale",
+            "description": "Шкала `grades` PD-модели; зоны двух моделей покрывают её всегда"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Outcomes",
+            "description": "Исходы решения с текстом для клиента"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyReasonRead"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "Коды причин с текстами из explanations_ru.yaml; только их можно ставить в `stop_factors.registry_statuses` и `routing.flags`, тексты здесь не правятся"
+          },
+          "stop_factors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Factors",
+            "description": "Ключи раздела `stop_factors`"
+          },
+          "registry_statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Registry Statuses",
+            "description": "Статусы ЕГРЮЛ — ключи `stop_factors.registry_statuses`"
+          },
+          "routing_flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Routing Flags",
+            "description": "Ключи `routing.flags` в порядке проверки"
+          },
+          "zones": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zones",
+            "description": "Зоны `strategy.two_models`"
+          },
+          "zone_verdicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zone Verdicts",
+            "description": "Клетки матрицы `strategy.two_models.matrix`"
+          },
+          "zsk_levels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Zsk Levels",
+            "description": "Уровни ЗСК `compliance.aml`"
+          },
+          "legal_forms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Legal Forms",
+            "description": "Формы `compliance.automated_decision_consent.legal_forms`"
+          },
+          "collateral_types": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Collateral Types",
+            "description": "Виды залога — ключи `limits.ltv`"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CodeNameRead"
+            },
+            "type": "array",
+            "title": "Products",
+            "description": "Продукты, которые можно назвать в `alternatives`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "builtin",
+          "legacy_scale",
+          "pd_scale",
+          "outcomes",
+          "reasons",
+          "stop_factors",
+          "registry_statuses",
+          "routing_flags",
+          "zones",
+          "zone_verdicts",
+          "zsk_levels",
+          "legal_forms",
+          "collateral_types",
+          "products"
+        ],
+        "title": "PolicyCatalogRead"
+      },
+      "PolicyPreviewItemRead": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "Сохранённое автоматическое решение"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decided At"
+          },
+          "before": {
+            "$ref": "#/components/schemas/VerdictRead",
+            "description": "Как решено тогда своей версией политики"
+          },
+          "after": {
+            "$ref": "#/components/schemas/VerdictRead",
+            "description": "Как решила бы примеряемая версия на текущих данных заявки"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "result_id",
+          "decided_at",
+          "before",
+          "after"
+        ],
+        "title": "PolicyPreviewItemRead"
+      },
+      "PolicyPreviewRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Сколько заявок решено заново"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "description": "Другой исход или другие коды причин"
+          },
+          "outcome_changed": {
+            "type": "integer",
+            "title": "Outcome Changed",
+            "description": "Другой исход"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Вход не собрать (заявки или продукта уже нет) — пропущена"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/OutcomeShiftRead"
+            },
+            "type": "array",
+            "title": "Transitions",
+            "description": "Переходы исходов «было → стало», только непустые"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyPreviewItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "total",
+          "changed",
+          "outcome_changed",
+          "skipped",
+          "transitions",
+          "items"
+        ],
+        "title": "PolicyPreviewRead"
+      },
+      "PolicyReasonRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Что клиент увидит в решении"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "Что клиент может сделать"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text",
+          "hint"
+        ],
+        "title": "PolicyReasonRead"
+      },
+      "PolicyVersionRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`policy_v10` — встроенная, `policy_v10.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body",
+            "description": "Документ политики, как policy_v10.yaml: стоп-факторы, лимиты, ценообразование, маршрутизация, стратегия (мягкие триггеры, матрица грейд × сумма, зоны двух моделей), требования закона; Decimal — строками"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin",
+          "body"
+        ],
+        "title": "PolicyVersionRead"
+      },
+      "PolicyVersionSummaryRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "`policy_v10` — встроенная, `policy_v10.1`… — админа"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status",
+            "description": "draft — черновик, active — действует, archived — в архиве. Встроенная active, пока ни одна версия админа не активна, иначе archived"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "Встроенная из YAML: только читается"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "activated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated By"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "builtin"
+        ],
+        "title": "PolicyVersionSummaryRead"
       },
       "PowerOfAttorneyCreate": {
         "properties": {
@@ -13067,6 +17293,102 @@
         ],
         "title": "PresignedUploadOut"
       },
+      "PreviewItemRead": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          },
+          "before": {
+            "$ref": "#/components/schemas/EstimateRead",
+            "description": "Как посчитано тогда своей версией модели"
+          },
+          "after": {
+            "$ref": "#/components/schemas/EstimateRead",
+            "description": "Как посчитала бы примеряемая версия"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "result_id",
+          "computed_at",
+          "before",
+          "after"
+        ],
+        "title": "PreviewItemRead"
+      },
+      "PreviewRead": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Сколько заявок пересчитано"
+          },
+          "same": {
+            "type": "integer",
+            "title": "Same",
+            "description": "Грейд не изменился"
+          },
+          "better": {
+            "type": "integer",
+            "title": "Better",
+            "description": "Грейд стал лучше"
+          },
+          "worse": {
+            "type": "integer",
+            "title": "Worse",
+            "description": "Грейд стал хуже"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Снимок входа не прочитан — заявка пропущена"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/GradeShiftRead"
+            },
+            "type": "array",
+            "title": "Transitions",
+            "description": "Переходы грейдов «было → стало», только непустые"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewItemRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "total",
+          "same",
+          "better",
+          "worse",
+          "skipped",
+          "transitions",
+          "items"
+        ],
+        "title": "PreviewRead"
+      },
       "ProcessOut": {
         "properties": {
           "process_id": {
@@ -13143,6 +17465,17 @@
               }
             ],
             "title": "Finished At"
+          },
+          "manual_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Review Reason"
           }
         },
         "type": "object",
@@ -13157,7 +17490,8 @@
           "visited_node_ids",
           "steps",
           "started_at",
-          "finished_at"
+          "finished_at",
+          "manual_review_reason"
         ],
         "title": "ProcessOut"
       },
@@ -13244,6 +17578,17 @@
               }
             ],
             "title": "Finished At"
+          },
+          "manual_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Review Reason"
           }
         },
         "type": "object",
@@ -15404,6 +19749,142 @@
         ],
         "title": "RecommendationsRead"
       },
+      "RegistryCompanyRead": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "ogrn": {
+            "type": "string",
+            "title": "Ogrn"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "legal_form": {
+            "type": "string",
+            "enum": [
+              "LLC",
+              "IE",
+              "JSC"
+            ],
+            "title": "Legal Form"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "registry_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "liquidating",
+              "liquidated",
+              "bankrupt",
+              "reorganizing",
+              "excluded"
+            ],
+            "title": "Registry Status"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Registered At"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressRead"
+          },
+          "mass_address": {
+            "type": "boolean",
+            "title": "Mass Address"
+          },
+          "unreliable": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "address",
+                "head",
+                "founder"
+              ]
+            },
+            "type": "array",
+            "title": "Unreliable"
+          },
+          "okved_main": {
+            "type": "string",
+            "title": "Okved Main"
+          },
+          "okved_extra": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Okved Extra"
+          },
+          "head_name": {
+            "type": "string",
+            "title": "Head Name"
+          },
+          "head_position": {
+            "type": "string",
+            "title": "Head Position"
+          },
+          "head_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Since"
+          },
+          "founders": {
+            "items": {
+              "$ref": "#/components/schemas/src__modules__clients__presentation__schemas__inn_check__FounderRead"
+            },
+            "type": "array",
+            "title": "Founders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn",
+          "ogrn",
+          "kpp",
+          "legal_form",
+          "name",
+          "full_name",
+          "registry_status",
+          "registered_at",
+          "address",
+          "mass_address",
+          "unreliable",
+          "okved_main",
+          "okved_extra",
+          "head_name",
+          "head_position",
+          "head_since",
+          "founders"
+        ],
+        "title": "RegistryCompanyRead",
+        "description": "ЕГРЮЛ/ЕГРИП."
+      },
       "RegistryExtractDTO": {
         "properties": {
           "inn": {
@@ -16097,6 +20578,18 @@
             "type": "array",
             "title": "Quality Reasons",
             "default": []
+          },
+          "ml_not_applicable": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "no_revenue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Not Applicable"
           }
         },
         "type": "object",
@@ -16113,6 +20606,15 @@
         ],
         "title": "ScoringResultDTO"
       },
+      "Side": {
+        "type": "string",
+        "enum": [
+          "client",
+          "staff"
+        ],
+        "title": "Side",
+        "description": "Who wrote a message or changed the status."
+      },
       "SignIn": {
         "properties": {
           "password": {
@@ -16127,6 +20629,30 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
             "title": "Offer Hash"
+          },
+          "document_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Hash"
+          },
+          "rules_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Version"
           }
         },
         "type": "object",
@@ -16821,6 +21347,17 @@
               }
             ],
             "title": "Completed By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",
@@ -16837,7 +21374,8 @@
           "due_at",
           "overdue",
           "result",
-          "completed_by"
+          "completed_by",
+          "reason"
         ],
         "title": "TaskOut"
       },
@@ -17018,6 +21556,84 @@
         ],
         "title": "TaxProfileDTO"
       },
+      "TaxRead": {
+        "properties": {
+          "tax_regime": {
+            "type": "string",
+            "title": "Tax Regime"
+          },
+          "avg_headcount": {
+            "type": "integer",
+            "title": "Avg Headcount"
+          },
+          "reported_revenue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Revenue"
+          },
+          "report_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Year"
+          },
+          "tax_arrears": {
+            "type": "string",
+            "title": "Tax Arrears"
+          },
+          "in_msp_registry": {
+            "type": "boolean",
+            "title": "In Msp Registry"
+          },
+          "disqualified_head": {
+            "type": "boolean",
+            "title": "Disqualified Head"
+          },
+          "mass_head": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mass Head"
+          },
+          "account_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/AccountBlockRead"
+            },
+            "type": "array",
+            "title": "Account Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tax_regime",
+          "avg_headcount",
+          "reported_revenue",
+          "report_year",
+          "tax_arrears",
+          "in_msp_registry",
+          "disqualified_head",
+          "mass_head",
+          "account_blocks"
+        ],
+        "title": "TaxRead",
+        "description": "The tax service («Прозрачный бизнес»), rubles."
+      },
       "ThirdPartyDTO": {
         "properties": {
           "kind": {
@@ -17042,6 +21658,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17079,6 +21706,18 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17109,6 +21748,17 @@
               }
             ],
             "title": "Inn"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           }
         },
         "type": "object",
@@ -17118,6 +21768,417 @@
           "inn"
         ],
         "title": "ThirdPartyOut"
+      },
+      "TicketCreate": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "description": "The first message of the chat"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id",
+            "description": "The company the question is about; the client is its member"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id",
+            "description": "The application the question is about; its company is taken for the ticket"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "text"
+        ],
+        "title": "TicketCreate"
+      },
+      "TicketListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TicketStatus"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Author Id"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id",
+            "description": "The employee who took the ticket"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taken At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "message_count": {
+            "type": "integer",
+            "title": "Message Count"
+          },
+          "last_message_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message At"
+          },
+          "last_message_side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`client` in a ticket that is not closed: the bank owes an answer"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "status",
+          "author_id",
+          "organization_id",
+          "application_id",
+          "assignee_id",
+          "taken_at",
+          "resolved_at",
+          "closed_at",
+          "message_count",
+          "last_message_at",
+          "last_message_side",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TicketListItem"
+      },
+      "TicketOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TicketStatus"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Author Id"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id",
+            "description": "The employee who took the ticket"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taken At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "message_count": {
+            "type": "integer",
+            "title": "Message Count"
+          },
+          "last_message_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message At"
+          },
+          "last_message_side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`client` in a ticket that is not closed: the bank owes an answer"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "author_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Name"
+          },
+          "assignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Name"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageOut"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "status",
+          "author_id",
+          "organization_id",
+          "application_id",
+          "assignee_id",
+          "taken_at",
+          "resolved_at",
+          "closed_at",
+          "message_count",
+          "last_message_at",
+          "last_message_side",
+          "version",
+          "created_at",
+          "updated_at",
+          "author_name",
+          "assignee_name",
+          "messages"
+        ],
+        "title": "TicketOut"
+      },
+      "TicketStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "in_progress",
+          "resolved",
+          "closed"
+        ],
+        "title": "TicketStatus"
       },
       "TimelineEntryDTO": {
         "properties": {
@@ -17509,6 +22570,17 @@
               }
             ],
             "title": "Completed By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",
@@ -17566,6 +22638,39 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerdictRead": {
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "COUNTER_OFFER",
+              "REQUEST_INFO",
+              "MANUAL_REVIEW",
+              "REJECT"
+            ],
+            "title": "Outcome"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outcome",
+          "reason_codes",
+          "policy_version"
+        ],
+        "title": "VerdictRead"
       },
       "VerificationRead": {
         "properties": {
@@ -17634,6 +22739,116 @@
         ],
         "title": "VerificationResultRead",
         "description": "Outcome of the check against ЕГРЮЛ/ЕГРИП: what followed the registry\nsilently and what is left for a person."
+      },
+      "VerifiedSignatureOut": {
+        "properties": {
+          "party": {
+            "type": "string",
+            "enum": [
+              "client",
+              "bank"
+            ],
+            "title": "Party"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "advanced"
+            ],
+            "title": "Type"
+          },
+          "signer": {
+            "type": "string",
+            "title": "Signer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "registry",
+                  "power_of_attorney"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "signed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Signed At"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "password",
+              "pades"
+            ],
+            "title": "Method"
+          },
+          "rules_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Version"
+          },
+          "timestamp_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp At"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankCertificateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "party",
+          "type",
+          "signer",
+          "role",
+          "authority",
+          "signed_at",
+          "method",
+          "rules_version",
+          "timestamp_at",
+          "certificate"
+        ],
+        "title": "VerifiedSignatureOut"
       },
       "ViolationOut": {
         "properties": {
@@ -17710,6 +22925,122 @@
           "as_of"
         ],
         "title": "ZskRiskDTO"
+      },
+      "src__modules__applications__application__dto__applications__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO"
+      },
+      "src__modules__clients__presentation__schemas__inn_check__FounderRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "share_percent": {
+            "type": "string",
+            "title": "Share Percent"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "share_percent",
+          "inn"
+        ],
+        "title": "FounderRead"
+      },
+      "src__modules__decision__api__schemas__FounderRead": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "name"
+        ],
+        "title": "FounderRead"
+      },
+      "src__modules__enrichment__application__dto__aml__DeclaredOwnerDTO": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "ownership",
+              "control"
+            ],
+            "title": "Basis"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "basis"
+        ],
+        "title": "DeclaredOwnerDTO",
+        "description": "Бенефициар со слов клиента."
       }
     },
     "securitySchemes": {

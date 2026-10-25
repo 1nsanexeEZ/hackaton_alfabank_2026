@@ -1,0 +1,38 @@
+type: http_request
+model: http_request
+id: rq_6iTYiprFDR
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_tEgk2X6Glx
+name: Править черновик модели
+description: |-
+  The whole document of a draft. It is checked as the YAML file is at startup:
+  422 `validation_error` with `details.errors` — a list of `{path, message}`. Not a
+  draft — 409 `invalid_transition`.
+
+  Документ черновика как есть, из «Версия модели с документом»: поменяйте баллы или границы и отправьте. Дырявые бины — 422 со списком `{path, message}`.
+
+  Токен: администратор.
+method: PUT
+url: ${[ base_url ]}/scoring/models/:version
+urlParameters:
+- enabled: true
+  name: :version
+  value: ${[ model_version ]}
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "body": ${[ response.body.path(request='rq_IWBFIkg758', behavior='smart', path='$.body') ]},
+      "comment": "Правка из коллекции Yaak"
+    }
+sortPriority: 5000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

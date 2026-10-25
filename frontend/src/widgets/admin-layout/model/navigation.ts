@@ -1,7 +1,9 @@
 import {
   FileSearch,
+  GitBranch,
   Inbox,
   LayoutDashboard,
+  MessagesSquare,
   Package,
   ShieldCheck,
   SlidersHorizontal,
@@ -31,14 +33,16 @@ export const ADMIN_NAVIGATION: readonly NavGroup[] = [
     items: [
       { route: ADMIN_ROUTE.dashboard, label: 'Обзор', icon: LayoutDashboard, permission: 'requests.read' },
       { route: ADMIN_ROUTE.applications, label: 'Заявки', icon: Inbox, permission: 'requests.read' },
-      { route: ADMIN_ROUTE.innCheck, label: 'Проверка по ИНН', icon: FileSearch, permission: 'requests.read' },
+      { route: ADMIN_ROUTE.innCheck, label: 'Проверка по ИНН', icon: FileSearch, permission: 'backoffice.read' },
+      { route: ADMIN_ROUTE.support, label: 'Поддержка', icon: MessagesSquare, permission: 'support.manage' },
     ],
   },
   {
     title: 'Настройки',
     items: [
       { route: ADMIN_ROUTE.products, label: 'Продукты', icon: Package, permission: 'credits.read' },
-      { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'requests.read' },
+      { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'backoffice.read' },
+      { route: ADMIN_ROUTE.versions, label: 'Модель и политика', icon: GitBranch, permission: 'scoring.read' },
     ],
   },
   {

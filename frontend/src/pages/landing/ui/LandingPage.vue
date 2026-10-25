@@ -17,6 +17,8 @@ import { LoanCalculatorSection } from '@/widgets/loan-calculator'
 import { ProcessSteps } from '@/widgets/process-steps'
 import { ProductsCatalog } from '@/widgets/products-catalog'
 
+import LandingSheet from './LandingSheet.vue'
+
 // Каталог — из GET /products; параметры кредита общие для каталога, калькулятора и модалки заявки
 const { products, error, reload } = useProductCatalog()
 
@@ -88,27 +90,53 @@ function continueApplication(draft: ApplicationDraft) {
 </script>
 
 <template>
-  <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" @open="openApplicationCard" />
-  <BenefitsSection />
-  <template v-if="products">
-    <LoanCalculatorSection
-      v-model:product-id="loanDraft.productId"
-      v-model:amount="loanDraft.amount"
-      v-model:term-months="loanDraft.termMonths"
-      v-model:purpose="loanDraft.purpose"
-      v-model:organization-id="calculatorCompany"
-      :products="products"
-      :companies="companies"
-      @apply="applyFromCalculator"
-    />
-    <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
-  </template>
-  <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->
-  <section v-else :id="SECTION_ID.products" class="py-16 lg:py-24">
-    <BaseContainer>
-      <AsyncState :loading="!error" :error="error" @retry="reload" />
-    </BaseContainer>
-  </section>
-  <ProcessSteps />
-  <FaqSection />
+  <!-- Остальная страница — лист, который наезжает на первый экран (LandingSheet) -->
+  <div class="landing-stack">
+    <LandingSheet class="bg-night">
+      <HeroSection :products="products" @apply="startApplication()" @continue="continueApplication" @open="openApplicationCard" />
+    </LandingSheet>
+    <LandingSheet stacked class="bg-white">
+      <BenefitsSection />
+      <template v-if="products">
+        <LoanCalculatorSection
+          v-model:product-id="loanDraft.productId"
+          v-model:amount="loanDraft.amount"
+          v-model:term-months="loanDraft.termMonths"
+          v-model:purpose="loanDraft.purpose"
+          v-model:organization-id="calculatorCompany"
+          :products="products"
+          :companies="companies"
+          @apply="applyFromCalculator"
+        />
+        <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
+      </template>
+      <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->
+      <section v-else :id="SECTION_ID.products" class="py-16 lg:py-24">
+        <BaseContainer>
+          <AsyncState :loading="!error" :error="error" @retry="reload" />
+        </BaseContainer>
+      </section>
+      <ProcessSteps />
+      <FaqSection />
+    </LandingSheet>
+  </div>
 </template>
+
+<style scoped>
+/* Общее для листов: скругление края и высота шапки, под которой прилипает первый экран */
+.landing-stack {
+  --r: 2.5rem;
+  --stick: 4rem;
+
+  position: relative;
+  background: var(--color-night);
+  timeline-scope: --landing-stacked;
+}
+
+@media (width >= 64rem) {
+  .landing-stack {
+    --r: var(--radius-sheet);
+    --stick: 4.5rem;
+  }
+}
+</style>

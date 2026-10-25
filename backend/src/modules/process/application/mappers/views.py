@@ -40,6 +40,7 @@ def process_view(process: ProcessInstance) -> ProcessViewDTO:
         ),
         started_at=process.created_at,
         finished_at=process.finished_at,
+        manual_review_reason=process.context.manual_review_reason,
     )
 
 
@@ -58,6 +59,7 @@ def task_dto(task: UserTask) -> UserTaskDTO:
         due_at=task.due_at,
         result=task.result,
         completed_by=task.completed_by,
+        reason=task.reason,
     )
 
 
@@ -76,4 +78,5 @@ def task_card(task: UserTask, now: datetime) -> TaskDTO:
         overdue=task.is_overdue(now),
         result=task.result,
         completed_by=task.completed_by,
+        reason=task.reason,
     )

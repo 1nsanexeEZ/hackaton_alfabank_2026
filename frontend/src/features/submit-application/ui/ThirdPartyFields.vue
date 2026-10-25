@@ -2,10 +2,11 @@
 import { SegmentedControl, TextField } from '@/shared/ui'
 
 import type { ThirdPartyForm } from '../model/thirdParty'
+import CountryField from './CountryField.vue'
 
 /**
  * Третье лицо в заявке — одинаково для выгодоприобретателя и владельца залога:
- * организация или ИП — наименование и ИНН, физлицо — ФИО и ИНН по желанию.
+ * организация или ИП — наименование и ИНН, физлицо — ФИО и ИНН по желанию; страна — если не Россия.
  * prefix — путь в ошибках и data-field: beneficiary.beneficiary, collateral.owner_party.
  */
 const props = defineProps<{ prefix: string; errors: Record<string, string> }>()
@@ -42,5 +43,6 @@ const error = (field: string) => props.errors[`${props.prefix}.${field}`]
         :error="error('inn')"
       />
     </div>
+    <CountryField v-model="party.country" :data-field="`${prefix}.country`" class="sm:max-w-xs" :error="error('country')" />
   </div>
 </template>

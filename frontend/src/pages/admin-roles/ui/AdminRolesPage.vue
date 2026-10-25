@@ -2,7 +2,7 @@
 import { Check, Minus, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
-import { MATRIX_ACTIONS, PERMISSION_GROUPS, POLICY_META, roleTitle } from '@/entities/role'
+import { MATRIX_ACTIONS, PERMISSION_GROUPS, PERMISSION_SECTIONS, POLICY_META, roleTitle } from '@/entities/role'
 import { useSession } from '@/entities/session'
 import { RoleEditorModal } from '@/features/edit-role'
 import { identityApi, type RoleDto } from '@/shared/api'
@@ -13,7 +13,7 @@ import { AdminPageHeader } from '@/widgets/admin-layout'
 const { can } = useSession()
 
 const roles = useAsyncData(() => identityApi.listRoles())
-const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAccounts() : Promise.resolve([])))
+const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAllAccounts() : Promise.resolve([])))
 
 const usage = computed(() => {
   const counts = new Map<string, number>()
@@ -135,6 +135,13 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
+        <ul v-if="!role.permissions.includes('admin')" class="mt-3 flex flex-wrap gap-1.5">
+          <template v-for="section in PERMISSION_SECTIONS" :key="section.title">
+            <li v-for="item in section.items.filter((entry) => has(role, entry.permission))" :key="item.permission">
+              <BaseBadge tone="success" :title="section.title">{{ item.label }}</BaseBadge>
+            </li>
+          </template>
+        </ul>
         <p class="mt-3 text-xs text-ink-secondary">Системное имя: <code>{{ role.name }}</code></p>
       </PanelCard>
     </div>

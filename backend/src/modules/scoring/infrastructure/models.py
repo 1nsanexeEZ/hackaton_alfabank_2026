@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Index, Integer, Numeric, String, Uuid
+from sqlalchemy import Date, DateTime, Index, Integer, Numeric, String, Text, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.infrastructure.database.base import Base, JSONType
@@ -40,6 +40,8 @@ class ScoringResultRecord(Base):
     # Качество данных (scoring_0004): ok / degraded и почему; до неё — пусто.
     quality: Mapped[str | None] = mapped_column(String(16), default=None)
     quality_reasons: Mapped[list[str] | None] = mapped_column(JSONType, default=None)
+    # Почему оценки ML нет (scoring_0006): no_revenue; пусто — посчитана или результат до неё.
+    ml_not_applicable: Mapped[str | None] = mapped_column(String(32), default=None)
 
 
 class FeatureSnapshotRecord(Base):
@@ -59,3 +61,32 @@ class FeatureSnapshotRecord(Base):
     features: Mapped[dict[str, Any]] = mapped_column(JSONType)
     sources: Mapped[list[str]] = mapped_column(JSONType)
     version: Mapped[str] = mapped_column(String(32))
+
+
+class ScoringModelVersionRecord(Base):
+    """Версии PD-модели, которые ведёт админ (scoring_0007): черновик → активная → архив.
+    Встроенной модели из YAML здесь нет — она действует, пока нет активной версии."""
+
+    __tablename__ = "scoring_model_versions"
+    __table_args__ = (
+        # Активной бывает только одна версия.
+        Index(
+            "uq_scoring_model_versions_active",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)  # pd_model_v2.1
+    status: Mapped[str] = mapped_column(String(16))
+    # Тот же документ, что YAML: Decimal строками, `version` внутри — код версии.
+    body: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    based_on: Mapped[str | None] = mapped_column(String(32), default=None)
+    comment: Mapped[str | None] = mapped_column(Text, default=None)
+    created_by: Mapped[UUID] = mapped_column(Uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    activated_by: Mapped[UUID | None] = mapped_column(Uuid, default=None)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_wXQZoZJb93
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Техподдержка
+description: Обращения клиента, очередь сотрудников, взятие и переписка.
+sortPriority: 13000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

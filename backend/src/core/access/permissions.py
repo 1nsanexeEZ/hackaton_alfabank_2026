@@ -12,6 +12,10 @@ class Permissions(StrEnum):
     ROLES_UPDATE = "roles.update"
     ROLES_DELETE = "roles.delete"
     PROFILE_UPDATE = "profile.update"
+    # Own last, first and middle name. Clients don't have it: their name is confirmed by
+    # the bank when the account is opened, and the registry head check and the signer
+    # of a contract rest on it; staff correct a client's name through `accounts.update`.
+    PROFILE_UPDATE_NAME = "profile.update_name"
     # Credit applications (module `applications`). Clients get them with the
     # `org_member` policy, underwriters without policies.
     REQUESTS_READ = "requests.read"
@@ -31,7 +35,21 @@ class Permissions(StrEnum):
     TASKS_UPDATE = "tasks.update"
     # Full credit decision with rule trace (module `decision`).
     DECISIONS_READ = "decisions.read"
-    # Back office screens: queue, metrics (module `bff`).
+    # Versions of the PD model (module `scoring`) and of the credit policy (module
+    # `decision`): read and preview a version; `update` keeps them — drafts, editing,
+    # activation and rollback.
+    SCORING_READ = "scoring.read"
+    SCORING_UPDATE = "scoring.update"
+    # Back office screens: queue, metrics (module `bff`); the check of a company by INN
+    # before an application (module `clients`).
     BACKOFFICE_READ = "backoffice.read"
     # Feed and notifications (module `notifications`).
     FEED_READ = "feed.read"
+    # Support tickets (module `support`). Clients read and write their own
+    # tickets (`own_only`); `manage` is the staff queue: take, reply, resolve.
+    SUPPORT_READ = "support.read"
+    SUPPORT_CREATE = "support.create"
+    SUPPORT_MANAGE = "support.manage"
+    # Smart assistant (module `assistant`): the right to ask it. Clients ask about the
+    # applications of their companies (`org_member`); staff without a policy, by id.
+    ASSISTANT_USE = "assistant.use"

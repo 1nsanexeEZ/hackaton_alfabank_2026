@@ -5,9 +5,11 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_XaejLZxLdI
 name: Подписать договор
 description: |-
-  Simulated signature: the password is asked once more (step-up), the
-  document goes through the EDO mock; the response says `simulated: true`.
-  `offer_hash` comes from the contract; a changed offer — 409 `offer_changed`.
+  The client's simple electronic signature: the password once more
+  (step-up), `offer_hash` and `document_hash` of the draft it read, the
+  version of the rules it accepted. A changed offer — 409 `offer_changed`, a
+  changed draft — 422 `document_changed`, old rules — 422 `rules_outdated`.
+  Right after it the bank seals the contract PDF with its signature.
 
   Работает после «Принять предложение».
 
@@ -27,9 +29,11 @@ body:
   text: |-
     {
       "password": "${[ demo_password ]}",
-      "offer_hash": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.offer_hash') ]}"
+      "offer_hash": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.offer_hash') ]}",
+      "document_hash": "${[ response.body.path(request='rq_XLYoOA8dUn', behavior='smart', path='$.document.sha256') ]}",
+      "rules_version": "${[ response.body.path(request='rq_XCd8C7N0m7', behavior='smart', path='$.version') ]}"
     }
-sortPriority: 15000.0
+sortPriority: 16000.0
 authenticationType: bearer
 authentication:
   token: ${[ token_romashka ]}

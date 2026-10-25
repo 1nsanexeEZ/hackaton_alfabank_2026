@@ -12,8 +12,8 @@ type Progress = { current: number; caption?: string; decision?: string }
 
 /** Где заявка на шкале и что подписать у текущего этапа; current = длина шкалы — всё пройдено */
 const PROGRESS: Partial<Record<ClientStatus, Progress>> = {
-  submitted: { current: 1, caption: 'Проверяем данные в ЕГРЮЛ, ФНС и бюро кредитных историй' },
-  checking: { current: 1, caption: 'Проверяем данные в ЕГРЮЛ, ФНС и бюро кредитных историй' },
+  submitted: { current: 1, caption: 'Проверяем данные заявки' },
+  checking: { current: 1, caption: 'Проверяем данные заявки' },
   scoring: { current: 1, caption: 'Оцениваем заявку, обычно до 5 минут' },
   info_requested: { current: 1, caption: 'Банк запросил дополнительные данные' },
   approved: { current: 2, caption: 'Примите предложение и подпишите договор', decision: 'Одобрено' },

@@ -287,3 +287,136 @@ def test_beneficiary_without_the_basis_is_rejected(world: World) -> None:
         headers=world.headers(world.director),
     )
     assert response.status_code == 422
+
+
+AGENT_ANSWER = {
+    "acts_for_third_party": True,
+    "beneficiary": {"kind": "organization", "name": "ООО «Транзитный агент»", "inn": "7707115094"},
+    "basis": "commission",
+}
+
+
+def test_contract_with_the_third_party_is_required(world: World) -> None:
+    """Клиент действует за третье лицо: без договора заявку не отправить, completeness это видит."""
+    application = world.ready()
+    url = f"/applications/{application['id']}"
+    headers = world.headers(world.director)
+    world.client.patch(
+        url, json={"version": application["version"], "beneficiary": AGENT_ANSWER}, headers=headers
+    )
+
+    report = world.client.get(f"{url}/completeness", headers=headers).json()
+    contract = {
+        "code": "missing",
+        "field": "documents.beneficiary_contract",
+        "type": "beneficiary_contract",
+        "basis": "commission",
+    }
+    assert report == {"complete": False, "violations": [contract]}
+
+    refused = world.client.post(f"{url}/submit", headers=headers)
+    assert refused.status_code == 422
+    assert refused.json()["details"]["violations"] == [contract]
+    assert world.outbox_types() == []
+
+    world.upload(
+        application, "beneficiary_contract", content=b"%PDF-1.7", content_type="application/pdf"
+    )
+    assert world.client.get(f"{url}/completeness", headers=headers).json() == {
+        "complete": True,
+        "violations": [],
+    }
+    assert world.client.post(f"{url}/submit", headers=headers).status_code == 200
+
+
+def test_contract_is_not_needed_when_acting_alone(world: World) -> None:
+    application = world.ready()
+    url = f"/applications/{application['id']}"
+    headers = world.headers(world.director)
+    answered = world.client.patch(
+        url,
+        json={
+            "version": application["version"],
+            "beneficiary": {"acts_for_third_party": False},
+        },
+        headers=headers,
+    )
+    assert answered.status_code == 200
+    assert world.client.get(f"{url}/completeness", headers=headers).json()["complete"] is True
+    assert world.client.post(f"{url}/submit", headers=headers).status_code == 200
+
+
+def test_contract_accepts_only_pdf_and_images(world: World) -> None:
+    application = world.create()
+    response = world.client.post(
+        f"/applications/{application['id']}/documents",
+        json={
+            "type": "beneficiary_contract",
+            "filename": "contract.csv",
+            "content_type": "text/csv",
+            "size_bytes": 100,
+        },
+        headers=world.headers(world.director),
+    )
+    assert response.status_code == 422
+    assert response.json()["details"]["code"] == "content_type_not_allowed"
+
+
+def test_beneficial_owners_answer(world: World) -> None:
+    """115-ФЗ, ст. 6.1: бенефициары со слов клиента; пустой список — ответ, null — снять."""
+    application = world.create()
+    url = f"/applications/{application['id']}"
+    headers = world.headers(world.director)
+    assert application["beneficial_owners"] is None
+
+    body = world.client.patch(
+        url,
+        json={
+            "version": 1,
+            "beneficial_owners": {
+                "owners": [
+                    {"name": "Смирнова Анна Сергеевна", "basis": "ownership"},
+                    {"name": "Теневой Тимур", "basis": "control", "country": "AE"},
+                ]
+            },
+            "beneficiary": {
+                "acts_for_third_party": True,
+                "beneficiary": {"kind": "person", "name": "Хоссейни Али Реза", "country": "IR"},
+                "basis": "agency",
+            },
+        },
+        headers=headers,
+    ).json()
+    assert body["beneficial_owners"]["owners"] == [
+        {"name": "Смирнова Анна Сергеевна", "basis": "ownership", "country": None},
+        {"name": "Теневой Тимур", "basis": "control", "country": "AE"},
+    ]
+    assert body["beneficiary"]["beneficiary"]["country"] == "IR"
+    assert (
+        world.client.get(url, headers=headers).json()["beneficial_owners"]
+        == body["beneficial_owners"]
+    )
+
+    nobody = world.client.patch(
+        url, json={"version": 2, "beneficial_owners": {"owners": []}}, headers=headers
+    ).json()
+    assert nobody["beneficial_owners"]["owners"] == []
+    withdrawn = world.client.patch(
+        url, json={"version": 3, "beneficial_owners": None}, headers=headers
+    ).json()
+    assert withdrawn["beneficial_owners"] is None
+
+
+def test_country_must_be_an_iso_code(world: World) -> None:
+    application = world.create()
+    response = world.client.patch(
+        f"/applications/{application['id']}",
+        json={
+            "version": 1,
+            "beneficial_owners": {
+                "owners": [{"name": "Теневой Тимур", "basis": "control", "country": "Эмираты"}]
+            },
+        },
+        headers=world.headers(world.director),
+    )
+    assert response.status_code == 422

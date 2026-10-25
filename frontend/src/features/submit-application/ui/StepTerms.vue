@@ -14,7 +14,7 @@ import {
 import { founderPrescreen, FounderPrescreenPanel, projectApproved } from '@/entities/customer'
 import { clientApi, type LoanPurpose, type OrganizationDetailDto } from '@/shared/api'
 import { clamp, formatMoney, formatMoneyShort, formatPercent, formatTerm } from '@/shared/lib'
-import { RangeField, SelectField, TextField } from '@/shared/ui'
+import { AnimatedNumber, RangeField, SelectField, TextField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
 
@@ -166,7 +166,7 @@ const suggestProject = computed(
         class="mt-2 flex items-start gap-2 rounded-xl bg-warning-soft p-3 text-sm text-ink"
       >
         <CircleAlert class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-        Данные компании расходятся с ЕГРЮЛ — заявку посмотрит специалист банка, решение займёт больше времени.
+        Часть данных компании нужно уточнить — заявку посмотрит специалист банка, решение займёт больше времени.
       </p>
     </div>
 
@@ -265,7 +265,8 @@ const suggestProject = computed(
         {{ schedule?.repayment === 'interest_only' ? 'Платёж по процентам в месяц' : 'Платёж в месяц' }}
       </span>
       <span class="text-xl font-bold transition-opacity" :class="pending && 'opacity-60'">
-        {{ schedule ? formatMoney(schedule.monthlyPayment) : '—' }}
+        <AnimatedNumber v-if="schedule" :value="schedule.monthlyPayment" :format="formatMoney" />
+        <template v-else>—</template>
         <span class="text-sm font-normal text-on-night-secondary">
           по ставке {{ personal?.preApproved ? '' : 'от ' }}{{ formatPercent(schedule?.rate ?? product.rateFrom) }}
         </span>

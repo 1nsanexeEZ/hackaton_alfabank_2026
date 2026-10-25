@@ -39,7 +39,8 @@ const ROW_GAP = 100
 const TOP_SPACE = 48
 const LABEL_SPACE = 58
 
-export const COLUMN_MIN = 78
+/** Не уже подписи этапа в 14 знаков: «Сверка с ЕГРЮЛ», «Предодобрение» */
+export const COLUMN_MIN = 100
 export const COLUMN_MAX = 132
 
 /** Ширина колонки под ширину контейнера: схема во всю панель, на телефоне — прокрутка */

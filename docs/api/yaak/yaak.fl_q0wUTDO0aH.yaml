@@ -1,0 +1,12 @@
+type: folder
+model: folder
+id: fl_q0wUTDO0aH
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_LRnXWnQzgy
+name: Политика решения
+description: 'Версии кредитной политики: черновик, правка, примерка на прошлых решениях, активация и откат.'
+sortPriority: 11000.0
+authenticationType: null
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

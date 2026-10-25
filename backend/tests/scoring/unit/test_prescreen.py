@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from src.modules.enrichment.facade import CreditHistoryDTO, ObligationDTO
+from src.modules.scoring.application.model_versions import FixedModel
 from src.modules.scoring.domain.prescreen import PersonHistoryInput
 from src.modules.scoring.infrastructure.config_loader import (
     ScorecardConfigError,
@@ -104,7 +105,7 @@ def test_facade_reads_the_credit_history() -> None:
         max_overdue_days_12m=45,
         total_monthly_payments=Decimal("27000"),
     )
-    facade = ScoringFacadeImpl(None, load_pd_model())  # type: ignore[arg-type]
+    facade = ScoringFacadeImpl(None, FixedModel(load_pd_model()))  # type: ignore[arg-type]
     result = facade.prescreen_person(history)
     assert not result.passed
     assert [r.code for r in result.reasons if not r.passed] == ["no_current_overdue"]

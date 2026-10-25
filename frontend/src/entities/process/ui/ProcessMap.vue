@@ -16,11 +16,18 @@ import { useProcessTracking } from '../model/useProcessTracking'
  * процесс, клик по этапу показывает подробности. Что показать про этап из карточки заявки —
  * решает тот, кто встраивает схему, через слот details. prelude — этапы до подачи (согласия,
  * предскоринг), они встают в начало; fallbackWorkflow — маршрут продукта, по нему схема строится
- * у черновика, пока процесса нет.
+ * у черновика, пока процесса нет. В шапке — версия BPMN-маршрута и, если по заявке уже решали,
+ * версия кредитной политики (policyVersion): это разные версии, у маршрута своя нумерация.
  */
 const props = withDefaults(
-  defineProps<{ applicationId: string; prelude?: readonly PreludeStage[]; fallbackWorkflow?: string | null }>(),
-  { prelude: () => [], fallbackWorkflow: null },
+  defineProps<{
+    applicationId: string
+    prelude?: readonly PreludeStage[]
+    fallbackWorkflow?: string | null
+    /** policy_v8 — по какой политике принято решение */
+    policyVersion?: string | null
+  }>(),
+  { prelude: () => [], fallbackWorkflow: null, policyVersion: null },
 )
 const emit = defineEmits<{ advance: [process: ProcessDto] }>()
 
@@ -39,6 +46,14 @@ defineExpose({ refresh: tracking.refresh })
 
 /** Маршрут с этапами до подачи в начале */
 const graph = computed(() => (routeGraph.value ? withPrelude(routeGraph.value, props.prelude) : null))
+
+/** «Стандартный: … · маршрут v2 · политика v8»; у черновика версия маршрута — из кода (standard_v2) */
+const description = computed(() => {
+  if (!graph.value) return undefined
+  const route = process.value?.workflow_version ?? /_v(\d+)$/.exec(graph.value.workflow.code)?.[1]
+  const policy = props.policyVersion?.replace(/^policy_/, '')
+  return [graph.value.workflow.name, route && `маршрут v${route}`, policy && `политика ${policy}`].filter(Boolean).join(' · ')
+})
 
 const progress = computed(() => {
   const route = routeGraph.value
@@ -297,7 +312,7 @@ const stepDuration = (step: ProcessStepDto) =>
 <template>
   <PanelCard
     title="Маршрут заявки"
-    :description="graph ? [graph.workflow.name, process && `версия ${process.workflow_version}`].filter(Boolean).join(' · ') : undefined"
+    :description="description"
   >
     <template v-if="!process && graph" #actions>
       <span class="text-xs text-ink-secondary">Заявка ещё не подана — процесс начнётся с подачи</span>

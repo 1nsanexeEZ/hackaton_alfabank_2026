@@ -14,9 +14,12 @@ DEFAULT_CONTENT_TYPES: frozenset[str] = frozenset({"application/pdf", "image/jpe
 CONTENT_TYPES_BY_DOCUMENT: dict[str, frozenset[str]] = {
     "bank_statement": frozenset({"text/csv", "application/vnd.ms-excel"}),
 }
+# The agreement with the third party the client acts for (115-FZ, the beneficiary). Not a part
+# of any product: it is required once the client declares it acts in the third party's interests.
+BENEFICIARY_CONTRACT = "beneficiary_contract"
 # Documents a client may always attach, besides those the product requires.
 OPTIONAL_DOCUMENT_TYPES: frozenset[str] = frozenset(
-    {"bank_statement", "financial_statement", "other"}
+    {"bank_statement", "financial_statement", BENEFICIARY_CONTRACT, "other"}
 )
 MAX_FILENAME_LENGTH = 255
 
@@ -96,8 +99,8 @@ class InfoRequest:
         return self.status is InfoRequestStatus.OPEN
 
     def allows_field(self, name: str) -> bool:
-        """`request`, `collateral`, `consents`, `beneficiary`, `product_fields` open a
-        whole section; any other name is a single product field."""
+        """`request`, `collateral`, `consents`, `beneficiary`, `beneficial_owners`,
+        `product_fields` open a whole section; any other name is a single product field."""
         return name in self.requested_fields
 
     def answer(self, account_id: UUID, now: datetime) -> None:

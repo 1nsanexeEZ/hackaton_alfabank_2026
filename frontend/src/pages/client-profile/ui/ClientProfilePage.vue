@@ -16,21 +16,25 @@ import {
   UserRound,
 } from 'lucide-vue-next'
 import { computed, shallowRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { CLIENT_STATUS_META, ACTION_REQUIRED_LABEL, isActiveApplication, myApplications } from '@/entities/application'
 import { useProductCatalog } from '@/entities/credit-product'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
+import { signOutWithTransition } from '@/features/customer-logout'
 import { ClientProfileForm, CompanyConsents, PersonalConsents } from '@/features/edit-client-profile'
 import { clientApi, type OrganizationSummaryDto } from '@/shared/api'
+import { ROUTE_PATH } from '@/shared/config'
 import { formatDate, formatMoney, formatMoneyShort, formatRelativeTime } from '@/shared/lib'
-import { BaseBadge, BaseButton, BaseContainer, PanelCard, PatternBackground } from '@/shared/ui'
+import { AnimatedNumber, BaseBadge, BaseButton, BaseContainer, PanelCard, PatternBackground } from '@/shared/ui'
 import { openApplicationCard, openCabinet, openLogin, startApplication } from '@/widgets/apply-flow'
 
 /**
  * Профиль клиента отдельной страницей: кто вошёл, сводка по заявкам и предодобрению, личные данные,
  * согласия, компании с ролью и правами, последние заявки, вход и безопасность.
  * Остальные разделы кабинета (заявка, уведомления, компания) пока открываются модалками поверх страницы.
+ * `data-rise` — блоки, которые после входа поднимаются лесенкой (анимация входа в features/customer-login).
  */
 const { me, name, logout } = useCustomer()
 const { products } = useProductCatalog()
@@ -114,16 +118,39 @@ const bestOffer = computed(() => {
   return offers.length ? Math.max(...offers.map((item) => item.preApprovedMax!)) : null
 })
 
+const count = (value: number) => String(value)
+
+/** Счётчики шапки: value — число (null — ещё грузится), empty — показать «—» вместо нуля */
 const stats = computed(() => [
-  { label: 'Заявок в работе', value: myApplications.state.items ? String(active.value.length) : null, icon: FileText },
-  { label: 'Ждут вашего действия', value: myApplications.state.items ? String(waiting.value.length) : null, icon: Sparkles, accent: waiting.value.length > 0 },
-  { label: 'Предодобрено до', value: companies.value ? (bestOffer.value ? formatMoneyShort(bestOffer.value) : '—') : null, icon: BadgeCheck },
-  { label: 'Новых уведомлений', value: String(liveFeed.state.unread), icon: Bell },
+  { label: 'Заявок в работе', value: myApplications.state.items ? active.value.length : null, format: count, icon: FileText },
+  {
+    label: 'Ждут вашего действия',
+    value: myApplications.state.items ? waiting.value.length : null,
+    format: count,
+    icon: Sparkles,
+    accent: waiting.value.length > 0,
+  },
+  {
+    label: 'Предодобрено до',
+    value: companies.value ? (bestOffer.value ?? 0) : null,
+    empty: companies.value !== null && !bestOffer.value,
+    format: formatMoneyShort,
+    icon: BadgeCheck,
+  },
+  { label: 'Новых уведомлений', value: liveFeed.state.unread, format: count, icon: Bell },
 ])
 
+const router = useRouter()
+
+/** Выход «чёрной дырой»: сессия стирается сразу, открывается главная */
 function signOut() {
-  logout()
-  myApplications.clear()
+  signOutWithTransition({
+    logout: () => {
+      logout()
+      myApplications.clear()
+    },
+    navigate: () => router.push(ROUTE_PATH.home),
+  })
 }
 </script>
 
@@ -152,7 +179,7 @@ function signOut() {
       />
       <BaseContainer class="relative py-10 lg:py-14">
         <div class="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <div class="flex items-center gap-5">
+          <div class="flex items-center gap-5" data-rise>
             <span
               class="flex size-20 shrink-0 items-center justify-center rounded-3xl bg-brand text-2xl font-bold text-white shadow-[0_1rem_2.5rem_rgb(239_49_36/0.35)] lg:size-24 lg:text-3xl"
               aria-hidden="true"
@@ -161,7 +188,7 @@ function signOut() {
             </span>
             <div class="min-w-0">
               <p class="text-sm text-on-night-secondary">Личный кабинет</p>
-              <h1 class="mt-1 text-2xl font-bold lg:text-4xl">{{ fullName }}</h1>
+              <h1 class="mt-1 text-2xl font-bold outline-none lg:text-4xl" tabindex="-1">{{ fullName }}</h1>
               <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-on-night-secondary">
                 <span v-if="me.profile?.position">{{ me.profile.position }}</span>
                 <span v-if="me.email" class="flex items-center gap-1.5"><Mail class="size-4" aria-hidden="true" />{{ me.email }}</span>
@@ -169,7 +196,7 @@ function signOut() {
               </p>
             </div>
           </div>
-          <div class="flex flex-col gap-3 sm:flex-row">
+          <div class="flex flex-col gap-3 sm:flex-row" data-rise>
             <BaseButton size="l" @click="startApplication()">
               <Plus class="size-4" aria-hidden="true" />
               Оформить заявку
@@ -183,6 +210,7 @@ function signOut() {
             v-for="stat in stats"
             :key="stat.label"
             class="flex min-h-28 flex-col justify-between gap-3 rounded-3xl bg-night-glass p-4 lg:p-5"
+            data-rise
           >
             <span
               class="flex size-9 items-center justify-center rounded-full"
@@ -191,7 +219,10 @@ function signOut() {
               <component :is="stat.icon" class="size-4" aria-hidden="true" />
             </span>
             <div>
-              <p v-if="stat.value !== null" class="text-xl font-bold lg:text-2xl">{{ stat.value }}</p>
+              <p v-if="stat.value !== null" class="text-xl font-bold lg:text-2xl">
+                <template v-if="stat.empty">—</template>
+                <AnimatedNumber v-else :value="stat.value" :format="stat.format" animate-on-mount />
+              </p>
               <p v-else class="h-7 w-16 animate-pulse rounded-lg bg-white/10" aria-label="Загружаем" />
               <p class="mt-0.5 text-sm text-on-night-secondary">{{ stat.label }}</p>
             </div>
@@ -204,18 +235,18 @@ function signOut() {
       <BaseContainer>
         <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
           <div class="space-y-6">
-            <PanelCard title="Личные данные" description="Как к вам обращаться в кабинете и в документах">
+            <PanelCard data-rise title="Личные данные" description="Как к вам обращаться в кабинете и в документах">
               <ClientProfileForm :key="me.id" />
             </PanelCard>
 
-            <PanelCard title="Согласия" description="Действуют для всех заявок — повторно давать их не нужно">
+            <PanelCard data-rise title="Согласия" description="Действуют для всех заявок — повторно давать их не нужно">
               <PersonalConsents />
               <CompanyConsents class="mt-6" />
             </PanelCard>
           </div>
 
           <aside class="space-y-6">
-            <PanelCard title="Мои компании" flush>
+            <PanelCard data-rise title="Мои компании" flush>
               <template #actions>
                 <button
                   type="button"
@@ -270,7 +301,7 @@ function signOut() {
               </div>
             </PanelCard>
 
-            <PanelCard title="Последние заявки" flush>
+            <PanelCard data-rise title="Последние заявки" flush>
               <template #actions>
                 <button
                   type="button"
@@ -320,7 +351,7 @@ function signOut() {
               </div>
             </PanelCard>
 
-            <PanelCard title="Вход и безопасность">
+            <PanelCard data-rise title="Вход и безопасность">
               <dl class="space-y-3 text-sm">
                 <div class="flex items-start gap-3">
                   <KeyRound class="mt-0.5 size-4 shrink-0 text-ink-secondary" aria-hidden="true" />

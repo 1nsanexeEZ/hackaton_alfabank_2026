@@ -1,15 +1,23 @@
 import type {
   ApplicationStatusCode,
+  BeneficialOwnerInput,
+  BeneficialOwnersDto,
   BeneficiaryDto,
   BusinessPlanDto,
   ClientStatus,
   ConsentsDto,
   FounderPrescreenDto,
   OrganizationDetailDto,
+  OrganizationSummaryDto,
   PreApprovedOfferDto,
+  ProductDto,
   ProjectAssessmentDto,
+  SupportTicketDto,
+  SupportTicketListItemDto,
+  SupportTicketStatus,
   ThirdPartyDto,
 } from '../client/types'
+import type { DownloadedFile } from '../http'
 
 /**
  * Бэк-офис андеррайтера на бэкенде (docs/api/client-journey.md §3.8): очередь задач,
@@ -60,6 +68,15 @@ export interface StaffApplicationDto {
   submitted_at: string | null
 }
 
+/** Фильтры GET /applications: status повторяется в query, decided_by — кто решил; limit до 100 */
+export interface StaffApplicationsQuery {
+  organizationId?: string
+  status?: ApplicationStatusCode[]
+  decidedBy?: 'auto' | 'underwriter'
+  limit?: number
+  offset?: number
+}
+
 export interface QueuePageDto {
   items: QueueItemDto[]
   total: number
@@ -98,6 +115,8 @@ export interface UnderwriterApplicationDto {
   collateral: { type: string; description: string; declared_value: string; owner: string; owner_party?: ThirdPartyDto | null } | null
   /** Ответ клиента о третьем лице (выгодоприобретателе); null — не ответил */
   beneficiary?: BeneficiaryDto | null
+  /** Бенефициары со слов клиента (115-ФЗ); null — не ответил */
+  beneficial_owners?: BeneficialOwnersDto | null
   /** Согласия заявки: когда даны и откуда — галочка в черновике или из профиля */
   consents?: (ConsentsDto & { given_by?: string | null }) | null
   org_snapshot: {
@@ -165,15 +184,23 @@ export interface CreditHistoryDto {
 }
 
 /** Бухотчётность из ГИР БО за год */
+/** Годовая отчётность ГИР БО: отчёт о финансовых результатах и баланс, рубли строками */
 export interface AccountingPeriodDto {
   year: number
   revenue: string
+  cost_of_sales: string
+  sales_profit: string
+  interest_payable: string
   net_profit: string
-  equity: string
-  total_assets: string
-  total_liabilities: string
+  fixed_assets: string
+  inventories: string
   receivables: string
   cash: string
+  equity: string
+  total_assets: string
+  long_term_liabilities: string
+  short_term_liabilities: string
+  total_liabilities: string
 }
 
 /** Контур: надёжность, суды, приставы, банкротство, госконтракты */
@@ -192,9 +219,21 @@ export interface CounterpartyRiskDto {
  * выгодоприобретатель и залогодатель — третье лицо
  */
 export interface AmlSubjectDto {
-  role: 'company' | 'founder_company' | 'head' | 'beneficial_owner' | 'representative' | 'beneficiary' | 'pledgor'
+  /** founder — учредитель-физлицо с любой долей, declared_owner — бенефициар со слов клиента (policy_v9) */
+  role:
+    | 'company'
+    | 'founder_company'
+    | 'head'
+    | 'beneficial_owner'
+    | 'representative'
+    | 'beneficiary'
+    | 'pledgor'
+    | 'founder'
+    | 'declared_owner'
   name: string
   inn: string | null
+  /** Страна: у учредителей — из ЕГРЮЛ, у третьих лиц и названных бенефициаров — со слов клиента */
+  country?: string | null
 }
 
 /** Проверка по 115-ФЗ: бенефициары, перечни Росфинмониторинга, публичные должностные лица, риск ЗСК */
@@ -205,6 +244,12 @@ export interface AmlCheckDto {
   subjects: AmlSubjectDto[]
   list_hits: { subject: AmlSubjectDto; list: 'terrorism' | 'freeze' | 'wmd'; record: string }[]
   pep_hits: { subject: AmlSubjectDto; kind: 'foreign' | 'russian' | 'international'; position: string }[]
+  /** Бенефициары со слов клиента; null — клиент не ответил */
+  declared_owners?: (BeneficialOwnerInput & { country: string | null })[] | null
+  /** Сверка с ЕГРЮЛ: not_declared — клиент не назвал владельца по реестру, not_in_registry — назвал, а в реестре его нет */
+  owner_discrepancies?: { name: string; kind: 'not_declared' | 'not_in_registry' }[]
+  /** Действующие лицензии (ст. 7 п. 15 115-ФЗ); null — реестр лицензий не ответил */
+  licenses?: { number: string; activity: string; okved: string }[] | null
 }
 
 /** Обороты по расчётному счёту в банке (АБС) за 24 месяца */
@@ -228,7 +273,7 @@ export interface EnrichmentDto {
     head_first_name: string
     head_middle_name: string | null
     head_position: string
-    founders: { name: string; share_percent: string; inn?: string | null }[]
+    founders: { name: string; share_percent: string; inn?: string | null; country?: string | null }[]
     address: string
     mass_address: boolean
     kpp?: string | null
@@ -305,8 +350,10 @@ export interface ScoringDto {
   pd_12m?: string | null
   /** Факторы, сильнее всего снизившие балл */
   reason_codes?: string[]
-  /** Оценка ML-модели; нет — заявка оценена до появления второй модели */
+  /** Оценка ML-модели; нет — заявка оценена до появления второй модели или модель не применяется */
   ml?: MlScoreDto | null
+  /** no_revenue — у компании нет выручки ни в заявке, ни по ФНС: ML-модель на таких не обучена и не оценивает */
+  ml_not_applicable?: 'no_revenue' | null
   /** Данные полные? degraded — не ответил критичный источник или мало признаков: решает человек */
   quality?: 'ok' | 'degraded' | null
   /** source_failed:<источник>, completeness_below:<доля> */
@@ -337,6 +384,8 @@ export interface DecisionDto {
   rule_trace: { rule: string; matched: boolean; detail: string }[]
   limits: LimitsDto
   decided_by_type: 'auto' | 'underwriter'
+  /** Решение андеррайтера заменило это решение (id прежнего); null — первое решение */
+  override_of?: string | null
   comment: string | null
   decided_at: string
   /** Мягкие триггеры, из-за которых заявка ушла на ручную проверку */
@@ -357,6 +406,12 @@ export interface UnderwriterTaskDto {
   created_at: string
   due_at: string | null
   result: Record<string, unknown> | null
+  /**
+   * Почему задача у андеррайтера помимо причин решения: ручное решение, которое decision не принял
+   * («Ручное решение не принято: …»), или шаг процесса упал либо повторился сверх лимита. null — заявку
+   * отдало человеку само решение (MANUAL_REVIEW). У закрытой задачи остаётся
+   */
+  reason?: string | null
 }
 
 /** Карточка андеррайтера (GET /bff/backoffice/applications/{id}) */
@@ -373,6 +428,8 @@ export interface UnderwriterCardDto {
     status: string
     client_stage: string | null
     steps: { node_id: string; step_code: string | null; kind: string; started_at: string; finished_at: string | null; outcome: string | null; error: string | null }[]
+    /** То же, что reason задачи, но сбрасывается, когда андеррайтер закрывает задачу */
+    manual_review_reason?: string | null
   } | null
   task: UnderwriterTaskDto | null
   degraded: string[]
@@ -448,6 +505,8 @@ export interface ProcessDto {
   client_stage: string | null
   /** Пройденные узлы без повторов, в порядке первого прохода */
   visited_node_ids: string[]
+  /** Почему заявка у андеррайтера помимо причин решения; null — отдало само решение или задача закрыта */
+  manual_review_reason?: string | null
   /** Шаги по времени, с повторами */
   steps: ProcessStepDto[]
   started_at: string
@@ -490,8 +549,101 @@ export interface TaskResultInput {
   support_program?: boolean
 }
 
+/* ---------- Ведение каталога продуктов (PR #200, docs/modules/products.md) ---------- */
+
+/** Условия продукта для PUT /products/{code}: карточка из GET без code, version и status */
+export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status'>
+
+/** Новый продукт: версия 1 в конце каталога, черновик или сразу в продаже */
+export interface ProductCreateInput extends ProductInput {
+  code: string
+  status: 'draft' | 'active'
+}
+
+/** BPMN-маршрут процесса — для выбора workflow_code продукта */
+export interface WorkflowDto {
+  code: string
+  version: number
+  source_hash: string
+  nodes: number
+  flows: number
+}
+
+/* ---------- Проверка компании по ИНН до заявки (POST /organizations/inn-check, #213) ---------- */
+
+export type InnCheckVerdict = 'ok' | 'warning' | 'fail' | 'not_found'
+export type InnCheckStatus = 'passed' | 'warning' | 'failed' | 'skipped'
+/** input — сверка с реквизитами из документов клиента, bank — данные банка */
+export type InnCheckSource = 'input' | 'egrul' | 'fns' | 'kontur' | 'bank'
+
+/** ИНН и, если клиент их назвал, реквизиты из его документов: ИНН сверяется с каждым переданным */
+export interface InnCheckInput {
+  inn: string
+  ogrn?: string
+  kpp?: string
+  name?: string
+}
+
+export interface InnCheckDto {
+  inn: string
+  /** Худший статус проверок: failed — fail; warning или источник не ответил — warning */
+  verdict: InnCheckVerdict
+  /** Итог словами */
+  summary: string
+  checked_at: string
+  checks: { code: string; title: string; status: InnCheckStatus; message: string; source: InnCheckSource }[]
+  /** ЕГРЮЛ / ЕГРИП; null — ИНН не найден или с ошибкой в контрольной цифре */
+  company: {
+    inn: string
+    ogrn: string
+    kpp: string | null
+    legal_form: 'LLC' | 'IE' | 'JSC'
+    name: string
+    full_name: string
+    registry_status: 'active' | 'liquidating' | 'liquidated' | 'bankrupt' | 'reorganizing' | 'excluded'
+    registered_at: string
+    address: { full: string; region_code: string }
+    mass_address: boolean
+    unreliable: ('address' | 'head' | 'founder')[]
+    okved_main: string
+    okved_extra: string[]
+    head_name: string
+    head_position: string
+    head_since: string | null
+    founders: { name: string; share_percent: string; inn: string | null }[]
+  } | null
+  /** ФНС; null — не ответила */
+  tax: {
+    tax_regime: string
+    avg_headcount: number
+    reported_revenue: string | null
+    report_year: number | null
+    tax_arrears: string
+    in_msp_registry: boolean
+    disqualified_head: boolean
+    mass_head: boolean | null
+    account_blocks: { decision_number: string; date: string; reason: string }[]
+  } | null
+  /** Контур; null — не ответил */
+  counterparty: {
+    reliability: 'green' | 'yellow' | 'red'
+    notes: string[]
+    arbitration_as_defendant: number
+    arbitration_defendant_sum: string
+    enforcement_active: number
+    enforcement_sum: string
+    bankruptcy_messages: { date: string; type: string; case: string }[]
+  } | null
+  /** Компания — клиент банка: её карточка */
+  organization_id: string | null
+}
+
+/** Порядок очереди: срок по SLA, сумма, балл скоринга, создана */
+export type QueueSort = 'due_at' | 'amount' | 'score' | 'created_at'
+
 export interface BackofficeApi {
-  queue(query?: { status?: string; sort?: string; limit?: number; offset?: number }): Promise<QueuePageDto>
+  /** limit до 100; total — сколько задач всего с этим статусом */
+  queue(query?: { status?: string; sort?: QueueSort; limit?: number; offset?: number }): Promise<QueuePageDto>
   card(applicationId: string): Promise<UnderwriterCardDto>
   /** Взять задачу на себя */
   claim(taskId: string): Promise<UnderwriterTaskDto>
@@ -499,12 +651,16 @@ export interface BackofficeApi {
   complete(taskId: string, input: TaskResultInput): Promise<UnderwriterTaskDto>
   metrics(query?: { dateFrom?: string; dateTo?: string }): Promise<MetricsDto>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
+  /** PDF договора — банк видит договоры всех заявок; kind не задан — последний готовый */
+  contractDocument(applicationId: string, kind?: 'draft' | 'signed'): Promise<DownloadedFile>
   /** Процесс заявки: текущий узел и пройденные шаги */
   process(applicationId: string): Promise<ProcessDto>
   /** Схема маршрута — BPMN 2.0 XML */
   workflowDiagram(code: string): Promise<string>
   /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
-  applications(query?: { limit?: number; offset?: number }): Promise<StaffApplicationDto[]>
+  applications(query?: StaffApplicationsQuery): Promise<StaffApplicationDto[]>
+  /** Сотрудник видит все компании банка */
+  organizations(): Promise<OrganizationSummaryDto[]>
   organization(organizationId: string): Promise<OrganizationDetailDto>
   /** До заявки — предскоринг компании: предодобренные предложения, у стартапа — проверка учредителя и проектная оценка */
   preApprovedOffers(organizationId: string): Promise<PreApprovedOfferDto[]>
@@ -512,4 +668,211 @@ export interface BackofficeApi {
   founderPrescreen(organizationId: string): Promise<FounderPrescreenDto>
   /** 404 — оценки не было */
   projectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
+  /** Бизнес-план стартапа; 404 — ещё не загружен */
+  businessPlan(organizationId: string): Promise<BusinessPlanDto>
+  /**
+   * all — для ведения каталога: последняя версия каждого продукта, с черновиками и архивом (нужно credits.update);
+   * active — продукты в продаже, как на сайте
+   */
+  products(scope: 'all' | 'active'): Promise<ProductDto[]>
+  /** 409 — код занят; 422 — неизвестный маршрут или занятая карточка frontend_id */
+  createProduct(input: ProductCreateInput): Promise<ProductDto>
+  /** Черновик правится на месте, у продукта в продаже — новая версия; снятый с продажи этим же возвращается */
+  updateProduct(code: string, input: ProductInput): Promise<ProductDto>
+  /** Выпустить черновик в продажу */
+  activateProduct(code: string): Promise<ProductDto>
+  /** Снять с продажи: продукт уходит в архив, черновик удаляется */
+  withdrawProduct(code: string): Promise<void>
+  workflows(): Promise<WorkflowDto[]>
+  /** Проверка по ИНН до заявки, только для банка (backoffice.read); реестр не ответил — 503 */
+  innCheck(input: InnCheckInput): Promise<InnCheckDto>
+  /** Очередь обращений: all — все, unassigned — никто не взял, mine — взятые мной */
+  supportQueue(query?: {
+    status?: SupportTicketStatus[]
+    scope?: 'all' | 'unassigned' | 'mine'
+    limit?: number
+    offset?: number
+  }): Promise<SupportTicketListItemDto[]>
+  supportTicket(id: string): Promise<SupportTicketDto>
+  /** Уже взято — 409 already_taken, кто взял — в details.assignee_id */
+  takeSupportTicket(id: string): Promise<SupportTicketDto>
+  /** Вернуть в очередь: исполнитель или админ */
+  releaseSupportTicket(id: string): Promise<SupportTicketDto>
+  /** Не взято — 409 not_taken, взял другой — 403 not_assignee */
+  replySupportTicket(id: string, text: string): Promise<SupportTicketDto>
+  resolveSupportTicket(id: string): Promise<SupportTicketDto>
+  closeSupportTicketByStaff(id: string): Promise<SupportTicketDto>
+  /** Версии PD-модели: читать и примерять — scoring.read, вести — scoring.update */
+  scoringModels: VersionsApi<ModelCatalogDto, ModelPreviewDto>
+  /** Версии кредитной политики: права те же, что у версий PD-модели */
+  decisionPolicies: VersionsApi<PolicyCatalogDto, PolicyPreviewDto>
+}
+
+/**
+ * Версии PD-модели (/scoring/models) и кредитной политики (/decision/policies) устроены одинаково:
+ * встроенная версия из YAML только читается, версии админа — `<встроенная>.<n>`, draft → active → archived.
+ * Черновик — копия любой версии; править и удалять можно только его. Активировать черновик или архивную —
+ * это и откат; активировать встроенную — вернуть YAML (docs/modules/scoring.md, decision.md)
+ */
+export type VersionStatus = 'draft' | 'active' | 'archived'
+
+export interface VersionSummaryDto {
+  version: string
+  status: VersionStatus
+  builtin: boolean
+  based_on: string | null
+  comment: string | null
+  created_by: string | null
+  created_at: string | null
+  updated_at: string | null
+  activated_by: string | null
+  activated_at: string | null
+}
+
+/** Документ версии — тот же YAML в JSON: Decimal строками, пустые поля опущены */
+export type VersionBody = Record<string, unknown>
+
+export interface VersionDto extends VersionSummaryDto {
+  body: VersionBody
+}
+
+/** Ошибка документа из 422 (details.errors): путь в документе и текст */
+export interface VersionBodyError {
+  path: string
+  message: string
+}
+
+export interface VersionsApi<Catalog, Preview> {
+  /** Встроенная первой, затем версии админа; без body */
+  list(): Promise<VersionSummaryDto[]>
+  /** Из чего собирается документ */
+  catalog(): Promise<Catalog>
+  get(version: string): Promise<VersionDto>
+  /** Черновик-копия версии based_on; нет такой — 404 */
+  createDraft(input: { based_on: string; comment?: string }): Promise<VersionDto>
+  /** Документ целиком; comment не прислали — остаётся прежний. 422 — details.errors, 409 — не черновик */
+  updateDraft(version: string, input: { body: VersionBody; comment?: string }): Promise<VersionDto>
+  /** Только черновик, иначе 409 */
+  deleteDraft(version: string): Promise<void>
+  /** Черновик или архивная → активная; встроенная — вернуть YAML. Уже активна — 409 */
+  activate(version: string): Promise<VersionDto>
+  /** Пересчитать последние заявки версией-кандидатом, ничего не пишет; limit 1–500 */
+  preview(version: string, limit?: number): Promise<Preview>
+}
+
+export interface ModelFeatureInfoDto {
+  code: string
+  /** numeric — интервальные бины [from; to), categorical — бины категорий */
+  kind: 'numeric' | 'categorical'
+  /** Категории, у каждой из которых обязан быть бин */
+  categories: string[]
+  /** Обязателен в скоркарте каждого сегмента */
+  required: boolean
+}
+
+export interface ModelCatalogDto {
+  builtin: string
+  segments: string[]
+  features: ModelFeatureInfoDto[]
+  /** Грейды с верхней границей PD, по возрастанию */
+  grades: Grade[]
+  /** PD выше границы последнего грейда */
+  worst_grade: Grade
+  industry_sections: string[]
+}
+
+export interface CodeNameDto {
+  code: string
+  name: string
+}
+
+export interface PolicyReasonDto {
+  code: string
+  /** Что клиент увидит в решении */
+  text: string
+  hint: string | null
+}
+
+export interface PolicyCatalogDto {
+  builtin: string
+  legacy_scale: Grade[]
+  pd_scale: Grade[]
+  outcomes: CodeNameDto[]
+  /** Коды причин с текстами для клиента; код без текста в документе — 422 */
+  reasons: PolicyReasonDto[]
+  stop_factors: string[]
+  registry_statuses: string[]
+  routing_flags: string[]
+  zones: string[]
+  zone_verdicts: string[]
+  zsk_levels: string[]
+  legal_forms: string[]
+  collateral_types: CodeNameDto[]
+  products: CodeNameDto[]
+}
+
+export interface VersionShiftDto {
+  from: string
+  to: string
+  count: number
+}
+
+export interface ModelEstimateDto {
+  score: number
+  pd_12m: string | null
+  grade: Grade
+  segment: string | null
+  model_version: string
+}
+
+export interface ModelPreviewItemDto {
+  application_id: string
+  result_id: string
+  computed_at: string
+  /** Как посчитано тогда своей версией модели */
+  before: ModelEstimateDto
+  /** Как посчитала бы примеряемая версия */
+  after: ModelEstimateDto
+}
+
+export interface ModelPreviewDto {
+  version: string
+  total: number
+  same: number
+  better: number
+  worse: number
+  /** Снимок входа не прочитан */
+  skipped: number
+  /** Переходы грейдов, только непустые */
+  transitions: VersionShiftDto[]
+  items: ModelPreviewItemDto[]
+}
+
+export interface PolicyVerdictDto {
+  outcome: 'APPROVE' | 'COUNTER_OFFER' | 'REQUEST_INFO' | 'MANUAL_REVIEW' | 'REJECT'
+  reason_codes: string[]
+  policy_version: string
+}
+
+export interface PolicyPreviewItemDto {
+  application_id: string
+  /** Сохранённое автоматическое решение */
+  result_id: string
+  decided_at: string
+  before: PolicyVerdictDto
+  /** Как решила бы примеряемая версия на текущих данных заявки */
+  after: PolicyVerdictDto
+}
+
+export interface PolicyPreviewDto {
+  version: string
+  total: number
+  /** Другой исход или другие коды причин */
+  changed: number
+  outcome_changed: number
+  /** Вход не собрать: заявки или продукта уже нет */
+  skipped: number
+  /** Переходы исходов, только непустые */
+  transitions: VersionShiftDto[]
+  items: PolicyPreviewItemDto[]
 }

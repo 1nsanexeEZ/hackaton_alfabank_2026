@@ -101,6 +101,9 @@ class ReasonCode(StrEnum):
     # policy_v8: выгодоприобретатель и залогодатель — третье лицо (115-ФЗ).
     ROUTE_THIRD_PARTY_BENEFICIARY = "ROUTE_THIRD_PARTY_BENEFICIARY"
     ROUTE_THIRD_PARTIES_UNKNOWN = "ROUTE_THIRD_PARTIES_UNKNOWN"
+    # policy_v9: группа риска клиента по 115-ФЗ (ст. 7 п. 1 подп. 3.1) и лицензия (ст. 7 п. 15).
+    ROUTE_AML_HIGH_RISK = "ROUTE_AML_HIGH_RISK"
+    STOP_UNLICENSED_ACTIVITY = "STOP_UNLICENSED_ACTIVITY"
     # policy_v7: стоп-факторы таблицы общей схемы, которых не было.
     STOP_REORGANIZATION = "STOP_REORGANIZATION"
     STOP_EXCLUDED_FROM_REGISTRY = "STOP_EXCLUDED_FROM_REGISTRY"
@@ -239,6 +242,8 @@ class ScoreInput:
     # ML-модель рядом с PD-моделью (policy_v5); грейд всегда на шкале A–J. None — оценки нет.
     ml_grade: Grade | None = None
     ml_pd_12m: Decimal | None = None
+    # Почему оценки ML нет: no_revenue — модель к компании без выручки не применяется.
+    ml_not_applicable: str | None = None
     # «Данные полные?» скоринга (policy_v7): degraded — решает человек. None — результат до неё.
     quality: Literal["ok", "degraded"] | None = None
     quality_reasons: tuple[str, ...] = ()
@@ -269,6 +274,17 @@ class AmlInput:
     zsk_level: ZskLevel | None = None
     beneficial_owners: tuple[str, ...] = ()  # для трассы: «Цепочкин Ц. Ц. — 80%»
     lists_date: str | None = None  # версия перечней, ISO-дата
+    # policy_v9. Проверяемые не из России: (кто, код страны ISO 3166-1 alpha-2).
+    foreign_participants: tuple[tuple[str, str], ...] = ()
+    # Клиент назвал своих бенефициаров (ст. 6.1); расхождения с ЕГРЮЛ — для трассы.
+    owners_declared: bool = False
+    owner_discrepancies: tuple[str, ...] = ()
+    # ОКВЭД действующих лицензий; None — реестр лицензий не запрашивался.
+    licensed_okved: tuple[str, ...] | None = None
+
+
+# Группа риска совершения подозрительных операций (ст. 7 п. 1 подп. 3.1 115-ФЗ).
+AmlRiskGroup = Literal["low", "medium", "high"]
 
 
 # none — клиент ответил, что действует к своей выгоде; declared — указал выгодоприобретателя;

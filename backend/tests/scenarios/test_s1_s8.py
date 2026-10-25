@@ -20,6 +20,7 @@ from src.core.domain.clock import FrozenClock
 from src.main import create_app
 from src.modules.enrichment import module as enrichment_module
 from tests.assessment.assessment_world import NOW, Assessment, mock_sources
+from tests.fakes.contract_archive import FakeContractArchive
 from tests.fakes.document_storage import FakeDocumentStorage
 from tests.helpers import bearer, create_schema
 
@@ -106,6 +107,7 @@ def stand(tmp_path: Any) -> Iterator[Stand]:
     app = create_app(settings, clock=FrozenClock(NOW))
     storage = FakeDocumentStorage()
     app.state.document_storage = storage
+    app.state.contract_archive = FakeContractArchive()
     create_schema(settings.database_url)
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(enrichment_module, "_sources", mock_sources())

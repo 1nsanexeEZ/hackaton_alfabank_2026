@@ -19,12 +19,16 @@ from src.core.facades import FacadeRegistry
 from src.core.messaging.contracts.decision import PreApprovedOffersUpdated
 from src.core.messaging.outbox import OutboxRecord
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
+from src.modules.decision.application.policy_versions import ActivePolicyProvider
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
 from src.modules.decision.application.refresh_pre_approved import (
     RefreshExpiringPreApprovedUseCase,
 )
 from src.modules.decision.facade import PreApprovedOfferDTO
-from src.modules.decision.infrastructure.config_loader import default_policy
+from src.modules.decision.infrastructure.config_loader import (
+    CreditPolicyDocuments,
+    default_policy,
+)
 from src.modules.decision.infrastructure.facade_impl import DecisionFacadeImpl
 from src.modules.decision.infrastructure.repository import SqlAlchemyPreApprovedOfferRepository
 from src.modules.decision.infrastructure.transaction import SqlAlchemyPreApprovalTransaction
@@ -245,14 +249,16 @@ async def test_expired_offers_are_not_shown(session_factory: Sessions) -> None:
 
 
 def _refresh(sessions: Sessions, world: _World) -> RefreshExpiringPreApprovedUseCase:
-    """Ночной пакет на настоящих транзакциях; соседи — фейки `world`."""
+    """Ночной пакет на настоящих транзакциях; соседи — фейки `world`, политика — активная в БД
+    (версий нет — встроенная)."""
     facades = FacadeRegistry()
     facades.register(ClientsFacade, lambda _session: world.clients)
     facades.register(ProductsFacade, lambda _session: world.products)
     facades.register(ScoringFacade, lambda _session: world.scoring)
     clock = FrozenClock(NOW)
     transactions = partial(SqlAlchemyPreApprovalTransaction, sessions, facades, clock)
-    return RefreshExpiringPreApprovedUseCase(transactions, default_policy(), clock, KEY_RATE)
+    policies = ActivePolicyProvider(CreditPolicyDocuments())
+    return RefreshExpiringPreApprovedUseCase(transactions, policies, clock, KEY_RATE)
 
 
 async def _published(sessions: Sessions) -> list[dict[str, Any]]:

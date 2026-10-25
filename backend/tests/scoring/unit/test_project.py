@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from src.modules.scoring.application.model_versions import FixedModel
 from src.modules.scoring.domain.project import ProjectInput
 from src.modules.scoring.facade import ProjectDTO
 from src.modules.scoring.infrastructure.config_loader import (
@@ -170,7 +171,7 @@ def test_client_messages_carry_no_thresholds() -> None:
 
 
 def test_facade_maps_the_assessment() -> None:
-    facade = ScoringFacadeImpl(None, load_pd_model())  # type: ignore[arg-type]
+    facade = ScoringFacadeImpl(None, FixedModel(load_pd_model()))  # type: ignore[arg-type]
     result = facade.assess_project(
         ProjectDTO(
             monthly_revenue=PLAN.monthly_revenue,

@@ -7,12 +7,26 @@ import { formatDate, formatMoney, formatPercent, formatTerm } from '@/shared/lib
 import { CheckboxField } from '@/shared/ui'
 
 import type { ApplicationWizard } from '../model/useApplicationWizard'
+import BeneficialOwnersQuestion from './BeneficialOwnersQuestion.vue'
 import BeneficiaryQuestion from './BeneficiaryQuestion.vue'
 
 const props = defineProps<{ wizard: ApplicationWizard }>()
 
-const { terms, organization, product, consents, beneficiary, isEntrepreneur, headConsent, documents, fieldErrors, application } =
-  props.wizard
+const {
+  terms,
+  organization,
+  product,
+  consents,
+  beneficiary,
+  owners,
+  contractSlot,
+  isEntrepreneur,
+  headConsent,
+  documents,
+  fieldErrors,
+  application,
+  busy,
+} = props.wizard
 
 /** Согласие взято из профиля — когда его дали там, чтобы клиент видел, откуда галочка */
 const fromProfile = (kind: 'personal_data' | 'credit_bureau') => {
@@ -55,7 +69,15 @@ const summary = computed(() => [
       </div>
     </dl>
 
-    <BeneficiaryQuestion :beneficiary="beneficiary" :errors="fieldErrors" />
+    <BeneficiaryQuestion
+      :beneficiary="beneficiary"
+      :contract="contractSlot"
+      :errors="fieldErrors"
+      :disabled="busy"
+      @upload="wizard.uploadDocument"
+      @remove="wizard.removeDocument"
+    />
+    <BeneficialOwnersQuestion :owners="owners" :errors="fieldErrors" />
 
     <!-- Тексты согласий — по docs/personal-data.md: что обрабатываем, зачем, как отозвать -->
     <div class="space-y-4">
@@ -142,8 +164,8 @@ const summary = computed(() => [
     </div>
 
     <p class="text-sm text-ink-secondary">
-      После отправки банк проверит данные в ЕГРЮЛ, ФНС и БКИ и оценит риск. Решение и запросы банка появятся в
-      личном кабинете — без писем и звонков.
+      После отправки останется дождаться решения банка. Оно и запросы банка появятся в личном кабинете — без
+      писем и звонков.
     </p>
   </div>
 </template>

@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { Bell, Building2, FileText, LogIn, LogOut, Menu, UserRound, X, type LucideIcon } from 'lucide-vue-next'
+import { Bell, Building2, FileText, LogIn, LogOut, Menu, MessagesSquare, UserRound, X, type LucideIcon } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { assistant } from '@/entities/assistant'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
+import { signOutWithTransition } from '@/features/customer-logout'
 import { LANDING_NAV, ROUTE_PATH, sectionHref } from '@/shared/config'
 import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
+
+import AssistantButton from './AssistantButton.vue'
 
 /**
  * Кнопки «Оформить заявку» и «Войти» не решают сами, куда вести: страница или приложение
@@ -14,12 +18,13 @@ import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
  */
 const emit = defineEmits<{ apply: []; login: []; open: [section: CabinetSection] }>()
 
-/** Разделы кабинета клиента — открываются модалками поверх сайта (widgets/apply-flow) */
-type CabinetSection = 'applications' | 'notifications' | 'company' | 'profile'
+/** Разделы кабинета клиента: модалки поверх сайта (widgets/apply-flow), профиль и поддержка — страницы */
+type CabinetSection = 'applications' | 'notifications' | 'support' | 'company' | 'profile'
 
 const CABINET_LINKS: readonly { section: CabinetSection; label: string; icon: LucideIcon }[] = [
   { section: 'applications', label: 'Мои заявки', icon: FileText },
   { section: 'notifications', label: 'Уведомления', icon: Bell },
+  { section: 'support', label: 'Поддержка', icon: MessagesSquare },
   { section: 'company', label: 'Компания', icon: Building2 },
   { section: 'profile', label: 'Профиль', icon: UserRound },
 ]
@@ -43,9 +48,14 @@ function closeMenu() {
   isMenuOpen.value = false
 }
 
+const router = useRouter()
+/** На главной и в профиле «Оформить заявку» есть на самой странице — в шапке не дублируем */
+const applyOnPage = computed(() => route.path === ROUTE_PATH.home || route.path === ROUTE_PATH.profile)
+
+/** Выход «чёрной дырой»: сессия стирается сразу, открывается главная */
 function signOut() {
   closeMenu()
-  logout()
+  signOutWithTransition({ logout, navigate: () => router.push(ROUTE_PATH.home) })
 }
 
 function apply() {
@@ -57,6 +67,23 @@ function login() {
   closeMenu()
   emit('login')
 }
+
+/**
+ * Помощник доступен только вошедшему: гость по кнопке попадает на вход, как у «Оформить заявку».
+ * Вошедшему без права assistant.use кнопку не показываем — бэкенд всё равно ответит 403.
+ */
+const canUseAssistant = computed(() => {
+  const permissions = customer.state.me?.permissions ?? []
+  return !isAuthenticated.value || permissions.includes('assistant.use') || permissions.includes('admin')
+})
+
+function toggleAssistant() {
+  closeMenu()
+  if (!isAuthenticated.value) emit('login')
+  else assistant.toggle()
+}
+
+let stopStatusPolling = () => {}
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeMenu()
@@ -72,9 +99,12 @@ function onDesktopChange(event: MediaQueryListEvent) {
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   desktopQuery?.addEventListener('change', onDesktopChange)
+  // Цвет точки на кнопке помощника — по GET /assistant/status, он открыт и гостю
+  stopStatusPolling = assistant.startStatusPolling()
 })
 
 onBeforeUnmount(() => {
+  stopStatusPolling()
   document.removeEventListener('keydown', onKeydown)
   desktopQuery?.removeEventListener('change', onDesktopChange)
 })
@@ -88,7 +118,8 @@ watch(
 <template>
   <header class="sticky top-0 z-50 bg-night text-on-night">
     <BaseContainer class="flex h-16 items-center justify-between gap-6 lg:h-18">
-      <RouterLink :to="ROUTE_PATH.home" class="shrink-0 rounded-lg" aria-label="Кредитный кабинет — на главную">
+      <!-- data-brand-logo: сюда долетает «А» анимации входа, и логотип подсвечивается -->
+      <RouterLink :to="ROUTE_PATH.home" class="shrink-0 rounded-lg" aria-label="Кредитный кабинет — на главную" data-brand-logo>
         <AppLogo inverted />
       </RouterLink>
 
@@ -107,6 +138,7 @@ watch(
 
       <div class="flex items-center gap-2">
         <!-- max-*:hidden, а не hidden sm:inline-flex: у BaseButton свой display, обычный hidden его не перебьёт -->
+        <AssistantButton v-if="canUseAssistant" @click="toggleAssistant" />
         <!-- Колокольчик — уведомления, кнопка с именем — страница профиля; без выпадающего меню -->
         <template v-if="isAuthenticated">
           <button
@@ -124,6 +156,15 @@ watch(
               {{ unread > 99 ? '99+' : unread }}
             </span>
           </button>
+          <button
+            type="button"
+            class="flex size-10 items-center justify-center rounded-lg bg-night-glass text-on-night transition-colors hover:bg-white/15 max-sm:hidden"
+            aria-label="Поддержка"
+            title="Поддержка"
+            @click="openSection('support')"
+          >
+            <MessagesSquare class="size-[18px]" aria-hidden="true" />
+          </button>
           <BaseButton variant="glass" size="s" class="max-sm:hidden" :aria-label="`Профиль: ${name}`" @click="openSection('profile')">
             <UserRound class="size-4 shrink-0" aria-hidden="true" />
             <span class="max-w-40 truncate max-xl:hidden">{{ name }}</span>
@@ -133,7 +174,7 @@ watch(
           <LogIn class="size-4" aria-hidden="true" />
           Войти
         </BaseButton>
-        <BaseButton size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
+        <BaseButton v-if="!applyOnPage" size="s" class="max-md:hidden" @click="apply">Оформить заявку</BaseButton>
         <button
           type="button"
           class="relative -mr-2 flex size-10 items-center justify-center rounded-lg text-on-night transition-colors hover:bg-night-glass lg:hidden"
@@ -170,6 +211,7 @@ watch(
               </li>
             </ul>
           </nav>
+          <AssistantButton v-if="canUseAssistant" block class="mt-4" @click="toggleAssistant" />
           <ul v-if="isAuthenticated" class="mt-4 grid grid-cols-2 gap-2" aria-label="Кабинет">
             <li v-for="link in CABINET_LINKS" :key="link.section">
               <button

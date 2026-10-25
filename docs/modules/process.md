@@ -61,7 +61,7 @@ process/
 
 - **`workflows/` остаётся в корне модуля.** BPMN-файлы — данные: их грузит
   `infrastructure/adapters/workflow_catalog.py` (`WORKFLOWS_DIR`), на этот путь опираются тесты,
-  фронт рисует их через bpmn-js (`GET /workflows/{code}/diagram`). Битый файл останавливает старт
+  фронт разбирает XML и рисует граф маршрута (`GET /workflows/{code}/diagram`). Битый файл останавливает старт
   приложения списком проблем.
 - **`bpmn.py` — не адаптер порта.** Разбор BPMN нужен только инфраструктуре: каталогу маршрутов и
   репозиторию процессов (снимок графа из БД). Use case'ы получают уже готовый `WorkflowDefinition`
@@ -93,11 +93,19 @@ process/
 | GET | `/tasks/{task_id}` | задача и процесс её заявки |
 | POST | `/tasks/{task_id}/claim` | взять задачу |
 | POST | `/tasks/{task_id}/complete` | решение андеррайтера (комментарий обязателен), закрывает только исполнитель |
-| GET | `/processes/{application_id}` | где заявка в маршруте: шаги, `visited_node_ids` для подсветки пути |
+| GET | `/processes/{application_id}` | где заявка в маршруте: шаги, `visited_node_ids` для подсветки пути, `manual_review_reason` |
 | GET | `/workflows` | загруженные маршруты |
-| GET | `/workflows/{code}/diagram` | BPMN XML для bpmn-js |
+| GET | `/workflows/{code}/diagram` | BPMN XML: по нему бэк-офис рисует граф маршрута |
 
 Экран бэк-офиса читает очередь из `projector`, эти ручки — для работы с задачей и схемы маршрута.
+
+**Почему задача у андеррайтера.** У задачи есть `reason`, у процесса — `manual_review_reason`:
+причина, по которой заявка у человека, помимо кодов причин самого решения. Это ручное решение,
+которое decision не принял (`ManualDecisionRejected`: «Ручное решение не принято: …» с текстом
+decision), или шаг, который упал или повторился больше `max_iterations` раз. `null` — заявку отдало
+человеку само решение (MANUAL_REVIEW). У процесса причина сбрасывается, когда андеррайтер закрывает
+задачу; у задачи остаётся. Обе видны и в карточке `/bff/backoffice/applications/{id}` (`process`,
+`task`).
 
 ## Kafka
 
