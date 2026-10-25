@@ -373,7 +373,7 @@ Dashboard {
 
 | Ручка | Что |
 |---|---|
-| `GET /bff/backoffice/queue?status=&sort=&limit=&offset=` | `{items: [{task_id, application_id, number, company_name, inn, product_code, amount, score, risk_grade, cash_gap, routing_reasons[], due_at, overdue, assignee_id, status, created_at}], total}` |
+| `GET /bff/backoffice/queue?status=&sort=&limit=&offset=` | `{items: [{task_id, application_id, number, company_name, inn, product_code, amount, score, risk_grade, cash_gap, routing_reasons[], due_at, overdue, assignee_id, status, created_at}], total}`; строка на заявку — её последняя задача |
 | `GET /bff/backoffice/applications/{id}` | `UnderwriterCard`: `application`, `client_status`, `enrichment` (что ответили источники), `scoring` (сегмент, скоркарта, балл, `pd_12m`, грейд A–J, факторы, `reason_codes`), `decision` (`rule_trace`, `limits` с `binding`, `reason_codes`, `triggers`, `rate_breakdown`), `product_fit`, `timeline`, `process`, `task`, `degraded` |
 | `POST /tasks/{id}/claim` | взять задачу → `TaskOut` |
 | `POST /tasks/{id}/complete` | `{decision: approve \| counter_offer \| reject \| request_info, amount?, term_months?, rate?, conditions[]?, requested_documents[]?, comment}` → `TaskOut` |
