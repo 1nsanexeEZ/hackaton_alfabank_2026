@@ -3,10 +3,14 @@ import { Bell, Building2, FileText, LogIn, LogOut, Menu, MessagesSquare, UserRou
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import { assistant } from '@/entities/assistant'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
+import { ASSISTANT_MOCK } from '@/shared/api'
 import { LANDING_NAV, ROUTE_PATH, sectionHref } from '@/shared/config'
 import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
+
+import AssistantButton from './AssistantButton.vue'
 
 /**
  * Кнопки «Оформить заявку» и «Войти» не решают сами, куда вести: страница или приложение
@@ -59,6 +63,18 @@ function login() {
   emit('login')
 }
 
+/**
+ * Помощник доступен только вошедшему: гость по кнопке попадает на вход, как у «Оформить заявку».
+ * В демо на моках входить некуда (бэкенда нет), поэтому окно открывается и гостю.
+ */
+function toggleAssistant() {
+  closeMenu()
+  if (!isAuthenticated.value && !ASSISTANT_MOCK) emit('login')
+  else assistant.toggle()
+}
+
+let stopStatusPolling = () => {}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeMenu()
 }
@@ -73,9 +89,12 @@ function onDesktopChange(event: MediaQueryListEvent) {
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   desktopQuery?.addEventListener('change', onDesktopChange)
+  // Цвет точки на кнопке помощника — по GET /assistant/status, он открыт и гостю
+  stopStatusPolling = assistant.startStatusPolling()
 })
 
 onBeforeUnmount(() => {
+  stopStatusPolling()
   document.removeEventListener('keydown', onKeydown)
   desktopQuery?.removeEventListener('change', onDesktopChange)
 })
@@ -109,6 +128,7 @@ watch(
 
       <div class="flex items-center gap-2">
         <!-- max-*:hidden, а не hidden sm:inline-flex: у BaseButton свой display, обычный hidden его не перебьёт -->
+        <AssistantButton @click="toggleAssistant" />
         <!-- Колокольчик — уведомления, кнопка с именем — страница профиля; без выпадающего меню -->
         <template v-if="isAuthenticated">
           <button
@@ -181,6 +201,7 @@ watch(
               </li>
             </ul>
           </nav>
+          <AssistantButton block class="mt-4" @click="toggleAssistant" />
           <ul v-if="isAuthenticated" class="mt-4 grid grid-cols-2 gap-2" aria-label="Кабинет">
             <li v-for="link in CABINET_LINKS" :key="link.section">
               <button

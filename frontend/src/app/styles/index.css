@@ -27,6 +27,11 @@
   --color-on-night: rgb(255 255 255 / 0.94);
   --color-on-night-secondary: rgb(238 238 251 / 0.55);
 
+  /* Индикатор состояния на тёмном фоне (точка на кнопке «Умный помощник»): работает, частично, недоступен */
+  --color-signal-ok: #4ade80;
+  --color-signal-warn: #f5c451;
+  --color-signal-off: #6b6b75;
+
   --color-surface: #f2f3f5;
   --color-surface-strong: #e6e8eb;
   --color-surface-soft: #f5f7f9;
