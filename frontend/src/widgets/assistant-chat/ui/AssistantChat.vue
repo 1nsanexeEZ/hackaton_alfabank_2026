@@ -5,13 +5,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { assistant, ASSISTANT_AVAILABILITY_LABEL, ASSISTANT_MAX_QUESTION } from '@/entities/assistant'
 import { CLIENT_STATUS_META, toClientStatus } from '@/entities/application'
 import { customer } from '@/entities/customer'
-import {
-  ASSISTANT_MOCK_CONTROLS,
-  mockAssistantState,
-  type ApplicationStatusCode,
-  type AssistantApplicationDto,
-  type MockAssistantState,
-} from '@/shared/api'
+import type { ApplicationStatusCode, AssistantApplicationDto } from '@/shared/api'
 
 /**
  * Окно «Умный помощник»: панель справа поверх любой страницы сайта (на телефоне — на весь экран).
@@ -27,19 +21,12 @@ const QUICK_QUESTIONS = [
   'Что улучшить, чтобы одобрили?',
 ] as const
 
-const MOCK_STATES: readonly { value: MockAssistantState; label: string }[] = !import.meta.env.DEV || !ASSISTANT_MOCK_CONTROLS ? [] : [
-  { value: 'llm', label: 'ИИ работает' },
-  { value: 'rules', label: 'По шаблонам' },
-  { value: 'off', label: 'Недоступен' },
-]
-
 const state = assistant.state
 const id = useId()
 const panel = ref<HTMLElement>()
 const log = ref<HTMLElement>()
 const field = ref<HTMLTextAreaElement>()
 const draft = ref('')
-const mockState = ref<MockAssistantState>(mockAssistantState())
 
 const isOff = computed(() => state.availability === 'off')
 const isEmpty = computed(() => state.messages.length === 0)
@@ -103,11 +90,6 @@ function signIn() {
 function newDialog() {
   assistant.newDialog()
   void nextTick(() => field.value?.focus({ preventScroll: true }))
-}
-
-function pickMockState(next: MockAssistantState) {
-  mockState.value = next
-  void assistant.setMockState(next)
 }
 
 // --- Прокрутка: к новому сообщению и за потоком ответа, если клиент не листал вверх ---
@@ -181,7 +163,6 @@ watch(
       returnFocusTo = document.activeElement as HTMLElement | null
       document.addEventListener('keydown', onKeydown)
       document.body.style.overflow = 'hidden'
-      mockState.value = mockAssistantState()
       await nextTick()
       field.value?.focus({ preventScroll: true })
       if (!field.value || document.activeElement !== field.value) focusables().find((el) => !el.hasAttribute('data-close'))?.focus({ preventScroll: true })
@@ -263,21 +244,6 @@ onBeforeUnmount(() => {
             </button>
           </header>
 
-          <!-- Только мок в dev: переключатель состояния ИИ, чтобы показать все состояния без сервиса -->
-          <div v-if="ASSISTANT_MOCK_CONTROLS" class="mx-5 mb-2 flex items-center gap-1 rounded-full border border-dashed border-night-line p-1 text-[11px]">
-            <span class="px-2 text-on-night-secondary">Демо:</span>
-            <button
-              v-for="item in MOCK_STATES"
-              :key="item.value"
-              type="button"
-              :aria-pressed="mockState === item.value"
-              class="flex-1 rounded-full px-2 py-1 font-medium whitespace-nowrap transition-colors"
-              :class="mockState === item.value ? 'bg-brand text-white' : 'text-on-night-secondary hover:text-on-night'"
-              @click="pickMockState(item.value)"
-            >
-              {{ item.label }}
-            </button>
-          </div>
 
           <!-- Выбор заявки, о которой спрашиваем -->
           <div v-if="state.applications.length && !isOff" class="px-5 pb-3">

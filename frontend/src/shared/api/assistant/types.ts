@@ -3,9 +3,13 @@
 /** llm — отвечает модель, rules — шаблоны (модель выключена или недоступна) */
 export type AssistantMode = 'llm' | 'rules'
 
+/** local — модель рядом с приложением, api — внешний OpenAI-совместимый API, off — без модели */
+export type AssistantProvider = 'local' | 'api' | 'off'
+
 export interface AssistantStatusDto {
   enabled: boolean
   mode: AssistantMode
+  provider: AssistantProvider
   model: string | null
   host: string | null
   reachable: boolean

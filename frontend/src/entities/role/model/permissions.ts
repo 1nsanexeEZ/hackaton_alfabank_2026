@@ -93,6 +93,7 @@ export const PERMISSION_SECTIONS: readonly PermissionSection[] = [
       { permission: 'support.read', label: 'Свои обращения', description: 'Клиентам: список и переписка' },
       { permission: 'support.create', label: 'Задать вопрос', description: 'Клиентам: новое обращение и сообщения в своё' },
       { permission: 'feed.read', label: 'Лента уведомлений' },
+      { permission: 'assistant.use', label: 'Умный помощник', description: 'Вопросы о своих заявках в окне на сайте' },
     ],
   },
 ]
