@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Умный помощник — кнопка в шапке</title>
+<style>
+  :root {
+    --night: #121213;
+    --text: rgba(255, 255, 255, 0.94);
+    --text-2: rgba(238, 238, 251, 0.6);
+    --glass: rgba(225, 225, 248, 0.09);
+    --line: rgba(225, 225, 248, 0.08);
+    --brand: #ef3124;
+    --brand-d: #d92b1f;
+    --ok: #4ade80;
+    --page: #1b1b1e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 24px 64px; background: var(--page); color: var(--text); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h2 { margin: 40px 0 6px; font-size: 17px; }
+  p.lead, p.note { margin: 0 0 16px; color: var(--text-2); max-width: 760px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: 72px; padding: 0 28px; background: var(--night); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+  .logo { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .logo i { width: 32px; height: 32px; border-radius: 8px; background: var(--brand); display: grid; place-items: center; font-style: normal; font-weight: 800; }
+  .logo b { display: block; font-size: 15px; line-height: 1.2; }
+  .logo small { color: var(--text-2); font-size: 12px; }
+  nav { display: flex; align-items: center; gap: 22px; color: var(--text-2); font-weight: 500; white-space: nowrap; }
+  .right { display: flex; align-items: center; gap: 8px; }
+  .ico { width: 40px; height: 40px; border-radius: 8px; background: var(--glass); display: grid; place-items: center; color: var(--text); }
+  .glass { height: 40px; padding: 0 16px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); display: inline-flex; align-items: center; white-space: nowrap; font-weight: 500; font-size: 14px; }
+  .cta { height: 40px; padding: 0 16px; border-radius: 8px; background: var(--brand-d); display: inline-flex; align-items: center; white-space: nowrap; font-weight: 500; font-size: 14px; }
+  svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .states { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+  .state { background: var(--night); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .state span { display: block; color: var(--text-2); font-size: 12px; margin-bottom: 10px; }
+  .pick { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(239,49,36,.18); color: #ff8b82; font-size: 12px; font-weight: 600; vertical-align: 2px; }
+
+  /* A. Пилюля с ромбиком-искрой: тот же рост, что у соседних кнопок */
+  .a { position: relative; height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; color: var(--text); font: 500 14px Inter, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap;
+       background: linear-gradient(var(--night), var(--night)) padding-box, linear-gradient(120deg, var(--brand), rgba(239,49,36,.15) 55%, rgba(255,255,255,.28)) border-box; border: 1.5px solid transparent; }
+  .a .spark { color: #ff6b5e; }
+  .a .dot { width: 7px; height: 7px; border-radius: 99px; background: var(--ok); box-shadow: 0 0 8px rgba(74,222,128,.8); }
+  .a.rules .dot { background: #f5c451; box-shadow: 0 0 8px rgba(245,196,81,.6); }
+  .a.off { color: var(--text-2); background: linear-gradient(var(--night), var(--night)) padding-box, linear-gradient(120deg, rgba(255,255,255,.18), rgba(255,255,255,.06)) border-box; }
+  .a.off .spark { color: var(--text-2); }
+  .a.off .dot { background: #6b6b75; box-shadow: none; }
+  .a.on { background: linear-gradient(rgba(239,49,36,.16), rgba(239,49,36,.16)) padding-box, linear-gradient(120deg, var(--brand), rgba(239,49,36,.4)) border-box; }
+  .a:hover:not(.off) { background: linear-gradient(rgba(239,49,36,.12), rgba(239,49,36,.12)) padding-box, linear-gradient(120deg, var(--brand), rgba(255,255,255,.4)) border-box; }
+
+  /* B. Плитка с двумя строками: заметнее, но выше обычных кнопок */
+  .b { height: 48px; padding: 0 16px 0 6px; border: 0; border-radius: 12px; background: var(--glass); color: var(--text); display: inline-flex; align-items: center; gap: 10px; font-family: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
+  .b .tile { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #ef3124, #a3150c); display: grid; place-items: center; }
+  .b strong { display: block; font-size: 14px; line-height: 1.15; }
+  .b small { display: block; font-size: 11.5px; color: var(--text-2); line-height: 1.2; }
+  .b.off .tile { background: #3a3a40; }
+
+  /* C. Только иконка, как колокольчик, с подписью при наведении */
+  .c { position: relative; width: 40px; height: 40px; border: 0; border-radius: 8px; background: var(--glass); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+  .c::after { content: ""; position: absolute; inset: -3px; border-radius: 11px; border: 1.5px solid rgba(239,49,36,.55); }
+  .c .tip { position: absolute; top: 48px; right: 0; padding: 6px 10px; border-radius: 8px; background: #26262a; font: 500 13px Inter, system-ui, sans-serif; white-space: nowrap; }
+  .c.off::after { border-color: rgba(255,255,255,.12); }
+</style>
+</head>
+<body>
+<h1>Умный помощник — кнопка в шапке</h1>
+<p class="lead">Было: пункт меню «Чат с ИИ» с точкой и серой плашкой «выкл» — выглядел как обычная ссылка. Ниже три варианта новой кнопки на шапке кабинета. В коде реализован вариант A.</p>
+
+<!-- ============ A ============ -->
+<h2>A. Пилюля со вспышкой <span class="pick">реализован</span></h2>
+<p class="note">Высота 40 пикселей, как у колокольчика и кнопки профиля. Красная обводка-градиент отличает её от обычных кнопок, но не спорит с «Оформить заявку». Цвет точки — состояние: зелёная — отвечает модель, жёлтая — по шаблонам, серая — недоступен. На узких экранах остаётся иконка со вспышкой, подпись уходит в меню.</p>
+<div class="bar">
+  <div class="logo"><i>A</i><span><b>Кредитный кабинет</b><small>для малого бизнеса</small></span></div>
+  <nav><span>Продукты</span><span>Калькулятор</span><span>Как это работает</span><span>Вопросы</span></nav>
+  <div class="right">
+    <button class="a" type="button">
+      <svg class="spark" width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+      Умный помощник
+      <span class="dot"></span>
+    </button>
+    <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></span>
+    <span class="glass">Анна Смирнова</span>
+    <span class="cta">Оформить заявку</span>
+  </div>
+</div>
+<div class="states">
+  <div class="state"><span>Отвечает модель</span><button class="a" type="button"><svg class="spark" width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>Умный помощник<span class="dot"></span></button></div>
+  <div class="state"><span>Отвечает по шаблонам</span><button class="a rules" type="button"><svg class="spark" width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>Умный помощник<span class="dot"></span></button></div>
+  <div class="state"><span>Недоступен</span><button class="a off" type="button"><svg class="spark" width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>Умный помощник<span class="dot"></span></button></div>
+  <div class="state"><span>Окно открыто</span><button class="a on" type="button"><svg class="spark" width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>Умный помощник<span class="dot"></span></button></div>
+</div>
+
+<!-- ============ B ============ -->
+<h2>B. Плитка с подзаголовком</h2>
+<p class="note">Заметнее всего, потому что выше соседних кнопок и объясняет, зачем нужна («спросите про заявку»). Минус: шапка становится неравномерной, а на ширине меньше 1100 пикселей подзаголовок придётся прятать.</p>
+<div class="bar">
+  <div class="logo"><i>A</i><span><b>Кредитный кабинет</b><small>для малого бизнеса</small></span></div>
+  <nav><span>Продукты</span><span>Калькулятор</span><span>Как это работает</span><span>Вопросы</span></nav>
+  <div class="right">
+    <button class="b" type="button"><span class="tile"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg></span><span><strong>Умный помощник</strong><small>спросите про заявку</small></span></button>
+    <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></span>
+    <span class="glass">Анна Смирнова</span>
+    <span class="cta">Оформить заявку</span>
+  </div>
+</div>
+
+<!-- ============ C ============ -->
+<h2>C. Иконка с подсказкой</h2>
+<p class="note">Самый тихий вариант: квадрат 40 на 40 с красной рамкой рядом с колокольчиком, название показывается при наведении. Не нагружает шапку, но на телефоне названия не видно, а новый пользователь может не догадаться, что это.</p>
+<div class="bar" style="padding-bottom: 8px; height: 88px; align-items: flex-start; padding-top: 16px;">
+  <div class="logo"><i>A</i><span><b>Кредитный кабинет</b><small>для малого бизнеса</small></span></div>
+  <nav><span>Продукты</span><span>Калькулятор</span><span>Как это работает</span><span>Вопросы</span></nav>
+  <div class="right">
+    <button class="c" type="button" aria-label="Умный помощник"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg><span class="tip">Умный помощник</span></button>
+    <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></span>
+    <span class="glass">Анна Смирнова</span>
+    <span class="cta">Оформить заявку</span>
+  </div>
+</div>
+</body>
+</html>
