@@ -6,7 +6,6 @@ import { RouterLink, useRoute } from 'vue-router'
 import { assistant } from '@/entities/assistant'
 import { customer, useCustomer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
-import { ASSISTANT_MOCK } from '@/shared/api'
 import { LANDING_NAV, ROUTE_PATH, sectionHref } from '@/shared/config'
 import { AppLogo, BaseButton, BaseContainer } from '@/shared/ui'
 
@@ -65,11 +64,16 @@ function login() {
 
 /**
  * Помощник доступен только вошедшему: гость по кнопке попадает на вход, как у «Оформить заявку».
- * В демо на моках входить некуда (бэкенда нет), поэтому окно открывается и гостю.
+ * Вошедшему без права assistant.use кнопку не показываем — бэкенд всё равно ответит 403.
  */
+const canUseAssistant = computed(() => {
+  const permissions = customer.state.me?.permissions ?? []
+  return !isAuthenticated.value || permissions.includes('assistant.use') || permissions.includes('admin')
+})
+
 function toggleAssistant() {
   closeMenu()
-  if (!isAuthenticated.value && !ASSISTANT_MOCK) emit('login')
+  if (!isAuthenticated.value) emit('login')
   else assistant.toggle()
 }
 
@@ -128,7 +132,7 @@ watch(
 
       <div class="flex items-center gap-2">
         <!-- max-*:hidden, а не hidden sm:inline-flex: у BaseButton свой display, обычный hidden его не перебьёт -->
-        <AssistantButton @click="toggleAssistant" />
+        <AssistantButton v-if="canUseAssistant" @click="toggleAssistant" />
         <!-- Колокольчик — уведомления, кнопка с именем — страница профиля; без выпадающего меню -->
         <template v-if="isAuthenticated">
           <button
@@ -201,7 +205,7 @@ watch(
               </li>
             </ul>
           </nav>
-          <AssistantButton block class="mt-4" @click="toggleAssistant" />
+          <AssistantButton v-if="canUseAssistant" block class="mt-4" @click="toggleAssistant" />
           <ul v-if="isAuthenticated" class="mt-4 grid grid-cols-2 gap-2" aria-label="Кабинет">
             <li v-for="link in CABINET_LINKS" :key="link.section">
               <button

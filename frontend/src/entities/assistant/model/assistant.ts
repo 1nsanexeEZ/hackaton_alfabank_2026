@@ -3,11 +3,9 @@ import { computed, reactive, readonly } from 'vue'
 import {
   assistantApi,
   AssistantError,
-  setMockAssistantState,
   type AssistantApplicationDto,
   type AssistantErrorKind,
   type AssistantMode,
-  type MockAssistantState,
 } from '@/shared/api'
 
 /** Длина вопроса, которую принимает сервис (docs/assistant-api.md) */
@@ -284,13 +282,6 @@ function selectApplication(id: string | null): void {
   state.applicationId = id
 }
 
-/** Демо-переключатель состояния ИИ — только мок (виден в окне только в dev) */
-async function setMockState(next: MockAssistantState): Promise<void> {
-  setMockAssistantState(next)
-  if (state.open) await load()
-  else await refreshStatus()
-}
-
 export const assistant = {
   state: readonly(state),
   open,
@@ -304,7 +295,6 @@ export const assistant = {
   selectApplication,
   refreshStatus,
   startStatusPolling,
-  setMockState,
 }
 
 export function useAssistant() {
