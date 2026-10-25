@@ -320,10 +320,11 @@ function onFocusOut(event: FocusEvent) {
   display: none;
 }
 
+/* Выше и ниже ленты: накрывает и полоску, поднятую при наведении на 0.5rem, и её тень снизу */
 .catalog-fade {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: -0.75rem;
+  bottom: -3.75rem;
   z-index: 1;
   width: 4rem;
   pointer-events: none;
