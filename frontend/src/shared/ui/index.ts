@@ -1,4 +1,5 @@
 export { default as AccordionItem } from './AccordionItem.vue'
+export { default as AnimatedNumber } from './AnimatedNumber.vue'
 export { default as AppLogo } from './AppLogo.vue'
 export { default as AsyncState } from './AsyncState.vue'
 export type { BadgeTone } from './badge'
