@@ -131,6 +131,8 @@ flowchart TB
     Applications & Enrichment & Scoring & Decision & Clients & Support -->|события| Kafka
     Kafka -->|события| Process & Projector & Notifications
     Kafka -->|clients.events| Decision
+    Market -->|market.events| Kafka
+    Kafka -->|market.events| Decision
     Kafka -->|enrichment.events| Scoring & Clients
     Process -.->|фасады: факты заявки| Applications & Clients & Identity
     Scoring -.->|фасады| Applications & Enrichment
@@ -300,6 +302,7 @@ sequenceDiagram
 | `decision.commands` / `decision.events` | process / decision | decision / process, notifications, projector |
 | `clients.events` | clients | decision (предодобрение), notifications, projector |
 | `support.events` | support | notifications |
+| `market.events` | market (`KeyRateChanged`) | decision |
 | `identity.events` | — (на будущее) | — |
 
 У каждого топика есть `<topic>.dlq`. Контракты — `backend/src/core/messaging/contracts/`.

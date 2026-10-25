@@ -93,6 +93,8 @@ class PreApprovedOfferRecord(Base):
     factors_summary: Mapped[list[str]] = mapped_column(JSONType)
     valid_until: Mapped[date] = mapped_column(Date)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Ключевая, с которой посчитано: сменилась — ночной пакет пересчитает.
+    key_rate: Mapped[Decimal | None] = mapped_column(RATE, nullable=True)
 
 
 class ProjectAssessmentRecord(Base):

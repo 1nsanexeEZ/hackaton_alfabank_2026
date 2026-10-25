@@ -2,8 +2,10 @@
 
 Предложение действует 30 дней. Чтобы оно не пропадало молча до следующего события clients, пакет
 пересчитывает компании, у которых предложения истекают в ближайшие `within_days` дней (и уже
-истекшие — если пакет какое-то время не работал). Каждая компания — в своей транзакции тем же
-RecalculatePreApproved, что и по событиям: сверка с ЕГРЮЛ, оценка, политика,
+истекшие — если пакет какое-то время не работал). Сначала — компании, чьи предложения посчитаны не
+по действующей ключевой: после смены ставки клиент видит новые ставки сразу, а не через 30 дней
+(смена будит пакет событием `KeyRateChanged`, `module.py`). Каждая компания — в своей транзакции
+тем же RecalculatePreApproved, что и по событиям: сверка с ЕГРЮЛ, оценка, политика,
 `PreApprovedOffersUpdated`. Ошибка одной компании не останавливает остальные: её предложения не
 продлены, и следующий проход возьмёт её снова. Политика и ключевая ставка — действующие на начало
 прохода: админ мог сменить их с прошлой ночи.
@@ -37,9 +39,13 @@ class RefreshExpiringPreApprovedUseCase:
         """Сколько компаний пересчитано."""
         horizon = (self._clock.now() + timedelta(days=within_days)).date()
         async with self._transactions() as transaction:
-            due = await transaction.offers.organizations_expiring_by(horizon, batch_size)
             policy = await self._policies.active(transaction.policy_versions)
             key_rate = (await transaction.market.key_rate()).value
+            stale = await transaction.offers.organizations_priced_at_other_key_rate(
+                key_rate, batch_size
+            )
+            expiring = await transaction.offers.organizations_expiring_by(horizon, batch_size)
+        due = list(dict.fromkeys([*stale, *expiring]))[:batch_size]
         refreshed = 0
         for organization_id in due:
             try:

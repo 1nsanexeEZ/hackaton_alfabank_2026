@@ -61,6 +61,25 @@ async def test_stop_before_the_first_run() -> None:
     assert refresh.calls == []
 
 
+async def test_wake_runs_a_pass_at_once() -> None:
+    """Сменилась ключевая: проход сразу, не дожидаясь суток."""
+    refresh = _Refresh()
+    stop, wake = asyncio.Event(), asyncio.Event()
+    task = _run(refresh, stop, interval_seconds=3600, first_run_after_seconds=3600, wake=wake)
+
+    await asyncio.sleep(0)
+    wake.set()
+    for _ in range(100):
+        if refresh.calls:
+            break
+        await asyncio.sleep(0.01)
+    stop.set()
+    await asyncio.wait_for(task, timeout=5)
+
+    assert refresh.calls == [3]
+    assert not wake.is_set()
+
+
 def test_settings_defaults() -> None:
     settings = DecisionSettings(_env_file=None)  # type: ignore[call-arg]
 
@@ -76,8 +95,10 @@ def test_job_starts_and_stops_with_the_app(settings: Settings) -> None:
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         _, task = app.state.decision_jobs
-        assert not task.done()
+        _, market_task = app.state.market_jobs
+        assert not task.done() and not market_task.done()
     assert task.done() and task.exception() is None
+    assert market_task.done() and market_task.exception() is None
 
 
 def test_no_job_without_background_jobs(settings: Settings) -> None:

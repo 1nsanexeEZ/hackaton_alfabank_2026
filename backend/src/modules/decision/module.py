@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import partial
 
@@ -20,6 +20,7 @@ from src.core.messaging.contracts.decision import (
     MakeDecision,
     RecordManualDecision,
 )
+from src.core.messaging.contracts.market import KeyRateChanged
 from src.core.messaging.subscriber import HandlerContext, Subscription
 from src.modules.applications.facade import ApplicationsFacade
 from src.modules.clients.facade import ClientsFacade
@@ -64,6 +65,8 @@ NAME = "decision"
 class _Runtime:
     policies: PolicyProvider
     settings: DecisionSettings
+    # KeyRateChanged будит ночной пакет: предодобрения по новой ставке — сразу, а не к проходу.
+    wake: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 # Встроенная политика грузится один раз на процесс (невалидный YAML → приложение не стартует).
@@ -110,6 +113,7 @@ async def startup(app: FastAPI) -> None:
             interval_seconds=current.settings.pre_approval_refresh_interval_seconds,
             within_days=current.settings.pre_approval_refresh_days,
             first_run_after_seconds=current.settings.pre_approval_refresh_first_run_seconds,
+            wake=current.wake,
         ),
         name="decision-pre-approval-refresh",
     )
@@ -207,6 +211,13 @@ async def _on_clients_event(
     )
 
 
+async def _on_key_rate_changed(ctx: HandlerContext, payload: KeyRateChanged) -> None:
+    """Сам не пересчитывает: в обработчике это была бы одна транзакция на все компании. Будит
+    ночной пакет, он пересчитает компании со старой ставкой, каждую в своей транзакции. Фоновые
+    задачи выключены (тесты) — никто не ждёт, флаг ни на что не влияет."""
+    _current().wake.set()
+
+
 def subscribers() -> list[Subscription]:
     return [
         Subscription(
@@ -232,5 +243,12 @@ def subscribers() -> list[Subscription]:
                     OrganizationVerificationMismatch.TYPE,
                 }
             ),
+        ),
+        Subscription(
+            module=NAME,
+            topic=topics.MARKET_EVENTS,
+            group_id="decision.market-events",
+            handler=_on_key_rate_changed,
+            message_types=frozenset({KeyRateChanged.TYPE}),
         ),
     ]
