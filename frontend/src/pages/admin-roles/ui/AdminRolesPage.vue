@@ -13,7 +13,7 @@ import { AdminPageHeader } from '@/widgets/admin-layout'
 const { can } = useSession()
 
 const roles = useAsyncData(() => identityApi.listRoles())
-const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAccounts() : Promise.resolve([])))
+const accounts = useAsyncData(() => (can('accounts.read') ? identityApi.listAllAccounts() : Promise.resolve([])))
 
 const usage = computed(() => {
   const counts = new Map<string, number>()

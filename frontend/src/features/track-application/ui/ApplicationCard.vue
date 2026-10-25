@@ -12,6 +12,7 @@ import { AsyncState, BaseButton, TextField } from '@/shared/ui'
 
 import { timeLeft } from '../model/presentation'
 import { hasContractDocument, useApplicationCard } from '../model/useApplicationCard'
+import ApplicationEvents from './ApplicationEvents.vue'
 import CardHeader from './CardHeader.vue'
 import ContractSheet from './ContractSheet.vue'
 import DecisionPanel from './DecisionPanel.vue'
@@ -24,7 +25,7 @@ import TermTiles from './TermTiles.vue'
 
 /**
  * Окно заявки глазами клиента. Сверху тёмная шапка с этапами, дальше «Сейчас» — что происходит и что
- * нужно от клиента, условия крупными цифрами и вкладки «Условия / График / Договор / История / Документы».
+ * нужно от клиента, условия крупными цифрами и вкладки «Условия / График / Договор / История / Уведомления / Документы».
  * Главные действия — в подвале окна, вне прокрутки: «Принять предложение», «Подписать договор»…
  * Действия — только те, что разрешил бэкенд (available_actions), статус обновляется сам.
  * Окно рисует себя целиком: BaseModal открывает его в режиме bare.
@@ -216,7 +217,7 @@ const uploadedDocuments = computed(() => card.value?.documents.filter((document)
 
 // --- Вкладки -------------------------------------------------------------------------------------
 
-type Tab = 'terms' | 'schedule' | 'contract' | 'history' | 'documents'
+type Tab = 'terms' | 'schedule' | 'contract' | 'history' | 'events' | 'documents'
 
 const tabs = computed(() => {
   const list: { id: Tab; label: string; count?: number }[] = [{ id: 'terms', label: 'Условия' }]
@@ -224,6 +225,8 @@ const tabs = computed(() => {
   if (payments) list.push({ id: 'schedule', label: 'График', count: payments })
   if (status.value === 'signing' || status.value === 'issued') list.push({ id: 'contract', label: 'Договор' })
   if (card.value?.timeline.length) list.push({ id: 'history', label: 'История' })
+  // Черновик в ленту не пишет: уведомления по заявке появляются после подачи
+  if (status.value && status.value !== 'draft') list.push({ id: 'events', label: 'Уведомления' })
   if (uploadedDocuments.value.length) list.push({ id: 'documents', label: 'Документы', count: uploadedDocuments.value.length })
   return list
 })
@@ -483,6 +486,10 @@ const footerHint = computed(() => {
                   <p class="text-xs text-ink-secondary">{{ formatDateTime(entry.at) }}</p>
                 </li>
               </ol>
+            </div>
+
+            <div v-if="currentTab === 'events'" id="application-panel-events" role="tabpanel" aria-labelledby="application-tab-events" class="pt-5">
+              <ApplicationEvents :application-id="card.id" />
             </div>
 
             <div v-show="currentTab === 'documents'" id="application-panel-documents" role="tabpanel" aria-labelledby="application-tab-documents" class="pt-5">

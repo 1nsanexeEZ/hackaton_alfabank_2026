@@ -24,15 +24,27 @@ const router = useRouter()
 const presetApplication = computed(() => (typeof route.query.application === 'string' ? route.query.application : null))
 const creating = computed(() => route.query.new === '1' || Boolean(presetApplication.value))
 
+/** total в ответе нет: «Показать ещё», пока пришла полная страница */
+const PAGE = 50
+
 const tickets = shallowRef<SupportTicketListItemDto[] | null>(null)
 const error = shallowRef<string | null>(null)
+const more = shallowRef(false)
+const loadingMore = shallowRef(false)
 
-async function load() {
+async function load(append = false) {
   error.value = null
+  if (append) loadingMore.value = true
   try {
-    tickets.value = await clientApi.supportTickets({ limit: 50 })
+    const page = await clientApi.supportTickets({ limit: PAGE, offset: append ? (tickets.value?.length ?? 0) : 0 })
+    // Свежее обращение могло сдвинуть страницы — дубли по id не берём
+    const known = new Set(append ? (tickets.value ?? []).map((item) => item.id) : [])
+    tickets.value = append ? [...(tickets.value ?? []), ...page.filter((item) => !known.has(item.id))] : page
+    more.value = page.length === PAGE
   } catch (caught) {
     error.value = errorMessage(caught)
+  } finally {
+    loadingMore.value = false
   }
 }
 
@@ -86,7 +98,7 @@ const showDetail = computed(() => Boolean(props.id) || creating.value)
           :error="error"
           :empty="Boolean(tickets) && !tickets!.length"
           empty-text="Обращений пока нет — задайте вопрос, специалист ответит здесь"
-          @retry="load"
+          @retry="load()"
         >
           <ul class="divide-y divide-line">
             <li v-for="ticket in tickets ?? []" :key="ticket.id">
@@ -110,6 +122,9 @@ const showDetail = computed(() => Boolean(props.id) || creating.value)
               </RouterLink>
             </li>
           </ul>
+          <div v-if="more" class="border-t border-line p-4">
+            <BaseButton variant="secondary" size="s" :loading="loadingMore" @click="load(true)">Показать ещё</BaseButton>
+          </div>
         </AsyncState>
       </PanelCard>
 

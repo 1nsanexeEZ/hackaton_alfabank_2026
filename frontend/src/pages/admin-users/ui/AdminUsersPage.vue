@@ -12,7 +12,7 @@ import { AdminPageHeader } from '@/widgets/admin-layout'
 
 const { can, me } = useSession()
 
-const accounts = useAsyncData(() => identityApi.listAccounts())
+const accounts = useAsyncData(() => identityApi.listAllAccounts())
 // Список ролей нужен для формы; без права roles.read берём роли из уже загруженных аккаунтов
 const roles = useAsyncData(() => (can('roles.read') ? identityApi.listRoles() : Promise.resolve([])))
 
