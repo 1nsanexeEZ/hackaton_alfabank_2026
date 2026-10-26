@@ -148,6 +148,7 @@ const suggestProject = computed(
         v-if="organizationOptions.length > 1"
         v-model="terms.organizationId"
         label="Компания"
+        placeholder="Выберите, от какой компании заявка"
         :options="organizationOptions"
       />
       <div v-else-if="organization" class="flex items-center gap-3 rounded-2xl bg-surface-soft p-4">

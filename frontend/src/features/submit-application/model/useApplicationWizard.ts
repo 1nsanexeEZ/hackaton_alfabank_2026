@@ -308,8 +308,8 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       // Сотрудник банка видит все компании, но не участник ни одной (my_role = null) — подать заявку не может
       const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
       organizations.value = list
-      const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      terms.organizationId = takeRequestedOrganization(list) ?? preferred?.id ?? ''
+      // Компанию из нескольких клиент выбирает сам: подставленная первая — чужая заявка, если не заметить
+      terms.organizationId = takeRequestedOrganization(list) ?? (list.length === 1 ? list[0]!.id : '')
     } catch (caught) {
       organizationsError.value = errorMessage(caught)
     } finally {
