@@ -29,6 +29,7 @@ from src.modules.enrichment.application.dto.cashflow import (
     CashflowForecastDTO,
     CashflowMonthDTO,
     CashflowProjectionDTO,
+    StatementCheckDTO,
 )
 from src.modules.enrichment.application.dto.company import CompanyLookupDTO
 from src.modules.enrichment.application.dto.counterparty import (
@@ -49,6 +50,7 @@ from src.modules.enrichment.application.dto.tax import AccountBlockDTO, TaxProfi
 from src.modules.enrichment.domain.enums import Source
 
 __all__ = [
+    "StatementCheckDTO",
     "AccountBlockDTO",
     "AmlCheckDTO",
     "AmlSubjectDTO",
@@ -101,6 +103,10 @@ class EnrichmentFacade(Protocol):
         Kontur and the bank stop list. None — the registry does not know the INN;
         InfrastructureError — the registry did not answer. Another source that did not
         answer is None in the result and named in `sources_failed`."""
+        ...
+
+    def check_statement(self, content: bytes) -> StatementCheckDTO:
+        """Will a bank statement file be read for the cash flow forecast: the same parser."""
         ...
 
     async def lookup_person_bureau(

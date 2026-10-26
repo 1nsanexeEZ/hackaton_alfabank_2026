@@ -15,9 +15,14 @@ from src.modules.applications.application.interfaces.storage import DocumentStor
 from src.modules.applications.application.mappers.dto import document_dto
 from src.modules.applications.application.use_cases.common import get_writable, save
 from src.modules.clients.facade import ClientsFacade, OrgPermission
+from src.modules.enrichment.facade import EnrichmentFacade
 
 UPLOAD_URL_TTL_SECONDS = 300
 DOWNLOAD_URL_TTL_SECONDS = 60
+
+
+# The document the cash flow forecast reads; its file is checked on confirm.
+STATEMENT = "bank_statement"
 
 
 class RequestUploadUseCase:
@@ -81,6 +86,7 @@ class ConfirmUploadUseCase:
         clients: ClientsFacade,
         storage: DocumentStorage,
         clock: Clock,
+        enrichment: EnrichmentFacade | None = None,
     ) -> None:
         self._uow = uow
         self._repository = repository
@@ -88,10 +94,14 @@ class ConfirmUploadUseCase:
         self._clients = clients
         self._storage = storage
         self._clock = clock
+        self._enrichment = enrichment
 
     async def execute(
         self, access: AccessContext, application_id: UUID, document_id: UUID
     ) -> DocumentDTO:
+        """A bank statement is checked by the parser of the cash flow forecast: a file it
+        cannot read is 422 `statement_invalid` with the line, the document stays waiting
+        for a file."""
         application = await get_writable(
             self._repository,
             self._clients,
@@ -108,6 +118,14 @@ class ConfirmUploadUseCase:
         application.confirm_document(
             document_id, stored.size, stored.content_type, self._clock.now()
         )
+        # After the size and type: a wrong file is `upload_mismatch`, not a bad statement.
+        if document.type == STATEMENT and self._enrichment is not None:
+            check = self._enrichment.check_statement(await self._storage.read(document.s3_key))
+            if not check.valid:
+                raise ValidationError(
+                    check.message or "The bank statement cannot be read",
+                    details={"code": "statement_invalid", "line": check.line},
+                )
         await save(self._uow, self._repository, self._outbox, application)
         return document_dto(document)
 

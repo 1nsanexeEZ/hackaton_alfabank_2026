@@ -9,6 +9,7 @@ from src.modules.applications.facade import ApplicationsFacade
 from src.modules.enrichment.application.interfaces.registry_cache import RegistryCache
 from src.modules.enrichment.application.interfaces.sources import Sources
 from src.modules.enrichment.application.use_cases.build_cashflow import CashflowBuilder
+from src.modules.enrichment.application.use_cases.check_statement import CheckStatementUseCase
 from src.modules.enrichment.application.use_cases.fetch_enrichment import FetchEnrichmentUseCase
 from src.modules.enrichment.application.use_cases.get_snapshot import GetSnapshotUseCase
 from src.modules.enrichment.application.use_cases.latest_cashflow import GetLatestCashflowUseCase
@@ -35,6 +36,7 @@ def enrichment_facade(
         LookupPersonBureauUseCase(sources.person_bureau),
         GetLatestCashflowUseCase(repository),
         LookupCompanyUseCase(lookup_registry, sources),
+        CheckStatementUseCase(CsvStatementParser()),
     )
 
 

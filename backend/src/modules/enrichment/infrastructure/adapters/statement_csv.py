@@ -17,12 +17,22 @@ _REQUIRED_COLUMNS = ("date", "amount")
 class CsvStatementParser(StatementParser):
     def parse(self, content: bytes) -> list[Transaction]:
         """CSV (UTF-8, разделитель `;`) → список операций. Пустой файл → []."""
-        reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";")
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise StatementParseError("Файл не в кодировке UTF-8") from None
+        reader = csv.DictReader(io.StringIO(text), delimiter=";")
         if reader.fieldnames is None:
             return []
-        missing = [c for c in _REQUIRED_COLUMNS if c not in reader.fieldnames]
+        fields = [f.strip().lower() for f in reader.fieldnames]
+        missing = [c for c in _REQUIRED_COLUMNS if c not in fields]
         if missing:
-            raise StatementParseError(f"В выписке нет колонок: {', '.join(missing)}")
+            if len(fields) == 1 and "," in fields[0]:
+                raise StatementParseError(
+                    "Разделитель колонок — точка с запятой «;», а не запятая", line=1
+                )
+            raise StatementParseError(f"В выписке нет колонок: {', '.join(missing)}", line=1)
+        reader.fieldnames = fields
         transactions: list[Transaction] = []
         for line_no, row in enumerate(reader, start=2):
             raw_date = (row.get("date") or "").strip()
@@ -33,7 +43,11 @@ class CsvStatementParser(StatementParser):
                 txn_date = date.fromisoformat(raw_date)
                 amount = Decimal(raw_amount)
             except (ValueError, InvalidOperation) as exc:
-                raise StatementParseError(f"Строка {line_no}: некорректные дата или сумма") from exc
+                raise StatementParseError(
+                    f"Строка {line_no}: дата «{raw_date}» должна быть ГГГГ-ММ-ДД, сумма "
+                    f"«{raw_amount}» — числом через точку, без пробелов и валюты",
+                    line=line_no,
+                ) from exc
             transactions.append(
                 Transaction(
                     txn_date=txn_date,

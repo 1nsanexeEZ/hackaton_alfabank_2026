@@ -253,7 +253,7 @@ Dashboard {
 4. Документы (типы — `product_terms.required_documents[].type`):
    - `POST /applications/{id}/documents` `{type, filename, content_type, size_bytes}` → 201 `{document (status pending_upload), upload: {url, method, headers, expires_at}}`;
    - браузер грузит файл сам по `upload.url` с `upload.method` и `upload.headers` (MinIO через nginx `/credit-documents/`, до 25 МБ);
-   - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`);
+   - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`); выписку (`bank_statement`) бэк при этом разбирает: файл с ошибкой — 422 `details.code = statement_invalid` с `details.line` и текстом для клиента в `message`, документ остаётся `pending_upload` ([формат](../modules/enrichment.md#формат-выписки-для-фронта));
    - `GET …/documents/{document_id}/download` → `{url}`; `DELETE …/documents/{document_id}` → 204.
 5. **Личные согласия руководителя** — не в заявке, а на аккаунте: `POST /me/consents {"types": ["personal_data", "credit_bureau_personal"]}` ([4.3](#43-личные-согласия-пдн-и-бки-физлица)). Без `credit_bureau_personal` руководителя по реестру банк не запрашивает его кредитную историю; подать заявку это не мешает.
 6. **`POST /applications/{id}/submit`** → `ApplicationOut`, `status = submitted`. Неполная заявка — 422 с `details.violations` (тот же формат, что у completeness). При подаче фиксируется снимок компании: поле `organization` в ответе.
