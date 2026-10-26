@@ -86,6 +86,12 @@ const rate = (product: ProductDto) =>
   product.rate_base === product.rate_max
     ? formatPercent(Number(product.rate_base))
     : `${formatPercent(Number(product.rate_base))} – ${formatPercent(Number(product.rate_max))}`
+/** Ставка для клиентов сегодня — каталог идёт за ключевой ставкой; хранимая задана при другой ключевой */
+const marketRate = (product: ProductDto) => {
+  const market = product.market_rate
+  if (!market || market.rate_base === product.rate_base) return null
+  return `Сейчас для клиентов: от ${formatPercent(Number(market.rate_base))} (ключевая ${formatPercent(Number(market.key_rate))})`
+}
 const forms = (product: ProductDto) => product.allowed_legal_forms.map((form) => LEGAL_FORM_LABEL[form] ?? form).join(', ')
 const autoDecision = (product: ProductDto) =>
   Number(product.auto_decision_limit) > 0 ? `до ${formatMoney(Number(product.auto_decision_limit))}` : 'всегда специалист'
@@ -142,7 +148,12 @@ const autoDecision = (product: ProductDto) =>
           </div>
           <div>
             <dt class="text-ink-secondary">Ставка</dt>
-            <dd class="text-ink">{{ rate(product) }}</dd>
+            <dd class="text-ink">
+              {{ rate(product) }}
+              <span v-if="marketRate(product)" class="block text-xs text-ink-secondary">
+                {{ marketRate(product) }}; в каталоге — при ключевой {{ formatPercent(Number(product.market_rate!.catalog_key_rate)) }}
+              </span>
+            </dd>
           </div>
           <div>
             <dt class="text-ink-secondary">Авторешение</dt>

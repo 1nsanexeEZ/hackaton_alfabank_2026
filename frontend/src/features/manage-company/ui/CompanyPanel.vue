@@ -71,8 +71,9 @@ const productTitle = (code: string) => props.products?.find((product) => product
           @apply="(code, maxAmount) => emit('applyProduct', code, detail!.id, maxAmount)"
         />
       </template>
+      <!-- Без права подачи заявки бэкенд предодобрение не отдаёт — и блок не показываем -->
       <PreApprovedOffers
-        v-else
+        v-else-if="canSubmit"
         :offers="preApproved"
         :verified="detail.verification.status === 'verified'"
         :product-title="productTitle"

@@ -121,7 +121,7 @@ const bestOffer = computed(() => {
 const count = (value: number) => String(value)
 
 /** Счётчики шапки: value — число (null — ещё грузится), empty — показать «—» вместо нуля */
-const stats = computed(() => [
+const allStats = computed(() => [
   { label: 'Заявок в работе', value: myApplications.state.items ? active.value.length : null, format: count, icon: FileText },
   {
     label: 'Ждут вашего действия',
@@ -139,6 +139,8 @@ const stats = computed(() => [
   },
   { label: 'Новых уведомлений', value: liveFeed.state.unread, format: count, icon: Bell },
 ])
+/** Предодобрения нет (или нет права подачи — бэкенд его не отдаёт) — плитку не показываем, а не «—» */
+const stats = computed(() => allStats.value.filter((stat) => !(stat.icon === BadgeCheck && stat.empty)))
 
 const router = useRouter()
 

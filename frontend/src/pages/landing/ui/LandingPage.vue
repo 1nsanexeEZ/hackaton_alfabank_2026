@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import { loanDraft, type ApplicationDraft } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
@@ -55,7 +55,9 @@ function applyForProduct(productId: string) {
  * Компании вошедшего клиента: подбор проверяет выбранную, калькулятор считает по ставке её предодобрения
  * (POST /bff/products/{code}/calculate), а «Оформить» открывает заявку от неё же
  */
-const companies = shallowRef<{ id: string; name: string }[] | null>(null)
+const companies = shallowRef<{ id: string; name: string; canSubmit: boolean }[] | null>(null)
+/** Вошёл, но ни в одной компании нет права подачи заявки: «Оформить» на витрине недоступна */
+const applyBlocked = computed(() => Boolean(companies.value?.length) && !companies.value!.some((item) => item.canSubmit))
 const calculatorCompany = ref('')
 
 watch(
@@ -66,7 +68,7 @@ watch(
     if (!id) return
     try {
       const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
-      companies.value = list.map((item) => ({ id: item.id, name: item.name }))
+      companies.value = list.map((item) => ({ id: item.id, name: item.name, canSubmit: item.my_permissions.includes('submit_application') }))
       const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
       calculatorCompany.value = preferred?.id ?? ''
     } catch {
@@ -108,7 +110,7 @@ function continueApplication(draft: ApplicationDraft) {
           :companies="companies"
           @apply="applyFromCalculator"
         />
-        <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
+        <ProductsCatalog :products="products" :apply-blocked="applyBlocked" @calculate="calculateProduct" @apply="applyForProduct" />
       </template>
       <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->
       <section v-else :id="SECTION_ID.products" class="py-16 lg:py-24">

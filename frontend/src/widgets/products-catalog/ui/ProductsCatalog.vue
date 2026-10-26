@@ -9,7 +9,11 @@ import { BaseButton, BaseContainer, HintCard, SectionHeader } from '@/shared/ui'
 
 import { useCardWindow } from '../model/useCardWindow'
 
-const props = defineProps<{ products: ProductCatalog }>()
+const props = defineProps<{
+  products: ProductCatalog
+  /** Вошёл, но ни в одной компании не может подать заявку: «Оформить» недоступна, объясняем почему */
+  applyBlocked?: boolean
+}>()
 
 const emit = defineEmits<{
   /** Рассчитать платёж по продукту */
@@ -194,6 +198,8 @@ function onFocusOut(event: FocusEvent) {
         </div>
       </div>
 
+      <p v-if="applyBlocked" class="mt-6 rounded-2xl bg-surface-soft p-4 text-sm text-ink-secondary">Подать заявку может руководитель или сотрудник с доверенностью.</p>
+
       <div
         ref="row"
         class="relative isolate mt-8 lg:mt-5"
@@ -223,7 +229,9 @@ function onFocusOut(event: FocusEvent) {
               @finished="go(1)"
             >
               <template #actions>
-                <BaseButton variant="inverted" @click="emit('apply', product.id)">Оформить</BaseButton>
+                <BaseButton variant="inverted" :disabled="applyBlocked" :title="applyBlocked ? 'Подать заявку может руководитель или сотрудник с доверенностью' : undefined" @click="emit('apply', product.id)">
+                  Оформить
+                </BaseButton>
                 <BaseButton variant="glass" @click="emit('calculate', product.id)">
                   <Calculator class="size-4" aria-hidden="true" />
                   Рассчитать платёж

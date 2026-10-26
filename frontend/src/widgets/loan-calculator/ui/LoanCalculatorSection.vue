@@ -14,7 +14,7 @@ import { BaseContainer, HintCard, SectionHeader } from '@/shared/ui'
 defineProps<{
   products: ProductCatalog
   /** Компании вошедшего клиента — подбор и расчёт для выбранной */
-  companies?: readonly { id: string; name: string }[] | null
+  companies?: readonly { id: string; name: string; canSubmit?: boolean }[] | null
 }>()
 
 const emit = defineEmits<{

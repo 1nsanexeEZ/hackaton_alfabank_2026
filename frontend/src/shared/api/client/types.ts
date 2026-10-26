@@ -107,6 +107,17 @@ export interface ProductDto {
   keywords: string[]
   tag: string | null
   decision_time: string | null
+  /**
+   * Только в GET /products/all: ставки для клиентов сегодня, по действующей ключевой. Хранимые rate_base и rate_max
+   * заданы при ключевой catalog_key_rate, их и правит PUT; market_rate в PUT не отправляют (422 extra_forbidden)
+   */
+  market_rate?: {
+    key_rate: string
+    catalog_key_rate: string
+    rate_base: string
+    rate_max: string
+    support_rate_cap: string | null
+  } | null
 }
 
 /** draft — ещё не в каталоге, active — в продаже, archived — снят с продажи или заменён новой версией */
