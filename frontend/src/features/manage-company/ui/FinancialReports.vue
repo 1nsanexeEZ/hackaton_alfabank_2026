@@ -5,6 +5,8 @@ import type { FinancialReportDto, FinancialReportInput } from '@/shared/api'
 import { formatMoney } from '@/shared/lib'
 import { BaseButton, SelectField, TextField } from '@/shared/ui'
 
+import { reportFormErrors, reportPeriod, toReportInput, type ReportForm, type ReportFormErrors } from '../model/financialReport'
+
 /** Финансовая отчётность компании: что знает банк и подача своих цифр (пересчитывает предодобрение) */
 defineProps<{ reports: FinancialReportDto[]; canEdit: boolean; busy: boolean }>()
 
@@ -21,54 +23,24 @@ const QUARTERS = [
 ] as const
 
 const open = ref(false)
-const form = reactive({
+const form = reactive<ReportForm>({
   year: String(new Date().getFullYear() - 1),
-  quarter: '' as '' | '1' | '2' | '3' | '4',
+  quarter: '',
   revenue: '',
   expenses: '',
   netProfit: '',
   liabilities: '',
   debtPayments: '',
 })
-const errors = ref<Record<string, string>>({})
-
-const toNumber = (value: string) => Number(value.replace(/\s/g, '').replace(',', '.'))
-const optional = (value: string) => (value.trim() ? toNumber(value) : null)
-
-function period(report: FinancialReportDto) {
-  return report.period_quarter ? `${report.period_quarter} кв. ${report.period_year}` : `${report.period_year} год`
-}
+const errors = ref<ReportFormErrors>({})
 
 function submit() {
-  const next: Record<string, string> = {}
-  const year = Number(form.year)
-  if (!Number.isInteger(year) || year < 2000 || year > new Date().getFullYear()) next.year = 'Укажите год'
-  if (!(toNumber(form.revenue) >= 0) || !form.revenue.trim()) next.revenue = 'Укажите выручку'
-  for (const key of ['expenses', 'netProfit', 'liabilities', 'debtPayments'] as const) {
-    if (form[key].trim() && !Number.isFinite(toNumber(form[key]))) next[key] = 'Введите число'
-  }
-  // Прибыль — из выручки: больше неё не бывает; убыток — со знаком минус
-  if (!next.netProfit && form.netProfit.trim() && !next.revenue && toNumber(form.netProfit) > toNumber(form.revenue)) {
-    next.netProfit = 'Не больше выручки'
-  }
-  errors.value = next
-  if (Object.keys(next).length) return
-  emit(
-    'submit',
-    {
-      period_year: year,
-      period_quarter: form.quarter ? Number(form.quarter) : null,
-      revenue: toNumber(form.revenue),
-      expenses: optional(form.expenses),
-      net_profit: optional(form.netProfit),
-      total_liabilities: optional(form.liabilities),
-      monthly_debt_payments: optional(form.debtPayments),
-    },
-    () => {
-      open.value = false
-      Object.assign(form, { revenue: '', expenses: '', netProfit: '', liabilities: '', debtPayments: '' })
-    },
-  )
+  errors.value = reportFormErrors(form)
+  if (Object.keys(errors.value).length) return
+  emit('submit', toReportInput(form), () => {
+    open.value = false
+    Object.assign(form, { revenue: '', expenses: '', netProfit: '', liabilities: '', debtPayments: '' })
+  })
 }
 
 const money = (value: string | null) => (value === null ? '—' : formatMoney(Number(value)))
@@ -128,7 +100,7 @@ const money = (value: string | null) => (value === null ? '—' : formatMoney(Nu
         </thead>
         <tbody class="divide-y divide-line">
           <tr v-for="report in reports" :key="report.id">
-            <td class="px-4 py-2.5 font-medium text-ink">{{ period(report) }}</td>
+            <td class="px-4 py-2.5 font-medium text-ink">{{ reportPeriod(report) }}</td>
             <td class="px-4 py-2.5 text-ink-secondary">{{ SOURCE[report.source] }}</td>
             <td class="px-4 py-2.5 text-right text-ink tabular-nums">{{ money(report.revenue) }}</td>
             <td class="px-4 py-2.5 text-right text-ink tabular-nums">{{ money(report.expenses) }}</td>
