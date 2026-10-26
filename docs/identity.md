@@ -126,7 +126,7 @@
 
 Чтобы эксперты не вводили пароли, есть вход без пароля в демо-учётки — организаторы разрешили «готовый демо-профиль».
 
-- Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` — `false`. В `.env.example` — `true`.
+- Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` тоже `true`, но на стенде `/api/auth/demo-login` и `/api/auth/demo-accounts` закрыты Basic Auth сайта (`docker/nginx/nginx.prod.conf`). В `.env.example` — `true`.
 - **На публичном стенде флаг выключен.** Ручка выдаёт токен без пароля: включать её там, где стенд доступен из интернета, нельзя.
 - Флаг выключен → обе ручки отвечают 404, как будто их нет.
 - Кроме учёток из `demo_data` в один клик входит админ из `BOOTSTRAP_ADMIN_EMAIL` (роль `admin`, подпись «Администратор»).
