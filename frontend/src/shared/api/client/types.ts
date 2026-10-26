@@ -103,6 +103,10 @@ export interface ProductDto {
   status: ProductStatus
   /** Только для стартапа (бизнес младше 6 месяцев или без годового отчёта) */
   startup_only?: boolean
+  /** Витрина: короткие слова для карточки (до 5), метка вроде «Популярный» и привычное время решения */
+  keywords: string[]
+  tag: string | null
+  decision_time: string | null
 }
 
 /** draft — ещё не в каталоге, active — в продаже, archived — снят с продажи или заменён новой версией */
