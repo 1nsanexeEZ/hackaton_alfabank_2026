@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUp, FileText, LoaderCircle, RotateCcw, ShieldCheck, Sparkles, SquarePen, TriangleAlert, X } from 'lucide-vue-next'
+import { ArrowUp, FileText, LoaderCircle, Maximize2, Minimize2, RotateCcw, ShieldCheck, Sparkles, SquarePen, TriangleAlert, X } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 import { assistant, ASSISTANT_AVAILABILITY_LABEL, ASSISTANT_MAX_QUESTION } from '@/entities/assistant'
@@ -81,6 +81,75 @@ function signIn() {
 function newDialog() {
   assistant.newDialog()
   void nextTick(() => field.value?.focus({ preventScroll: true }))
+}
+
+// --- Ширина окна: кнопка «Развернуть» и перетаскивание левого края; на телефоне окно и так во весь экран ---
+
+const WIDTH_KEY = 'assistant.width'
+const NARROW = 448
+const WIDE = 896
+const MIN_WIDTH = 384
+
+const width = ref(readWidth())
+const resizing = ref(false)
+const isWide = computed(() => width.value > (NARROW + WIDE) / 2)
+
+function maxWidth(): number {
+  return Math.max(MIN_WIDTH, window.innerWidth - 48)
+}
+
+function clampWidth(value: number): number {
+  return Math.round(Math.min(Math.max(value, MIN_WIDTH), maxWidth()))
+}
+
+function readWidth(): number {
+  try {
+    const saved = Number(localStorage.getItem(WIDTH_KEY))
+    return saved > 0 ? saved : NARROW
+  } catch {
+    return NARROW
+  }
+}
+
+function saveWidth() {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(width.value))
+  } catch {
+    // без хранилища ширина просто не запомнится
+  }
+}
+
+const panelWidth = computed(() => `${Math.min(width.value, maxWidth())}px`)
+
+function toggleWide() {
+  width.value = isWide.value ? NARROW : clampWidth(WIDE)
+  saveWidth()
+}
+
+function onResizeMove(event: PointerEvent) {
+  width.value = clampWidth(window.innerWidth - event.clientX)
+}
+
+function onResizeEnd() {
+  resizing.value = false
+  document.removeEventListener('pointermove', onResizeMove)
+  document.removeEventListener('pointerup', onResizeEnd)
+  saveWidth()
+}
+
+function onResizeStart(event: PointerEvent) {
+  event.preventDefault()
+  resizing.value = true
+  document.addEventListener('pointermove', onResizeMove)
+  document.addEventListener('pointerup', onResizeEnd)
+}
+
+/** Стрелками с клавиатуры — тот же ресайз для тех, кто не тянет мышью */
+function onResizeKey(event: KeyboardEvent) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  width.value = clampWidth(width.value + (event.key === 'ArrowLeft' ? 48 : -48))
+  saveWidth()
 }
 
 // --- Прокрутка: к новому сообщению и за потоком ответа, если клиент не листал вверх ---
@@ -186,6 +255,8 @@ watch(
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('pointermove', onResizeMove)
+  document.removeEventListener('pointerup', onResizeEnd)
   document.body.style.overflow = ''
 })
 </script>
@@ -202,8 +273,24 @@ onBeforeUnmount(() => {
           aria-modal="true"
           :aria-labelledby="`${id}-title`"
           :aria-describedby="`${id}-note`"
-          class="assistant__panel absolute inset-0 flex flex-col overflow-hidden text-on-night shadow-2xl sm:left-auto sm:w-[28rem] sm:max-w-full sm:rounded-l-[2rem]"
+          class="assistant__panel absolute inset-0 flex flex-col overflow-hidden text-on-night shadow-2xl sm:left-auto sm:w-[var(--assistant-width)] sm:max-w-full sm:rounded-l-[2rem]"
+          :class="{ 'select-none': resizing }"
+          :style="{ '--assistant-width': panelWidth }"
         >
+          <!-- Левый край: тянуть, чтобы расширить окно -->
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ширина окна помощника"
+            :aria-valuenow="Math.min(width, maxWidth())"
+            :aria-valuemin="MIN_WIDTH"
+            tabindex="0"
+            class="assistant__resize absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize max-sm:hidden"
+            :data-active="resizing || undefined"
+            @pointerdown="onResizeStart"
+            @dblclick="toggleWide"
+            @keydown="onResizeKey"
+          />
           <!-- Шапка: логотип, название, состояние, «Новый диалог», закрыть -->
           <header class="flex items-center gap-3 px-5 pt-5 pb-3">
             <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand text-lg font-extrabold text-white" aria-hidden="true">А</span>
@@ -223,6 +310,16 @@ onBeforeUnmount(() => {
             >
               <SquarePen class="size-3.5" aria-hidden="true" />
               <span class="max-sm:hidden">Новый диалог</span>
+            </button>
+            <button
+              type="button"
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-night-glass text-on-night transition-colors hover:bg-white/15 max-sm:hidden"
+              :aria-label="isWide ? 'Сузить окно помощника' : 'Развернуть окно помощника'"
+              :title="isWide ? 'Сузить' : 'Развернуть'"
+              @click="toggleWide"
+            >
+              <Minimize2 v-if="isWide" class="size-4" aria-hidden="true" />
+              <Maximize2 v-else class="size-4" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -330,8 +427,7 @@ onBeforeUnmount(() => {
           <!-- Быстрые вопросы -->
           <div
             v-if="!showOffState && !(state.loading && isEmpty)"
-            class="assistant__chips px-5 pb-2"
-            :class="isEmpty ? 'flex flex-wrap gap-2' : 'flex gap-2 overflow-x-auto'"
+            class="flex flex-wrap gap-2 px-5 pb-2"
           >
             <button
               v-for="question in QUICK_QUESTIONS"
@@ -415,8 +511,27 @@ onBeforeUnmount(() => {
   background: var(--color-signal-warn);
 }
 
-.assistant__chips {
-  scrollbar-width: none;
+/* Ручка ресайза: тонкая полоса у левого края, подсвечивается при наведении и перетаскивании */
+.assistant__resize::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 3px;
+  width: 3px;
+  height: 3rem;
+  border-radius: 999px;
+  background: var(--color-night-line);
+  transform: translateY(-50%);
+  transition: background-color 150ms;
+}
+
+.assistant__resize:hover::after,
+.assistant__resize:focus-visible::after,
+.assistant__resize[data-active]::after {
+  background: var(--color-brand);
+}
+
+.assistant__resize:focus-visible {
+  outline: none;
 }
 
 .assistant__log {
