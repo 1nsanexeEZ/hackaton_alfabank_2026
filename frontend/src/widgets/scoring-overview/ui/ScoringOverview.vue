@@ -3,91 +3,63 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useProductCatalog } from '@/entities/credit-product'
-import { GRADE_ZONE, gradeTone, label, OUTCOME_LABEL, REASON_LABEL, ZONE_LABEL, type GradeZone } from '@/entities/underwriting'
-import type { Grade } from '@/shared/api'
+import { gradeTone, label, OUTCOME_LABEL, REASON_LABEL, ZONE_LABEL, type GradeZone } from '@/entities/underwriting'
+import type { ScoredApplicationDto } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
 import { formatMoney, formatProbability } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 
-import { useScoredApplications, type ScoredApplication } from '../model/useScoredApplications'
+import { useScoringOverview } from '../model/useScoringOverview'
 
 /**
  * Скоринг по заявкам: как PD- и ML-модель оценили поданные заявки, согласны ли они, хватило ли
- * данных и что решили. Политика и модели — версиями, по которым считали
+ * данных и что решили. Политика и модели — версиями, по которым считали. Всё считает бэкенд одной ручкой
  */
-const { items, total, loading, error, reload } = useScoredApplications()
+const { data, loading, error, reload } = useScoringOverview()
 const { products } = useProductCatalog()
 const productTitle = (code: string) => products.value?.find((product) => product.code === code)?.title ?? code
 
-const GRADES: readonly Grade[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 const ZONES: readonly GradeZone[] = ['green', 'yellow', 'red']
 const FINAL: readonly string[] = ['APPROVE', 'COUNTER_OFFER', 'REJECT']
+const VERSION_TITLE = { pd: 'PD-модель', ml: 'ML-модель', policy: 'Политика' } as const
 
-const scored = computed(() => items.value.filter((item) => item.card.scoring))
-const zonesOf = (item: ScoredApplication) => {
-  const scoring = item.card.scoring!
-  return { pd: GRADE_ZONE[scoring.grade], ml: scoring.ml ? GRADE_ZONE[scoring.ml.grade] : null }
-}
-const disagree = (item: ScoredApplication) => {
-  const zones = zonesOf(item)
-  return zones.ml !== null && zones.ml !== zones.pd
-}
-const degraded = (item: ScoredApplication) => item.card.scoring?.quality === 'degraded'
-
-/** Стоп-фактор сработал до моделей: решение есть, скоринга нет */
-const stoppedBefore = computed(() =>
-  items.value.filter((item) => !item.card.scoring && item.card.decision?.reason_codes.some((code) => code.startsWith('STOP_'))),
-)
+const items = computed(() => data.value?.items ?? [])
+const degraded = (item: ScoredApplicationDto) => item.quality === 'degraded'
 
 const tiles = computed(() => {
-  const list = scored.value
-  const withMl = list.filter((item) => item.card.scoring?.ml)
-  // Решение — одобрение, контрпредложение или отказ; ручная проверка и дозапрос — ещё не решение
-  const final = items.value.filter((item) => FINAL.includes(item.card.decision?.outcome ?? ''))
-  const auto = final.filter((item) => item.card.decision!.decided_by_type === 'auto')
+  const overview = data.value
+  if (!overview) return []
   const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : '—')
   return [
-    { label: `Оценено из ${total.value} последних поданных`, value: String(list.length) },
-    { label: 'Отказ по стоп-фактору до моделей', value: String(stoppedBefore.value.length) },
-    { label: 'Модели согласны по зоне', value: share(withMl.filter((item) => !disagree(item)).length, withMl.length) },
-    { label: 'Неполные данные — решает человек', value: String(list.filter(degraded).length) },
-    { label: 'Ушли специалисту', value: String(items.value.filter((item) => item.card.decision?.outcome === 'MANUAL_REVIEW').length) },
-    { label: 'Решено автоматически', value: share(auto.length, final.length) },
+    { label: `Оценено из ${overview.considered} последних поданных`, value: String(overview.scored) },
+    { label: 'Отказ по стоп-фактору до моделей', value: String(overview.stopped_before_models) },
+    { label: 'Модели согласны по зоне', value: share(overview.models_agree, overview.with_ml) },
+    { label: 'Неполные данные — решает человек', value: String(overview.degraded) },
+    { label: 'Ушли специалисту', value: String(overview.manual_review) },
+    { label: 'Решено автоматически', value: share(overview.decided_auto, overview.decided) },
   ]
 })
 
 /** Версии, по которым считали: модели и политика решения */
-const versions = computed(() => {
-  const count = (values: (string | undefined)[]) => {
-    const map = new Map<string, number>()
-    for (const value of values) if (value) map.set(value, (map.get(value) ?? 0) + 1)
-    return [...map.entries()]
-  }
-  return [
-    ...count(scored.value.map((item) => item.card.scoring!.model_version)).map(([version, n]) => ({ title: 'PD-модель', version, n })),
-    ...count(scored.value.map((item) => item.card.scoring!.ml?.model_version)).map(([version, n]) => ({ title: 'ML-модель', version, n })),
-    ...count(items.value.map((item) => item.card.decision?.policy_version)).map(([version, n]) => ({ title: 'Политика', version, n })),
-  ]
-})
+const versions = computed(() =>
+  (data.value?.versions ?? []).map((item) => ({ title: VERSION_TITLE[item.kind], version: item.version, n: item.count })),
+)
 
 /** Сколько заявок у каждого грейда — у PD- и у ML-модели */
 const byGrade = computed(() => {
-  const rows = GRADES.map((grade) => ({
-    grade,
-    pd: scored.value.filter((item) => item.card.scoring!.grade === grade).length,
-    ml: scored.value.filter((item) => item.card.scoring!.ml?.grade === grade).length,
-  }))
+  const rows = data.value?.by_grade ?? []
   const max = Math.max(1, ...rows.map((row) => Math.max(row.pd, row.ml)))
   return rows.map((row) => ({ ...row, pdWidth: (row.pd / max) * 100, mlWidth: (row.ml / max) * 100 }))
 })
 
 /** Строка — зона PD-модели, столбец — зона ML-модели */
-const matrix = computed(() =>
-  ZONES.map((pd) => ({
+const matrix = computed(() => {
+  const zones = data.value?.zones ?? []
+  return ZONES.map((pd) => ({
     pd,
-    cells: ZONES.map((ml) => scored.value.filter((item) => zonesOf(item).pd === pd && zonesOf(item).ml === ml).length),
-  })),
-)
+    cells: ZONES.map((ml) => zones.find((pair) => pair.pd_zone === pd && pair.ml_zone === ml)?.count ?? 0),
+  }))
+})
 
 type Filter = 'all' | 'disagree' | 'degraded' | 'manual'
 const filter = ref<Filter>('all')
@@ -99,9 +71,9 @@ const FILTERS: readonly { value: Filter; label: string }[] = [
 ]
 const rows = computed(() =>
   items.value.filter((item) => {
-    if (filter.value === 'disagree') return item.card.scoring && disagree(item)
+    if (filter.value === 'disagree') return item.models_disagree
     if (filter.value === 'degraded') return degraded(item)
-    if (filter.value === 'manual') return item.card.decision?.outcome === 'MANUAL_REVIEW' || item.card.decision?.decided_by_type === 'underwriter'
+    if (filter.value === 'manual') return item.outcome === 'MANUAL_REVIEW' || item.decided_by_type === 'underwriter'
     return true
   }),
 )
@@ -110,7 +82,7 @@ const pd = (value: string | null | undefined) => (value ? formatProbability(Numb
 </script>
 
 <template>
-  <AsyncState :loading="loading && !items.length" :error="items.length ? null : error" :empty="!loading && !items.length" empty-text="Поданных заявок пока нет — оценивать нечего" @retry="reload">
+  <AsyncState :loading="loading && !data" :error="data ? null : error" :empty="!loading && !data?.considered" empty-text="Поданных заявок пока нет — оценивать нечего" @retry="reload">
     <div class="space-y-4">
       <ul class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <li v-for="tile in tiles" :key="tile.label" class="rounded-card bg-white p-4 ring-1 ring-line">
@@ -123,7 +95,6 @@ const pd = (value: string | null | undefined) => (value ? formatProbability(Numb
         <BaseBadge v-for="item in versions" :key="`${item.title}${item.version}`" tone="info">
           {{ item.title }} {{ item.version }} · {{ item.n }}
         </BaseBadge>
-        <p v-if="loading" class="text-xs text-ink-secondary">Загружаем карточки: {{ items.length }} из {{ total }}</p>
       </div>
 
       <div class="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-2">
@@ -194,55 +165,55 @@ const pd = (value: string | null | undefined) => (value ? formatProbability(Numb
               </tr>
             </thead>
             <tbody class="divide-y divide-line">
-              <tr v-for="item in rows" :key="item.application.id" class="align-top">
+              <tr v-for="item in rows" :key="item.application_id" class="align-top">
                 <td class="px-4 py-3">
                   <RouterLink
-                    :to="{ name: ADMIN_ROUTE.application, params: { id: item.application.id } }"
+                    :to="{ name: ADMIN_ROUTE.application, params: { id: item.application_id } }"
                     class="font-semibold text-ink hover:text-brand"
                   >
-                    {{ item.application.number }}
+                    {{ item.number }}
                   </RouterLink>
-                  <p class="text-xs text-ink-secondary">{{ item.card.application.org_snapshot?.name ?? '' }}</p>
+                  <p class="text-xs text-ink-secondary">{{ item.company_name ?? '' }}</p>
                   <p class="text-xs text-ink-secondary">
-                    {{ productTitle(item.application.product_code) }}{{ item.application.amount ? ` · ${formatMoney(Number(item.application.amount))}` : '' }}
+                    {{ productTitle(item.product_code) }}{{ item.amount ? ` · ${formatMoney(Number(item.amount))}` : '' }}
                   </p>
                 </td>
                 <td class="px-4 py-3">
-                  <template v-if="item.card.scoring">
-                    <BaseBadge :tone="gradeTone(item.card.scoring.grade)">{{ item.card.scoring.grade }}</BaseBadge>
-                    <span class="ml-2 text-ink tabular-nums">{{ item.card.scoring.score }}</span>
-                    <p class="text-xs text-ink-secondary">PD {{ pd(item.card.scoring.pd_12m) }}</p>
+                  <template v-if="item.grade">
+                    <BaseBadge :tone="gradeTone(item.grade)">{{ item.grade }}</BaseBadge>
+                    <span class="ml-2 text-ink tabular-nums">{{ item.score }}</span>
+                    <p class="text-xs text-ink-secondary">PD {{ pd(item.pd_12m) }}</p>
                   </template>
                   <span v-else class="text-xs text-ink-secondary">не считали</span>
                 </td>
                 <td class="px-4 py-3">
-                  <template v-if="item.card.scoring?.ml">
-                    <BaseBadge :tone="gradeTone(item.card.scoring.ml.grade)">{{ item.card.scoring.ml.grade }}</BaseBadge>
-                    <span class="ml-2 text-ink tabular-nums">{{ item.card.scoring.ml.score }}</span>
-                    <p class="text-xs" :class="disagree(item) ? 'text-warning' : 'text-ink-secondary'">
-                      PD {{ pd(item.card.scoring.ml.pd_12m) }}{{ disagree(item) ? ' · зоны расходятся' : '' }}
+                  <template v-if="item.ml_grade">
+                    <BaseBadge :tone="gradeTone(item.ml_grade)">{{ item.ml_grade }}</BaseBadge>
+                    <span class="ml-2 text-ink tabular-nums">{{ item.ml_score }}</span>
+                    <p class="text-xs" :class="item.models_disagree ? 'text-warning' : 'text-ink-secondary'">
+                      PD {{ pd(item.ml_pd_12m) }}{{ item.models_disagree ? ' · зоны расходятся' : '' }}
                     </p>
                   </template>
-                  <span v-else-if="item.card.scoring?.ml_not_applicable === 'no_revenue'" class="text-xs text-ink-secondary">
+                  <span v-else-if="item.ml_not_applicable === 'no_revenue'" class="text-xs text-ink-secondary">
                     не применяется — нет выручки
                   </span>
                   <span v-else class="text-xs text-ink-secondary">—</span>
                 </td>
                 <td class="px-4 py-3 text-xs">
-                  <span v-if="!item.card.scoring" class="text-ink-secondary">—</span>
+                  <span v-if="!item.grade" class="text-ink-secondary">—</span>
                   <span v-else-if="degraded(item)" class="text-warning">неполные</span>
                   <span v-else class="text-ink-secondary">полные</span>
                 </td>
                 <td class="px-4 py-3">
-                  <template v-if="item.card.decision">
-                    <BaseBadge :tone="OUTCOME_LABEL[item.card.decision.outcome]?.tone ?? 'neutral'">
-                      {{ OUTCOME_LABEL[item.card.decision.outcome]?.label ?? item.card.decision.outcome }}
+                  <template v-if="item.outcome">
+                    <BaseBadge :tone="OUTCOME_LABEL[item.outcome]?.tone ?? 'neutral'">
+                      {{ OUTCOME_LABEL[item.outcome]?.label ?? item.outcome }}
                     </BaseBadge>
-                    <span v-if="FINAL.includes(item.card.decision.outcome)" class="ml-2 text-xs text-ink-secondary">
-                      {{ item.card.decision.decided_by_type === 'auto' ? 'автоматика' : 'специалист' }}
+                    <span v-if="FINAL.includes(item.outcome)" class="ml-2 text-xs text-ink-secondary">
+                      {{ item.decided_by_type === 'auto' ? 'автоматика' : 'специалист' }}
                     </span>
-                    <p v-if="item.card.decision.reason_codes.length" class="mt-1 text-xs text-ink-secondary">
-                      {{ item.card.decision.reason_codes.slice(0, 2).map((code) => label(REASON_LABEL, code)).join('; ') }}
+                    <p v-if="item.reason_codes.length" class="mt-1 text-xs text-ink-secondary">
+                      {{ item.reason_codes.slice(0, 2).map((code) => label(REASON_LABEL, code)).join('; ') }}
                     </p>
                   </template>
                   <span v-else class="text-xs text-ink-secondary">ещё нет</span>
