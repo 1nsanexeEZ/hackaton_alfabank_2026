@@ -391,6 +391,7 @@ Compose читает `.env` из корня репозитория. В конт�
 |---|---|
 | **Фишки, исследование, результаты** | [`docs/product/features.md`](docs/product/features.md) |
 | **Виды кредитов**, выгодоприобретатель и третьи лица | [`docs/product/credit-products.md`](docs/product/credit-products.md) |
+| **Качество и производительность**: нагрузка k6 на ноутбуке (80 запросов/с без ошибок, решение по заявке за 2 с), масштабирование, ресурсы, расширяемость архитектуры | [`docs/quality-and-performance.md`](docs/quality-and-performance.md) |
 | Кейс, наше понимание, ответы организаторов и экспертов | [`settings/case.md`](settings/case.md), [`settings/webinar-2026-10-21.md`](settings/webinar-2026-10-21.md), [`settings/chat-insights.md`](settings/chat-insights.md) |
 | Архитектура: модули, Kafka, путь заявки от подачи до предложения | [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio), [`docs/platform.md`](docs/platform.md) |
 | **Скоринг и кредитное решение**: обогащение, стоп-факторы, PD- и ML-модель, политика, предодобрение, версии, аудит | [`docs/scoring-architecture.md`](docs/scoring-architecture.md), [`docs/modules/scoring.md`](docs/modules/scoring.md), [`docs/modules/decision.md`](docs/modules/decision.md) |
