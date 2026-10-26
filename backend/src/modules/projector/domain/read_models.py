@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from src.modules.projector.domain.enums import ReviewKind
+
 # --- application overview ---------------------------------------------------
 
 _ACTION_BY_STATUS: dict[str, str] = {
@@ -185,6 +187,8 @@ class QueueItem:
     risk_grade: str | None = None
     cash_gap: bool = False
     routing_reasons: tuple[str, ...] = ()
+    # check or dispute by the routing reasons; None — not a manual review of a decision.
+    review: ReviewKind | None = None
 
     def take_task(self, fresh: "QueueItem") -> bool:
         """Copy the task fields of `fresh` unless its lifecycle stage is behind."""

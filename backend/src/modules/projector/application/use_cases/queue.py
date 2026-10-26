@@ -3,11 +3,10 @@
 from datetime import datetime
 
 from src.core.domain.clock import Clock
-from src.modules.decision.facade import review_kind
 from src.modules.projector.application.dto.queue import QueueItemDTO, QueuePageDTO
 from src.modules.projector.application.interfaces.repositories import ReadModelQueries
-from src.modules.projector.domain.enums import QueueSort
-from src.modules.projector.domain.read_models import MANUAL_REVIEW, QueueItem, queue_statuses
+from src.modules.projector.domain.enums import QueueSort, ReviewKind
+from src.modules.projector.domain.read_models import QueueItem, queue_statuses
 
 
 class GetUnderwritingQueueUseCase:
@@ -22,9 +21,10 @@ class GetUnderwritingQueueUseCase:
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO:
         items, total = await self._read_models.queue_of(
-            role, queue_statuses(status), sort, limit, offset
+            role, queue_statuses(status), sort, limit, offset, review
         )
         now = self._clock.now()
         return QueuePageDTO(items=tuple(_queue_item(i, now) for i in items), total=total)
@@ -48,5 +48,5 @@ def _queue_item(item: QueueItem, now: datetime) -> QueueItemDTO:
         assignee_id=item.assignee_id,
         status=item.status,
         created_at=item.created_at,
-        review=review_kind(MANUAL_REVIEW, item.routing_reasons) if item.routing_reasons else None,
+        review=item.review,
     )

@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.projector.application.interfaces.repositories import ReadModelQueries
-from src.modules.projector.domain.enums import QueueSort
+from src.modules.projector.domain.enums import QueueSort, ReviewKind
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     ApplicationOverview,
@@ -67,7 +67,13 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
         return None if row is None else to_record(OrganizationDashboard, row)
 
     async def queue_of(
-        self, role: str, statuses: tuple[str, ...], sort: QueueSort, limit: int, offset: int
+        self,
+        role: str,
+        statuses: tuple[str, ...],
+        sort: QueueSort,
+        limit: int,
+        offset: int,
+        review: ReviewKind | None = None,
     ) -> tuple[list[QueueItem], int]:
         # One row per application — its latest task: a returned application has
         # several, and it belongs to the tab of the one it is on now.
@@ -86,6 +92,8 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
         )
         latest = select(ranked.c.task_id).where(ranked.c.rank == 1)
         conditions = [Q.candidate_role == role, Q.status.in_(statuses), Q.task_id.in_(latest)]
+        if review is not None:
+            conditions.append(Q.review == review)
         total = await self._session.scalar(select(func.count()).select_from(Q).where(*conditions))
         stmt = (
             select(Q)

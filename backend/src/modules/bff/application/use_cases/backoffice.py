@@ -29,6 +29,7 @@ from src.modules.projector.facade import (
     ProjectorFacade,
     QueuePageDTO,
     QueueSort,
+    ReviewKind,
     TimelineEntryDTO,
 )
 from src.modules.scoring.facade import ScoringFacade
@@ -45,9 +46,16 @@ class UnderwritingQueueUseCase:
     def __init__(self, neighbours: Neighbours) -> None:
         self._n = neighbours
 
-    async def execute(self, status: str, sort: QueueSort, limit: int, offset: int) -> QueuePageDTO:
+    async def execute(
+        self,
+        status: str,
+        sort: QueueSort,
+        limit: int,
+        offset: int,
+        review: ReviewKind | None = None,
+    ) -> QueuePageDTO:
         return await self._n(ProjectorFacade).get_underwriting_queue(
-            UNDERWRITER_ROLE, status, sort, limit, offset
+            UNDERWRITER_ROLE, status, sort, limit, offset, review
         )
 
 

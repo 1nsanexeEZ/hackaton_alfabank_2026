@@ -260,6 +260,7 @@ async def test_task_goes_to_the_queue_and_leaves_open_when_closed(
     assert (item.product_code, item.amount) == ("CREDIT_LINE", Decimal("12000000"))
     assert (item.score, item.risk_grade, item.cash_gap) == (610, "C", True)
     assert item.routing_reasons == ("AMOUNT_ABOVE_AUTO_LIMIT",)
+    assert item.review == "check"
     assert (item.due_at, item.created_at, item.status) == (due, created, "open")
     assert item.overdue is False and item.assignee_id is None
 

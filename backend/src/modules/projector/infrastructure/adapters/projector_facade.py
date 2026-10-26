@@ -18,7 +18,7 @@ from src.modules.projector.application.use_cases.applications import (
 from src.modules.projector.application.use_cases.metrics import GetBackofficeMetricsUseCase
 from src.modules.projector.application.use_cases.queue import GetUnderwritingQueueUseCase
 from src.modules.projector.application.use_cases.timeline import GetTimelineUseCase
-from src.modules.projector.domain.enums import Audience, QueueSort
+from src.modules.projector.domain.enums import Audience, QueueSort, ReviewKind
 from src.modules.projector.facade import ProjectorFacade
 
 
@@ -58,8 +58,9 @@ class ProjectorFacadeImpl(ProjectorFacade):
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO:
-        return await self._get_underwriting_queue.execute(role, status, sort, limit, offset)
+        return await self._get_underwriting_queue.execute(role, status, sort, limit, offset, review)
 
     async def get_timeline(
         self, application_id: UUID, audience: Audience
