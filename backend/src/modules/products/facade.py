@@ -80,6 +80,10 @@ class ProductDTO:
     status: ProductStatus
     # Only for a startup (STARTUP_AGE_MONTHS): a company without turnover.
     startup_only: bool = False
+    # The showcase card: short words, a label and how soon the decision comes.
+    keywords: tuple[str, ...] = ()
+    tag: str | None = None
+    decision_time: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

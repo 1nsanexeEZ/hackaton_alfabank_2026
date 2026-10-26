@@ -42,6 +42,11 @@ from src.modules.products.facade import STARTUP_AGE_MONTHS
 _FRONTEND_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
+# The showcase card fits so much.
+MAX_KEYWORDS = 5
+SHOWCASE_TEXT = 40
+
+
 class ProductStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
@@ -76,12 +81,17 @@ class CreditProduct:
     application_fields_schema: Mapping[str, Any] = field(default_factory=dict)
     # Position in the catalog.
     sort_order: int = 0
+    # The showcase card: short words, a label («Популярный») and how soon the decision comes.
+    keywords: tuple[str, ...] = ()
+    tag: str | None = None
+    decision_time: str | None = None
 
     def __post_init__(self) -> None:
         self.status = ProductStatus(self.status)
         self.purposes = frozenset(self.purposes)
         self.repayment_options = tuple(self.repayment_options)
         self.required_documents = tuple(self.required_documents)
+        self.keywords = tuple(self.keywords)
         self._check_invariants()
 
     def _check_invariants(self) -> None:
@@ -91,6 +101,16 @@ class CreditProduct:
             raise invalid("name", "missing", "Product needs a name and a short description")
         if not _FRONTEND_ID.match(self.frontend_id):
             raise invalid("frontend_id", "bad_format", "Invalid frontend id")
+        if len(self.keywords) > MAX_KEYWORDS or any(
+            not k.strip() or len(k) > SHOWCASE_TEXT for k in self.keywords
+        ):
+            raise invalid(
+                "keywords", "bad_format", f"Up to {MAX_KEYWORDS} words of {SHOWCASE_TEXT} chars"
+            )
+        for name in ("tag", "decision_time"):
+            value = getattr(self, name)
+            if value is not None and (not value.strip() or len(value) > SHOWCASE_TEXT):
+                raise invalid(name, "bad_format", f"Up to {SHOWCASE_TEXT} characters")
         if not self.purposes:
             raise invalid("purposes", "missing", "Product needs at least one purpose")
         if not self.purposes <= set(PURPOSES):

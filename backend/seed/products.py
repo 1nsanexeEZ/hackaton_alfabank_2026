@@ -151,7 +151,54 @@ REFINANCE_FIELDS: dict[str, Any] = {
 }
 
 
+# The showcase card of the demo products (the words the frontend showed by the code before).
+SHOWCASE: dict[str, dict[str, Any]] = {
+    "UNSECURED": {
+        "keywords": ("Без залога", "Быстро", "На любые цели"),
+        "decision_time": "5 минут",
+        "tag": "Популярный",
+    },
+    "SECURED": {
+        "keywords": ("Крупная сумма", "Надолго", "Ставка ниже"),
+        "decision_time": "1 рабочий день",
+    },
+    "CREDIT_LINE": {
+        "keywords": ("Частями", "Свой лимит", "Гибко"),
+        "decision_time": "1 рабочий день",
+    },
+    "OVERDRAFT": {
+        "keywords": ("Кассовый разрыв", "Сразу", "Подушка"),
+        "decision_time": "5 минут",
+    },
+    "AUTO": {
+        "keywords": ("Транспорт", "Залог — покупка", "До 7 лет"),
+        "decision_time": "1 рабочий день",
+    },
+    "MORTGAGE": {
+        "keywords": ("Недвижимость", "До 10 лет", "Для ООО и АО"),
+        "decision_time": "3 рабочих дня",
+    },
+    "REFINANCE": {
+        "keywords": ("Один платёж", "Ставка ниже", "Один график"),
+        "decision_time": "1 рабочий день",
+    },
+    "GOV_SUPPORT": {
+        "keywords": ("Льготная ставка", "Господдержка", "МСП"),
+        "decision_time": "1 рабочий день",
+    },
+    "STARTUP": {
+        "keywords": ("Новый бизнес", "Без оборотов", "Господдержка"),
+        "decision_time": "3 рабочих дня",
+        "tag": "До 6 месяцев",
+    },
+}
+
+
 def catalog() -> tuple[CreditProduct, ...]:
+    return tuple(replace(p, **SHOWCASE.get(p.code.value, {})) for p in _catalog())
+
+
+def _catalog() -> tuple[CreditProduct, ...]:
     """In the order of PRODUCT_CODES (the catalog order)."""
     return (
         CreditProduct(

@@ -568,3 +568,33 @@ def test_clients_get_rates_at_the_key_rate(settings: Settings) -> None:
         kept = api.get("/products/all", headers=manager(app)).json()
         stored_rate = next(p for p in kept if p["code"] == "UNSECURED")["rate_base"]
         assert Decimal(stored_rate) == Decimal("23.5")
+
+
+def test_showcase_card_is_kept_with_the_product(app: FastAPI, api: TestClient) -> None:
+    unsecured = api.get("/products/UNSECURED").json()
+    assert unsecured["keywords"] == ["Без залога", "Быстро", "На любые цели"]
+    assert (unsecured["tag"], unsecured["decision_time"]) == ("Популярный", "5 минут")
+    assert api.get("/products/SECURED").json()["tag"] is None
+
+    card = {"keywords": ["Факторинг", "Отсрочка"], "tag": "Новинка", "decision_time": "1 день"}
+    response = api.post("/products", json=new_product(**card), headers=manager(app))
+    assert response.status_code == 201, response.text
+    assert {k: response.json()[k] for k in card} == card
+    plain = api.post(
+        "/products", json=new_product(code="PLAIN", frontend_id="plain"), headers=manager(app)
+    ).json()
+    assert (plain["keywords"], plain["tag"], plain["decision_time"]) == ([], None, None)
+
+
+@pytest.mark.parametrize(
+    "card",
+    [
+        {"keywords": ["а", "б", "в", "г", "д", "е"]},
+        {"keywords": [""]},
+        {"tag": "х" * 41},
+        {"decision_time": ""},
+    ],
+)
+def test_showcase_card_has_limits(app: FastAPI, api: TestClient, card: dict[str, Any]) -> None:
+    response = api.post("/products", json=new_product(**card), headers=manager(app))
+    assert response.status_code == 422, response.text

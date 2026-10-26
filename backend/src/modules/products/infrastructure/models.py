@@ -36,6 +36,10 @@ class CreditProductRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16))
     sort_order: Mapped[int] = mapped_column(default=0)
     frontend_id: Mapped[str] = mapped_column(String(32))
+    # The showcase card: words, a label and the decision time.
+    keywords: Mapped[list[str]] = mapped_column(JSONType, default=list)
+    tag: Mapped[str | None] = mapped_column(String(40))
+    decision_time: Mapped[str | None] = mapped_column(String(40))
     name: Mapped[str] = mapped_column(String(200))
     short_description: Mapped[str] = mapped_column(String(500))
     description_plain: Mapped[str] = mapped_column(Text)
