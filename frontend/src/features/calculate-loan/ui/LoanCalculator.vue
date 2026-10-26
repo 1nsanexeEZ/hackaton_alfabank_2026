@@ -29,6 +29,7 @@ import type { LoanPurpose } from '@/shared/api'
 import { clamp, formatDate, formatMoney, formatMoneyShort, formatPercent, formatTerm, formatTermLimit, pluralize } from '@/shared/lib'
 import { BaseButton, RangeField, SelectField } from '@/shared/ui'
 
+import { useKeyRate } from '../model/keyRate'
 import { fitLoanParams } from '../model/loanParams'
 
 /**
@@ -187,6 +188,9 @@ const STATUS: Record<ProductRecommendation['status'], { label: string; dot: stri
 }
 const statusOf = (item: ProductRecommendation) =>
   item.eligible === false ? { label: 'Компании не подходит', dot: 'bg-brand' } : STATUS[item.status]
+
+/** От неё считаются ставки продуктов: показываем, чтобы было понятно, откуда «от N%» */
+const keyRate = useKeyRate()
 
 const blocked = computed(() => selected.value?.status === 'unavailable' || notEligible.value.length > 0)
 
@@ -405,6 +409,7 @@ onBeforeUnmount(() => observer?.disconnect())
           <template v-if="estimated && !pending">Банк сейчас не отвечает — показан приблизительный расчёт. </template>
           <template v-if="company && personal?.preApproved">Расчёт по ставке предварительного одобрения. </template>
           <template v-else>Расчёт по базовой ставке продукта. </template>
+          <template v-if="keyRate">Ставки продуктов привязаны к ключевой ставке Банка России — {{ formatPercent(Number(keyRate.value)) }}. </template>
           Точные условия банк покажет после рассмотрения заявки.
         </p>
       </div>

@@ -1,4 +1,4 @@
-import { http, httpFile } from '../http'
+import { http, httpFile, httpPage } from '../http'
 import { decodeTicket, decodeTicketItem } from '../client/support'
 import type { SupportTicketDto, SupportTicketListItemDto } from '../client/types'
 import type { BackofficeApi, VersionDto, VersionsApi, VersionSummaryDto } from './types'
@@ -25,18 +25,23 @@ function versions<Catalog, Preview>(base: string): VersionsApi<Catalog, Preview>
 export const backofficeApi: BackofficeApi = {
   queue: (query = {}) =>
     http('/bff/backoffice/queue', {
-      query: { status: query.status, sort: query.sort, limit: query.limit, offset: query.offset },
+      query: { status: query.status, sort: query.sort, review: query.review, limit: query.limit, offset: query.offset },
     }),
   card: (applicationId) => http(`/bff/backoffice/applications/${applicationId}`),
   claim: (taskId) => http(`/tasks/${taskId}/claim`, { method: 'POST' }),
   complete: (taskId, input) => http(`/tasks/${taskId}/complete`, { method: 'POST', body: input }),
   metrics: (query = {}) => http('/bff/backoffice/metrics', { query: { date_from: query.dateFrom, date_to: query.dateTo } }),
+  scoringOverview: (limit) => http('/bff/backoffice/scoring-overview', { query: { limit } }),
+  applicationsOverview: (latest) => http('/bff/backoffice/applications-overview', { query: { latest } }),
+  keyRates: () => http('/market/key-rates'),
+  addKeyRate: (input) => http('/market/key-rates', { method: 'POST', body: input }),
+  removeKeyRate: (effectiveFrom) => http(`/market/key-rates/${effectiveFrom}`, { method: 'DELETE' }),
   downloadDocument: (applicationId, documentId) => http(`/applications/${applicationId}/documents/${documentId}/download`),
   contractDocument: (applicationId, kind) => httpFile(`/applications/${applicationId}/contract/document`, { query: { kind } }),
   process: (applicationId) => http(`/processes/${applicationId}`),
   workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
   applications: (query = {}) =>
-    http('/applications', {
+    httpPage('/applications', {
       query: {
         organization_id: query.organizationId,
         status: query.status,
@@ -59,9 +64,9 @@ export const backofficeApi: BackofficeApi = {
   workflows: () => http('/workflows'),
   innCheck: (input) => http('/organizations/inn-check', { method: 'POST', body: input }),
   supportQueue: (query = {}) =>
-    http<SupportTicketListItemDto[]>('/support/queue', {
+    httpPage<SupportTicketListItemDto>('/support/queue', {
       query: { status: query.status, scope: query.scope, limit: query.limit, offset: query.offset },
-    }).then((tickets) => tickets.map(decodeTicketItem)),
+    }).then((page) => ({ ...page, items: page.items.map(decodeTicketItem) })),
   supportTicket: (id) => ticket(`/support/queue/${id}`),
   takeSupportTicket: (id) => ticket(`/support/queue/${id}/take`, { method: 'POST' }),
   releaseSupportTicket: (id) => ticket(`/support/queue/${id}/release`, { method: 'POST' }),

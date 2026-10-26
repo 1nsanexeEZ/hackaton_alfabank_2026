@@ -26,9 +26,9 @@ function sameData(previous: unknown, next: unknown): boolean {
   return previous === next || JSON.stringify(previous) === JSON.stringify(next)
 }
 
-/** Бэкенд с PDF договора: у старого поля document в ответе нет вовсе */
+/** Договор уже есть: у каждого договора бэкенд отдаёт PDF (document обязателен) */
 export function hasContractDocument(contract: ContractDto | null): contract is ContractDto {
-  return Boolean(contract && 'document' in contract)
+  return contract !== null
 }
 
 /**

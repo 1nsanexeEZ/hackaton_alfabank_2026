@@ -13,8 +13,8 @@ import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl, SelectF
 /**
  * Очередь андеррайтера с бэкенда (GET /bff/backoffice/queue): заявки, которые не решились автоматически,
  * с видом проверки, причиной маршрута, баллом скоринга и сроком по SLA. Строка ведёт в карточку заявки.
- * Статус и порядок задаёт бэкенд (status, sort), страница по 100 — «Показать ещё» догружает до total.
- * Фильтра по виду проверки в API нет — фильтруем загруженное.
+ * Статус, вид проверки и порядок задаёт бэкенд (status, review, sort), страница по 100 —
+ * «Показать ещё» догружает до total, а total считается по тому же фильтру.
  */
 type Filter = 'open' | 'in_progress' | 'closed'
 const FILTERS: readonly { value: Filter; label: string }[] = [
@@ -58,6 +58,7 @@ async function load(append = false) {
     const page = await backofficeApi.queue({
       status: filter.value,
       sort: sort.value,
+      review: review.value === 'all' ? undefined : review.value,
       limit: PAGE,
       offset: append ? loaded.value.length : 0,
     })
@@ -70,10 +71,9 @@ async function load(append = false) {
     if (current === requestId) loading.value = false
   }
 }
-watch([filter, sort], () => void load(), { immediate: true })
+watch([filter, review, sort], () => void load(), { immediate: true })
 
 const more = computed(() => total.value !== null && loaded.value.length < total.value)
-const items = computed(() => (review.value === 'all' ? loaded.value : loaded.value.filter((item) => item.review === review.value)))
 
 const { products } = useProductCatalog()
 const productTitle = (code: string) => products.value?.find((product) => product.code === code)?.title ?? code
@@ -88,16 +88,16 @@ const productTitle = (code: string) => products.value?.find((product) => product
         <SelectField v-model="sort" class="w-52" label="Порядок" hide-label :options="SORTS" dense />
       </div>
       <p v-if="total !== null" class="text-sm text-ink-secondary">
-        <template v-if="review === 'all' && !more">Всего: {{ total }}</template>
-        <template v-else>Показано {{ items.length }} из {{ total }}</template>
+        <template v-if="!more">Всего: {{ total }}</template>
+        <template v-else>Показано {{ loaded.length }} из {{ total }}</template>
       </p>
     </div>
 
     <AsyncState
       :loading="loading && !loaded.length"
       :error="loaded.length ? null : error"
-      :empty="!items.length"
-      :empty-text="loaded.length ? 'Задач с таким видом проверки нет' : 'Задач нет — все заявки решены автоматически'"
+      :empty="!loaded.length"
+      :empty-text="review === 'all' ? 'Задач нет — все заявки решены автоматически' : 'Задач с таким видом проверки нет'"
       @retry="load()"
     >
       <div class="overflow-x-auto">
@@ -114,7 +114,7 @@ const productTitle = (code: string) => products.value?.find((product) => product
             </tr>
           </thead>
           <tbody class="divide-y divide-line">
-            <tr v-for="item in items" :key="item.task_id" class="transition-colors hover:bg-surface-soft">
+            <tr v-for="item in loaded" :key="item.task_id" class="transition-colors hover:bg-surface-soft">
               <td class="px-4 py-3">
                 <RouterLink
                   :to="{ name: ADMIN_ROUTE.application, params: { id: item.application_id } }"

@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Package,
+  Percent,
   ShieldCheck,
   SlidersHorizontal,
   Users,
@@ -43,6 +44,7 @@ export const ADMIN_NAVIGATION: readonly NavGroup[] = [
       { route: ADMIN_ROUTE.products, label: 'Продукты', icon: Package, permission: 'credits.read' },
       { route: ADMIN_ROUTE.scoring, label: 'Скоринг', icon: SlidersHorizontal, permission: 'backoffice.read' },
       { route: ADMIN_ROUTE.versions, label: 'Модель и политика', icon: GitBranch, permission: 'scoring.read' },
+      { route: ADMIN_ROUTE.keyRate, label: 'Ключевая ставка', icon: Percent, permission: 'scoring.read' },
     ],
   },
   {

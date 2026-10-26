@@ -170,6 +170,17 @@ async function submit() {
       <section class="grid gap-3 sm:grid-cols-2">
         <TextField v-model="form.name" label="Название" dense :error="errors.name" class="sm:col-span-2" />
         <TextField v-model="form.shortDescription" label="Коротко для каталога" dense :error="errors.shortDescription" class="sm:col-span-2" />
+        <TextField
+          v-model="form.keywords"
+          label="Слова на карточке"
+          dense
+          placeholder="Без залога, Быстро, На любые цели"
+          hint="Через запятую, до 5"
+          :error="errors.keywords"
+          class="sm:col-span-2"
+        />
+        <TextField v-model="form.tag" label="Метка" dense placeholder="Популярный" hint="Пусто — без метки" :error="errors.tag" />
+        <TextField v-model="form.decisionTime" label="Время решения" dense placeholder="1 рабочий день" hint="Пусто — по авторешению" :error="errors.decisionTime" />
       </section>
 
       <section>

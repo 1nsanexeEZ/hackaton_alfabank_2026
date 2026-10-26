@@ -6,11 +6,12 @@ import { ZONE_LABEL, type GradeZone } from '@/entities/underwriting'
 import type { Grade, PolicyCatalogDto, VersionBody } from '@/shared/api'
 
 import DocField from './DocField.vue'
+import ReasonTextsField from './ReasonTextsField.vue'
 
 /**
  * Ключевое в документе кредитной политики (policy_v10.yaml): стоп-факторы, две модели, матрица
- * грейд × сумма, лимиты и ставка, мягкие триггеры. У старых версий части разделов нет — их не показываем.
- * Тексты причин, требования закона и остальное — в JSON.
+ * грейд × сумма, лимиты и ставка, мягкие триггеры, тексты причин для клиента. У старых версий части разделов
+ * нет — их не показываем. Требования закона и остальное — в JSON.
  */
 const props = defineProps<{
   body: VersionBody
@@ -260,5 +261,7 @@ const field = (path: (string | number)[]) => ({ body: props.body, path, errors: 
         />
       </div>
     </section>
+
+    <ReasonTextsField :body="body" :catalog="catalog" :errors="errors" :readonly="readonly" />
   </div>
 </template>

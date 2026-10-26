@@ -1,4 +1,4 @@
-import type { DownloadedFile } from '../http'
+import type { DownloadedFile, Page } from '../http'
 import type { MeDto, TokenResponse } from '../identity/types'
 
 /**
@@ -103,6 +103,10 @@ export interface ProductDto {
   status: ProductStatus
   /** Только для стартапа (бизнес младше 6 месяцев или без годового отчёта) */
   startup_only?: boolean
+  /** Витрина: короткие слова для карточки (до 5), метка вроде «Популярный» и привычное время решения */
+  keywords: string[]
+  tag: string | null
+  decision_time: string | null
 }
 
 /** draft — ещё не в каталоге, active — в продаже, archived — снят с продажи или заменён новой версией */
@@ -774,8 +778,8 @@ export interface ContractDto {
   number: string
   /** УИд договора (218-ФЗ): UUID и контрольный символ */
   uid?: string
-  /** PDF договора; null — ещё не начали формировать, поля нет — бэкенд без PDF */
-  document?: ContractDocumentDto | null
+  /** PDF договора: проект и состояние формирования */
+  document: ContractDocumentDto
   offer_hash: string
   status: 'unsigned' | 'signed'
   borrower: { name: string; inn: string; ogrn: string; kpp: string | null; legal_form: string; head_name: string | null }
@@ -1063,6 +1067,18 @@ export interface SupportTicketInput {
   application_id?: string | null
 }
 
+/** Откуда ставка: введена в админке, из cbr.ru или — если на дату ничего нет — KEY_RATE из настроек */
+export type KeyRateSource = 'admin' | 'cbr' | 'settings'
+
+/** Ключевая ставка Банка России на дату (GET /market/key-rate): от неё считаются ставки каталога */
+export interface KeyRateDto {
+  /** Процент годовых строкой: «14.00» */
+  value: string
+  /** С какой даты действует; null — ставки на дату нет, взята из настроек */
+  effective_from: string | null
+  source: KeyRateSource
+}
+
 export interface ClientApi {
   /** Вход клиента по email или телефону и паролю */
   login(login: string, password: string): Promise<TokenResponse>
@@ -1072,6 +1088,8 @@ export interface ClientApi {
   demoLogin(login: string): Promise<TokenResponse>
   /** Кто вошёл на сайт — по клиентскому токену */
   me(): Promise<MeDto>
+  /** Ключевая ставка на дату (ГГГГ-ММ-ДД), по умолчанию — на сегодня; без входа */
+  keyRate(on?: string): Promise<KeyRateDto>
   /** Активные продукты в порядке каталога, без входа */
   /** Продукты в продаже; purpose — только подходящие под цель кредита */
   listProducts(purpose?: LoanPurpose): Promise<ProductDto[]>
@@ -1186,7 +1204,8 @@ export interface ClientApi {
   /** Оценить проект по текущему плану; 422 business_plan_required, product_not_eligible */
   runProjectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
   /** Мои обращения в поддержку, свежие сверху */
-  supportTickets(query?: { status?: SupportTicketStatus[]; limit?: number; offset?: number }): Promise<SupportTicketListItemDto[]>
+  /** total — сколько обращений всего по тому же фильтру */
+  supportTickets(query?: { status?: SupportTicketStatus[]; limit?: number; offset?: number }): Promise<Page<SupportTicketListItemDto>>
   /** Чужое — 404 */
   supportTicket(id: string): Promise<SupportTicketDto>
   openSupportTicket(input: SupportTicketInput): Promise<SupportTicketDto>

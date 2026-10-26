@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useProductCatalog } from '@/entities/credit-product'
 import { ProcessMap } from '@/entities/process'
-import { amlRiskGroup, reviewReasonText, TASK_TYPE_LABEL } from '@/entities/underwriting'
+import { amlRiskGroup, TASK_TYPE_LABEL } from '@/entities/underwriting'
 import { TaskDecisionForm } from '@/features/complete-underwriter-task'
 import { backofficeApi } from '@/shared/api'
 import { formatDate, formatDateTime, formatMoney, formatPercent, formatTerm, useAsyncData } from '@/shared/lib'
@@ -120,7 +120,7 @@ async function refreshAfterDecision() {
               <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
               <span>
                 <span class="block font-semibold">Почему задача вернулась</span>
-                {{ reviewReasonText(data.task.reason ?? data.process?.manual_review_reason ?? '') }}
+                {{ data.task.reason ?? data.process?.manual_review_reason ?? '' }}
               </span>
             </p>
             <TaskDeadline v-if="data.task.due_at && (data.task.status === 'open' || data.task.status === 'in_progress')" :created-at="data.task.created_at" :due-at="data.task.due_at" />
@@ -130,7 +130,7 @@ async function refreshAfterDecision() {
           <PanelCard v-else-if="data.process?.manual_review_reason" title="Почему заявка у специалиста">
             <p class="flex items-start gap-2 rounded-lg bg-warning-soft p-3 text-sm text-ink" role="note">
               <AlertTriangle class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-              {{ reviewReasonText(data.process.manual_review_reason) }}
+              {{ data.process.manual_review_reason }}
             </p>
             <p v-if="data.process.status === 'failed'" class="mt-2 text-xs text-ink-secondary">
               Процесс по заявке остановлен, задачи для решения нет — нужен разбор на стороне банка.

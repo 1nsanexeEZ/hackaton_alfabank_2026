@@ -1,4 +1,4 @@
-import { ApiError, http, httpFile } from '../http'
+import { ApiError, http, httpFile, httpPage } from '../http'
 import { decodeTicket, decodeTicketItem } from './support'
 import type { ClientApi, SupportTicketDto, SupportTicketListItemDto } from './types'
 
@@ -20,6 +20,7 @@ export const realClientApi: ClientApi = {
   demoAccounts: () => call('/auth/demo-accounts'),
   demoLogin: (login) => call('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => call('/me'),
+  keyRate: (on) => call('/market/key-rate', { query: { on } }),
   listProducts: (purpose) => call('/products', { query: { purpose } }),
   calculate: (code, input) => call(`/products/${code}/calculate`, { method: 'POST', body: input }),
   eligibility: (code, organizationId) =>
@@ -145,9 +146,10 @@ export const realClientApi: ClientApi = {
     }
   },
   supportTickets: (query = {}) =>
-    call<SupportTicketListItemDto[]>('/support/tickets', { query: { status: query.status, limit: query.limit, offset: query.offset } }).then(
-      (tickets) => tickets.map(decodeTicketItem),
-    ),
+    httpPage<SupportTicketListItemDto>('/support/tickets', {
+      query: { status: query.status, limit: query.limit, offset: query.offset },
+      realm: 'client',
+    }).then((page) => ({ ...page, items: page.items.map(decodeTicketItem) })),
   supportTicket: (id) => call<SupportTicketDto>(`/support/tickets/${id}`).then(decodeTicket),
   openSupportTicket: (input) => call<SupportTicketDto>('/support/tickets', { method: 'POST', body: input }).then(decodeTicket),
   postSupportMessage: (id, text) =>
