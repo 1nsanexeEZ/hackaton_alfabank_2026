@@ -151,6 +151,28 @@ async def test_queue_status_filter_and_pages(
     assert done.total == closed.total == 1
 
 
+async def test_queue_review_filter_counts_the_whole_queue(
+    store: OpenStore, facade: OpenFacade
+) -> None:
+    """The filter is in the query: `total` is of all such tasks, not of one page."""
+    kinds = ["check", "dispute", "dispute", None, "dispute"]
+    async with store() as s:
+        for i, kind in enumerate(kinds):
+            await s.save_queue_item(
+                queue_item(review=kind, created_at=T0 + timedelta(minutes=i))  # type: ignore[arg-type]
+            )
+
+    async with facade() as projector:
+        disputes = await projector.get_underwriting_queue("underwriter", limit=2, review="dispute")
+        checks = await projector.get_underwriting_queue("underwriter", review="check")
+        everything = await projector.get_underwriting_queue("underwriter")
+
+    assert (disputes.total, len(disputes.items)) == (3, 2)
+    assert {i.review for i in disputes.items} == {"dispute"}
+    assert checks.total == 1 and checks.items[0].review == "check"
+    assert everything.total == 5
+
+
 async def test_queue_has_one_row_per_application_its_latest_task(
     store: OpenStore, facade: OpenFacade
 ) -> None:

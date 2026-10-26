@@ -2,7 +2,7 @@ from datetime import date
 from typing import Protocol
 from uuid import UUID
 
-from src.modules.projector.domain.enums import QueueSort
+from src.modules.projector.domain.enums import QueueSort, ReviewKind
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     ApplicationOverview,
@@ -67,9 +67,16 @@ class ReadModelQueries(Protocol):
     async def get_dashboard(self, organization_id: UUID) -> OrganizationDashboard | None: ...
 
     async def queue_of(
-        self, role: str, statuses: tuple[str, ...], sort: QueueSort, limit: int, offset: int
+        self,
+        role: str,
+        statuses: tuple[str, ...],
+        sort: QueueSort,
+        limit: int,
+        offset: int,
+        review: ReviewKind | None = None,
     ) -> tuple[list[QueueItem], int]:
-        """A page of the role's tasks in those statuses, in the `sort` order, and the total."""
+        """A page of the role's tasks in those statuses (and of that kind of review), in the
+        `sort` order, and the total by the same filter."""
         ...
 
     async def timeline_of(self, application_id: UUID, client_only: bool) -> list[TimelineEntry]:

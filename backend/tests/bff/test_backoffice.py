@@ -36,6 +36,21 @@ def test_queue_by_status(world: World) -> None:
     assert body["total"] == 1
 
 
+def test_queue_by_review_kind(world: World) -> None:
+    card = world.add_application(status="in_review")
+    other = world.add_application(status="in_review")
+    world.projector.add_queue_item(factories.queue_item(card, review="dispute"))
+    world.projector.add_queue_item(factories.queue_item(other, review="check"))
+
+    disputes = world.get("/bff/backoffice/queue", world.as_underwriter(), review="dispute").json()
+    everything = world.get("/bff/backoffice/queue", world.as_underwriter()).json()
+    wrong = world.get("/bff/backoffice/queue", world.as_underwriter(), review="other")
+
+    assert disputes["total"] == 1 and disputes["items"][0]["review"] == "dispute"
+    assert everything["total"] == 2
+    assert wrong.status_code == 422
+
+
 def test_queue_is_for_bank_staff(world: World) -> None:
     client = world.get("/bff/backoffice/queue", world.as_client(world.director))
     no_tasks = world.get(

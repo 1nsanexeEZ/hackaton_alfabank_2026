@@ -876,7 +876,7 @@ checked_at`, действует последняя). У предложений `
 Андеррайтер видит всё это в `GET /bff/backoffice/applications/{id}`: `scoring.segment`,
 `scoring.pd_12m`, `scoring.reason_codes`, `scoring.ml` (оценка ML-модели), `decision.triggers`,
 `decision.rate_breakdown`, `decision.limits.binding`, `decision.review` (`check` / `dispute` у
-`MANUAL_REVIEW`). В очереди `GET /bff/backoffice/queue` у задачи — `review` того же смысла.
+`MANUAL_REVIEW`). В очереди `GET /bff/backoffice/queue` у задачи — `review` того же смысла, и по нему очередь фильтруется (`?review=check|dispute`): projector хранит вид проверки в строке очереди.
 
 Тесты — `tests/decision/runtime/`: оба консьюмера через настоящие подписки и inbox, идемпотентность,
 отказы ручного решения (без комментария, вне продукта, сверх полномочий), цепочка `override_of`,

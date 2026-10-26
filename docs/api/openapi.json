@@ -6450,6 +6450,28 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "check",
+                    "dispute"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "check — проверка (модели видят умеренный риск), dispute — спорная (модели или данные расходятся); не задан — все. `total` — по фильтру.",
+              "title": "Review"
+            },
+            "description": "check — проверка (модели видят умеренный риск), dispute — спорная (модели или данные расходятся); не задан — все. `total` — по фильтру."
           }
         ],
         "responses": {

@@ -10,6 +10,7 @@ from src.modules.projector.facade import (
     QueueItemDTO,
     QueuePageDTO,
     QueueSort,
+    ReviewKind,
     TimelineEntryDTO,
 )
 
@@ -64,8 +65,13 @@ class FakeProjectorFacade:
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO:
-        rows = [r for r in self.queue.values() if r.status == status]
+        rows = [
+            r
+            for r in self.queue.values()
+            if r.status == status and (review is None or r.review == review)
+        ]
         return QueuePageDTO(items=tuple(rows[offset : offset + limit]), total=len(rows))
 
     async def get_timeline(

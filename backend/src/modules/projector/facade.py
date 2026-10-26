@@ -16,7 +16,7 @@ from src.modules.projector.application.dto.applications import (
 from src.modules.projector.application.dto.metrics import BackofficeMetricsDTO, DailyMetricsDTO
 from src.modules.projector.application.dto.queue import QueueItemDTO, QueuePageDTO
 from src.modules.projector.application.dto.timeline import TimelineEntryDTO
-from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSort
+from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSort, ReviewKind
 
 __all__ = [
     "ActionRequired",
@@ -30,6 +30,7 @@ __all__ = [
     "QueueItemDTO",
     "QueuePageDTO",
     "QueueSort",
+    "ReviewKind",
     "TimelineEntryDTO",
 ]
 
@@ -54,6 +55,7 @@ class ProjectorFacade(Protocol):
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO: ...
 
     async def get_timeline(

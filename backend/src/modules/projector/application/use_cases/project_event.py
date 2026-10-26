@@ -20,7 +20,7 @@ from src.core.messaging.contracts.process import UserTaskCompleted, UserTaskCrea
 from src.core.messaging.envelope import Envelope
 from src.modules.applications.facade import ACTIVE_STATUSES, ApplicationCardDTO, ApplicationsFacade
 from src.modules.clients.facade import ClientsFacade
-from src.modules.decision.facade import DecisionFacade
+from src.modules.decision.facade import DecisionFacade, review_kind
 from src.modules.process.facade import ProcessFacade, UserTaskDTO
 from src.modules.products.facade import ProductsFacade
 from src.modules.projector.application.interfaces.neighbours import FacadeLookup
@@ -207,6 +207,7 @@ class ProjectEventUseCase:
             item.risk_grade = scoring.grade if scoring else None
             item.cash_gap = has_cash_gap(scoring.flags) if scoring else False
             item.routing_reasons = reasons
+            item.review = review_kind(MANUAL_REVIEW, reasons) if reasons else None
             await self._store.save_queue_item(item)
 
     async def _task(self, task_id: UUID) -> UserTaskDTO | None:

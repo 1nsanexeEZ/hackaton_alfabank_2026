@@ -13,7 +13,12 @@ from src.modules.bff.presentation.dependencies import (
     UnderwritingQueueDep,
 )
 from src.modules.bff.presentation.schemas.backoffice import UnderwriterCard
-from src.modules.projector.facade import BackofficeMetricsDTO, QueuePageDTO, QueueSort
+from src.modules.projector.facade import (
+    BackofficeMetricsDTO,
+    QueuePageDTO,
+    QueueSort,
+    ReviewKind,
+)
 
 router = APIRouter(prefix="/bff/backoffice", tags=["bff"])
 
@@ -31,8 +36,15 @@ async def underwriting_queue(
     sort: QueueSort = "due_at",
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    review: Annotated[
+        ReviewKind | None,
+        Query(
+            description="check — проверка (модели видят умеренный риск), dispute — спорная "
+            "(модели или данные расходятся); не задан — все. `total` — по фильтру."
+        ),
+    ] = None,
 ) -> QueuePageDTO:
-    return await use_case.execute(status, sort, limit, offset)
+    return await use_case.execute(status, sort, limit, offset, review)
 
 
 @router.get(
