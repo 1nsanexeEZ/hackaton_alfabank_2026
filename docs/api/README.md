@@ -9,7 +9,7 @@
 | [`openapi.json`](openapi.json) | выгрузка схемы из `create_app()`: `backend/scripts/export_openapi.py` | схема всех ручек (136 операций, 108 путей) для генераторов клиентов и сверки |
 | [`yaak.json`](yaak.json) | `backend/scripts/export_yaak.py` | коллекция Yaak одним файлом, для **Import** |
 | [`yaak/`](yaak/) | он же | та же коллекция по файлам (`yaak.wk_*`, `yaak.ev_*`, `yaak.fl_*`, `yaak.rq_*`), для **Open Folder** с синхронизацией |
-| [`client-journey.md`](client-journey.md) | вручную | путь клиента по ручкам: что вызывать на каждом шаге, поля экранов, коды ошибок |
+| [`client-journey.md`](../../settings/client-journey.md) | вручную | путь клиента по ручкам: что вызывать на каждом шаге, поля экранов, коды ошибок |
 
 `openapi.json`, `yaak.json` и `yaak/` генерируются. Свежесть проверяют из `backend/`:
 
@@ -142,4 +142,4 @@ uv run python -m scripts.export_yaak --check      # код 1 — коллекц�
 
 Своих HTTP-ручек нет у модулей `enrichment` ([enrichment.md](../modules/enrichment.md)) и `projector` ([projector.md](../modules/projector.md)): они работают через Kafka и фасады, а экраны читают их через BFF.
 
-Общие правила (авторизация, формат ошибок, деньги, даты, списки с `X-Total-Count`) — в разделе 1 [client-journey.md](client-journey.md#1-общие-правила).
+Общие правила (авторизация, формат ошибок, деньги, даты, списки с `X-Total-Count`) — в разделе 1 [client-journey.md](../../settings/client-journey.md#1-общие-правила).

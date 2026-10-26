@@ -26,15 +26,12 @@
 | Конфиг | `scoring/infrastructure/config/*.yaml` | `decision/infrastructure/config/policy_v10.yaml`, `explanations_ru.yaml` |
 | Чистое ядро | `scoring/domain/` — `calculate` без IO и `now()` | `decision/domain/policy.py` — `CreditPolicy.decide` без IO и `now()` |
 
-Оба модуля — часть модульного монолита ([architecture.md](architecture/architecture.md)): читают
+Оба модуля — часть модульного монолита ([platform.md](platform.md)): читают
 соседей только через фасады, а работают по командам `process` через Kafka.
 
 ## 2. Компоненты и потоки данных
 
-Вся картина одной схемой — страница «8. Скоринг и решение» в
-[`architecture-overview.drawio`](architecture/architecture-overview.drawio):
-
-![Скоринг и кредитное решение](architecture/img/8-scoring.png)
+Путь заявки через модули и Kafka — на схеме draw.io [`architecture.drawio`](architecture/architecture.drawio); компоненты скоринга и решения:
 
 ```mermaid
 flowchart LR

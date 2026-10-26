@@ -171,8 +171,6 @@ curl http://localhost:8080/api/assistant/status
 
 Модульный монолит на FastAPI: один процесс backend, внутри — 14 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
 
-![Контейнеры](docs/architecture/img/1-containers.png)
-
 | Модуль | Зачем |
 |---|---|
 | `identity` | вход по email или телефону, JWT RS256, роли с пермишнами и политиками (RBAC + ABAC), личные согласия — [`docs/identity.md`](docs/identity.md) |
@@ -187,12 +185,12 @@ curl http://localhost:8080/api/assistant/status
 | `notifications` | лента событий и персональные новости, SSE — [`docs/modules/notifications.md`](docs/modules/notifications.md) |
 | `support` | чат клиента с поддержкой, очередь сотрудников — [`docs/modules/support.md`](docs/modules/support.md) |
 | `projector` | модели чтения под экраны — [`docs/modules/projector.md`](docs/modules/projector.md) |
-| `bff` | ответы под экраны кабинета и бэк-офиса — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
+| `bff` | ответы под экраны кабинета и бэк-офиса — [`settings/client-journey.md`](settings/client-journey.md) |
 | `assistant` | умный помощник: маршрутизатор на правилах, факты из фасадов, модель за портом `LanguageModel` (Ollama или свой OpenAI-совместимый API), постпроверка, история диалогов — [`docs/ai.md`](docs/ai.md) |
 
 **Kafka.** Transactional outbox: изменение и событие о нём — в одной транзакции. Inbox отсекает повторы, у каждого топика есть `<topic>.dlq`. Хранение бессрочное — projector перестраивает модели чтения с нуля.
 
-**Архитектура по уровням** — контекст, контейнеры, модули и карта связей, слои модуля, потоки — в [`docs/architecture/architecture.md`](docs/architecture/architecture.md). Схемы draw.io по страницам — [`docs/architecture/architecture-overview.drawio`](docs/architecture/architecture-overview.drawio). Скоринг и кредитное решение сквозь модули — [`docs/scoring-architecture.md`](docs/scoring-architecture.md). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
+**Архитектура** — модули, Kafka и путь заявки от подачи до предложения — на схеме draw.io [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio). Скоринг и кредитное решение сквозь модули — [`docs/scoring-architecture.md`](docs/scoring-architecture.md). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
 
 ## Компоненты
 
@@ -337,14 +335,14 @@ Compose читает `.env` из корня репозитория. В конт�
 |---|---|
 | **Фишки, исследование, результаты** | [`docs/product/features.md`](docs/product/features.md) |
 | **Виды кредитов**, выгодоприобретатель и третьи лица | [`docs/product/credit-products.md`](docs/product/credit-products.md) |
-| Кейс, наше понимание, ответы организаторов и экспертов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
-| Архитектура по уровням: контекст, контейнеры, модули DDD, слои, потоки | [`docs/architecture/architecture.md`](docs/architecture/architecture.md), [`architecture-overview.drawio`](docs/architecture/architecture-overview.drawio), [`docs/platform.md`](docs/platform.md) |
+| Кейс, наше понимание, ответы организаторов и экспертов | [`settings/case.md`](settings/case.md), [`settings/webinar-2026-10-21.md`](settings/webinar-2026-10-21.md), [`settings/chat-insights.md`](settings/chat-insights.md) |
+| Архитектура: модули, Kafka, путь заявки от подачи до предложения | [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio), [`docs/platform.md`](docs/platform.md) |
 | **Скоринг и кредитное решение**: обогащение, стоп-факторы, PD- и ML-модель, политика, предодобрение, версии, аудит | [`docs/scoring-architecture.md`](docs/scoring-architecture.md), [`docs/modules/scoring.md`](docs/modules/scoring.md), [`docs/modules/decision.md`](docs/modules/decision.md) |
 | Процесс одобрения в BPMN, сравнение с исходной схемой, законы | [`docs/process/bpmn.md`](docs/process/bpmn.md), файлы маршрутов [`backend/src/modules/process/workflows/`](backend/src/modules/process/workflows/) |
 | Договор и электронная подпись: статьи 63-ФЗ и ГК, как формируется подпись | [`docs/contract-signing.md`](docs/contract-signing.md) |
 | Модель данных (ER) | [`docs/data-model.md`](docs/data-model.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | путеводитель [`docs/api/README.md`](docs/api/README.md), Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
+| Описание API | путеводитель [`docs/api/README.md`](docs/api/README.md), Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`settings/client-journey.md`](settings/client-journey.md) |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Умный помощник: модели, свой провайдер, деградация, защита, качество | [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |

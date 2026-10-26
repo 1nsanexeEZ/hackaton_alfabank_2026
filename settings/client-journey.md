@@ -1,7 +1,7 @@
 # Клиентский путь: ручки API и контракт для фронта
 
 Путь взят из верхней части общей схемы (BPMN): пул «Пользак», пул «Банк», внутри банка — «Запросы» и «Сервис скоринга» («Модель оценки PD» → «Стратегия решения»).
-Ручки — из [`openapi.json`](openapi.json). Он выгружается из кода; свежий ли он, скажет `uv run python -m scripts.export_openapi --check` из `backend/`.
+Ручки — из [`openapi.json`](../docs/api/openapi.json). Он выгружается из кода; свежий ли он, скажет `uv run python -m scripts.export_openapi --check` из `backend/`.
 Полные схемы DTO — там же или в Swagger `/docs` запущенного бэка. Здесь — поля, которые нужны экранам.
 
 Статусы в таблицах:
@@ -40,7 +40,7 @@
 | 3 | Есть ли бизнес? | банк | `GET /bff/dashboard`: `organizations`, `onboarding`, `organization.segment` (`established` / `startup`) | ✅ ветка «нет (стартап)» — [4.6](#46-ветка-стартапа) |
 | 4 | Подтянули данные из базы банка | банк | `GET /organizations/{id}`, `GET /organizations/{id}/financial-reports` | ✅ |
 | 5 | Сверили данные с ЕГРЮЛ → данные изменились → подкачали новые | банк | `POST /organizations/{id}/verification`, результат — в `OrganizationRead.verification` | ✅ бэк сверяет и сам — по выписке из каждой заявки, [4.2](#42-сверка-с-егрюл) |
-| 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена) и ночным пакетом: истекающие предложения пересчитываются заранее ([decision.md](../modules/decision.md#runtime-команды-события-api)) |
+| 6 | Предскоринг (для каждого бизнеса) → «Предварительно подобранное предложение» | банк → клиент | `GET /organizations/{id}/pre-approved-offers`, `Dashboard.pre_approved`, `Dashboard.counters` | ✅ пересчёт по событиям clients (отчёт подан, компания проверена) и ночным пакетом: истекающие предложения пересчитываются заранее ([decision.md](../docs/modules/decision.md#runtime-команды-события-api)) |
 | 7 | Клиент выбирает условия: сумма, срок, платёж — «калькулятор с учётом предскоринга» | клиент | `POST /bff/products/{code}/calculate`, `GET /bff/products/recommend`, `POST /products/recommend/{organization_id}`, `GET /products/{code}/eligibility` | ✅ график по ставке предодобрения; сверх предодобренного — причина и подсказка, не ошибка — [3.4](#34-выбор-условий-шаг-7) |
 | 8 | Согласие: БКИ физлица + ПДн | клиент | `GET/POST /me/consents`, `DELETE /me/consents/{type}` — личные согласия; `GET/POST /organizations/{id}/consents`, `DELETE /organizations/{id}/consents/{type}` — согласие на БКИ компании до заявки; `PATCH /applications/{id}` → `consents` — галочки в черновике (недостающие черновик берёт из профиля, `consents.*_source`); `Dashboard.consents` — что дано и чего нет; `ClientApplicationCard.consents.head_credit_bureau`, `Dashboard.todo` → `consent_required` | ✅ |
 | 9 | Пользователь выбрал конкретные условия | клиент | `POST /applications`, `PATCH /applications/{id}`, `GET …/completeness`, документы, `POST …/submit` | ✅ |
@@ -57,7 +57,7 @@
 
 Вопросы на схеме:
 
-- **«А можно без эл. доверенности брать кредит?»** Подать заявку — да: хватает права `submit_application` (бухгалтер его имеет по умолчанию). Подписать — нет: `sign` есть только у руководителя по реестру и у участника с доверенностью со scope `sign`. Доверенность выдаёт руководитель: `POST /organizations/{id}/members/{account_id}/poa`, отзывает — `DELETE` на ту же ручку; на участника одна доверенность, номер уникален в компании. Без неё бухгалтер подаёт заявку, но на `sign` получает 403. После отзыва или истечения доверенности сотрудник теряет и предодобрение, и «нужно сделать» по заявке — они показываются только тем, у кого есть право `submit_application` / `sign` ([clients.md](../modules/clients.md), [bff.md](../modules/bff.md)).
+- **«А можно без эл. доверенности брать кредит?»** Подать заявку — да: хватает права `submit_application` (бухгалтер его имеет по умолчанию). Подписать — нет: `sign` есть только у руководителя по реестру и у участника с доверенностью со scope `sign`. Доверенность выдаёт руководитель: `POST /organizations/{id}/members/{account_id}/poa`, отзывает — `DELETE` на ту же ручку; на участника одна доверенность, номер уникален в компании. Без неё бухгалтер подаёт заявку, но на `sign` получает 403. После отзыва или истечения доверенности сотрудник теряет и предодобрение, и «нужно сделать» по заявке — они показываются только тем, у кого есть право `submit_application` / `sign` ([clients.md](../docs/modules/clients.md), [bff.md](../docs/modules/bff.md)).
 - **«А можно в ЕГРЮЛ отчётность посмотреть?»** В ЕГРЮЛ бухотчётности нет, она в ГИР БО. Банк запрашивает её при рассмотрении заявки: андеррайтер видит `enrichment.gir_bo` в карточке — [4.4](#44-источники-гир-бо-контур-бки-физлица). Клиенту в кабинете — по-прежнему заявленная им отчётность (`POST /organizations/{id}/financial-reports`) плюс выручка по ФНС.
 
 ---
@@ -67,7 +67,7 @@
 ### 3.1. Калькулятор до входа (шаг 1)
 
 **`GET /products?purpose=`** → `ProductRead[]`: активные продукты в порядке каталога.
-Экрану нужны `code`, `name`, `short_description`, `purposes`, `amount_min` / `amount_max`, `term_min_months` / `term_max_months`, `rate_base` / `rate_max`, `repayment_options`, `collateral_kind`, `min_business_age_months`, `allowed_legal_forms`, `required_documents`. Карточка витрины: `keywords` (до 5 слов), `tag` («Популярный»), `decision_time` («5 минут») — задаёт админ, `null` / `[]` — не показывать. Ставки приходят уже сдвинутыми за действующей ключевой ([market.md](../modules/market.md)).
+Экрану нужны `code`, `name`, `short_description`, `purposes`, `amount_min` / `amount_max`, `term_min_months` / `term_max_months`, `rate_base` / `rate_max`, `repayment_options`, `collateral_kind`, `min_business_age_months`, `allowed_legal_forms`, `required_documents`. Карточка витрины: `keywords` (до 5 слов), `tag` («Популярный»), `decision_time` («5 минут») — задаёт админ, `null` / `[]` — не показывать. Ставки приходят уже сдвинутыми за действующей ключевой ([market.md](../docs/modules/market.md)).
 
 **`GET /market/key-rate?on=YYYY-MM-DD`** — ключевая ставка Банка России, без входа: `{value, effective_from, source}` (`source`: `admin` или `settings`, если в истории на дату ничего нет). Для подписи «ключевая 14%» в калькуляторе.
 
@@ -250,12 +250,12 @@ Dashboard {
 
    `product_fields` сливается с сохранённым, `null` удаляет ключ. Схема полей — `product_terms.application_fields_schema`. Ответ — `ApplicationOut` с `version + 1`.
 
-   `beneficiary` — действует ли клиент к выгоде третьего лица, `beneficial_owners` — бенефициары со слов клиента (115-ФЗ); `null` снимает ответ. Подачу они не блокируют, но без ответа о выгодоприобретателе (или без владельца у залога третьего лица) заявку решает человек (`policy_v10`), а «действую за третье лицо» требует документ `beneficiary_contract`. Формат и примеры — [compliance-115.md](../compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
+   `beneficiary` — действует ли клиент к выгоде третьего лица, `beneficial_owners` — бенефициары со слов клиента (115-ФЗ); `null` снимает ответ. Подачу они не блокируют, но без ответа о выгодоприобретателе (или без владельца у залога третьего лица) заявку решает человек (`policy_v10`), а «действую за третье лицо» требует документ `beneficiary_contract`. Формат и примеры — [compliance-115.md](../docs/compliance-115.md#третьи-лица-выгодоприобретатель-и-залогодатель).
 3. **`GET /applications/{id}/completeness`** → `{complete, violations: [{code, field}]}`. Пример нарушения: `{"code": "missing", "field": "consents.credit_bureau"}`. Для документов `field` — `documents.<type>`.
 4. Документы (типы — `product_terms.required_documents[].type`):
    - `POST /applications/{id}/documents` `{type, filename, content_type, size_bytes}` → 201 `{document (status pending_upload), upload: {url, method, headers, expires_at}}`;
    - браузер грузит файл сам по `upload.url` с `upload.method` и `upload.headers` (MinIO через nginx `/credit-documents/`, файл не больше 20 МБ — иначе 422 `bad_size` на объявлении документа);
-   - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`); выписку (`bank_statement`) бэк при этом разбирает: файл с ошибкой — 422 `details.code = statement_invalid` с `details.line` и текстом для клиента в `message`, документ остаётся `pending_upload` ([формат](../modules/enrichment.md#формат-выписки-для-фронта));
+   - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`); выписку (`bank_statement`) бэк при этом разбирает: файл с ошибкой — 422 `details.code = statement_invalid` с `details.line` и текстом для клиента в `message`, документ остаётся `pending_upload` ([формат](../docs/modules/enrichment.md#формат-выписки-для-фронта));
    - `GET …/documents/{document_id}/download` → `{url}`; `DELETE …/documents/{document_id}` → 204.
 5. **Личные согласия руководителя** — не в заявке, а на аккаунте: `POST /me/consents {"types": ["personal_data", "credit_bureau_personal"]}` ([4.3](#43-личные-согласия-пдн-и-бки-физлица)). Без `credit_bureau_personal` руководителя по реестру банк не запрашивает его кредитную историю; подать заявку это не мешает.
 6. **`POST /applications/{id}/submit`** → `ApplicationOut`, `status = submitted`. Неполная заявка — 422 с `details.violations` (тот же формат, что у completeness). При подаче фиксируется снимок компании: поле `organization` в ответе.
@@ -326,7 +326,7 @@ Dashboard {
 | `POST /feed/{item_id}/read`, `POST /feed/read-all` | отметить прочитанным |
 | `POST /feed/stream-ticket` | `{ticket, expires_at, expires_in, stream_url}` → `GET stream_url` через `EventSource` |
 | `GET /news?organization_id=&limit=`, `POST /news/{news_id}/read` | персональные новости |
-| `POST /support/tickets`, `GET /support/tickets`, `GET /support/tickets/{ticket_id}`, `POST …/messages`, `POST …/close` | чат с техподдержкой — [support.md](../modules/support.md) |
+| `POST /support/tickets`, `GET /support/tickets`, `GET /support/tickets/{ticket_id}`, `POST …/messages`, `POST …/close` | чат с техподдержкой — [support.md](../docs/modules/support.md) |
 
 **Дозапрос** (банк вернул `REQUEST_INFO`, `client_status = info_requested`):
 1. Загрузить документы из `info_request.requested_documents`. Документ сам привязывается к открытому дозапросу; тип, которого банк не просил, — 422 `unexpected_document`.
@@ -518,7 +518,7 @@ bki_head: CreditHistoryDTO | null              // та же схема, что �
 fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 ```
 
-Стоп-факторы появились в `policy_v2` и действуют во всех следующих версиях, в том числе во встроенной `policy_v10` (номер версии, которой решено, — в `decision.policy_version` карточки андеррайтера). Пороги стартовые: во встроенной версии — в YAML, в версиях админа — в документе версии (`/decision/policies`). С `policy_v7` к ним добавились стоп-лист банка, возраст бизнеса, массовый руководитель и недостоверные сведения ЕГРЮЛ — [decision.md](../modules/decision.md#стоп-факторы-до-модели-policy_v7). Стоп-факторы `policy_v2`:
+Стоп-факторы появились в `policy_v2` и действуют во всех следующих версиях, в том числе во встроенной `policy_v10` (номер версии, которой решено, — в `decision.policy_version` карточки андеррайтера). Пороги стартовые: во встроенной версии — в YAML, в версиях админа — в документе версии (`/decision/policies`). С `policy_v7` к ним добавились стоп-лист банка, возраст бизнеса, массовый руководитель и недостоверные сведения ЕГРЮЛ — [decision.md](../docs/modules/decision.md#стоп-факторы-до-модели-policy_v7). Стоп-факторы `policy_v2`:
 
 | Условие | Источник | Причина |
 |---|---|---|
@@ -536,7 +536,7 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 Клиент видит только итог: текст отказа без деталей источников. Если источник не ответил, решение уходит на ручную проверку (`ROUTE_SOURCES_FAILED`), и клиент читает, что заявку рассмотрит специалист. Нет согласия руководителя — его БКИ не запрашивается, проверка просрочки руководителя пропускается, решение идёт дальше.
 
-В external-mocks — `GET /gir-bo/{inn}`, `GET /kontur/{inn}`, `POST /bki/person-report` и `account_blocks` в `GET /fns/{inn}`; формы ответов — в [`external-mocks/README.md`](../../external-mocks/README.md).
+В external-mocks — `GET /gir-bo/{inn}`, `GET /kontur/{inn}`, `POST /bki/person-report` и `account_blocks` в `GET /fns/{inn}`; формы ответов — в [`external-mocks/README.md`](../external-mocks/README.md).
 
 ### 4.5. Договор перед подписью
 
@@ -544,12 +544,12 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 - `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей, подпись, УИд сделки и PDF в `document`. `document` есть всегда: PDF, который не удалось сделать, — `status: failed`, договор всё равно открывается.
 - `POST /applications/{id}/sign` принимает `{password, offer_hash, document_hash, rules_version}`; изменившийся оффер — 409 `offer_changed`, проект — 422 `document_changed`, правила — 422 `rules_outdated`.
-- PDF делает бэк: проект при первом открытии договора, итоговый — сразу после подписи клиента, с подписью банка. Хранение, архив и проверка — [applications.md](../modules/applications.md).
+- PDF делает бэк: проект при первом открытии договора, итоговый — сразу после подписи клиента, с подписью банка. Хранение, архив и проверка — [applications.md](../docs/modules/applications.md).
 - Адреса заёмщика в договоре нет: его нет в снимке компании, который заявка фиксирует при подаче.
 
 ### 4.6. Ветка стартапа
 
-Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или бизнес-план и финмодель в кабинете → проектная оценка → «вам предодобрен кредит» → заявка → андеррайтер подтверждает проект → предложение. По [case.md](../case.md) §5 предприниматель уже клиент банка, онбординга нет: стартап — это компания-клиент без оборотов и отчётности. Демо — ООО «Старт» (`owner@start.test`, 3 месяца), сценарии S-9 (без проектной оценки) и S-10 (с ней).
+Ветка «Есть ли бизнес? — нет (стартап)»: личный скоринг учредителя (предскрин) → отказ или бизнес-план и финмодель в кабинете → проектная оценка → «вам предодобрен кредит» → заявка → андеррайтер подтверждает проект → предложение. По [case.md](case.md) §5 предприниматель уже клиент банка, онбординга нет: стартап — это компания-клиент без оборотов и отчётности. Демо — ООО «Старт» (`owner@start.test`, 3 месяца), сценарии S-9 (без проектной оценки) и S-10 (с ней).
 
 **Дашборд** `GET /bff/dashboard`:
 - `organization.segment: "established" | "startup"`. `startup` — возраст бизнеса меньше 6 месяцев (`STARTUP_AGE_MONTHS`) или нет ни одного годового отчёта;
@@ -626,7 +626,7 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 ### 4.7. Скоринг и стратегия как на схеме
 
-PD-модель `pd_model_v2` ([scoring.md](../modules/scoring.md)) и «Стратегия решения» с `policy_v3`; встроенная сейчас — `policy_v10`, история версий — в [decision.md](../modules/decision.md#версии-политики). Админ может активировать свою версию модели или политики (`/scoring/models`, `/decision/policies`, раздел 5). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Новые поля — в DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`:
+PD-модель `pd_model_v2` ([scoring.md](../docs/modules/scoring.md)) и «Стратегия решения» с `policy_v3`; встроенная сейчас — `policy_v10`, история версий — в [decision.md](../docs/modules/decision.md#версии-политики). Админ может активировать свою версию модели или политики (`/scoring/models`, `/decision/policies`, раздел 5). Клиентских ручек это не меняет: клиент видит только исход, условия и объяснение. Новые поля — в DTO андеррайтера `UnderwriterCard.scoring` и `UnderwriterCard.decision`:
 
 ```text
 scoring: {
@@ -656,6 +656,6 @@ decision: {
 
 ## 5. Админка фронта и бэк
 
-Админка целиком работает на ручках бэка, мок-режима (`VITE_API_MODE=mock`) больше нет. Проверка компании по ИНН до заявки — `POST /organizations/inn-check` (#213). Версии PD-модели и кредитной политики на бэке ведутся ручками `/scoring/models*` и `/decision/policies*` ([scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа)), редактора для них во фронте пока нет; раздел «Скоринг» показывает, как модели оценили поданные заявки, по `GET /applications` и карточкам андеррайтера; сводки — `scoring-overview` и `applications-overview` ([3.8](#38-банк-ручная-проверка-шаг-14)).
+Админка целиком работает на ручках бэка, мок-режима (`VITE_API_MODE=mock`) больше нет. Проверка компании по ИНН до заявки — `POST /organizations/inn-check` (#213). Версии PD-модели и кредитной политики на бэке ведутся ручками `/scoring/models*` и `/decision/policies*` ([scoring.md](../docs/modules/scoring.md#версии-pd-модели), [decision.md](../docs/modules/decision.md#версии-политики-админа)), редактора для них во фронте пока нет; раздел «Скоринг» показывает, как модели оценили поданные заявки, по `GET /applications` и карточкам андеррайтера; сводки — `scoring-overview` и `applications-overview` ([3.8](#38-банк-ручная-проверка-шаг-14)).
 
-Ключевую ставку ведёт админ: `GET /market/key-rates` (история и текущая, `scoring.read`), `POST /market/key-rates` (ставка и дата начала, `scoring.update`), `DELETE /market/key-rates/{effective_from}` — только ещё не действовавшую запись ([market.md](../modules/market.md)). Каталог продуктов — `GET /products/all` (`credits.update`): ставки как хранятся и `market_rate` — те же по действующей ключевой ([products.md](../modules/products.md)).
+Ключевую ставку ведёт админ: `GET /market/key-rates` (история и текущая, `scoring.read`), `POST /market/key-rates` (ставка и дата начала, `scoring.update`), `DELETE /market/key-rates/{effective_from}` — только ещё не действовавшую запись ([market.md](../docs/modules/market.md)). Каталог продуктов — `GET /products/all` (`credits.update`): ставки как хранятся и `market_rate` — те же по действующей ключевой ([products.md](../docs/modules/products.md)).

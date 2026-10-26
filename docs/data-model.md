@@ -481,7 +481,7 @@ erDiagram
 
 ## Модели чтения: projector
 
-Денормализованные таблицы под экраны. Их можно удалить и перестроить из Kafka (`backend/scripts/projector_rebuild.py`, [architecture.md](architecture/architecture.md#модели-чтения)); связей между ними нет.
+Денормализованные таблицы под экраны. Их можно удалить и перестроить из Kafka (`backend/scripts/projector_rebuild.py`, [projector.md](modules/projector.md)); связей между ними нет.
 
 ```mermaid
 erDiagram

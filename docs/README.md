@@ -7,18 +7,18 @@
 
 | Кто вы | Что читать по порядку |
 |---|---|
-| Эксперт, 15 минут | [README](../README.md) → [что умеет кабинет](product/features.md) → [архитектура](architecture/architecture.md) → [скоринг и решение](scoring-architecture.md) |
-| Проверяю API руками | [описание API и коллекция Yaak](api/README.md) → [путь клиента по шагам](api/client-journey.md) → Swagger `http://localhost:8080/api/docs` |
+| Эксперт, 15 минут | [README](../README.md) → [что умеет кабинет](product/features.md) → [архитектура](architecture/architecture.drawio) → [скоринг и решение](scoring-architecture.md) |
+| Проверяю API руками | [описание API и коллекция Yaak](api/README.md) → [путь клиента по шагам](../settings/client-journey.md) → Swagger `http://localhost:8080/api/docs` |
 | Разбираюсь в кредитной логике | [скоринг и решение целиком](scoring-architecture.md) → [scoring](modules/scoring.md) → [decision](modules/decision.md) → [BPMN-процесс](process/bpmn.md) → [115-ФЗ](compliance-115.md) |
-| Разработчик бэкенда | [платформа](platform.md) → [архитектура](architecture/architecture.md) → [структура модуля](../settings/04-module-structure.md) → документ своего модуля → [модель данных](data-model.md) |
+| Разработчик бэкенда | [платформа](platform.md) → [архитектура](architecture/architecture.drawio) → [структура модуля](../settings/04-module-structure.md) → документ своего модуля → [модель данных](data-model.md) |
 
 ## Кейс и продукт
 
 | Документ | Что в нём |
 |---|---|
-| [case.md](case.md) | текст кейса, наше понимание, чек-лист сдачи, ответы организаторов |
-| [webinar-2026-10-21.md](webinar-2026-10-21.md) | ответы экспертов на вебинаре: границы задачи, моки, скоринг, ИИ |
-| [chat-insights.md](chat-insights.md) | выводы из чатов хакатона: сроки, правила, опыт прошлых лет |
+| [settings/case.md](../settings/case.md) | текст кейса, наше понимание, чек-лист сдачи, ответы организаторов |
+| [settings/webinar-2026-10-21.md](../settings/webinar-2026-10-21.md) | ответы экспертов на вебинаре: границы задачи, моки, скоринг, ИИ |
+| [settings/chat-insights.md](../settings/chat-insights.md) | выводы из чатов хакатона: сроки, правила, опыт прошлых лет |
 | [product/features.md](product/features.md) | ключевые фишки, исследование, результаты, скриншоты |
 | [product/credit-products.md](product/credit-products.md) | девять видов кредитов, выгодоприобретатель и третьи лица |
 
@@ -26,7 +26,7 @@
 
 | Документ | Что в нём |
 |---|---|
-| [architecture/architecture.md](architecture/architecture.md) | уровни: контекст, контейнеры, модули DDD, слои, потоки; схемы draw.io — `architecture/architecture-overview.drawio` |
+| [architecture/architecture.drawio](architecture/architecture.drawio) | схема draw.io — единая точка правды по архитектуре: модули, Kafka, путь заявки от подачи до предложения |
 | [platform.md](platform.md) | как устроен модуль и фасады, Kafka с outbox/inbox/DLQ, доступ, ядро, тесты, миграции и сиды, CI |
 | [scoring-architecture.md](scoring-architecture.md) | **скоринг и кредитное решение сквозь модули**: обогащение → стоп-факторы → две модели → политика → исход; предодобрение, стартап, версии, аудит |
 | [process/bpmn.md](process/bpmn.md) | процесс одобрения в BPMN, пять маршрутов, шаги и таймауты, сравнение со схемой «как сейчас», нормы |
@@ -59,7 +59,7 @@
 |---|---|
 | [api/README.md](api/README.md) | путеводитель: OpenAPI, Swagger, коллекция Yaak и её структура |
 | [api/openapi.json](api/openapi.json) | спецификация OpenAPI, выгружается из приложения |
-| [api/client-journey.md](api/client-journey.md) | путь клиента по шагам: какие ручки и что отвечает BFF |
+| [settings/client-journey.md](../settings/client-journey.md) | путь клиента по шагам: какие ручки и что отвечает BFF |
 | [api/yaak/](api/yaak/), [api/yaak.json](api/yaak.json) | коллекция Yaak: сценарии S-1…S-10 и справочник ручек |
 
 ## Закон и безопасность
