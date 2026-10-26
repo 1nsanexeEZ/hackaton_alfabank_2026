@@ -47,6 +47,10 @@ function submit() {
   for (const key of ['expenses', 'netProfit', 'liabilities', 'debtPayments'] as const) {
     if (form[key].trim() && !Number.isFinite(toNumber(form[key]))) next[key] = 'Введите число'
   }
+  // Прибыль — из выручки: больше неё не бывает; убыток — со знаком минус
+  if (!next.netProfit && form.netProfit.trim() && !next.revenue && toNumber(form.netProfit) > toNumber(form.revenue)) {
+    next.netProfit = 'Не больше выручки'
+  }
   errors.value = next
   if (Object.keys(next).length) return
   emit(
@@ -86,12 +90,19 @@ const money = (value: string | null) => (value === null ? '—' : formatMoney(Nu
         <SelectField v-model="form.quarter" label="Период" :options="QUARTERS" dense />
         <TextField v-model="form.revenue" filter="amount" label="Выручка, ₽" :error="errors.revenue" dense required />
         <TextField v-model="form.expenses" filter="amount" label="Расходы, ₽" placeholder="Необязательно" :error="errors.expenses" dense />
-        <TextField v-model="form.netProfit" label="Чистая прибыль, ₽" inputmode="decimal" placeholder="Необязательно" :error="errors.netProfit" dense />
+        <TextField
+          v-model="form.netProfit"
+          filter="signedAmount"
+          label="Чистая прибыль, ₽"
+          placeholder="Необязательно; убыток — с минусом"
+          :error="errors.netProfit"
+          dense
+        />
         <TextField v-model="form.liabilities" filter="amount" label="Обязательства, ₽" placeholder="Необязательно" :error="errors.liabilities" dense />
         <TextField
           v-model="form.debtPayments"
+          filter="amount"
           label="Платежи по долгам в месяц, ₽"
-          inputmode="decimal"
           placeholder="Необязательно"
           :error="errors.debtPayments"
           dense
