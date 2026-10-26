@@ -189,7 +189,8 @@ async def test_loop_limit_hands_over_to_the_underwriter() -> None:
 
     # request_info may run twice only: the third time goes to a person
     assert d.process.current_node_id == "underwriter_review"
-    assert "request_info repeated more than 2 times" in d.process.context.manual_review_reason  # type: ignore[operator]
+    reason = d.process.context.manual_review_reason
+    assert reason is not None and "повторился больше 2 раз" in reason
     assert any(isinstance(e, UserTaskCreated) for e in d.events)
 
 
@@ -252,6 +253,30 @@ async def test_rejected_manual_decision_goes_back_to_review() -> None:
     assert d.process.context.manual_review_reason is None
 
 
+async def test_repeated_rejections_keep_the_application_with_a_person() -> None:
+    """Every rejected manual decision opens a new task: the review never runs into the repeat
+    limit and fails, leaving the application `in_review` with nobody to decide it."""
+    d = await Driver().run()
+    await d.enrichment_ok()
+    await d.score()
+    await d.decide("MANUAL_REVIEW")
+    result = {
+        "decision": "approve",
+        "amount": 9e7,
+        "term_months": 24,
+        "rate": 20,
+        "comment": "ok",
+        "completed_by": "x",
+    }
+    for round_ in range(1, 6):
+        await d.send(Trigger("UserTaskCompleted", result, task_id=d.tasks[-1].id))
+        # Past its own limit the decision step hands over to a person without a command.
+        await d.reply("ManualDecisionRejected", "RecordManualDecision", reason="limit")
+        assert d.process.status != "failed", round_
+        assert len(d.tasks) == round_ + 1, round_
+        assert d.process.current_node_id == "underwriter_review"
+
+
 async def test_rejection() -> None:
     d = await Driver().run()
     await d.enrichment_ok()
@@ -280,8 +305,10 @@ async def test_failed_enrichment_goes_to_manual_review() -> None:
     d = await Driver().run()
     assert await d.reply("EnrichmentFailed", "FetchEnrichment", reason="all sources down")
     assert d.process.current_node_id == "underwriter_review"
-    assert d.process.context.manual_review_reason == "enrichment: all sources down"
-    assert d.tasks[-1].reason == "enrichment: all sources down"
+    reason = d.process.context.manual_review_reason
+    assert reason is not None and reason.startswith("Сбой на этапе «")
+    assert reason.endswith("(enrichment: all sources down)")
+    assert d.tasks[-1].reason == reason
     failed = [s for s in d.process.steps if s.outcome == "failed"]
     assert [s.step_code for s in failed] == ["fetch_enrichment"]
 

@@ -264,8 +264,14 @@ class ProcessInstance:
         count = self.iterations.get(node.id, 0) + 1
         self.iterations[node.id] = count
         limit = node.config.max_iterations
-        if limit is not None and count > limit:
-            return self._escalate(node, f"{node.step_code} repeated more than {limit} times", now)
+        # The underwriter's review is the way out of every loop: a person decides each round,
+        # so it is never cut by the limit (a rejected manual decision opens a new task).
+        if limit is not None and count > limit and node.step_code != MANUAL_REVIEW_STEP:
+            return self._escalate(
+                node,
+                f"Этап «{_stage(node)}» повторился больше {limit} раз — нужно решение специалиста",
+                now,
+            )
 
         spec = STEPS[node.step_code or ""]
         execution = StepExecution(
@@ -359,7 +365,7 @@ class ProcessInstance:
         execution.error = error
         self._finish_execution(execution, now, "failed")
         if node.config.on_failure is OnFailure.MANUAL_REVIEW:
-            escalated = self._escalate(node, error, now)
+            escalated = self._escalate(node, f"Сбой на этапе «{_stage(node)}» ({error})", now)
             if escalated and walk:
                 await self._walk(facts, now, new_id)
             return escalated
@@ -460,3 +466,11 @@ class ProcessInstance:
 
     def _input(self, node: Node, now: datetime, facts: ProcessFacts) -> StepInput:
         return StepInput(context=self.context, node=node, now=now, facts=facts)
+
+
+def _stage(node: Node) -> str:
+    """The step as the underwriter reads it: its client stage, the code if it has none."""
+    if node.config.client_stage:
+        return node.config.client_stage
+    spec = STEPS.get(node.step_code or "")
+    return spec.client_stage if spec is not None else node.step_code or node.id

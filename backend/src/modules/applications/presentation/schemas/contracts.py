@@ -118,7 +118,8 @@ class ContractOut(BaseModel):
     signature: ContractSignatureOut | None
     # Unique identifier of the deal (218-FZ): the UUID and a check symbol.
     uid: str | None = None
-    document: ContractDocumentOut | None = None
+    # Always there: a PDF that could not be made is `status: failed`, the contract still opens.
+    document: ContractDocumentOut
 
 
 class EsignRulesOut(BaseModel):
