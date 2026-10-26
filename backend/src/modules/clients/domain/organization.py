@@ -12,7 +12,9 @@ Invariants:
 - an entrepreneur (IE) has exactly one owner — the entrepreneur himself
   (his name matches the registry), and no director;
 - `sign` needs confirmed authority: by the registry or by a power of
-  attorney valid at `now`, which only a head confirmed by the registry issues.
+  attorney valid at `now`, which only a head confirmed by the registry issues;
+- a member holds one power of attorney at a time, its number is not another
+  member's one.
 
 The registry status does not block anything here: the stop factor belongs to
 decision.
@@ -341,12 +343,33 @@ class Organization:
         power_of_attorney: PowerOfAttorney,
         now: datetime,
     ) -> Member:
-        """Replaces the previous power of attorney of the member."""
+        """One at a time: an expired one is replaced, a current (or not yet started) one is
+        revoked first."""
         self._ensure_issues_power_of_attorney(actor, account_id, power_of_attorney, now)
         member = self.member(account_id)
+        current = member.power_of_attorney
+        if current is not None and not current.is_expired(now):
+            raise ConflictError(
+                "The member already has a power of attorney: revoke it first",
+                details={"code": "power_of_attorney_exists"},
+            )
         member.power_of_attorney = power_of_attorney
         if member.authority is Authority.UNCONFIRMED:
             member.authority = Authority.POWER_OF_ATTORNEY
+        return member
+
+    def revoke_power_of_attorney(self, actor: Actor, account_id: UUID, now: datetime) -> Member:
+        """By the one who issues them; what it granted is gone at once."""
+        self._ensure_issuer(actor)
+        member = self.member(account_id)
+        if member.power_of_attorney is None:
+            raise NotFoundError(
+                "The member has no power of attorney",
+                details={"code": "power_of_attorney_not_found"},
+            )
+        member.power_of_attorney = None
+        if member.authority is Authority.POWER_OF_ATTORNEY:
+            member.authority = Authority.UNCONFIRMED
         return member
 
     # --- registry and financials ----------------------------------------------
@@ -493,12 +516,28 @@ class Organization:
         now: datetime,
     ) -> None:
         """Only a head confirmed by the registry signs a power of attorney:
-        an unconfirmed director cannot empower himself or anyone else."""
+        an unconfirmed director cannot empower himself or anyone else. Its number
+        is not another member's one in the company."""
         if power_of_attorney.is_expired(now):
             raise ValidationError(
                 "Power of attorney has expired",
                 details={"field": "valid_until", "code": "expired"},
             )
+        self._ensure_issuer(actor)
+        if actor.account_id == account_id:
+            raise ValidationError(
+                "A power of attorney cannot be issued to yourself",
+                details={"field": "account_id", "code": "self_power_of_attorney"},
+            )
+        for other in self._members.values():
+            held = other.power_of_attorney
+            if other.account_id != account_id and held and held.same_number(power_of_attorney):
+                raise ConflictError(
+                    "Another member holds a power of attorney with this number",
+                    details={"field": "number", "code": "number_taken"},
+                )
+
+    def _ensure_issuer(self, actor: Actor) -> None:
         if actor.is_bank:
             return
         assert actor.account_id is not None
@@ -509,11 +548,6 @@ class Organization:
             raise PermissionDeniedError(
                 "Only a head confirmed by the registry issues a power of attorney",
                 details={"code": "cannot_issue_power_of_attorney"},
-            )
-        if actor.account_id == account_id:
-            raise ValidationError(
-                "A power of attorney cannot be issued to yourself",
-                details={"field": "account_id", "code": "self_power_of_attorney"},
             )
 
     def _ensure_role_allowed(self, role: MemberRole) -> None:

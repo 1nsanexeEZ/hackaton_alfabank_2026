@@ -83,6 +83,32 @@ def test_dashboard_of_the_first_company(world: World) -> None:
     assert [n["title"] for n in body["news"]] == ["Льготная ставка для общепита"]
 
 
+def test_who_may_not_apply_sees_no_pre_approval_and_no_tasks(world: World) -> None:
+    """An employee without a power of attorney (or whose one is revoked) only views."""
+    org = world.romashka
+    world.projector.dashboards[org.id] = OrganizationDashboardDTO(
+        organization_id=org.id,
+        active_applications=1,
+        action_required_count=1,
+        pre_approved_max_amount=Decimal("4000000"),
+        pre_approved_rate_from=Decimal("18.5"),
+        last_activity_at=NOW,
+    )
+    world.add_application(status="signing", number="КР-3")
+    world.decision.set_pre_approved(org.id, [factories.pre_approved("UNSECURED")])
+
+    response = world.get("/bff/dashboard", world.as_client(world.employee))
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["organization"]["my_permissions"] == ["view"]
+    assert body["pre_approved"] == []
+    assert body["counters"]["pre_approved_max_amount"] is None
+    assert body["counters"]["pre_approved_rate_from"] is None
+    assert body["todo"] == []
+    assert [a["number"] for a in body["active_applications"]] == ["КР-3"]
+
+
 def test_dashboard_shows_at_most_five_active_applications(world: World) -> None:
     for minute in range(7):
         world.add_application(

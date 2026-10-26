@@ -44,6 +44,8 @@ from tests.helpers import bearer, create_schema, token_for
 
 OWNER = UUID("00000000-0000-4000-8000-000000000001")
 STRANGER = UUID("00000000-0000-4000-8000-000000000002")
+# A member without a power of attorney: may only view.
+EMPLOYEE = UUID("00000000-0000-4000-8000-000000000003")
 CLIENT_POLICIES = {Permissions.ORGANIZATIONS_READ: ["org_member"]}
 
 
@@ -109,6 +111,7 @@ def app(settings: Settings) -> Iterator[App]:
         builders.organization_snapshot("romashka", organization_id=world.organization_id)
     )
     clients.add_member(OWNER, world.organization_id, "owner")
+    clients.add_member(EMPLOYEE, world.organization_id, "employee")
     application = create_app(settings, clock=FrozenClock(NOW))
     install(application, ApplicationsFacade, world.applications)
     install(application, EnrichmentFacade, world.enrichment)
@@ -238,11 +241,19 @@ def test_pre_approved_offers_access(app: App) -> None:
     without_permission = app.get(path, permissions=[Permissions.REQUESTS_READ], subject=OWNER)
     bank_staff = app.get(path, permissions=[Permissions.ORGANIZATIONS_READ], subject=uuid4())
     anonymous = app.client.get(path)
+    employee = app.get(
+        path,
+        permissions=[Permissions.ORGANIZATIONS_READ],
+        policies=CLIENT_POLICIES,
+        subject=EMPLOYEE,
+    )
 
     assert stranger.status_code == 404
     assert without_permission.status_code == 403
     assert anonymous.status_code == 401
     assert bank_staff.status_code == 200 and bank_staff.json()
+    # The offers are to apply: who may not apply does not see them.
+    assert employee.status_code == 200 and employee.json() == []
 
 
 def test_no_offers_yet_is_an_empty_list(app: App) -> None:

@@ -32,18 +32,24 @@ def available_actions(status: str, permissions: frozenset[str]) -> list[str]:
     return [action for action, needs in _ACTIONS.get(status, []) if needs in permissions]
 
 
-# projector's action_required -> (todo kind, title)
-_TODO: dict[str, tuple[TodoKind, str]] = {
-    "info": ("info_requested", "Банку нужны данные по заявке {number}"),
-    "offer": ("offer_ready", "Готово решение по заявке {number}"),
-    "sign": ("signing", "Подпишите договор по заявке {number}"),
+# projector's action_required -> (todo kind, title, right inside the company it needs)
+_TODO: dict[str, tuple[TodoKind, str, str]] = {
+    "info": ("info_requested", "Банку нужны данные по заявке {number}", SUBMIT),
+    "offer": ("offer_ready", "Готово решение по заявке {number}", SUBMIT),
+    "sign": ("signing", "Подпишите договор по заявке {number}", SIGN),
 }
 
 
-def todo_for(action_required: str, number: str) -> tuple[TodoKind, str] | None:
+def todo_for(
+    action_required: str, number: str, permissions: frozenset[str] | None = None
+) -> tuple[TodoKind, str] | None:
+    """With `permissions` — only what the member may do: without a power of attorney
+    an employee is not asked to sign."""
     if action_required not in _TODO:
         return None
-    kind, title = _TODO[action_required]
+    kind, title, needs = _TODO[action_required]
+    if permissions is not None and needs not in permissions:
+        return None
     return kind, title.format(number=number)
 
 
