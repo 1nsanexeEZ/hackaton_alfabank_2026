@@ -778,8 +778,8 @@ export interface ContractDto {
   number: string
   /** УИд договора (218-ФЗ): UUID и контрольный символ */
   uid?: string
-  /** PDF договора; null — ещё не начали формировать, поля нет — бэкенд без PDF */
-  document?: ContractDocumentDto | null
+  /** PDF договора: проект и состояние формирования */
+  document: ContractDocumentDto
   offer_hash: string
   status: 'unsigned' | 'signed'
   borrower: { name: string; inn: string; ogrn: string; kpp: string | null; legal_form: string; head_name: string | null }

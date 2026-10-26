@@ -75,6 +75,12 @@ export function eligibilityMessage(reasons: readonly Reason[]): string {
   return failed.length ? `Компания не подходит под продукт: ${failed.join('; ')}` : 'Компания не подходит под продукт'
 }
 
+function statementMessage(message: string | undefined, line: unknown): string {
+  const text = message && /[а-яё]/i.test(message) ? message.replace(/\.$/, '') : 'Выписка не прочиталась'
+  const where = typeof line === 'number' && !/строк/i.test(text) ? ` — строка ${line}` : ''
+  return `${text}${where}. Исправьте файл и загрузите его ещё раз`
+}
+
 export function humanMessage(
   status: number,
   message: string | undefined,
@@ -84,6 +90,8 @@ export function humanMessage(
 ): string {
   const code = typeof details.code === 'string' ? details.code : undefined
   if (code === 'not_eligible' && Array.isArray(details.reasons)) return eligibilityMessage(details.reasons as Reason[])
+  // Выписка не разобралась: текст бэкенд пишет по-русски, номер строки — в details.line
+  if (code === 'statement_invalid') return statementMessage(message, details.line)
   if (code && BY_DETAILS_CODE[code]) return BY_DETAILS_CODE[code]
   // Часть сообщений бэкенд уже пишет по-русски — их показываем как есть
   if (message && /[а-яё]/i.test(message)) return message

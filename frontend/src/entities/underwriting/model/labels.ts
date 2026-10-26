@@ -278,15 +278,6 @@ export const TASK_STATUS_LABEL: Record<string, string> = {
 
 export const label = (dictionary: Record<string, string>, code: string) => dictionary[code] ?? code
 
-/**
- * Почему задача или процесс у андеррайтера (task.reason, process.manual_review_reason). Отказ в ручном
- * решении бэкенд пишет по-русски, а при сбое шага в причину попадает текст ошибки — у известного префикса
- * он английский («manual decision rejected: …»), его переводим
- */
-export function reviewReasonText(reason: string): string {
-  return reason.replace(/^manual decision rejected:\s*/i, 'Ручное решение не принято: ')
-}
-
 /** Почему данные скоринга неполные (quality_v1): source_failed:<источник>, completeness_below:<доля признаков с данными> */
 export function qualityReasonLabel(code: string): string {
   const [kind, value = ''] = code.split(':')
