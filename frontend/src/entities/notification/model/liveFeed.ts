@@ -34,6 +34,7 @@ let retryTimer: ReturnType<typeof setTimeout> | undefined
 
 const feedListeners = new Set<(item: FeedItemDto) => void>()
 const applicationListeners = new Set<(update: ApplicationUpdate) => void>()
+const companyListeners = new Set<() => void>()
 
 function parse<T>(event: MessageEvent): T | null {
   try {
@@ -53,6 +54,14 @@ function onFeedItem(event: MessageEvent) {
   state.recent.unshift(item)
   state.recent.splice(RECENT_LIMIT)
   feedListeners.forEach((listener) => listener(item))
+  /*
+   * Запись о составе компаний или правах, а не о заявке: добавили, сменили роль, сверка, отчётность —
+   * с компанией; «Доступ к компании … закрыт» бэкенд шлёт без компании и ссылки, отличаем его от ответа
+   * поддержки по типу. Кто показывает компании и права в них, перечитывает их
+   */
+  if (!item.application_id && (item.organization_id || item.type !== 'support')) {
+    companyListeners.forEach((listener) => listener())
+  }
 }
 
 function onApplicationUpdated(event: MessageEvent) {
@@ -130,6 +139,12 @@ function onApplication(listener: (update: ApplicationUpdate) => void): () => voi
   return () => applicationListeners.delete(listener)
 }
 
+/** Подписка на записи о компаниях (исключили, добавили, роль, сверка): списки компаний и права пора перечитать; возвращает отписку */
+function onCompany(listener: () => void): () => void {
+  companyListeners.add(listener)
+  return () => companyListeners.delete(listener)
+}
+
 /** Прочитано в модалке: счётчик уменьшаем сразу, не дожидаясь ответа */
 function markedRead(count = 1): void {
   state.unread = Math.max(0, state.unread - count)
@@ -145,6 +160,7 @@ export const liveFeed = {
   stop,
   onItem,
   onApplication,
+  onCompany,
   refreshUnread,
   markedRead,
   markedAllRead,
