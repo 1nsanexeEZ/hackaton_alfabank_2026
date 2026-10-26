@@ -10626,14 +10626,7 @@
             "title": "Uid"
           },
           "document": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ContractDocumentOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ContractDocumentOut"
           }
         },
         "type": "object",
@@ -10645,7 +10638,8 @@
           "signers",
           "terms",
           "schedule",
-          "signature"
+          "signature",
+          "document"
         ],
         "title": "ContractOut",
         "description": "The loan contract to show before signing. `number` is the application\nnumber; `offer_hash` and `document.sha256` go back in `POST /applications/{id}/sign`."

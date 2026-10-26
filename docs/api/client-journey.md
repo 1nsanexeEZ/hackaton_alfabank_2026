@@ -540,7 +540,7 @@ fns.account_blocks: [{ decision_number, date, authority_code, reason }]
 
 Контракт — в [3.7](#37-решение-оффер-подпись-выдача-шаги-1518).
 
-- `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей, подпись, УИд сделки и PDF в `document`.
+- `GET /applications/{id}/contract` отдаёт договор с `signing` и дальше: заёмщик, подписанты, условия оффера, график платежей, подпись, УИд сделки и PDF в `document`. `document` есть всегда: PDF, который не удалось сделать, — `status: failed`, договор всё равно открывается.
 - `POST /applications/{id}/sign` принимает `{password, offer_hash, document_hash, rules_version}`; изменившийся оффер — 409 `offer_changed`, проект — 422 `document_changed`, правила — 422 `rules_outdated`.
 - PDF делает бэк: проект при первом открытии договора, итоговый — сразу после подписи клиента, с подписью банка. Хранение, архив и проверка — [applications.md](../modules/applications.md).
 - Адреса заёмщика в договоре нет: его нет в снимке компании, который заявка фиксирует при подаче.
