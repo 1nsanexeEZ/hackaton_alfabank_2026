@@ -15,8 +15,9 @@ const props = withDefaults(
 const model = defineModel<T>({ required: true })
 
 /*
- * Как переключатель в настройках телефона: под выбранным вариантом лежит фирменный красный ползунок,
- * при выборе другого он переезжает под него. Положение и ширину берём из самой кнопки.
+ * Как переключатель в настройках телефона: под выбранным вариантом лежит ползунок, при выборе другого
+ * он переезжает под него. Положение и ширину берём из самой кнопки. Цвет ползунка — --segmented-thumb:
+ * на сайте фирменный красный, в рабочем месте банка тёмный (красный там — только у главного действия).
  */
 const buttons = ref<HTMLButtonElement[]>([])
 const thumb = ref({ x: 0, width: 0 })
@@ -53,7 +54,7 @@ watch([model, () => props.options], () => nextTick(measure))
     class="segmented relative isolate inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-surface p-1 [scrollbar-width:none]"
   >
     <span
-      class="segmented__thumb pointer-events-none absolute top-1 bottom-1 left-0 -z-10 rounded-full bg-brand shadow-sm"
+      class="segmented__thumb pointer-events-none absolute top-1 bottom-1 left-0 -z-10 rounded-full bg-(--segmented-thumb,var(--color-brand)) shadow-sm"
       :class="{ 'is-ready': ready }"
       :style="{ width: `${thumb.width}px`, translate: `${thumb.x}px 0`, opacity: thumb.width ? 1 : 0 }"
       aria-hidden="true"
