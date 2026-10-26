@@ -51,7 +51,7 @@
 
 `MarketFacade.key_rate(day=None) -> KeyRateDTO(value, effective_from, source)` — ставка, действующая на `day` (по умолчанию сегодня по Москве).
 
-- products: `ProductService` берёт ставку на каждый вызов через порт `KeyRates` (`products/infrastructure/key_rates.py`) и сдвигает каталог на `ставка − CATALOG_KEY_RATE`. Без модуля market (юнит-тесты products) сдвига нет.
+- products: `ProductService` берёт ставку на каждый вызов через порт `KeyRates` (`products/infrastructure/key_rates.py`) и сдвигает каталог на `ставка − CATALOG_KEY_RATE`. Без модуля market (юнит-тесты products) сдвига нет. Ведение каталога (`GET /products/all`) показывает рядом со хранимыми ставками блок `market_rate` — те же ставки по действующей ключевой ([products.md](products.md#ставки-за-ключевой)).
 - decision: обработчики команд и событий берут ставку на каждую команду, ночной пакет — один раз на проход (`PreApprovalTransaction.market`), превью версии политики — на запрос (`KeyRateDep`), сид предодобрений — через фасад.
 
 ## Раскладка

@@ -21,8 +21,6 @@
 
 ## Путь договора
 
-![Подписание договора](architecture/img/6-signing.png)
-
 ```mermaid
 sequenceDiagram
     autonumber

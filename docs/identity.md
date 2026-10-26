@@ -7,7 +7,7 @@
 
 | Вопрос | Решение |
 |---|---|
-| Регистрация | Нет. Пользователь уже клиент банка (ответ организаторов, `docs/case.md`, раздел 5). Аккаунты создают bootstrap (admin), сид (роли и демо-учётки) и API |
+| Регистрация | Нет. Пользователь уже клиент банка (ответ организаторов, `settings/case.md`, раздел 5). Аккаунты создают bootstrap (admin), сид (роли и демо-учётки) и API |
 | Вход | Email или телефон + пароль, одна ручка `POST /auth/login`. Телефон нормализуется: `8 (999) 123-45-67` → `+79991234567` |
 | Токен | Только access JWT, **RS256**, TTL **30 минут** (`JWT_ACCESS_TTL_MINUTES`). Ни access, ни refresh не храним, refresh нет |
 | Проверка токена | По публичному ключу. JWKS отдаётся на `GET /.well-known/jwks.json`, так что проверку можно вынести из Identity |
@@ -149,7 +149,7 @@
 | GET | `/organizations/{id}/consents` | любой валидный токен + `view` в компании | Согласия компании: действующие и история, новые сверху |
 | POST | `/organizations/{id}/consents` | любой валидный токен + `submit_application` в компании | `{types: ["credit_bureau_company"]}` → 201 |
 | DELETE | `/organizations/{id}/consents/{type}` | любой валидный токен + `submit_application` в компании | Отзыв любым представителем; повторный — тоже 204 |
-| GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit`/`offset` |
+| GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit` (1–100, по умолчанию 50), `offset`; общее число по тому же фильтру — в заголовке `X-Total-Count` |
 | GET | `/accounts/{id}` | `accounts.read` | 404, если строка отфильтрована политикой |
 | POST | `/accounts` | `accounts.create` | Аккаунт + профиль |
 | PATCH | `/accounts/{id}` | `accounts.update` | Email, телефон, пароль, роль, профиль |

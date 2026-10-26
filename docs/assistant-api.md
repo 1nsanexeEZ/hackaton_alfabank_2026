@@ -59,6 +59,8 @@
   { "message_id": "uuid", "text": "…", "mode": "llm|rules", "intent": "decision|status|products|payment|greeting|off_topic|injection|internal_data", "application_id": "uuid|null", "fallback_reason": null }
   ```
 
+  `fallback_reason` — почему ответил шаблон: `template_only`, `disabled`, `busy`, `timeout`, `unavailable`, `postcheck`; `null` — ответ модели прошёл постпроверку.
+
 - Поток (`Accept: text/event-stream`) — для набора текста по мере ответа:
 
   ```
@@ -80,7 +82,7 @@
 | 403 | нет права `assistant.use` | «Помощник вам недоступен» |
 | 404 | нет такого диалога или заявки | начать новый диалог |
 | 422 | вопрос пустой или длиннее 1000 символов | подсказка в поле ввода |
-| 429 | лимит вопросов в минуту, заголовок `Retry-After` (секунды) | «Слишком часто, повторите через N с» |
+| 429 | лимит вопросов в минуту (`ASSISTANT_RATE_LIMIT_PER_MINUTE`, по умолчанию 10), код `too_many_requests`, заголовок `Retry-After` (секунды) | «Слишком часто, повторите через N с» |
 | 502/503, сеть | backend недоступен | «Помощник временно недоступен», кнопка «Повторить» |
 
 Диалоги хранятся в базе backend и переживают перезапуск. Фронт держит `conversation_id` в `sessionStorage`; на `404` молча начинает новый диалог.

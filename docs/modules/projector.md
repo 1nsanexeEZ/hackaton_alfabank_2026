@@ -73,6 +73,8 @@ projector/
 
 Индексы: обзор — `(organization_id, updated_at)`, `(organization_id, status)`, `submitted_at`, `decided_at`, `manual_review_at` (пересчёт метрик); очередь — `(candidate_role, status, …)` под каждую сортировку; лента — `(application_id, at)`.
 
+Миграции: `projector_0001` (таблицы), `projector_0002` (колонка `review` в очереди).
+
 ## События → обновления
 
 Любое событие заявки обновляет обзор (карточка), все задачи заявки в очереди, ячейки метрик, которых касается строка обзора (до и после изменения), и дашборд компании.
@@ -148,7 +150,8 @@ docker compose exec backend python -m scripts.projector_rebuild
 |---|---|
 | `list_applications(organization_id, status=None, limit, offset)` | заявки компании, новые изменения первыми, `total` — до пагинации |
 | `get_organization_dashboard(organization_id)` | дашборд или `None`, если по компании ещё не было событий |
-| `get_underwriting_queue(role, status="open", sort, limit, offset)` | задачи роли, по строке на заявку — её последняя задача (у заявки, вернувшейся андеррайтеру, их несколько); заявка попадает в выборку по статусу этой задачи, `total` — по заявкам. `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
+| `get_application_stats(latest=10)` | сводка по всем заявкам для обзора банка: группы «статус × продукт» (число и сумма запрошенного), корзины сумм (до 1, 1–3, 3–10, 10–30, 30+ млн), последние `latest` заявок с названием компании; считает БД. Из этого `bff` собирает `applications-overview` |
+| `get_underwriting_queue(role, status="open", sort, limit, offset, review=None)` | задачи роли, по строке на заявку — её последняя задача (у заявки, вернувшейся андеррайтеру, их несколько); заявка попадает в выборку по статусу этой задачи, `total` — по заявкам; `review` (`check` / `dispute`) отбирает строки с этой отметкой, `total` — по фильтру. `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
 | `get_timeline(application_id, audience)` | записи по времени; клиенту — только клиентские |
 | `get_backoffice_metrics(date_from, date_to)` | см. «Метрики для SLA» |
 

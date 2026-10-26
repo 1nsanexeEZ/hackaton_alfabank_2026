@@ -69,7 +69,7 @@ src/
 
 ## Лендинг и клиентский путь
 
-Контракт — [`docs/api/client-journey.md`](../docs/api/client-journey.md), реализация — `shared/api/client` (`clientApi`).
+Контракт — [`settings/client-journey.md`](../settings/client-journey.md), реализация — `shared/api/client` (`clientApi`).
 
 | Что на лендинге | Ручки бэкенда |
 |---|---|
