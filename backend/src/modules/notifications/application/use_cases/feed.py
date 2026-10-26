@@ -37,9 +37,11 @@ class MarkFeedItemReadUseCase:
         self._uow = uow
         self._clock = clock
 
-    async def execute(self, recipients: Sequence[Recipient], item_id: UUID) -> FeedRecordDTO:
+    async def execute(
+        self, recipients: Sequence[Recipient], item_id: UUID, flt: FeedFilter
+    ) -> FeedRecordDTO:
         async with self._uow:
-            record = await self._store.mark_read(recipients, item_id, self._clock.now())
+            record = await self._store.mark_read(recipients, item_id, flt, self._clock.now())
             if record is None:
                 raise NotFoundError("Feed item not found")
             await self._uow.commit()

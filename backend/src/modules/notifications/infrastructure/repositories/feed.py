@@ -8,7 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.notifications.application.dto.feed import FeedFilter
 from src.modules.notifications.application.interfaces.repositories import FeedStore
-from src.modules.notifications.domain.feed import Delivery, FeedEntry, FeedRecord, Recipient
+from src.modules.notifications.domain.feed import (
+    PERSONAL_TYPES,
+    Delivery,
+    FeedEntry,
+    FeedRecord,
+    Recipient,
+)
 from src.modules.notifications.infrastructure.database.models import FeedItem
 from src.modules.notifications.infrastructure.repositories.mappers import to_record
 
@@ -32,6 +38,14 @@ def _filter_clauses(flt: FeedFilter) -> list[ColumnElement[bool]]:
         clauses.append(FeedItem.application_id == flt.application_id)
     if flt.unread_only:
         clauses.append(FeedItem.read_at.is_(None))
+    if flt.organizations is not None:
+        clauses.append(
+            or_(
+                FeedItem.organization_id.is_(None),
+                FeedItem.organization_id.in_(list(flt.organizations)),
+                FeedItem.type.in_(PERSONAL_TYPES),
+            )
+        )
     return clauses
 
 
@@ -155,9 +169,11 @@ class SqlAlchemyFeedStore(FeedStore):
         return int(count or 0)
 
     async def mark_read(
-        self, recipients: Sequence[Recipient], item_id: UUID, now: datetime
+        self, recipients: Sequence[Recipient], item_id: UUID, flt: FeedFilter, now: datetime
     ) -> FeedRecord | None:
-        stmt = select(FeedItem).where(FeedItem.id == item_id, _recipients_clause(recipients))
+        stmt = select(FeedItem).where(
+            FeedItem.id == item_id, _recipients_clause(recipients), *_filter_clauses(flt)
+        )
         row = (await self._session.scalars(stmt)).one_or_none()
         if row is None:
             return None

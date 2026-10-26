@@ -35,3 +35,6 @@ class FeedFilter:
     organization_id: UUID | None = None
     application_id: UUID | None = None
     unread_only: bool = False
+    # A client's companies: records of any other company are hidden. None — no
+    # limit (bank staff).
+    organizations: frozenset[UUID] | None = None

@@ -4878,7 +4878,7 @@
           "feed"
         ],
         "summary": "List Feed",
-        "description": "The viewer's feed, newest first: own records and, for bank staff, the\nback office records (`role:underwriter`).",
+        "description": "The viewer's feed, newest first: own records and, for bank staff, the\nback office records (`role:underwriter`). A client sees the records of the\ncompanies where they are a member now: after leaving a company its records\nare gone (own support tickets stay).",
         "operationId": "list_feed_feed_get",
         "security": [
           {
@@ -5227,7 +5227,7 @@
           "feed"
         ],
         "summary": "Read Item",
-        "description": "Someone else's record is 404, as if it did not exist.",
+        "description": "Someone else's record, or one of a company the viewer has left, is 404,\nas if it did not exist.",
         "operationId": "read_item_feed__item_id__read_post",
         "security": [
           {

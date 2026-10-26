@@ -32,8 +32,10 @@ class FeedStore(Protocol):
     async def unread_count(self, recipients: Sequence[Recipient], flt: FeedFilter) -> int: ...
 
     async def mark_read(
-        self, recipients: Sequence[Recipient], item_id: UUID, now: datetime
-    ) -> FeedRecord | None: ...
+        self, recipients: Sequence[Recipient], item_id: UUID, flt: FeedFilter, now: datetime
+    ) -> FeedRecord | None:
+        """None when the record is not the recipients' or the filter hides it."""
+        ...
 
     async def mark_all_read(
         self, recipients: Sequence[Recipient], flt: FeedFilter, now: datetime

@@ -31,7 +31,7 @@ notifications/
 │   ├── dto/                  # feed (FeedItemDTO, FeedRecordDTO, FeedFilter), news, stream
 │   ├── interfaces/           # repositories: FeedStore, NewsStore, TicketStore;
 │   │                         # neighbours: Neighbours (чтение соседей), FacadeLookup;
-│   │                         # access: OrganizationAccess (видна ли компания)
+│   │                         # access: OrganizationAccess (видна ли компания, компании участника)
 │   ├── deliveries/           # правила «событие → записи»: по файлу на топик-источник
 │   │                         # (applications, process, decision, clients, support) + общий context
 │   ├── mappers/feed.py       # запись домена → DTO
@@ -40,7 +40,8 @@ notifications/
 │                             # account_feed + news: чтение для фасада
 ├── infrastructure/
 │   ├── adapters/             # notifications_facade, neighbours (фасады соседей с деградацией),
-│   │                         # organization_access (ClientsFacade.ensure_can), session_facades
+│   │                         # organization_access (ClientsFacade.ensure_can,
+│   │                         # get_member_organization_ids), session_facades
 │   ├── database/             # models: четыре таблицы notifications_*
 │   └── repositories/         # feed, news, tickets + mappers (строка таблицы → запись домена)
 └── presentation/
@@ -81,7 +82,8 @@ notifications/
 | `PreApprovedOffersUpdated` без предложений у компании, не прошедшей сверку | участники, у которых есть запись предодобрения | `advice` «Уточните данные компании» — **заменяет** запись «вам предодобрено»; ссылка на карточку компании | normal | — |
 | `OrganizationVerified` | участники | `status_changed` | low | — |
 | `OrganizationVerificationMismatch` | участники | `info_requested` со списком расхождений | high | ✓ |
-| `MemberAdded`, `MemberRemoved`, `MemberRoleChanged` | сам участник | `status_changed` | normal | — |
+| `MemberAdded`, `MemberRoleChanged` | сам участник | `status_changed`, ссылка на карточку компании | normal | — |
+| `MemberRemoved` | сам (уже бывший) участник | `status_changed` «Доступ к компании … закрыт» — без `organization_id` и без ссылки: открыть компанию он уже не может | normal | — |
 | `FinancialReportSubmitted` | участники | `status_changed` | low | — |
 | `SupportTicketOpened` | `role:underwriter` | `support` «Новое обращение ТП-…», ссылка `/backoffice/support/{ticket_id}` | normal | ✓ до взятия или закрытия клиентом |
 | `SupportMessagePosted` от сотрудника | автор обращения | `support` «Ответ по обращению …» с началом ответа, ссылка `/support/{ticket_id}` — **одна запись на обращение**, обновляется | normal | — |
@@ -182,11 +184,13 @@ EventSource не умеет слать заголовок `Authorization`, по�
 
 Все ручки — пермишн `feed.read`. Клиент фильтрует только по своим компаниям: `ClientsFacade.ensure_can(account, organization, "view")`, чужая компания → 404. Бэк-офис (`backoffice.read`/`admin`) фильтрует по любой.
 
+Копия записи раскладывается участникам в момент события, поэтому у бывшего участника остаются записи компании. Клиенту лента (`GET /feed`, `unread-count`, `read-all`, `POST /feed/{id}/read`) отдаёт только записи без компании и записи компаний, где он участник сейчас (`ClientsFacade.get_member_organization_ids`). Исключение — записи `support`: обращение принадлежит автору (`own_only`), а не компании. Если участника вернут в компанию, её записи снова станут видны. Бэк-офис читает ленту без этого ограничения.
+
 | Ручка | Что |
 |---|---|
 | `GET /feed?organization_id=&application_id=&unread_only=&limit=&offset=` | `{items, total, limit, offset}`, новые и обновлённые сверху (по `seq`) |
 | `GET /feed/unread-count?organization_id=&application_id=` | `{count}` |
-| `POST /feed/{id}/read` | отмечает запись, повтор сохраняет первую отметку; чужая запись → 404 |
+| `POST /feed/{id}/read` | отмечает запись, повтор сохраняет первую отметку; чужая запись или запись компании, из которой клиент вышел, → 404 |
 | `POST /feed/read-all?organization_id=&application_id=` | `{updated}` |
 | `GET /news?organization_id=&limit=5` | персональные новости `{id, title, body, published_at, relevance[], read}` |
 | `POST /news/{id}/read` | 204; неизвестная новость → 404 |

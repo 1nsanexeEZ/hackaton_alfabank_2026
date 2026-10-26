@@ -36,6 +36,7 @@ from src.modules.notifications.application.use_cases.news import (
 )
 from src.modules.notifications.application.use_cases.organizations import (
     EnsureOrganizationVisibleUseCase,
+    ViewerOrganizationsUseCase,
 )
 from src.modules.notifications.application.use_cases.project_event import ProjectEventUseCase
 from src.modules.notifications.application.use_cases.stream import (
@@ -121,6 +122,10 @@ def get_organization_visibility(
     )
 
 
+def get_viewer_organizations(request: Request, session: DbSession) -> ViewerOrganizationsUseCase:
+    return ViewerOrganizationsUseCase(ClientsOrganizationAccess(session_facades(request, session)))
+
+
 def get_list_feed(session: DbSession) -> ListFeedUseCase:
     return ListFeedUseCase(SqlAlchemyFeedStore(session))
 
@@ -184,6 +189,7 @@ def get_stream_feed(request: Request, clock: AppClock) -> StreamFeedUseCase:
 OrganizationVisibilityDep = Annotated[
     EnsureOrganizationVisibleUseCase, Depends(get_organization_visibility)
 ]
+ViewerOrganizationsDep = Annotated[ViewerOrganizationsUseCase, Depends(get_viewer_organizations)]
 ListFeedDep = Annotated[ListFeedUseCase, Depends(get_list_feed)]
 CountUnreadDep = Annotated[CountUnreadUseCase, Depends(get_count_unread)]
 MarkFeedItemReadDep = Annotated[MarkFeedItemReadUseCase, Depends(get_mark_feed_item_read)]
