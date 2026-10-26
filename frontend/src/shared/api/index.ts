@@ -4,10 +4,12 @@ export {
   configureAuth,
   http,
   httpFile,
+  httpPage,
   type ApiErrorDetails,
   type ApiViolation,
   type AuthRealm,
   type DownloadedFile,
+  type Page,
 } from './http'
 export { eligibilityMessage } from './errorMessages'
 export * from './assistant'

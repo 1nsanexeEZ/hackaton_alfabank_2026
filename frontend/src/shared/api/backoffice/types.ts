@@ -17,7 +17,7 @@ import type {
   SupportTicketStatus,
   ThirdPartyDto,
 } from '../client/types'
-import type { DownloadedFile } from '../http'
+import type { DownloadedFile, Page } from '../http'
 
 /**
  * Бэк-офис андеррайтера на бэкенде (docs/api/client-journey.md §3.8): очередь задач,
@@ -749,7 +749,7 @@ export interface BackofficeApi {
   /** Схема маршрута — BPMN 2.0 XML */
   workflowDiagram(code: string): Promise<string>
   /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
-  applications(query?: StaffApplicationsQuery): Promise<StaffApplicationDto[]>
+  applications(query?: StaffApplicationsQuery): Promise<Page<StaffApplicationDto>>
   /** Сотрудник видит все компании банка */
   organizations(): Promise<OrganizationSummaryDto[]>
   organization(organizationId: string): Promise<OrganizationDetailDto>
@@ -783,7 +783,7 @@ export interface BackofficeApi {
     scope?: 'all' | 'unassigned' | 'mine'
     limit?: number
     offset?: number
-  }): Promise<SupportTicketListItemDto[]>
+  }): Promise<Page<SupportTicketListItemDto>>
   supportTicket(id: string): Promise<SupportTicketDto>
   /** Уже взято — 409 already_taken, кто взял — в details.assignee_id */
   takeSupportTicket(id: string): Promise<SupportTicketDto>

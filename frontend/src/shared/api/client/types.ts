@@ -1,4 +1,4 @@
-import type { DownloadedFile } from '../http'
+import type { DownloadedFile, Page } from '../http'
 import type { MeDto, TokenResponse } from '../identity/types'
 
 /**
@@ -1186,7 +1186,8 @@ export interface ClientApi {
   /** Оценить проект по текущему плану; 422 business_plan_required, product_not_eligible */
   runProjectAssessment(organizationId: string): Promise<ProjectAssessmentDto>
   /** Мои обращения в поддержку, свежие сверху */
-  supportTickets(query?: { status?: SupportTicketStatus[]; limit?: number; offset?: number }): Promise<SupportTicketListItemDto[]>
+  /** total — сколько обращений всего по тому же фильтру */
+  supportTickets(query?: { status?: SupportTicketStatus[]; limit?: number; offset?: number }): Promise<Page<SupportTicketListItemDto>>
   /** Чужое — 404 */
   supportTicket(id: string): Promise<SupportTicketDto>
   openSupportTicket(input: SupportTicketInput): Promise<SupportTicketDto>

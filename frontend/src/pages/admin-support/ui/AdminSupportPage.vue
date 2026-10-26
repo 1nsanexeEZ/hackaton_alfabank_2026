@@ -50,6 +50,7 @@ const statusFilter = computed<StatusFilter>({
 const items = shallowRef<SupportTicketListItemDto[]>([])
 const loading = shallowRef(true)
 const error = shallowRef<string | null>(null)
+const total = shallowRef<number | null>(null)
 const more = shallowRef(false)
 
 async function load(append = false) {
@@ -62,8 +63,9 @@ async function load(append = false) {
       limit: PAGE,
       offset: append ? items.value.length : 0,
     })
-    items.value = append ? [...items.value, ...page] : page
-    more.value = page.length === PAGE
+    items.value = append ? [...items.value, ...page.items] : page.items
+    total.value = page.total
+    more.value = page.total !== null ? items.value.length < page.total : page.items.length === PAGE
   } catch (caught) {
     error.value = errorMessage(caught)
   } finally {
@@ -88,7 +90,12 @@ const emptyText = computed(() =>
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
       <SegmentedControl v-if="view !== 'unassigned'" v-model="statusFilter" :options="STATUS_FILTERS" label="Статус" small />
       <p v-else class="text-sm text-ink-secondary">Открытые обращения без исполнителя — свежие сверху</p>
-      <BaseButton size="s" variant="secondary" :loading="loading" @click="load()">Обновить</BaseButton>
+      <div class="flex items-center gap-3">
+        <p v-if="total !== null" class="text-sm text-ink-secondary">
+          {{ more ? `Показано ${items.length} из ${total}` : `Всего: ${total}` }}
+        </p>
+        <BaseButton size="s" variant="secondary" :loading="loading" @click="load()">Обновить</BaseButton>
+      </div>
     </div>
     <AsyncState :loading="loading && !items.length" :error="items.length ? null : error" :empty="!items.length" :empty-text="emptyText" @retry="load()">
       <ul class="divide-y divide-line">

@@ -118,6 +118,22 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
   return (await response.json().catch(() => null)) as T
 }
 
+/** Страница списка: total — сколько всего по тому же фильтру; null — бэкенд не сказал */
+export interface Page<T> {
+  items: T[]
+  total: number | null
+}
+
+/** Список, у которого бэкенд кладёт общее число в заголовок X-Total-Count, а тело — массив */
+export async function httpPage<T>(path: string, options: Omit<RequestOptions, 'text'> = {}): Promise<Page<T>> {
+  const { response, token } = await send(path, options, 'application/json')
+  if (!response.ok) return fail(response, token, options.realm)
+  const items = ((await response.json().catch(() => null)) as T[] | null) ?? []
+  const header = response.headers.get('X-Total-Count')
+  const total = header === null || header.trim() === '' ? NaN : Number(header)
+  return { items, total: Number.isFinite(total) ? total : null }
+}
+
 /** Файл из ответа и его имя из Content-Disposition (null — бэкенд имя не назвал) */
 export interface DownloadedFile {
   blob: Blob

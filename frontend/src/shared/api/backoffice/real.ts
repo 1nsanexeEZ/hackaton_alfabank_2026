@@ -1,4 +1,4 @@
-import { http, httpFile } from '../http'
+import { http, httpFile, httpPage } from '../http'
 import { decodeTicket, decodeTicketItem } from '../client/support'
 import type { SupportTicketDto, SupportTicketListItemDto } from '../client/types'
 import type { BackofficeApi, VersionDto, VersionsApi, VersionSummaryDto } from './types'
@@ -38,7 +38,7 @@ export const backofficeApi: BackofficeApi = {
   process: (applicationId) => http(`/processes/${applicationId}`),
   workflowDiagram: (code) => http(`/workflows/${code}/diagram`, { text: true }),
   applications: (query = {}) =>
-    http('/applications', {
+    httpPage('/applications', {
       query: {
         organization_id: query.organizationId,
         status: query.status,
@@ -61,9 +61,9 @@ export const backofficeApi: BackofficeApi = {
   workflows: () => http('/workflows'),
   innCheck: (input) => http('/organizations/inn-check', { method: 'POST', body: input }),
   supportQueue: (query = {}) =>
-    http<SupportTicketListItemDto[]>('/support/queue', {
+    httpPage<SupportTicketListItemDto>('/support/queue', {
       query: { status: query.status, scope: query.scope, limit: query.limit, offset: query.offset },
-    }).then((tickets) => tickets.map(decodeTicketItem)),
+    }).then((page) => ({ ...page, items: page.items.map(decodeTicketItem) })),
   supportTicket: (id) => ticket(`/support/queue/${id}`),
   takeSupportTicket: (id) => ticket(`/support/queue/${id}/take`, { method: 'POST' }),
   releaseSupportTicket: (id) => ticket(`/support/queue/${id}/release`, { method: 'POST' }),
