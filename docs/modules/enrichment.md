@@ -32,20 +32,24 @@ enrichment/
 ├── domain/
 │   ├── snapshot.py           # агрегат EnrichmentSnapshot, SourceResult, SourceError
 │   ├── cashflow.py           # прогноз кассового разрыва: Transaction, CashflowForecast
+│   ├── beneficial_owners.py  # бенефициары по цепочке владения (115-ФЗ)
 │   ├── consent_policy.py     # кого не спрашиваем: no_consent / no_head (218-ФЗ)
 │   ├── enums.py              # Source, SourceStatus, INTERNAL_SOURCES
 │   └── exceptions.py         # SourceNotFound, SourceUnavailable, StatementParseError
 ├── application/
 │   ├── dto/                  # registry, tax, credit_history, accounting, counterparty, cashflow, snapshot,
+│   │                         # aml (проверка по 115-ФЗ), bank (оборот и стоп-лист АБС),
 │   │                         # company (компания по ИНН без заявки)
 │   ├── interfaces/           # sources (порты источников + Sources), repositories,
 │   │                         # statement_parser, registry_cache
-│   └── use_cases/            # fetch_enrichment, build_cashflow, get_snapshot,
-│                             # latest_cashflow, lookup_registry, lookup_person_bureau, lookup_company
+│   └── use_cases/            # fetch_enrichment, check_aml, build_cashflow, check_statement,
+│                             # get_snapshot, latest_cashflow, lookup_registry,
+│                             # lookup_person_bureau, lookup_company
 ├── infrastructure/
-│   ├── config.py             # ENRICHMENT_* из окружения
-│   ├── adapters/             # *_http.py (ACL к мокам), http_base.py (ретраи), http_sources.py,
-│   │                         # statement_csv.py, registry_cache.py, enrichment_facade.py
+│   ├── config.py             # ENRICHMENT_*: MOCKS_BASE_URL, SOURCE_TIMEOUT_SECONDS (3 с), RETRIES (3)
+│   ├── adapters/             # *_http.py (ACL к мокам: egrul, fns, gir_bo, kontur, bki, bki_person,
+│   │                         # aml, licenses, bank_stop_list, bank_turnover), http_base.py (ретраи),
+│   │                         # http_sources.py, statement_csv.py, registry_cache.py, enrichment_facade.py
 │   ├── database/             # models
 │   └── repositories/         # SqlAlchemyEnrichmentRepository, mappers, serialization (DTO ↔ JSONB)
 └── presentation/
@@ -229,6 +233,7 @@ date;amount;counterparty_inn;counterparty_name;purpose
   `head {account_id, last_name, first_name, middle_name}` — руководитель по реестру,
   `head_bki_consent_at` — момент его личного согласия на запрос своей кредитной истории (identity,
   `/me/consents`); без согласия — `null`. Оба поля необязательные: старые команды читаются.
+  `representative` — тот, кто подал заявку, если это не руководитель (`PersonRef`, как `head`).
   `third_parties [{role: "beneficiary" | "pledgor", kind: "person" | "organization", name, inn,
   country}]` — третьи лица для проверки по 115-ФЗ; по умолчанию пусто. `declared_owners [{name,
   basis: "ownership" | "control", country}] | null` — бенефициары со слов клиента; `null` — не
@@ -248,6 +253,11 @@ date;amount;counterparty_inn;counterparty_name;purpose
 - `latest_cashflow(organization_id)` — последний прогноз движения денег по компании: самый свежий
   снимок с выпиской среди её последних 10 заявок. Для подбора продуктов (products) вне заявки.
   Выписки не было → `None`: разрыв неизвестен, а не «разрыва нет».
+- `lookup_person_bureau(person, consent_at)` — кредитная история физлица сразу, без заявки и мимо
+  кеша, только с согласием на `consent_at` (предскрин учредителя в decision). Бюро не знает
+  человека → `None`; не ответило → `InfrastructureError` (503).
+- `check_statement(content)` — прочитается ли файл выписки тем же парсером (проверка при
+  подтверждении документа).
 - `lookup_registry(inn, *, fresh=False)` — только ЕГРЮЛ, кеш в памяти 10 минут; `fresh=True` идёт
   мимо кеша (сверка компании по запросу в clients) и обновляет его. Не найдено → `None`; реестр
   недоступен → `InfrastructureError` (503).

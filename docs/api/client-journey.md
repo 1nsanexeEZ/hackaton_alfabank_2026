@@ -7,7 +7,7 @@
 Статусы в таблицах:
 - ✅ есть и совпадает со схемой;
 - 🟡 есть, но расходится со схемой;
-- ❌ нет — осталось только `rescore` админки из раздела 5.
+- ❌ нет — таких шагов не осталось.
 
 ---
 
@@ -17,7 +17,7 @@
 |---|---|
 | Пути | Бэк без префикса. Фронт ходит в `/api/*` (`VITE_API_BASE_URL`), vite-прокси срезает префикс: `/api/auth/login` → `/auth/login` |
 | Авторизация | `Authorization: Bearer <access_token>` из `POST /auth/login` или `POST /auth/demo-login`. `expires_in` — в секундах. Refresh-ручки нет: на 401 — снова вход |
-| Без токена | `GET /products`, `GET /products/{code}`, `POST /products/recommend`, `POST /products/{code}/calculate`, `POST /auth/login`, `POST /auth/demo-login`, `GET /auth/demo-accounts`, `GET /.well-known/jwks.json`, `GET /esign/rules`, `GET /contracts/verify/{document_id}`, `POST /contracts/verify`, `GET /health`, `GET /ready`. `GET /feed/stream` — тоже без `Authorization`, но по одноразовому билету в `?ticket=` |
+| Без токена | `GET /products`, `GET /products/{code}`, `POST /products/recommend`, `POST /products/{code}/calculate`, `POST /auth/login`, `POST /auth/demo-login`, `GET /auth/demo-accounts`, `GET /.well-known/jwks.json`, `GET /market/key-rate`, `GET /assistant/status`, `GET /esign/rules`, `GET /contracts/verify/{document_id}`, `POST /contracts/verify`, `GET /health`, `GET /ready`. `GET /feed/stream` — тоже без `Authorization`, но по одноразовому билету в `?ticket=` |
 | Ошибки | `{code, message, details?}`: 401 `unauthorized`, 403 `permission_denied`, 404 `not_found`, 409 `conflict` / `invalid_transition`, 422 `validation_error`, 503 `unavailable`. Уточнение — в `details.code`, нарушения полей — в `details.violations: [{code, field}]` |
 | Ошибка формы запроса | 422 от FastAPI: `{detail: [{loc, msg, type}]}` — другой формат, `http.ts` уже разбирает оба |
 | Чужое | Чужая компания или заявка — **404**, не 403. Нет права внутри своей компании — 403, `details.code = org_permission_required`, `details.permission` |
@@ -57,7 +57,7 @@
 
 Вопросы на схеме:
 
-- **«А можно без эл. доверенности брать кредит?»** Подать заявку — да: хватает права `submit_application` (бухгалтер его имеет по умолчанию). Подписать — нет: `sign` есть только у руководителя по реестру и у участника с доверенностью со scope `sign`. Доверенность выдаёт руководитель: `POST /organizations/{id}/members/{account_id}/poa`. Без неё бухгалтер подаёт заявку, но на `sign` получает 403.
+- **«А можно без эл. доверенности брать кредит?»** Подать заявку — да: хватает права `submit_application` (бухгалтер его имеет по умолчанию). Подписать — нет: `sign` есть только у руководителя по реестру и у участника с доверенностью со scope `sign`. Доверенность выдаёт руководитель: `POST /organizations/{id}/members/{account_id}/poa`, отзывает — `DELETE` на ту же ручку; на участника одна доверенность, номер уникален в компании. Без неё бухгалтер подаёт заявку, но на `sign` получает 403. После отзыва или истечения доверенности сотрудник теряет и предодобрение, и «нужно сделать» по заявке — они показываются только тем, у кого есть право `submit_application` / `sign` ([clients.md](../modules/clients.md), [bff.md](../modules/bff.md)).
 - **«А можно в ЕГРЮЛ отчётность посмотреть?»** В ЕГРЮЛ бухотчётности нет, она в ГИР БО. Банк запрашивает её при рассмотрении заявки: андеррайтер видит `enrichment.gir_bo` в карточке — [4.4](#44-источники-гир-бо-контур-бки-физлица). Клиенту в кабинете — по-прежнему заявленная им отчётность (`POST /organizations/{id}/financial-reports`) плюс выручка по ФНС.
 
 ---
@@ -67,7 +67,9 @@
 ### 3.1. Калькулятор до входа (шаг 1)
 
 **`GET /products?purpose=`** → `ProductRead[]`: активные продукты в порядке каталога.
-Экрану нужны `code`, `name`, `short_description`, `purposes`, `amount_min` / `amount_max`, `term_min_months` / `term_max_months`, `rate_base` / `rate_max`, `repayment_options`, `collateral_kind`, `min_business_age_months`, `allowed_legal_forms`, `required_documents`.
+Экрану нужны `code`, `name`, `short_description`, `purposes`, `amount_min` / `amount_max`, `term_min_months` / `term_max_months`, `rate_base` / `rate_max`, `repayment_options`, `collateral_kind`, `min_business_age_months`, `allowed_legal_forms`, `required_documents`. Карточка витрины: `keywords` (до 5 слов), `tag` («Популярный»), `decision_time` («5 минут») — задаёт админ, `null` / `[]` — не показывать. Ставки приходят уже сдвинутыми за действующей ключевой ([market.md](../modules/market.md)).
+
+**`GET /market/key-rate?on=YYYY-MM-DD`** — ключевая ставка Банка России, без входа: `{value, effective_from, source}` (`source`: `admin` или `settings`, если в истории на дату ничего нет). Для подписи «ключевая 14%» в калькуляторе.
 
 `purpose`: `working_capital`, `cash_gap`, `equipment`, `vehicles`, `real_estate`, `contract_execution`, `refinancing`, `expansion`.
 
@@ -121,8 +123,8 @@
 
 | Ручка | Тело | Ответ |
 |---|---|---|
-| `GET /auth/demo-accounts` | — | `[{login, phone, role, caption, full_name}]` — список для экрана выбора демо-пользователя |
-| `POST /auth/demo-login` | `{login}` | `{access_token, token_type: "bearer", expires_in}` |
+| `GET /auth/demo-accounts` | — | `[{login, phone, role, caption, full_name}]` — список для экрана выбора демо-пользователя; админ — последним, подпись «Администратор». При выключенном `DEMO_LOGIN_ENABLED` — 404 |
+| `POST /auth/demo-login` | `{login}` | `{access_token, token_type: "bearer", expires_in}`; логин — email или телефон демо-учётки либо email админа из `BOOTSTRAP_ADMIN_EMAIL`. Работает только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
 | `POST /auth/login` | `{login, password}` | то же |
 | `GET /me` | — | `MeRead`: `id`, `email`, `phone`, `role {id, name}`, `profile {last_name, first_name, middle_name, position}`, `permissions[]`, `policies{}` |
 | `PATCH /me/profile` | `{last_name?, first_name?, middle_name?, position?}` | `MeRead` |
@@ -252,7 +254,7 @@ Dashboard {
 3. **`GET /applications/{id}/completeness`** → `{complete, violations: [{code, field}]}`. Пример нарушения: `{"code": "missing", "field": "consents.credit_bureau"}`. Для документов `field` — `documents.<type>`.
 4. Документы (типы — `product_terms.required_documents[].type`):
    - `POST /applications/{id}/documents` `{type, filename, content_type, size_bytes}` → 201 `{document (status pending_upload), upload: {url, method, headers, expires_at}}`;
-   - браузер грузит файл сам по `upload.url` с `upload.method` и `upload.headers` (MinIO через nginx `/credit-documents/`, до 25 МБ);
+   - браузер грузит файл сам по `upload.url` с `upload.method` и `upload.headers` (MinIO через nginx `/credit-documents/`, файл не больше 20 МБ — иначе 422 `bad_size` на объявлении документа);
    - `POST /applications/{id}/documents/{document_id}/confirm` → `DocumentOut` (status `uploaded`); выписку (`bank_statement`) бэк при этом разбирает: файл с ошибкой — 422 `details.code = statement_invalid` с `details.line` и текстом для клиента в `message`, документ остаётся `pending_upload` ([формат](../modules/enrichment.md#формат-выписки-для-фронта));
    - `GET …/documents/{document_id}/download` → `{url}`; `DELETE …/documents/{document_id}` → 204.
 5. **Личные согласия руководителя** — не в заявке, а на аккаунте: `POST /me/consents {"types": ["personal_data", "credit_bureau_personal"]}` ([4.3](#43-личные-согласия-пдн-и-бки-физлица)). Без `credit_bureau_personal` руководителя по реестру банк не запрашивает его кредитную историю; подать заявку это не мешает.
@@ -387,7 +389,7 @@ Dashboard {
 
 ## 4. Доработки по схеме: сделано
 
-Все расхождения со схемой закрыты: A1–A7 из [roadmap.md](roadmap.md) в `develop` с 23.10.2026. Ниже — что они добавили в контракт; как устроено внутри — в `docs/modules/`.
+Все расхождения со схемой закрыты: доработки A1–A7 в `develop` с 23.10.2026. Ниже — что они добавили в контракт; как устроено внутри — в `docs/modules/`.
 
 | # | Что | Шаг схемы | API | Модули |
 |---|---|---|---|---|
@@ -654,4 +656,6 @@ decision: {
 
 ## 5. Админка фронта и бэк
 
-Админка целиком работает на ручках бэка, мок-режима (`VITE_API_MODE=mock`) больше нет. Проверка компании по ИНН до заявки — `POST /organizations/inn-check` (#213). Версии PD-модели и кредитной политики на бэке ведутся ручками `/scoring/models*` и `/decision/policies*` ([scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа)), редактора для них во фронте пока нет; раздел «Скоринг» показывает, как модели оценили поданные заявки, по `GET /applications` и карточкам андеррайтера.
+Админка целиком работает на ручках бэка, мок-режима (`VITE_API_MODE=mock`) больше нет. Проверка компании по ИНН до заявки — `POST /organizations/inn-check` (#213). Версии PD-модели и кредитной политики на бэке ведутся ручками `/scoring/models*` и `/decision/policies*` ([scoring.md](../modules/scoring.md#версии-pd-модели), [decision.md](../modules/decision.md#версии-политики-админа)), редактора для них во фронте пока нет; раздел «Скоринг» показывает, как модели оценили поданные заявки, по `GET /applications` и карточкам андеррайтера; сводки — `scoring-overview` и `applications-overview` ([3.8](#38-банк-ручная-проверка-шаг-14)).
+
+Ключевую ставку ведёт админ: `GET /market/key-rates` (история и текущая, `scoring.read`), `POST /market/key-rates` (ставка и дата начала, `scoring.update`), `DELETE /market/key-rates/{effective_from}` — только ещё не действовавшую запись ([market.md](../modules/market.md)). Каталог продуктов — `GET /products/all` (`credits.update`): ставки как хранятся и `market_rate` — те же по действующей ключевой ([products.md](../modules/products.md)).

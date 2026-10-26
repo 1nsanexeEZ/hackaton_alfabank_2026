@@ -58,6 +58,11 @@ bff/
   Клиентская схема (`presentation/schemas/client.py`, `from_attributes=True`) перечисляет каждое
   поле и читает только объявленное — балл, факторы скоринга, rule trace, reason codes и данные БКИ
   клиенту не уходят. Бэк-офис получает DTO фасадов целиком.
+- **Права в компании.** Предодобрение — приглашение подать заявку, поэтому без права
+  `submit_application` его нет ни на дашборде (`pre_approved`, суммы в счётчиках), ни в подборе и
+  калькуляторе (ставка тогда — базовая по продукту). Пункты «нужно сделать» тоже по правам: ответ
+  банку и предложение — для `submit_application`, подпись — для `sign`. Так сотрудник с отозванной
+  или истёкшей доверенностью не видит чужих задач.
 - Список заявок и счётчики берутся из проектора, карточка и статус одной заявки — из applications:
   клиент сразу видит результат своего действия.
 - **Сводка скоринга** (`/bff/backoffice/scoring-overview`, `use_cases/scoring_overview.py`) —
@@ -69,6 +74,28 @@ bff/
   один запрос в проектор (`ProjectorFacade.get_application_stats`): группы «статус × продукт» с
   числом и суммой и корзины сумм считает БД по всем заявкам, BFF складывает из групп воронку
   (докуда заявки дошли), статусы и продукты.
+
+## API
+
+Клиентские — префикс `/bff`, доступ к компании проверяется до чтения блоков (`use_cases/common.py`).
+
+| Метод | Путь | Право | Что |
+|---|---|---|---|
+| GET | `/bff/dashboard` | `organizations.read` | главный экран; `organization_id` не задан — первая компания |
+| GET | `/bff/applications` | `requests.read` | список заявок компании из проектора: `organization_id`, `status`, `limit` (1–100), `offset` |
+| GET | `/bff/applications/{id}` | `requests.read` | карточка заявки и её статус — из applications |
+| GET | `/bff/products/recommend` | `credits.read` | подбор продуктов: `purpose`, `amount`, `term_months`; с `organization_id` — допуск компании и предодобренные суммы |
+| POST | `/bff/products/{code}/calculate` | `credits.read` | график по предодобренной ставке и посильная сумма (ниже); `organization_id` в запросе |
+
+Бэк-офис — префикс `/bff/backoffice`, право `backoffice.read` плюс своё:
+
+| Метод | Путь | Право | Что |
+|---|---|---|---|
+| GET | `/bff/backoffice/queue` | `tasks.read` | очередь андеррайтера: `status` (`open` по умолчанию, `closed`, `in_progress`, `done`, `cancelled`), `sort` (`due_at`, `amount`, `score`, `created_at`), `limit`, `offset`, `review` (`check` — проверка при умеренном риске, `dispute` — спорная, модели или данные расходятся; не задан — все). `total` считается по фильтру |
+| GET | `/bff/backoffice/applications/{id}` | `decisions.read` | карточка андеррайтера |
+| GET | `/bff/backoffice/metrics` | `backoffice.read` | по дням и продуктам, `date_from` / `date_to`, по умолчанию 30 дней |
+| GET | `/bff/backoffice/scoring-overview` | `scoring.read` | сводка скоринга, `limit` (1–200, по умолчанию 50) |
+| GET | `/bff/backoffice/applications-overview` | `requests.read` | сводка заявок, `latest` (0–50, по умолчанию 10) |
 
 ## Калькулятор: посильная сумма
 

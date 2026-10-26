@@ -7,6 +7,7 @@
 ![Кредитный кабинет](docs/assets/screenshots/landing.jpg)
 
 **С чего начать:**
+- [Карта документации](docs/README.md) — все документы и порядок чтения;
 - **[Ключевые фишки, исследование и результаты](docs/product/features.md)** — продуктовый обзор со скриншотами;
 - [Быстрый старт](#быстрый-старт) — стенд без ИИ и с ИИ;
 - [Что проверить за 10 минут](#что-проверить-за-10-минут) — пошаговый сценарий.
@@ -111,7 +112,7 @@ curl http://localhost:8080/api/assistant/status
 | `ASSISTANT_LLM_TIMEOUT_S`, `ASSISTANT_LLM_CONCURRENCY`, `ASSISTANT_LLM_MAX_QUEUE` | `25`, `1`, `4` | срок ответа, одновременных генераций, очередь |
 | `ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS` | пусто | только `local`: ещё хосты внутри периметра |
 | `ASSISTANT_RATE_LIMIT_PER_MINUTE` | `10` | вопросов в минуту на пользователя |
-| `OLLAMA_MEM_LIMIT` | `4g` | память контейнера `ollama` |
+| `OLLAMA_MEM_LIMIT`, `OLLAMA_KEEP_ALIVE` | `4g`, `30m` | память контейнера `ollama`, сколько держать модель в памяти без запросов |
 
 Модели, деградация, защита от prompt injection и замеры качества — [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md).
 
@@ -164,11 +165,11 @@ curl http://localhost:8080/api/assistant/status
 
 **Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `backend/scripts/ai-pull-model.sh`.
 
-**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`).
+**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`; нужен Compose 2.24.4+ из-за тега `!override`).
 
 ## Архитектура
 
-Модульный монолит на FastAPI: один процесс backend, внутри — 13 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
+Модульный монолит на FastAPI: один процесс backend, внутри — 14 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
 
 ![Контейнеры](docs/architecture/img/1-containers.png)
 
@@ -191,17 +192,17 @@ curl http://localhost:8080/api/assistant/status
 
 **Kafka.** Transactional outbox: изменение и событие о нём — в одной транзакции. Inbox отсекает повторы, у каждого топика есть `<topic>.dlq`. Хранение бессрочное — projector перестраивает модели чтения с нуля.
 
-**Архитектура по уровням** — контекст, контейнеры, модули и карта связей, слои модуля, потоки — в [`docs/architecture/architecture.md`](docs/architecture/architecture.md). Схемы draw.io по страницам — [`docs/architecture/architecture-overview.drawio`](docs/architecture/architecture-overview.drawio). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
+**Архитектура по уровням** — контекст, контейнеры, модули и карта связей, слои модуля, потоки — в [`docs/architecture/architecture.md`](docs/architecture/architecture.md). Схемы draw.io по страницам — [`docs/architecture/architecture-overview.drawio`](docs/architecture/architecture-overview.drawio). Скоринг и кредитное решение сквозь модули — [`docs/scoring-architecture.md`](docs/scoring-architecture.md). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
 
 ## Компоненты
 
 | Компонент | Версия | Где |
 |---|---|---|
-| Python, FastAPI, Pydantic | 3.12, 0.156, 2.14 | `backend`, `external-mocks` |
+| Python, FastAPI, Pydantic | 3.12, 0.156 (`external-mocks` — 0.157), 2.14 | `backend`, `external-mocks` |
 | SQLAlchemy (async), Alembic, asyncpg | 2.1, 1.20 | `backend` |
 | FastStream (Kafka) | 0.7 | `backend` |
-| pyHanko, fpdf2, qrcode | 0.38, 2.8 | договор PDF, подпись банка PAdES |
-| argon2-cffi, PyJWT | — | пароли, JWT RS256 |
+| pyHanko, fpdf2, qrcode | 0.38, 2.8, 8.2 | договор PDF, подпись банка PAdES |
+| argon2-cffi, PyJWT | 25.1, 2.15 | пароли (argon2id), JWT RS256 |
 | PostgreSQL | 16.4 | `db` |
 | Apache Kafka (KRaft) | 3.8.0 | `kafka` |
 | MinIO | 2026.7.17 | `minio` |
@@ -228,7 +229,7 @@ Compose читает `.env` из корня репозитория. В конт�
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
-| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля; на публичном стенде выключен |
+| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля (`POST /auth/demo-login`, список — `GET /auth/demo-accounts`; при `false` оба отвечают 404); на публичном стенде выключен. В списке последним идёт администратор из `BOOTSTRAP_ADMIN_EMAIL` |
 | `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | моки подписания (ЭДО) и выдачи (АБС); без переменной оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут и число повторов |
 | `KEY_RATE` | `14.00` | ключевая ставка Банка России, % годовых (решение от 23.10.2026, сверять с cbr.ru), если в истории ключевой ничего не действует: историю ведёт админ (`/market/key-rates`, [market](docs/modules/market.md)); от ключевой считается фондирование в ставке предложения |
@@ -241,7 +242,7 @@ Compose читает `.env` из корня репозитория. В конт�
 
 Предприниматель уже клиент банка (ответ организаторов), поэтому регистрации нет: компании, участники и учётки создаются сидами при старте (`backend/seed/`, константы — [`backend/seed/demo_data.py`](backend/seed/demo_data.py)). Все данные синтетические.
 
-Пароль всех демо-учёток — `DEMO_PASSWORD`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). При `DEMO_LOGIN_ENABLED=true` — кнопкой без пароля; подпись договора всё равно спросит пароль.
+Пароль всех демо-учёток — `DEMO_PASSWORD`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). При `DEMO_LOGIN_ENABLED=true` — кнопкой без пароля; подпись договора всё равно спросит пароль. Клиенты входят на сайт, сотрудники — на `/admin/login`: учётка сотрудника на сайт не пускает.
 
 | Email | Телефон | Роль | Кто это |
 |---|---|---|---|
@@ -254,7 +255,7 @@ Compose читает `.env` из корня репозитория. В конт�
 | `owner@sboy.test` | `+79990000007` | client | Сбоев С. С., директор ООО «Сбой» |
 | `owner@start.test` | `+79990000008` | client | Стартов С. С., учредитель и директор ООО «Старт» (стартап) |
 | `underwriter@bank.test` | `+79990000101` | underwriter | Андеррайтеров А., сотрудник банка: все заявки, задачи, решения, бэк-офис |
-| `admin@example.com` | — | admin | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`: аккаунты и роли, каталог продуктов, версии PD-модели и кредитной политики |
+| `admin@example.com` | — | admin | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (создаётся при первом старте, пароль не `DEMO_PASSWORD`): аккаунты и роли, каталог продуктов, ключевая ставка, версии PD-модели и кредитной политики. Демо-вход одной кнопкой («Администратор») включается так же, как у остальных |
 
 | Компания | Форма, ИНН | Что в ней проверяется |
 |---|---|---|
@@ -281,6 +282,9 @@ Compose читает `.env` из корня репозитория. В конт�
 | Перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ) | `POST /rfm/screen` | смоделировано, записи синтетические |
 | База публичных должностных лиц | `POST /pep/screen` | смоделировано, записи синтетические |
 | Платформа «Знай своего клиента» Банка России | `GET /zsk/{inn}` | смоделировано |
+| Реестр лицензий | `GET /licenses/{inn}` | смоделировано |
+| АБС: обороты по счёту, клиент банка с даты | `GET /abs/accounts/{inn}` | смоделировано |
+| АБС: внутренний стоп-лист банка | `GET /abs/stop-list/{inn}` | смоделировано |
 | ЭДО / подписание | `POST /edo/sign` | смоделировано, ответ API `simulated: true` |
 | Электронная подпись банка на договоре | настоящая подпись PAdES с меткой времени, ключ демо-УЦ стенда | ключ демо-стенда, не квалифицированный |
 | АБС / выдача средств | `POST /abs/disbursements` | смоделировано, ответ `simulated: true` |
@@ -335,11 +339,12 @@ Compose читает `.env` из корня репозитория. В конт�
 | **Виды кредитов**, выгодоприобретатель и третьи лица | [`docs/product/credit-products.md`](docs/product/credit-products.md) |
 | Кейс, наше понимание, ответы организаторов и экспертов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
 | Архитектура по уровням: контекст, контейнеры, модули DDD, слои, потоки | [`docs/architecture/architecture.md`](docs/architecture/architecture.md), [`architecture-overview.drawio`](docs/architecture/architecture-overview.drawio), [`docs/platform.md`](docs/platform.md) |
+| **Скоринг и кредитное решение**: обогащение, стоп-факторы, PD- и ML-модель, политика, предодобрение, версии, аудит | [`docs/scoring-architecture.md`](docs/scoring-architecture.md), [`docs/modules/scoring.md`](docs/modules/scoring.md), [`docs/modules/decision.md`](docs/modules/decision.md) |
 | Процесс одобрения в BPMN, сравнение с исходной схемой, законы | [`docs/process/bpmn.md`](docs/process/bpmn.md), файлы маршрутов [`backend/src/modules/process/workflows/`](backend/src/modules/process/workflows/) |
 | Договор и электронная подпись: статьи 63-ФЗ и ГК, как формируется подпись | [`docs/contract-signing.md`](docs/contract-signing.md) |
 | Модель данных (ER) | [`docs/data-model.md`](docs/data-model.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
+| Описание API | путеводитель [`docs/api/README.md`](docs/api/README.md), Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Умный помощник: модели, свой провайдер, деградация, защита, качество | [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
@@ -357,19 +362,20 @@ uv run pytest                     # SQLite, без Docker
 uv run pytest -m integration      # Postgres и Kafka в testcontainers, нужен Docker
 uv run ruff check . && uv run ruff format --check .
 uv run lint-imports               # границы модулей
+uv run mypy src/modules/scoring src/modules/products src/modules/decision src/modules/assistant src/modules/market   # типы, как в CI
 uv run python -m scripts.export_openapi   # обновить docs/api/openapi.json после изменения API
 uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check — свежая ли)
 ```
 
-- **Без Docker** backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`.
+- **Без Docker** нужен свой Postgres: `DATABASE_URL` по умолчанию `postgresql+asyncpg://app:app@localhost:5432/app`, `MESSAGING_MODE` по умолчанию `in_process` (брокер не нужен). `SEED_DEMO_DATA` и `DEMO_LOGIN_ENABLED` в коде выключены (в compose включены): для демо-данных задайте их `true` в `backend/.env`. Запуск — `uv run alembic upgrade head && uv run uvicorn src.main:app`, как в `backend/Dockerfile`. Все настройки — `backend/src/core/config.py`.
 - **Моки:** `cd external-mocks && uv sync && uv run pytest`. Тесты помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети).
 - **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)).
 - **E2E-тесты** кабинета клиента на Playwright — на запущенном стенде: `cd e2e && npm ci && npx playwright install chromium && npm test` ([`e2e/README.md`](e2e/README.md)).
 - **CI** (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`:
-  - ruff, import-linter, тесты;
+  - ruff, import-linter, mypy по модулям `scoring`, `products`, `decision`, `assistant`, `market`, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
   - интеграционные тесты, тесты моков, сборка фронтенда;
-  - подъём всего стенда так, как его запускает жюри: `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника.
+  - подъём всего стенда так, как его запускает жюри: проверка, что оба compose-файла валидны, затем `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника (без профиля `ai` ждёт `mode: rules`).
 
 ## Что вошло, ограничения и что дальше
 

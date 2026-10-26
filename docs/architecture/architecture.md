@@ -1,6 +1,6 @@
 # Архитектура
 
-Система описана сверху вниз, от «кто с кем работает» до «как устроен один модуль внутри». Каждый уровень — отдельный раздел со схемой и ссылками на код. Те же уровни нарисованы в draw.io: [architecture-overview.drawio](architecture-overview.drawio), страница на уровень. Исходная схема команды «как будет» — [architecture.drawio](architecture.drawio). Открыть: app.diagrams.net → File → Open from → Device или расширение Draw.io Integration в VS Code.
+Система описана сверху вниз, от «кто с кем работает» до «как устроен один модуль внутри». Каждый уровень — отдельный раздел со схемой и ссылками на код. Те же уровни нарисованы в draw.io: [architecture-overview.drawio](architecture-overview.drawio), страница на уровень, плюс страница «8. Скоринг и решение». Открыть: app.diagrams.net → File → Open from → Device или расширение Draw.io Integration в VS Code.
 
 **Правило: меняем архитектуру — правим и `.drawio`, и этот `.md`**, иначе они разъедутся.
 
@@ -8,9 +8,9 @@
 |---|---|---|---|
 | 0. Контекст | кто пользуется системой и с какими внешними системами она говорит | [Контекст](#0-контекст) | «0. Контекст» |
 | 1. Контейнеры | что запускает `docker compose`: сервисы, хранилища, порты, профили | [Контейнеры](#1-контейнеры) | «1. Контейнеры» |
-| 2. Модули (DDD) | 13 модулей backend как ограниченные контексты, карта связей: фасады, Kafka, ACL | [Модули](#2-модули-ddd) | «2. Модули и Kafka» |
+| 2. Модули (DDD) | 14 модулей backend как ограниченные контексты, карта связей: фасады, Kafka, ACL | [Модули](#2-модули-ddd) | «2. Модули и Kafka» |
 | 3. Устройство модуля | слои domain → application → infrastructure → presentation, правила import-linter | [Устройство модуля](#3-устройство-модуля) | «3. Слои модуля» |
-| 4. Потоки | путь заявки через Kafka, outbox и inbox, подписание, запрос к ассистенту | [Потоки](#4-ключевые-потоки) | «5. BPMN», «6. Подписание», «7. Ассистент» |
+| 4. Потоки | путь заявки через Kafka, outbox и inbox, подписание, запрос к ассистенту | [Потоки](#4-ключевые-потоки) | «5. BPMN: маршрут заявки», «6. Подписание договора», «7. Умный помощник» |
 | — | путь клиента и маршруты BPMN | [docs/process/bpmn.md](../process/bpmn.md) | «4. BPMN: путь клиента», «5. BPMN: маршрут заявки» |
 | — | модель принятия решения | [Модель принятия решения](#модель-принятия-решения) | — |
 | — | модели чтения, фронтенд, безопасность | ниже | — |
@@ -53,7 +53,7 @@ flowchart LR
 ```
 
 - **Клиент** — компания (ООО, АО) или ИП. В кабинет приходит руководитель, бухгалтер или сотрудник. Что каждый может в компании — подать, подписать, управлять участниками — решают права внутри компании и доверенности.
-- **Сотрудник** — андеррайтер (очередь задач, карточка заявки, решение, чат поддержки) и администратор (пользователи и роли, продукты, версии модели скоринга и кредитной политики).
+- **Сотрудник** — андеррайтер (очередь задач, карточка заявки, решение, чат поддержки) и администратор (пользователи и роли, каталог продуктов, ключевая ставка, версии модели скоринга и кредитной политики).
 - **Внешние системы** — отдельный сервис `external-mocks` со «своими» форматами ответов, задержками и сбоями. Backend ходит к нему через те же адаптеры, что ходили бы к настоящим системам: замена мока на реальный источник — замена base URL и адаптера.
 - **LLM** — только для помощника: Ollama в профиле `ai` или любой OpenAI-совместимый API (OpenRouter, vLLM). Модель ничего не решает, только переформулирует факты, которые собрал код ([docs/ai.md](../ai.md)).
 
@@ -65,7 +65,7 @@ flowchart LR
 flowchart LR
     Browser["Браузер"] -->|":8080 (стенд: :443)"| Nginx["nginx 1.31<br/>статика, /api → backend"]
     Nginx --> Frontend["frontend<br/>Vue 3 + Vite, статика"]
-    Nginx --> Backend["backend<br/>FastAPI, модульный монолит<br/>13 модулей + core"]
+    Nginx --> Backend["backend<br/>FastAPI, модульный монолит<br/>14 модулей + core"]
     Backend -.->|"OpenAI API, профиль ai"| Ollama["ollama<br/>Qwen3-4B, CPU"]
     Backend -.->|"или ASSISTANT_LLM_PROVIDER=api"| Provider["свой провайдер<br/>OpenRouter, vLLM…"]
     Backend --> Postgres[("Postgres 16<br/>таблицы модулей,<br/>outbox, inbox")]
@@ -82,11 +82,11 @@ flowchart LR
 | `backend` | сборка `./backend` | 768 МБ | — | весь кредитный конвейер и умный помощник; миграции Alembic и сид при старте |
 | `db` | postgres:16.4-alpine | 512 МБ | — | данные модулей, outbox, inbox |
 | `kafka` | apache/kafka:3.8.0 (KRaft) | 1 ГБ | — | события и команды модулей, хранение бессрочное |
-| `minio` | soldevelo/minio | 512 МБ | через nginx | документы заявок; договоры — в отдельном бакете с Object Lock |
+| `minio` | soldevelo/minio:2026.7.17 | 512 МБ | через nginx | документы заявок; договоры — в отдельном бакете с Object Lock |
 | `external-mocks` | сборка `./external-mocks` | 192 МБ | — | ЕГРЮЛ, ФНС, БКИ, ГИР БО, Контур, 115-ФЗ, ЭДО, АБС |
 | `ollama` | ollama/ollama:0.40.0, профиль `ai` | 4 ГБ | — | модель с открытыми весами на CPU для помощника; вместо неё можно подключить свой OpenAI-совместимый API |
 
-**Без ИИ** стенд занимает около 2,9 ГБ по `mem_limit`, **с профилем `ai`** — около 7 ГБ. Healthcheck у каждого сервиса, `docker compose up --wait` ждёт всех. Тот же подъём делает CI на каждый PR. Боевой стенд — `docker-compose.prod.yml` поверх основного: HTTPS (Let's Encrypt), basic auth, порты 80 и 443. Лимиты, деградация и SLA — [sla.md](../sla.md).
+**Без ИИ** стенд занимает около 3,0 ГБ по `mem_limit`, **с профилем `ai`** — около 7 ГБ. Healthcheck у `db`, `minio`, `kafka`, `external-mocks` (в Dockerfile), `backend` (`GET /ready`) и `ollama`; `docker compose up --wait` ждёт их, а `nginx` стартует после здорового `backend`. Тот же подъём делает CI на каждый PR. Боевой стенд — `docker-compose.prod.yml` поверх основного: HTTPS (Let's Encrypt), basic auth, порты 80 и 443. Лимиты, деградация и SLA — [sla.md](../sla.md).
 
 **Почему модульный монолит, а не микросервисы.** Один процесс проще поднять жюри и дешевле по памяти. Границы при этом настоящие: модули не видят чужих таблиц и классов, читают соседей только через фасады, пишут им только командами через Kafka. Любой модуль можно вынести в отдельный сервис: фасад станет HTTP-клиентом, Kafka уже на месте.
 
@@ -123,9 +123,10 @@ flowchart TB
     Core["core — shared kernel<br/>UoW, outbox/relay/inbox, DLQ, контракты сообщений,<br/>доступ RBAC + ABAC, ошибки, настройки, логи"]
     Kafka[("Kafka")]
 
-    BFF -.->|фасады| Applications & Process & Decision & Scoring & Clients & Products & Identity & Notifications & Support
+    BFF -.->|фасады| Applications & Process & Decision & Scoring & Enrichment & Clients & Products & Identity & Notifications
     BFF -.->|read API| Projector
     Assistant -.->|фасады| Applications & Decision & Products & Clients
+    Notifications & Projector -.->|фасады: детали события| Applications & Clients & Decision & Products & Scoring
     Process -->|команды| Kafka
     Kafka -->|команды| Applications & Enrichment & Scoring & Decision
     Applications & Enrichment & Scoring & Decision & Clients & Support -->|события| Kafka
@@ -134,11 +135,15 @@ flowchart TB
     Market -->|market.events| Kafka
     Kafka -->|market.events| Decision
     Kafka -->|enrichment.events| Scoring & Clients
-    Process -.->|фасады: факты заявки| Applications & Clients & Identity
+    Process -.->|фасады: факты заявки| Applications & Clients & Identity & Products
     Scoring -.->|фасады| Applications & Enrichment
-    Decision -.->|фасады| Applications & Enrichment & Scoring & Clients & Products & Market
-    Products -.->|фасад: ключевая| Market
-    Applications -.->|фасады| Clients & Products & Identity
+    Decision -.->|фасады| Applications & Enrichment & Scoring & Clients & Identity & Products & Market
+    Products -.->|фасады| Market & Clients & Enrichment & Process
+    Applications -.->|фасады| Clients & Products & Identity & Enrichment
+    Clients -.->|фасады| Enrichment & Identity
+    Identity -.->|фасад| Clients
+    Enrichment -.->|фасад| Applications
+    Support -.->|фасады| Applications & Clients & Identity
 ```
 
 Сплошная стрелка — асинхронно через Kafka (команды и события), пунктир — синхронное чтение через фасад.
@@ -180,7 +185,7 @@ flowchart TB
 | **Запись в чужой контекст** | только командой через Kafka; изменение и команда — в одной транзакции (outbox) | `process` шлёт `MakeDecision` в `decision.commands` |
 | **Published language** | контракты сообщений в `core/messaging/contracts/*.py`, конверт с `event_id`, `causation_id`, `correlation_id` | `DecisionMade`, `ApplicationSigned` |
 | **Anti-corruption layer** | адаптеры источников переводят чужой формат в свои DTO; мок отвечает «как внешняя система» | ответ ЕГРЮЛ → `RegistryData` в `enrichment`; помощник отбрасывает название и ИНН компании из карточки заявки до своего домена |
-| **Conformist** | `projector` и `notifications` принимают события как есть и ничего не пишут обратно | лента клиента по `ApplicationStatusChanged` |
+| **Conformist** | `projector` и `notifications` принимают события как есть и ничего не пишут обратно; недостающие детали дочитывают через фасады | лента клиента по `ApplicationStatusChanged` |
 | **Владелец статуса** | статус заявки меняет только `applications`, остальные просят командой | `process` → `PresentOffer` → `OFFER_READY` |
 
 Границы проверяет **import-linter** в CI: модуль не импортирует чужие `domain`, `application`, `infrastructure`, `presentation`, а только `facade.py`; `core` не знает модулей.
@@ -221,7 +226,7 @@ flowchart LR
 Плюс по контракту на модуль: «читает соседей только через фасад» — и «core не знает модулей».
 
 **Что это даёт на деле:**
-- Кредитная политика `CreditPolicy.decide` — чистая функция входа и ключевой ставки, без IO и `now()`. Golden-тесты S-1…S-7 прогоняют её на зафиксированных входах для каждой версии `policy_v1`…`policy_v10`.
+- Кредитная политика `CreditPolicy.decide` — чистая функция входа и ключевой ставки, без IO и `now()`. Golden-тесты S-1…S-7 прогоняют её на зафиксированных входах для встроенных версий политики (`backend/tests/decision/unit/golden*`).
 - Подпись банка — порт `ContractSealer`. Сейчас за ним pyHanko с демо-УЦ, в проде будет СКЗИ с ГОСТ: use case не меняется.
 - Внешние источники — порты enrichment. Мок и реальный источник взаимозаменяемы.
 - Шаги BPMN читают данные через порт `ProcessFacts`. Домен движка не знает ни про HTTP, ни про БД.
@@ -278,7 +283,7 @@ sequenceDiagram
     K->>N: → SSE «Решение готово»
     C->>A: POST /offer/accept → SIGNING
     A->>K: OfferAccepted
-    C->>A: POST /sign {password, offer_hash, document_hash, rules_version} → SIGNED
+    C->>A: POST /sign {password, offer_hash, document_hash?, rules_version?} → SIGNED
     A->>K: ApplicationSigned
     K->>P: ApplicationSigned
     P->>K: MarkDisbursed · applications.commands
@@ -330,7 +335,7 @@ flowchart LR
 
 ![Подписание договора](img/6-signing.png)
 
-Клиент подписывает проект PDF простой ЭП (повторный пароль, хеш условий и хеш файла, версия Правил). Банк сразу подписывает итоговый файл усиленной ЭП (PAdES с меткой времени). Файлы хранятся в MinIO с Object Lock, журнал подписания — с хеш-цепочкой. Проверка — по QR без входа. Подробно, со статьями закона, — [contract-signing.md](../contract-signing.md).
+Клиент подписывает проект PDF простой ЭП (повторный пароль, хеш условий и, если передан, хеш файла и версия Правил). Банк сразу подписывает итоговый файл усиленной ЭП (PAdES с меткой времени). Файлы хранятся в MinIO с Object Lock, журнал подписания — с хеш-цепочкой. Проверка — по QR без входа. Подробно, со статьями закона, — [contract-signing.md](../contract-signing.md).
 
 ### Запрос к умному помощнику
 
@@ -359,7 +364,9 @@ sequenceDiagram
 
 ## Модель принятия решения
 
-Решение принимают два модуля: `scoring` оценивает риск, `decision` по оценке и правилам банка выбирает исход, сумму, срок и ставку. Действующие версии: PD-модель `pd_model_v2`, ML-модель `ml_logreg_v1`, политика `policy_v10`. Поверх встроенных версий администратор создаёт свои (`pd_model_v2.N`, `policy_v10.N`): примерка на заявке, активация, откат.
+Решение принимают два модуля: `scoring` оценивает риск, `decision` по оценке и правилам банка выбирает исход, сумму, срок и ставку. Действующие версии: PD-модель `pd_model_v2`, ML-модель `ml_logreg_v1`, политика `policy_v10`. Поверх встроенных версий администратор создаёт свои (`pd_model_v2.N`, `policy_v10.N`): примерка на последних заявках, активация, откат. Сквозной разбор — [scoring-architecture.md](../scoring-architecture.md).
+
+![Скоринг и кредитное решение](img/8-scoring.png)
 
 ```mermaid
 flowchart TD
@@ -390,7 +397,7 @@ flowchart TD
         AML --> Info{"Выручка расходится?"}
         Info -->|да| RI["REQUEST_INFO: выписка"]
         Info -->|нет| Rate["Ставка: ключевая + спред<br/>+ PD × LGD + капитал + маржа"]
-        Rate --> Limit["Лимит: минимум из продукта, выручки,<br/>оборотов (выписка или АБС),<br/>платёжеспособности, корзины грейда, LTV"]
+        Rate --> Limit["Лимит: минимум из продукта, выручки,<br/>оборотов (выписка или АБС),<br/>платёжеспособности, корзины грейда, LTV,<br/>остатка потолка на группу заёмщика"]
         Limit --> Route{"К человеку?<br/>данные неполные, триггеры,<br/>третьи лица, группа риска,<br/>ИП без согласия ст. 16"}
         Route -->|да| MR["MANUAL_REVIEW<br/>check / dispute"]
         Route -->|нет| Zones{"Зона PD × зона ML<br/>+ матрица грейд × сумма<br/>решает строже"}
@@ -428,13 +435,13 @@ Vue 3 + TypeScript + Vite + Tailwind CSS v4, архитектура **Feature-Sl
 | Слой | Что лежит | Примеры |
 |---|---|---|
 | `app` | вход, роутер, глобальные стили | `App.vue`, `router` |
-| `pages` | страницы | `landing`, `client-profile`, `client-support`, `verify-contract`, `admin-*` (11 страниц рабочего места) |
+| `pages` | страницы | `landing`, `client-profile`, `client-support`, `verify-contract`, `not-found`, `admin-*` (13 страниц рабочего места, включая вход) |
 | `widgets` | крупные блоки | модалки клиента (`apply-flow`), калькулятор, каталог, очередь и карточка андеррайтера, обзор скоринга |
-| `features` | действия пользователя | `submit-application`, `track-application` (окно заявки, подпись), `calculate-loan`, `complete-underwriter-task`, `support-chat`, `edit-role` |
-| `entities` | бизнес-сущности и их модели | `application`, `credit-product`, `customer`, `process`, `underwriting` |
-| `shared` | API-клиенты, UI-кит, утилиты | `shared/api/*` (real и mock), `BaseModal`, `BaseButton` |
+| `features` | действия пользователя | `submit-application`, `track-application` (окно заявки, подпись), `calculate-loan`, `check-inn`, `complete-underwriter-task`, `support-chat`, `edit-role` |
+| `entities` | бизнес-сущности и их модели | `application`, `assistant`, `credit-product`, `customer`, `process`, `scoring-version`, `underwriting` |
+| `shared` | API-клиенты, UI-кит, утилиты | `shared/api/*` (`assistant`, `backoffice`, `client`, `identity`), `BaseModal`, `BaseButton` |
 
-У каждого API есть real- и mock-реализация. Сборка для стенда ходит в backend, `npm run dev` может работать на моках. Подробно — [frontend/README.md](../../frontend/README.md).
+У каждого API одна, настоящая реализация (`real.ts`): mock-слоя нет. И сборка для стенда, и `npm run dev` ходят в backend: dev-сервер проксирует `/api` на `VITE_API_PROXY_TARGET` (по умолчанию `http://localhost:8000`). Подробно — [frontend/README.md](../../frontend/README.md).
 
 ## Безопасность
 
@@ -447,13 +454,13 @@ Vue 3 + TypeScript + Vite + Tailwind CSS v4, архитектура **Feature-Sl
 
 ## Код и схема «как будет»
 
-Где код отличается от исходной схемы команды и почему (подробное сравнение маршрута по 13 пунктам — [bpmn.md](../process/bpmn.md#3-сравнение-со-схемой-как-сейчас)):
+Где код отличается от исходного черновика схемы команды «как будет» (20.10.2026, есть в истории репозитория; актуальные схемы — `architecture-overview.drawio`) и почему (подробное сравнение маршрута по 13 пунктам — [bpmn.md](../process/bpmn.md#3-сравнение-со-схемой-как-сейчас)):
 - **BFF** на схеме — отдельный сервис перед бэкендом. В коде это модуль `bff` того же процесса: соседей он читает через фасады, а не по HTTP.
 - **Postgres:** у модулей не отдельные схемы, а свои таблицы с префиксом модуля в одной базе.
 - **MinIO:** два бакета — документы заявок (`credit-documents`) и договоры (`credit-contracts`, Object Lock).
 - **identity:** нет сессий и refresh — только access-токен без хранения.
 - **Ошибки** — `{code, message, details}` с HTTP-статусом, а не RFC 9457.
-- **Kafka:** публикуют `clients`, `applications`, `process`, `enrichment`, `scoring`, `decision`, `support`. Топик `identity.events` создаётся, но пока пуст, `notifications` и `projector` только читают.
+- **Kafka:** публикуют `clients`, `applications`, `process`, `enrichment`, `scoring`, `decision`, `support`, `market`. Топик `identity.events` создаётся, но пока пуст, `notifications` и `projector` только читают.
 - **ML-модель** — вторая независимая оценка рядом с PD-моделью, на схеме её не было. Вместе с матрицей грейд × сумма решает строже из двух.
-- **Ставка считается до лимита** — лимит по платёжеспособности зависит от ставки; на схеме порядок обратный, схему стоит поправить.
+- **Ставка считается до лимита** — лимит по платёжеспособности зависит от ставки; в черновике порядок был обратный, на странице 8 overview ставка стоит перед лимитом.
 - **Помощник** — модуль backend `assistant`, модель — профиль compose `ai` или внешний API; на исходной схеме его не было.
