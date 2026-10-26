@@ -168,3 +168,18 @@ export async function closeActiveApplications(
     await sleep(2_000)
   }
 }
+
+/**
+ * Проверка учредителя стартапа уже пройдена и действует (30 дней): сбросить её через API нельзя,
+ * поэтому сценарий «без проверки заявку не подать» идёт только на стенде, где её ещё не проходили.
+ */
+export async function founderPrescreenPassed(request: APIRequestContext, account: DemoAccount): Promise<boolean> {
+  const headers = await login(request, account)
+  const organizations = (await (await request.get('/api/organizations', { headers })).json()) as { id: string }[]
+  const [organization] = organizations
+  if (!organization) throw new Error(`У ${account.login} нет компании`)
+  const response = await request.get(`/api/organizations/${organization.id}/founder-prescreen`, { headers })
+  if (response.status() === 404) return false
+  const prescreen = (await response.json()) as { status: string; valid: boolean }
+  return prescreen.status === 'passed' && prescreen.valid
+}
