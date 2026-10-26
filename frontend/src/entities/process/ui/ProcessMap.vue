@@ -338,11 +338,13 @@ const stepDuration = (step: ProcessStepDto) =>
     </div>
 
     <template v-else-if="geometry && progress">
-      <div ref="scroller" class="-mx-5 overflow-x-auto px-5">
+      <!-- Без полосы прокрутки: схема шире блока — ужимается целиком (viewBox), а не уезжает за край -->
+      <div ref="scroller" class="-mx-5 overflow-hidden px-5">
         <svg
-          :width="geometry.width"
-          :height="geometry.height"
-          class="mx-auto block select-none"
+          :viewBox="`0 0 ${geometry.width} ${geometry.height}`"
+          width="100%"
+          :style="{ maxWidth: `${geometry.width}px` }"
+          class="mx-auto block h-auto select-none"
           role="group"
           aria-label="Схема маршрута заявки по этапам"
         >

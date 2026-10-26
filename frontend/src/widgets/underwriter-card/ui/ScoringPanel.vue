@@ -115,7 +115,13 @@ const reasons = computed(() => (factorsOf.value === 'ml' && props.scoring.ml ? p
     <p v-else class="mt-3 text-xs text-ink-secondary">Оценки ML-модели нет: заявку оценили до того, как появилась вторая модель</p>
 
     <div class="mt-3 grid grid-cols-2 gap-2.5">
-      <div v-for="model in models" :key="model.key" class="min-w-0 rounded-xl bg-surface-soft px-3.5 py-3">
+      <!-- Показатель, а не поле: белая карточка с полосой зоны слева — не похоже на ввод, менять нечего -->
+      <div
+        v-for="model in models"
+        :key="model.key"
+        class="relative min-w-0 cursor-default overflow-hidden rounded-xl bg-white py-3 pr-3.5 pl-4.5 ring-1 ring-line"
+      >
+        <span class="absolute inset-y-0 left-0 w-1.5" :class="ZONE_DOT[GRADE_ZONE[model.grade]]" aria-hidden="true" />
         <p class="text-xs text-ink-secondary">{{ model.title }}</p>
         <p class="mt-1 flex flex-wrap items-center gap-2">
           <span class="text-2xl font-extrabold text-ink tabular-nums">{{ model.score }}</span>
