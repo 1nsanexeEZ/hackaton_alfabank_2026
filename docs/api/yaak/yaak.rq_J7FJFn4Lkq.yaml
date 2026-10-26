@@ -4,7 +4,9 @@ id: rq_J7FJFn4Lkq
 workspaceId: wk_6MYZUPM7tf
 folderId: fl_6Z3Dg12WRC
 name: Демо-аккаунты
-description: Demo accounts for `POST /auth/demo-login`. 404 without DEMO_LOGIN_ENABLED=true.
+description: |-
+  Demo accounts for `POST /auth/demo-login`, the admin from BOOTSTRAP_ADMIN_EMAIL last.
+  404 without DEMO_LOGIN_ENABLED=true.
 method: GET
 url: ${[ base_url ]}/auth/demo-accounts
 urlParameters: []

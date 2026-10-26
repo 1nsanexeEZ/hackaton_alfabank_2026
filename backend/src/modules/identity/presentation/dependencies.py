@@ -89,9 +89,10 @@ def get_consent_repository(session: DbSession) -> ConsentRepository:
 
 def get_demo_account_catalog(request: Request) -> DemoAccountCatalog:
     # Without DEMO_LOGIN_ENABLED the routes answer 404, as if they didn't exist.
-    if not request.app.state.settings.demo_login_enabled:
+    settings = request.app.state.settings
+    if not settings.demo_login_enabled:
         raise NotFoundError()
-    return SeedDemoAccountCatalog()
+    return SeedDemoAccountCatalog(settings.bootstrap_admin_email)
 
 
 Tokens = Annotated[TokenService, Depends(get_token_service)]

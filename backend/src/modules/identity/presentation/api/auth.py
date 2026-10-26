@@ -49,7 +49,8 @@ async def demo_login(data: DemoLoginRequest, use_case: DemoLoginDep) -> TokenRes
     responses={404: {"description": NotFoundError.default_message}},
 )
 async def demo_accounts(use_case: ListDemoAccountsDep) -> list[DemoAccountRead]:
-    """Demo accounts for `POST /auth/demo-login`. 404 without DEMO_LOGIN_ENABLED=true."""
+    """Demo accounts for `POST /auth/demo-login`, the admin from BOOTSTRAP_ADMIN_EMAIL last.
+    404 without DEMO_LOGIN_ENABLED=true."""
     return [DemoAccountRead.model_validate(account) for account in await use_case.execute()]
 
 
