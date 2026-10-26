@@ -5,13 +5,16 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 const props = withDefaults(
   defineProps<{
     label: string
-    options: readonly { value: T; label: string }[]
+    /** disabled — вариант виден, но выбрать его нельзя (например, занятый код) */
+    options: readonly { value: T; label: string; disabled?: boolean }[]
     /** Компактная высота — для фильтров и форм админки */
     dense?: boolean
     /** Подпись только для скринридеров */
     hideLabel?: boolean
+    /** Текст в поле, пока ничего не выбрано */
+    placeholder?: string
   }>(),
-  { dense: false, hideLabel: false },
+  { dense: false, hideLabel: false, placeholder: undefined },
 )
 
 const model = defineModel<T>({ required: true })
@@ -52,9 +55,11 @@ function place() {
   }
 }
 
+const firstEnabled = () => props.options.findIndex((option) => !option.disabled)
+
 function open() {
   place()
-  activeIndex.value = Math.max(selectedIndex.value, 0)
+  activeIndex.value = selectedIndex.value >= 0 ? selectedIndex.value : Math.max(firstEnabled(), 0)
   isOpen.value = true
   nextTick(scrollToActive)
 }
@@ -66,6 +71,7 @@ function close(returnFocus = false) {
 
 function choose(index: number) {
   const option = props.options[index]
+  if (option?.disabled) return
   if (option) model.value = option.value
   close(true)
 }
@@ -74,9 +80,15 @@ function scrollToActive() {
   list.value?.querySelector<HTMLElement>(`[data-index="${activeIndex.value}"]`)?.scrollIntoView({ block: 'nearest' })
 }
 
+/** Стрелками — к следующему доступному варианту, недоступные пропускаем */
 function move(offset: number) {
   const count = props.options.length
-  activeIndex.value = (activeIndex.value + offset + count) % count
+  let next = activeIndex.value
+  for (let step = 0; step < count; step++) {
+    next = (next + offset + count) % count
+    if (!props.options[next]?.disabled) break
+  }
+  activeIndex.value = next
   nextTick(scrollToActive)
 }
 
@@ -167,7 +179,8 @@ onBeforeUnmount(unlisten)
       @click="isOpen ? close() : open()"
       @keydown="onKeydown"
     >
-      <span class="truncate">{{ selected?.label }}</span>
+      <span v-if="selected" class="truncate">{{ selected.label }}</span>
+      <span v-else-if="placeholder" class="truncate text-ink-muted">{{ placeholder }}</span>
       <ChevronDown
         class="select-chevron pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ink-secondary"
         aria-hidden="true"
@@ -193,11 +206,12 @@ onBeforeUnmount(unlisten)
             :data-index="index"
             role="option"
             :aria-selected="option.value === model"
+            :aria-disabled="option.disabled || undefined"
             :class="[
-              'select-option flex cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5',
+              'select-option flex items-center justify-between gap-3 rounded-xl px-3.5',
               dense ? 'min-h-10 text-sm' : 'min-h-12 text-base',
-              option.value === model ? 'font-medium text-brand' : 'text-ink',
-              index === activeIndex && 'bg-surface',
+              option.disabled ? 'cursor-default text-ink-muted' : option.value === model ? 'cursor-pointer font-medium text-brand' : 'cursor-pointer text-ink',
+              index === activeIndex && !option.disabled && 'bg-surface',
             ]"
             :style="{ '--option-delay': `${index * 0.03}s` }"
             @pointermove="activeIndex = index"

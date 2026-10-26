@@ -101,7 +101,8 @@ const percent = (value: string) => Number(value.trim().replace(',', '.'))
 export function validate(form: ProductForm, isNew: boolean): ProductFormErrors {
   const errors: ProductFormErrors = {}
   if (isNew) {
-    if (!/^[A-Z][A-Z0-9_]{1,31}$/.test(form.code.trim())) errors.code = 'Латиница в верхнем регистре, цифры и _, до 32 знаков'
+    if (!form.code) errors.code = 'Выберите код из справочника'
+    else if (!/^[A-Z][A-Z0-9_]{1,31}$/.test(form.code.trim())) errors.code = 'Латиница в верхнем регистре, цифры и _, до 32 знаков'
     if (!/^[a-z][a-z0-9-]{1,31}$/.test(form.frontendId.trim())) errors.frontendId = 'Латиница в нижнем регистре, цифры и -, до 32 знаков'
   }
   if (!form.name.trim()) errors.name = 'Укажите название'

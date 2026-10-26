@@ -106,6 +106,8 @@ export const realClientApi: ClientApi = {
     call(`/organizations/${organizationId}/members`, { method: 'POST', body: { login, role } }),
   grantPowerOfAttorney: (organizationId, accountId, input) =>
     call(`/organizations/${organizationId}/members/${accountId}/poa`, { method: 'POST', body: input }),
+  revokePowerOfAttorney: (organizationId, accountId) =>
+    call(`/organizations/${organizationId}/members/${accountId}/poa`, { method: 'DELETE' }),
   changeMemberRole: (organizationId, accountId, role) =>
     call(`/organizations/${organizationId}/members/${accountId}`, { method: 'PATCH', body: { role } }),
   removeMember: (organizationId, accountId) =>

@@ -17,7 +17,9 @@ const items = computed(() => (overview.value?.latest ?? []).map((item) => ({ ...
 </script>
 
 <template>
-  <ul class="grid gap-3 md:grid-cols-2">
+  <!-- Карточек в ряд — сколько влезает в ширину модуля: на всю панель — по три -->
+  <div class="@container">
+  <ul class="grid gap-3 @lg:grid-cols-2 @4xl:grid-cols-3">
     <li v-for="item in items" :key="item.application_id">
       <RouterLink
         :to="{ name: ADMIN_ROUTE.application, params: { id: item.application_id } }"
@@ -56,4 +58,5 @@ const items = computed(() => (overview.value?.latest ?? []).map((item) => ({ ...
       </RouterLink>
     </li>
   </ul>
+  </div>
 </template>

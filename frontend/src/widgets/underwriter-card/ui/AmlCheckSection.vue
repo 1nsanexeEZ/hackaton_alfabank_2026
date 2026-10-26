@@ -35,6 +35,32 @@ const ownerShare = (item: AmlCheckDto['beneficial_owners'][number]) =>
   item.share_percent ? `владение ${Number(item.share_percent)}%` : (BENEFICIAL_BASIS_LABEL[item.basis] ?? item.basis)
 
 const mismatch = computed(() => Boolean(props.aml.owner_discrepancies?.length))
+
+/** Сначала бенефициары и выгодоприобретатель — ради них проверка и затевается, потом остальные лица */
+const OWNER_ROLES = ['beneficial_owner', 'declared_owner', 'beneficiary']
+const sameSubject = (a: AmlCheckDto['subjects'][number], b: AmlCheckDto['subjects'][number]) =>
+  a.role === b.role && a.name === b.name && (a.inn ?? '') === (b.inn ?? '')
+
+/** Итог по каждому лицу: перечни Росфинмониторинга и ПДЛ — что нашли или «чисто» */
+const checked = computed(() =>
+  [...props.aml.subjects]
+    .sort((a, b) => Number(!OWNER_ROLES.includes(a.role)) - Number(!OWNER_ROLES.includes(b.role)))
+    .map((subject) => {
+      const list = props.aml.list_hits.find((hit) => sameSubject(hit.subject, subject))
+      const pep = props.aml.pep_hits.find((hit) => sameSubject(hit.subject, subject))
+      return {
+        subject,
+        owner: OWNER_ROLES.includes(subject.role),
+        role: AML_ROLE_LABEL[subject.role] ?? subject.role,
+        country: countryName(subject.country),
+        result: list
+          ? { tone: 'brand' as const, text: `${AML_LIST_LABEL[list.list] ?? list.list}` }
+          : pep
+            ? { tone: 'warning' as const, text: `ПДЛ: ${pep.position}` }
+            : { tone: 'success' as const, text: 'Совпадений нет' },
+      }
+    }),
+)
 const clean = computed(() => !props.aml.list_hits.length && !props.aml.pep_hits.length)
 </script>
 
@@ -122,6 +148,25 @@ const clean = computed(() => !props.aml.list_hits.length && !props.aml.pep_hits.
         </span>
       </li>
     </ul>
-    <p class="mt-2 text-xs text-ink-secondary">Проверены: {{ aml.subjects.map(who).join(', ') }}</p>
+    <!-- Кого проверили и с каким итогом: бенефициары и выгодоприобретатель — сверху и выделены -->
+    <div v-if="checked.length" class="mt-3 overflow-x-auto rounded-xl ring-1 ring-line">
+      <table class="w-full min-w-[30rem] text-left text-sm">
+        <caption class="bg-surface-soft px-3 py-2 text-left text-xs font-medium text-ink-secondary">
+          Кого проверили по перечням и базе ПДЛ
+        </caption>
+        <tbody class="divide-y divide-line">
+          <tr v-for="row in checked" :key="`${row.subject.role}-${row.subject.name}-${row.subject.inn ?? ''}`" :class="row.owner && 'bg-info-soft/30'">
+            <td class="px-3 py-2">
+              <span class="font-medium text-ink">{{ row.subject.name }}</span>
+              <span v-if="row.subject.inn" class="block text-xs text-ink-secondary">ИНН {{ row.subject.inn }}</span>
+            </td>
+            <td class="px-3 py-2 text-ink-secondary">{{ row.role }}{{ row.country ? `, ${row.country}` : '' }}</td>
+            <td class="px-3 py-2 text-right">
+              <BaseBadge :tone="row.result.tone">{{ row.result.text }}</BaseBadge>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </SourceCard>
 </template>

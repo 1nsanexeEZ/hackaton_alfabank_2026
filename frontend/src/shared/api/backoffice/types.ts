@@ -563,7 +563,7 @@ export interface TaskResultInput {
 /* ---------- Ведение каталога продуктов (PR #200, docs/modules/products.md) ---------- */
 
 /** Условия продукта для PUT /products/{code}: карточка из GET без code, version и status */
-export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status'>
+export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status' | 'market_rate'>
 
 /** Новый продукт: версия 1 в конце каталога, черновик или сразу в продаже */
 export interface ProductCreateInput extends ProductInput {

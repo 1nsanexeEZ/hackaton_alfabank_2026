@@ -33,8 +33,8 @@ const readonlyRows = computed(() =>
   [
     { label: 'ФИО', value: fullName.value, hint: '' },
     { label: 'Должность', value: form.position || '—', hint: '' },
-    me?.email ? { label: 'Email', value: me.email, hint: 'вход и уведомления' } : null,
-    me?.phone ? { label: 'Телефон', value: me.phone, hint: 'вход' } : null,
+    me?.email ? { label: 'Email', value: me.email, hint: '' } : null,
+    me?.phone ? { label: 'Телефон', value: me.phone, hint: '' } : null,
   ].filter((row): row is { label: string; value: string; hint: string } => row !== null),
 )
 

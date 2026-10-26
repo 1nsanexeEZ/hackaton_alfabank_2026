@@ -47,7 +47,8 @@ watch(() => route.fullPath, () => (isMenuOpen.value = false))
 </script>
 
 <template>
-  <div class="min-h-dvh bg-surface-soft lg:pl-64">
+  <!-- Переключатели в рабочем месте — тёмные: красный здесь только у главного действия страницы -->
+  <div class="min-h-dvh bg-surface-soft [--segmented-thumb:var(--color-night)] lg:pl-64">
     <!-- Мобильная шапка -->
     <header class="sticky top-0 z-40 flex h-14 items-center justify-between bg-night px-4 text-on-night lg:hidden">
       <RouterLink :to="{ name: ADMIN_ROUTE.dashboard }" aria-label="На обзор">

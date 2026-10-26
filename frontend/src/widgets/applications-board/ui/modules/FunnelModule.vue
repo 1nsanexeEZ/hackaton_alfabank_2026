@@ -20,10 +20,10 @@ const stages = computed(() => {
 </script>
 
 <template>
-  <ol class="space-y-2.5">
+  <ol class="space-y-2">
     <li v-for="(stage, index) in stages" :key="stage.label" class="grid grid-cols-[8.5rem_minmax(0,1fr)_3.5rem] items-center gap-3 text-sm">
       <span class="truncate text-ink-secondary">{{ stage.label }}</span>
-      <div class="flex h-9 items-center justify-center rounded-lg bg-surface">
+      <div class="flex h-8 items-center justify-center rounded-lg bg-surface">
         <div
           class="funnel__bar flex h-full items-center justify-center rounded-lg text-xs font-semibold text-white"
           :style="{ width: `${Math.max(stage.share * 100, stage.count ? 8 : 0)}%`, background: index === stages.length - 1 ? 'var(--color-success)' : `rgb(239 49 36 / ${1 - index * 0.13})` }"

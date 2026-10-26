@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus } from 'lucide-vue-next'
+import { Pencil, Plus } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -12,10 +12,10 @@ import {
   type VersionKind,
 } from '@/entities/scoring-version'
 import { useSession } from '@/entities/session'
-import { CreateDraftModal } from '@/features/edit-version'
+import { CreateDraftModal, draftToEdit } from '@/features/edit-version'
 import type { VersionDto } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
-import { formatDateTime, useAsyncData } from '@/shared/lib'
+import { errorMessage, formatDateTime, useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 import { AdminPageHeader } from '@/widgets/admin-layout'
 
@@ -45,6 +45,23 @@ const openVersion = (version: VersionDto | string) =>
     name: ADMIN_ROUTE.version,
     params: { kind: kind.value, version: typeof version === 'string' ? version : version.version },
   })
+
+/** «Изменить» действующую: сразу её черновик на правку, без выбора, что копировать */
+const editing = ref(false)
+const editError = ref<string | null>(null)
+
+async function editActive() {
+  if (!active.value) return
+  editing.value = true
+  editError.value = null
+  try {
+    await openVersion(await draftToEdit(kind.value, active.value.version, versions.data.value ?? []))
+  } catch (caught) {
+    editError.value = errorMessage(caught)
+  } finally {
+    editing.value = false
+  }
+}
 </script>
 
 <template>
@@ -61,10 +78,17 @@ const openVersion = (version: VersionDto | string) =>
   <p class="mb-4 text-sm text-ink-secondary">{{ VERSION_KIND_META[kind].description }}</p>
 
   <AsyncState :loading="versions.loading.value" :error="versions.error.value" :empty="!versions.data.value?.length" @retry="versions.reload">
-    <p v-if="active" class="mb-4 rounded-xl bg-success-soft px-4 py-3 text-sm text-ink">
-      Сейчас действует <b class="font-semibold">{{ active.version }}</b
-      >{{ active.builtin ? ' — встроенная, из YAML в коде' : active.activated_at ? `, с ${formatDateTime(active.activated_at)}` : '' }}
-    </p>
+    <div v-if="active" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-success-soft px-4 py-3 text-sm text-ink">
+      <p>
+        Сейчас действует <b class="font-semibold">{{ active.version }}</b
+        >{{ active.builtin ? ' — встроенная, из YAML в коде' : active.activated_at ? `, с ${formatDateTime(active.activated_at)}` : '' }}
+      </p>
+      <BaseButton v-if="can('scoring.update')" size="s" variant="secondary" :loading="editing" @click="editActive">
+        <Pencil class="size-4" aria-hidden="true" />
+        Изменить
+      </BaseButton>
+    </div>
+    <p v-if="editError" class="mb-4 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand" role="alert">{{ editError }}</p>
 
     <PanelCard flush>
       <div class="overflow-x-auto">

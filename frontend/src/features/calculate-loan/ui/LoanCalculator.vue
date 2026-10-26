@@ -41,7 +41,7 @@ import { fitLoanParams } from '../model/loanParams'
 const props = defineProps<{
   products: ProductCatalog
   /** Компании вошедшего клиента: подбор и расчёт для выбранной; гостю — пусто */
-  companies?: readonly { id: string; name: string }[] | null
+  companies?: readonly { id: string; name: string; canSubmit?: boolean }[] | null
 }>()
 
 const emit = defineEmits<{
@@ -192,7 +192,9 @@ const statusOf = (item: ProductRecommendation) =>
 /** От неё считаются ставки продуктов: показываем, чтобы было понятно, откуда «от N%» */
 const keyRate = useKeyRate()
 
-const blocked = computed(() => selected.value?.status === 'unavailable' || notEligible.value.length > 0)
+/** У выбранной компании нет права подачи заявки (сотрудник без доверенности) */
+const noRight = computed(() => company.value?.canSubmit === false)
+const blocked = computed(() => noRight.value || selected.value?.status === 'unavailable' || notEligible.value.length > 0)
 
 function apply() {
   emit('apply', {
@@ -405,7 +407,8 @@ onBeforeUnmount(() => observer?.disconnect())
           <BaseButton size="l" block :disabled="blocked" @click="apply">Оформить заявку</BaseButton>
         </div>
         <p class="mt-3 text-xs text-on-night-secondary">
-          <template v-if="blocked">{{ notEligible.length ? 'Компании продукт не подходит' : 'Под эту задачу продукт не подходит' }} — выберите другой. </template>
+          <template v-if="noRight">Подать заявку может руководитель или сотрудник с доверенностью. </template>
+          <template v-else-if="blocked">{{ notEligible.length ? 'Компании продукт не подходит' : 'Под эту задачу продукт не подходит' }} — выберите другой. </template>
           <template v-if="estimated && !pending">Банк сейчас не отвечает — показан приблизительный расчёт. </template>
           <template v-if="company && personal?.preApproved">Расчёт по ставке предварительного одобрения. </template>
           <template v-else>Расчёт по базовой ставке продукта. </template>

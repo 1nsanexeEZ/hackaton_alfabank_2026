@@ -107,6 +107,17 @@ export interface ProductDto {
   keywords: string[]
   tag: string | null
   decision_time: string | null
+  /**
+   * Только в GET /products/all: ставки для клиентов сегодня, по действующей ключевой. Хранимые rate_base и rate_max
+   * заданы при ключевой catalog_key_rate, их и правит PUT; market_rate в PUT не отправляют (422 extra_forbidden)
+   */
+  market_rate?: {
+    key_rate: string
+    catalog_key_rate: string
+    rate_base: string
+    rate_max: string
+    support_rate_cap: string | null
+  } | null
 }
 
 /** draft — ещё не в каталоге, active — в продаже, archived — снят с продажи или заменён новой версией */
@@ -1168,7 +1179,10 @@ export interface ClientApi {
   preApprovedOffers(organizationId: string): Promise<PreApprovedOfferDto[]>
   members(organizationId: string): Promise<MemberDto[]>
   addMember(organizationId: string, login: string, role: MemberRole): Promise<MemberDto>
+  /** Номер — по формату, уникален в компании (422 invalid_format, 409 number_taken); одна на участника — 409 power_of_attorney_exists */
   grantPowerOfAttorney(organizationId: string, accountId: string, input: PowerOfAttorneyInput): Promise<MemberDto>
+  /** Отозвать доверенность: отзывает тот, кто выдаёт; нет доверенности — 404 power_of_attorney_not_found */
+  revokePowerOfAttorney(organizationId: string, accountId: string): Promise<MemberDto>
   changeMemberRole(organizationId: string, accountId: string, role: MemberRole): Promise<MemberDto>
   removeMember(organizationId: string, accountId: string): Promise<void>
   /** Сверить с ЕГРЮЛ/ЕГРИП мимо кэша и подкачать изменения */

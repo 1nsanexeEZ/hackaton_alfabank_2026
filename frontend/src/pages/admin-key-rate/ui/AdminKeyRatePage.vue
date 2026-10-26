@@ -2,6 +2,7 @@
 import { Trash2 } from 'lucide-vue-next'
 import { computed, reactive, ref } from 'vue'
 
+import { useProductCatalog } from '@/entities/credit-product'
 import { useSession } from '@/entities/session'
 import { backofficeApi, type KeyRateRecordDto, type KeyRateSource } from '@/shared/api'
 import { errorMessage, formatDate, formatDateTime, formatPercent, useAsyncData } from '@/shared/lib'
@@ -17,6 +18,8 @@ const { can } = useSession()
 const canEdit = computed(() => can('scoring.update'))
 
 const history = useAsyncData(() => backofficeApi.keyRates())
+// Ставки каталога идут за ключевой: после её смены витрина и калькулятор в этой вкладке должны перечитать каталог
+const { reload: reloadCatalog } = useProductCatalog()
 
 const SOURCE_LABEL: Record<KeyRateSource, string> = {
   admin: 'введена в админке',
@@ -58,6 +61,7 @@ async function add() {
     })
     Object.assign(form, { value: '', effectiveFrom: '', decidedOn: '', note: '' })
     await history.reload()
+    void reloadCatalog()
   } catch (caught) {
     saveError.value = errorMessage(caught)
   } finally {
@@ -74,6 +78,7 @@ async function remove(item: KeyRateRecordDto) {
   try {
     await backofficeApi.removeKeyRate(item.effective_from)
     await history.reload()
+    void reloadCatalog()
   } catch (caught) {
     removeError.value = errorMessage(caught)
   } finally {

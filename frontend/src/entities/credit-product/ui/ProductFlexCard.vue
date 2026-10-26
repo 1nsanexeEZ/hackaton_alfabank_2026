@@ -131,8 +131,6 @@ const art = computed(() => productArt(props.product.code))
   --ease: cubic-bezier(0.05, 0.61, 0.41, 0.95);
   --spring: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Картинка подстраивается под ширину карточки: у широкой раскрытой она крупнее */
-  container-type: inline-size;
   min-height: 4.5rem;
   transition:
     flex-grow 0.6s var(--ease),
@@ -147,20 +145,27 @@ const art = computed(() => productArt(props.product.code))
   min-height: 22rem;
 }
 
+/*
+ * Шрифт у номера один, свёрнутый — уменьшенная копия: scale считает видеокарта, а переход
+ * font-size заново раскладывал и растрировал текст каждый кадр. 0.2143 — это 1.5rem из 7rem.
+ */
 .flex-card__number {
   top: 1.25rem;
   right: 1.5rem;
-  font-size: 1.5rem;
+  font-size: 7rem;
+  scale: 0.2143;
+  transform-origin: 100% 0;
   opacity: 0.5;
   transition:
-    font-size 0.6s var(--ease),
+    scale 0.6s var(--ease),
     opacity 0.6s var(--ease);
 }
 
 .is-expanded .flex-card__number {
   right: auto;
   left: 1.5rem;
-  font-size: 7rem;
+  scale: 1;
+  transform-origin: 0 0;
   opacity: 0.15;
 }
 
@@ -228,6 +233,13 @@ const art = computed(() => productArt(props.product.code))
   transition:
     opacity 0.4s 0.25s,
     visibility 0s;
+}
+
+/* Контент свёрнутой карточки скрыт — блик и подсветка его кнопок не крутятся впустую */
+.flex-card:not(.is-expanded) .flex-card__content :deep(*),
+.flex-card:not(.is-expanded) .flex-card__content :deep(*::before),
+.flex-card:not(.is-expanded) .flex-card__content :deep(*::after) {
+  animation: none;
 }
 
 /* Содержимое раскрытой карточки поднимается по очереди */
@@ -302,6 +314,7 @@ const art = computed(() => productArt(props.product.code))
     bottom: 1.5rem;
     left: 50%;
     translate: -50% 0;
+    transform-origin: 50% 100%;
   }
 
   .is-expanded .flex-card__number {
@@ -310,6 +323,7 @@ const art = computed(() => productArt(props.product.code))
     bottom: auto;
     left: 2rem;
     translate: none;
+    transform-origin: 0 0;
     animation: flex-card-number 0.8s var(--spring) both;
   }
 
@@ -330,16 +344,40 @@ const art = computed(() => productArt(props.product.code))
     bottom: 4.5rem;
     left: 50%;
     translate: -50% 0;
+  }
+
+  /*
+   * От стрелки расходится кольцо — отдельный слой, который растёт и гаснет (transform и opacity).
+   * Анимированный box-shadow перерисовывал каждую полоску каждый кадр — на слабых машинах ряд дёргался.
+   * У раскрытой стрелка скрыта — кольцо и толчок не крутятся.
+   */
+  .flex-card__hint::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 0.25rem rgb(255 255 255 / 0.45);
+    opacity: 0;
+  }
+
+  .flex-card:not(.is-expanded) .flex-card__hint::after {
     animation: flex-card-ring 2.2s ease-out infinite;
   }
 
-  .flex-card__chevron {
+  .flex-card:not(.is-expanded) .flex-card__chevron {
     animation: flex-card-nudge 1.6s ease-in-out infinite;
   }
 
   .flex-card__content {
     /* Контент не сжимается вместе с карточкой, а уезжает за край */
     min-width: 30rem;
+    /*
+     * Ширина — сразу как у раскрытой карточки (её передаёт ряд): пока карточка раскрывается,
+     * текст не переносится заново каждый кадр, а лишнее обрезает край карточки
+     */
+    width: var(--flex-card-content-w, auto);
+    /* Картинка подстраивается под ширину контента: у широкой раскрытой карточки она крупнее */
+    container-type: inline-size;
     /* Свой слой: картинка с z-index −1 уходит под текст, но не под фон карточки */
     isolation: isolate;
   }
@@ -347,20 +385,22 @@ const art = computed(() => productArt(props.product.code))
   /*
    * Ряд фиксированной высоты: картинка не в потоке, а в правом верхнем углу — длинный заголовок
    * или метка её не сжимают. Под текстом (z-index −1): если тексту тесно, он поверх.
+   * Размер меняет scale, а не width и height: SVG не растрируется заново каждый кадр. 0.575 — 11.5rem из 20rem.
    */
   .flex-card__art {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
     z-index: -1;
-    width: 11.5rem;
-    height: 11.5rem;
+    width: 20rem;
+    height: 20rem;
     margin: 0;
+    scale: 0.575;
+    transform-origin: 100% 0;
     transition:
       top 0.5s var(--spring),
       right 0.5s var(--spring),
-      width 0.5s var(--spring),
-      height 0.5s var(--spring);
+      scale 0.5s var(--spring);
   }
 
   /* Широкая раскрытая карточка — в ряду два-три продукта: картинка крупно справа по центру */
@@ -368,8 +408,7 @@ const art = computed(() => productArt(props.product.code))
     .flex-card__art {
       top: calc(50% - 10rem);
       right: 3rem;
-      width: 20rem;
-      height: 20rem;
+      scale: 1;
     }
   }
 }
@@ -403,17 +442,19 @@ const art = computed(() => productArt(props.product.code))
 
 @keyframes flex-card-ring {
   0% {
-    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.5);
+    opacity: 1;
+    transform: scale(1);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 0.75rem rgb(255 255 255 / 0);
+    opacity: 0;
+    transform: scale(1.45);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .flex-card,
-  .flex-card__hint,
+  .flex-card__hint::after,
   .flex-card__chevron,
   .flex-card__rise,
   .flex-card__number,
