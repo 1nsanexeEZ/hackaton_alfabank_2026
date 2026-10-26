@@ -392,12 +392,12 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check 
 
 - **Без Docker** нужен свой Postgres: `DATABASE_URL` по умолчанию `postgresql+asyncpg://app:app@localhost:5432/app`, `MESSAGING_MODE` по умолчанию `in_process` (брокер не нужен). `SEED_DEMO_DATA` и `DEMO_LOGIN_ENABLED` в коде выключены (в compose включены): для демо-данных задайте их `true` в `backend/.env`. Запуск — `uv run alembic upgrade head && uv run uvicorn src.main:app`, как в `backend/Dockerfile`. Все настройки — `backend/src/core/config.py`.
 - **Моки:** `cd external-mocks && uv sync && uv run pytest`. Тесты помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети).
-- **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)).
-- **E2E-тесты** кабинета клиента на Playwright — на запущенном стенде: `cd e2e && npm ci && npx playwright install chromium && npm test` ([`e2e/README.md`](e2e/README.md)).
+- **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)). Юнит-тесты логики фронта — `npm test` (Vitest).
+- **E2E-тесты** на Playwright — сценарии S-1…S-10 сквозь клиента и андеррайтера и рабочее место банка, на запущенном стенде: `cd e2e && npm ci && npx playwright install chromium && npm test` ([`e2e/README.md`](e2e/README.md)).
 - **CI** (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`:
   - ruff, import-linter, mypy по модулям `scoring`, `products`, `decision`, `assistant`, `market`, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
-  - интеграционные тесты, тесты моков, сборка фронтенда;
+  - интеграционные тесты, тесты моков, юнит-тесты и сборка фронтенда;
   - подъём всего стенда так, как его запускает жюри: проверка, что оба compose-файла валидны, затем `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника (без профиля `ai` ждёт `mode: rules`).
 
 ## Что вошло, ограничения и что дальше
