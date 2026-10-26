@@ -7311,7 +7311,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_P85dkFhpWD",
         "name": "Аккаунты",
-        "description": "List Accounts\n\nТокен: администратор.",
+        "description": "The total by the same filter is in the `X-Total-Count` header.\n\nТокен: администратор.",
         "method": "GET",
         "url": "${[ base_url ]}/accounts",
         "urlParameters": [
@@ -8338,7 +8338,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_XaejLZxLdI",
         "name": "Мои заявки",
-        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`.\n\nОтсюда `application_id` справочника: самая новая заявка Ромашки.\n\nТокен: директор ООО «Ромашка».",
+        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`. The total by the same filter is in the\n`X-Total-Count` header.\n\nОтсюда `application_id` справочника: самая новая заявка Ромашки.\n\nТокен: директор ООО «Ромашка».",
         "method": "GET",
         "url": "${[ base_url ]}/applications",
         "urlParameters": [
@@ -9964,7 +9964,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_wXQZoZJb93",
         "name": "Мои обращения",
-        "description": "The client's tickets, newest activity first.\n\nТокен: директор ООО «Ромашка».",
+        "description": "The client's tickets, newest activity first. The total by the same filter is in the\n`X-Total-Count` header.\n\nТокен: директор ООО «Ромашка».",
         "method": "GET",
         "url": "${[ base_url ]}/support/tickets",
         "urlParameters": [
@@ -10094,7 +10094,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_wXQZoZJb93",
         "name": "Очередь обращений",
-        "description": "Tickets of all clients, newest activity first.\n\nТокен: андеррайтер банка.",
+        "description": "Tickets of all clients, newest activity first. The total by the same filter is in the\n`X-Total-Count` header.\n\nТокен: андеррайтер банка.",
         "method": "GET",
         "url": "${[ base_url ]}/support/queue",
         "urlParameters": [

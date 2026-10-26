@@ -516,6 +516,7 @@
           "accounts"
         ],
         "summary": "List Accounts",
+        "description": "The total by the same filter is in the `X-Total-Count` header.",
         "operationId": "list_accounts_accounts_get",
         "security": [
           {
@@ -2422,7 +2423,7 @@
           "applications"
         ],
         "summary": "List Applications",
-        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`.",
+        "description": "Newest first. `decided_by=auto` — the decisions the client got from the automatic\npolicy without a person; combines with `status`. The total by the same filter is in the\n`X-Total-Count` header.",
         "operationId": "list_applications_applications_get",
         "security": [
           {
@@ -5376,7 +5377,7 @@
           "support"
         ],
         "summary": "List My Tickets",
-        "description": "The client's tickets, newest activity first.",
+        "description": "The client's tickets, newest activity first. The total by the same filter is in the\n`X-Total-Count` header.",
         "operationId": "list_my_tickets_support_tickets_get",
         "security": [
           {
@@ -5618,7 +5619,7 @@
           "support"
         ],
         "summary": "List Queue",
-        "description": "Tickets of all clients, newest activity first.",
+        "description": "Tickets of all clients, newest activity first. The total by the same filter is in the\n`X-Total-Count` header.",
         "operationId": "list_queue_support_queue_get",
         "security": [
           {

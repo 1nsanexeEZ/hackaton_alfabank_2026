@@ -5,7 +5,7 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_P85dkFhpWD
 name: Аккаунты
 description: |-
-  List Accounts
+  The total by the same filter is in the `X-Total-Count` header.
 
   Токен: администратор.
 method: GET

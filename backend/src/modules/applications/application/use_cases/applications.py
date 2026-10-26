@@ -38,11 +38,13 @@ class ListApplicationsUseCase:
         limit: int,
         offset: int,
         decided_by: DecidedBy | None = None,
-    ) -> list[ApplicationSummaryDTO]:
+    ) -> tuple[list[ApplicationSummaryDTO], int]:
+        """A page and the total."""
         applications = await self._repository.search(
             access, organization_id, statuses, limit, offset, decided_by
         )
-        return [summary_dto(application) for application in applications]
+        total = await self._repository.count(access, organization_id, statuses, decided_by)
+        return [summary_dto(application) for application in applications], total
 
 
 class CheckCompletenessUseCase:

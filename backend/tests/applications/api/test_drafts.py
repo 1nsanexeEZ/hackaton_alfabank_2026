@@ -180,10 +180,11 @@ def test_lists_and_reads_are_limited_to_own_companies(world: World) -> None:
     application = world.create()
     world.clients.add_member(world.petrov, world.vector, "director")
 
-    own = world.client.get("/applications", headers=world.headers(world.director)).json()
-    assert [a["id"] for a in own] == [application["id"]]
-    foreign = world.client.get("/applications", headers=world.headers(world.petrov)).json()
-    assert foreign == []
+    listed = world.client.get("/applications", headers=world.headers(world.director))
+    assert [a["id"] for a in listed.json()] == [application["id"]]
+    assert listed.headers["X-Total-Count"] == "1"
+    foreign = world.client.get("/applications", headers=world.headers(world.petrov))
+    assert foreign.json() == [] and foreign.headers["X-Total-Count"] == "0"
     response = world.client.get(
         f"/applications/{application['id']}", headers=world.headers(world.petrov)
     )

@@ -24,7 +24,7 @@
 | Деньги | В ответах — десятичная строка (`"1500000.50"`), на входе — число или строка, не больше 2 знаков |
 | Ставки | Проценты годовых строкой: `"23.50"` — это 23,5% |
 | Даты | ISO 8601: `date` — `2026-10-22`, `date-time` — с часовым поясом |
-| Списки | `limit` / `offset`. BFF-списки отдают `{items, total}` |
+| Списки | `limit` / `offset`. BFF-списки отдают `{items, total}`; `GET /applications`, `GET /accounts`, `GET /support/tickets` и `GET /support/queue` — массив, а `total` по тому же фильтру — в заголовке `X-Total-Count` |
 | Черновик заявки | Оптимистичная блокировка: `PATCH` несёт `version`; устаревшая версия — 409, `details.code = version_conflict`, актуальная — в `details.version` |
 | Кнопки | В заявке есть `available_actions` (что можно сделать сейчас с учётом прав) и `my_permissions`. Кнопки рисуем по ним, а не по статусу |
 | Живые обновления | SSE: `POST /feed/stream-ticket` → `GET /feed/stream?ticket=…`. Билет нужен, потому что `EventSource` не умеет слать `Authorization`. Догонка — `last_event_id` или заголовок `Last-Event-ID` |

@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.access.access_context import AccessContext
@@ -28,6 +29,24 @@ from src.modules.applications.infrastructure.repositories.mappers import (
 )
 
 _FINAL = [status.value for status in FINAL_STATUSES]
+
+
+def _filtered[S: Select[Any]](
+    stmt: S,
+    access: AccessContext | None,
+    organization_id: UUID | None,
+    statuses: Sequence[str] | None,
+    decided_by: DecidedBy | None,
+) -> S:
+    if access is not None:
+        stmt = apply_access_context(stmt, ApplicationRecord, access)  # type: ignore[assignment]
+    if organization_id is not None:
+        stmt = stmt.where(ApplicationRecord.organization_id == organization_id)
+    if statuses:
+        stmt = stmt.where(ApplicationRecord.status.in_(list(statuses)))
+    if decided_by is not None:
+        stmt = stmt.where(ApplicationRecord.decided_by == decided_by)
+    return stmt
 
 
 class SqlAlchemyApplicationRepository(ApplicationRepository):
@@ -94,18 +113,26 @@ class SqlAlchemyApplicationRepository(ApplicationRepository):
         offset: int,
         decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]:
-        stmt = select(ApplicationRecord)
-        if access is not None:
-            stmt = apply_access_context(stmt, ApplicationRecord, access)
-        if organization_id is not None:
-            stmt = stmt.where(ApplicationRecord.organization_id == organization_id)
-        if statuses:
-            stmt = stmt.where(ApplicationRecord.status.in_(list(statuses)))
-        if decided_by is not None:
-            stmt = stmt.where(ApplicationRecord.decided_by == decided_by)
+        stmt = _filtered(select(ApplicationRecord), access, organization_id, statuses, decided_by)
         stmt = stmt.order_by(ApplicationRecord.updated_at.desc(), ApplicationRecord.id)
         records = (await self._session.scalars(stmt.limit(limit).offset(offset))).all()
         return [to_domain(record) for record in records]
+
+    async def count(
+        self,
+        access: AccessContext | None,
+        organization_id: UUID | None,
+        statuses: Sequence[str] | None,
+        decided_by: DecidedBy | None = None,
+    ) -> int:
+        stmt = _filtered(
+            select(func.count(ApplicationRecord.id)).select_from(ApplicationRecord),
+            access,
+            organization_id,
+            statuses,
+            decided_by,
+        )
+        return int(await self._session.scalar(stmt) or 0)
 
     async def set_client_stage(
         self, application_id: UUID, client_stage: str, now: datetime
