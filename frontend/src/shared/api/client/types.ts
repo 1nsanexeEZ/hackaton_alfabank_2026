@@ -1067,6 +1067,18 @@ export interface SupportTicketInput {
   application_id?: string | null
 }
 
+/** Откуда ставка: введена в админке, из cbr.ru или — если на дату ничего нет — KEY_RATE из настроек */
+export type KeyRateSource = 'admin' | 'cbr' | 'settings'
+
+/** Ключевая ставка Банка России на дату (GET /market/key-rate): от неё считаются ставки каталога */
+export interface KeyRateDto {
+  /** Процент годовых строкой: «14.00» */
+  value: string
+  /** С какой даты действует; null — ставки на дату нет, взята из настроек */
+  effective_from: string | null
+  source: KeyRateSource
+}
+
 export interface ClientApi {
   /** Вход клиента по email или телефону и паролю */
   login(login: string, password: string): Promise<TokenResponse>
@@ -1076,6 +1088,8 @@ export interface ClientApi {
   demoLogin(login: string): Promise<TokenResponse>
   /** Кто вошёл на сайт — по клиентскому токену */
   me(): Promise<MeDto>
+  /** Ключевая ставка на дату (ГГГГ-ММ-ДД), по умолчанию — на сегодня; без входа */
+  keyRate(on?: string): Promise<KeyRateDto>
   /** Активные продукты в порядке каталога, без входа */
   /** Продукты в продаже; purpose — только подходящие под цель кредита */
   listProducts(purpose?: LoanPurpose): Promise<ProductDto[]>

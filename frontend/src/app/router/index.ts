@@ -129,6 +129,12 @@ export const router = createRouter({
           meta: { title: 'Модель и политика', permission: 'scoring.read' },
         },
         {
+          path: 'key-rate',
+          name: ADMIN_ROUTE.keyRate,
+          component: () => import('@/pages/admin-key-rate').then((module) => module.AdminKeyRatePage),
+          meta: { title: 'Ключевая ставка', permission: 'scoring.read' },
+        },
+        {
           path: 'versions/:kind(model|policy)/:version',
           name: ADMIN_ROUTE.version,
           props: true,

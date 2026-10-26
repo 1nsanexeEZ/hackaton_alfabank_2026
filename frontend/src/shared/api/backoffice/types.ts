@@ -7,6 +7,8 @@ import type {
   ClientStatus,
   ConsentsDto,
   FounderPrescreenDto,
+  KeyRateDto,
+  KeyRateSource,
   OrganizationDetailDto,
   OrganizationSummaryDto,
   PreApprovedOfferDto,
@@ -725,6 +727,35 @@ export interface OverviewApplicationDto {
   updated_at: string
 }
 
+/** Ключевая ставка в истории: с даты начала действия, кто ввёл и можно ли ещё удалить */
+export interface KeyRateRecordDto {
+  value: string
+  effective_from: string
+  /** Дата решения совета директоров — не позже effective_from */
+  decided_on: string | null
+  source: KeyRateSource
+  note: string | null
+  created_at: string | null
+  /** Действует сегодня */
+  in_force: boolean
+  /** Ещё не действовала (или действует с сегодня) — можно удалить */
+  removable: boolean
+}
+
+/** GET /market/key-rates: история, новые сверху, и ставка на сегодня */
+export interface KeyRateHistoryDto {
+  current: KeyRateDto
+  items: KeyRateRecordDto[]
+}
+
+/** POST /market/key-rates: ставка с даты; на эту дату уже есть — 409 conflict */
+export interface KeyRateInput {
+  value: string
+  effective_from: string
+  decided_on?: string | null
+  note?: string | null
+}
+
 /** Порядок очереди: срок по SLA, сумма, балл скоринга, создана */
 export type QueueSort = 'due_at' | 'amount' | 'score' | 'created_at'
 
@@ -741,6 +772,11 @@ export interface BackofficeApi {
   scoringOverview(limit?: number): Promise<ScoringOverviewDto>
   /** Сводка по всем заявкам для панели обзора; latest — сколько последних заявок, до 50 */
   applicationsOverview(latest?: number): Promise<ApplicationsOverviewDto>
+  /** Ключевая ставка: история и ведение (scoring.read / scoring.update) */
+  keyRates(): Promise<KeyRateHistoryDto>
+  addKeyRate(input: KeyRateInput): Promise<KeyRateRecordDto>
+  /** Только ещё не действовавшую; действовавшая — история, 409 invalid_transition */
+  removeKeyRate(effectiveFrom: string): Promise<void>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
   /** PDF договора — банк видит договоры всех заявок; kind не задан — последний готовый */
   contractDocument(applicationId: string, kind?: 'draft' | 'signed'): Promise<DownloadedFile>
