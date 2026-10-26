@@ -22,6 +22,7 @@ from src.modules.products.api.dependencies import (
 )
 from src.modules.products.api.schemas import (
     CalculateBody,
+    CatalogProductRead,
     EligibilityRead,
     NeedBody,
     PaymentScheduleRead,
@@ -51,11 +52,16 @@ async def list_products(
     return [ProductRead.of(p) for p in await service.list_active(purpose)]
 
 
-@router.get("/all", response_model=list[ProductRead], dependencies=CanUpdate)
-async def list_all_products(catalog: ProductCatalogDep) -> list[ProductRead]:
+@router.get("/all", response_model=list[CatalogProductRead], dependencies=CanUpdate)
+async def list_all_products(
+    catalog: ProductCatalogDep, service: ProductServiceDep
+) -> list[CatalogProductRead]:
     """For keeping the catalog: every product in its latest version, drafts and archived
-    ones too, in catalog order."""
-    return [ProductRead.of(p) for p in await catalog.list_all()]
+    ones too, in catalog order. The rates are the stored ones, set at the catalog key rate
+    (they are what PUT takes); `market_rate` — the same moved to the key rate in force, as
+    clients see them now."""
+    shift = await service.key_rate_shift()
+    return [CatalogProductRead.at(p, shift) for p in await catalog.list_all()]
 
 
 @router.post(

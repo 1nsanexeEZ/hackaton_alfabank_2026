@@ -177,7 +177,15 @@ def test_catalog_rates_follow_the_rate_in_force(world: World) -> None:
         "/products/all", headers=bearer(token_for(world.api.app, [Permissions.CREDITS_UPDATE]))
     )
     assert stored.status_code == 200, stored.text
-    assert Decimal(stored.json()[0]["rate_base"]) == Decimal("23.5")
+    first = stored.json()[0]
+    assert Decimal(first["rate_base"]) == Decimal("23.5")
+    # ...and next to them the rates clients see today.
+    market = first["market_rate"]
+    assert Decimal(market["key_rate"]) == Decimal("14")
+    assert Decimal(market["catalog_key_rate"]) == Decimal("16.5")
+    assert Decimal(market["rate_base"]) == Decimal("21.0")
+    assert Decimal(market["rate_max"]) == Decimal(first["rate_max"]) - Decimal("2.5")
+    assert "market_rate" not in world.api.get("/products/UNSECURED").json()
 
 
 # --- KeyRateChanged ------------------------------------------------------------------

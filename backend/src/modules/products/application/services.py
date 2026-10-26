@@ -1,5 +1,6 @@
 """Use cases of products: catalog, terms snapshot, eligibility, matching, calculator."""
 
+from dataclasses import dataclass
 from decimal import Decimal
 
 from src.core.domain import Money
@@ -14,6 +15,18 @@ from src.modules.products.domain.value_objects import (
     LoanNeed,
     ProductTerms,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class KeyRateShift:
+    """The key rate in force and the one the catalog rates are set at."""
+
+    key_rate: Decimal
+    catalog_key_rate: Decimal
+
+    @property
+    def points(self) -> Decimal:
+        return self.key_rate - self.catalog_key_rate
 
 
 class ProductService:
@@ -100,11 +113,16 @@ class ProductService:
     ) -> PaymentSchedule:
         return self._calculator.schedule(amount, term_months, rate, repayment)
 
+    async def key_rate_shift(self) -> KeyRateShift | None:
+        """None without `key_rates`: nothing moves."""
+        if self._key_rates is None:
+            return None
+        return KeyRateShift(await self._key_rates.current(), self._catalog_key_rate)
+
     async def _shift(self) -> Decimal:
         """How far the catalog rates move: the key rate now minus the one they are set at."""
-        if self._key_rates is None:
-            return Decimal(0)
-        return await self._key_rates.current() - self._catalog_key_rate
+        shift = await self.key_rate_shift()
+        return shift.points if shift is not None else Decimal(0)
 
 
 def _out_of_range(field: str, low: Decimal | int, high: Decimal | int) -> ValidationError:

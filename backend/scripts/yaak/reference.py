@@ -98,6 +98,7 @@ NAMES: dict[str, str] = {
     "PATCH /organizations/{organization_id}/members/{account_id}": "Сменить роль участника",
     "DELETE /organizations/{organization_id}/members/{account_id}": "Убрать участника",
     "POST /organizations/{organization_id}/members/{account_id}/poa": "Выдать доверенность",
+    "DELETE /organizations/{organization_id}/members/{account_id}/poa": "Отозвать доверенность",
     "GET /organizations/{organization_id}/financial-reports": "Финансовая отчётность",
     "POST /organizations/{organization_id}/financial-reports": "Подать отчётность",
     "GET /organizations/{organization_id}/business-plan": "Бизнес-план стартапа",

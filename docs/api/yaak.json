@@ -7686,7 +7686,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_IzRxHh5qB6",
         "name": "Все продукты с черновиками и архивом",
-        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order.\n\nТокен: администратор.",
+        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order. The rates are the stored ones, set at the catalog key rate\n(they are what PUT takes); `market_rate` — the same moved to the key rate in force, as\nclients see them now.\n\nТокен: администратор.",
         "method": "GET",
         "url": "${[ base_url ]}/products/all",
         "urlParameters": [],
@@ -8139,7 +8139,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_4r4NbfqXel",
         "name": "Выдать доверенность",
-        "description": "Issued by the head confirmed by the registry; replaces the previous one.\n\nТокен: директор ООО «Ромашка».",
+        "description": "Issued by the head confirmed by the registry. The number: letters and digits separated\nby spaces, dots, slashes or hyphens, with a digit, up to 32 characters, \"№\" is dropped —\notherwise 422 `invalid_format`; another member's number — 409 `number_taken`. One at a\ntime: a current or not yet started one — 409 `power_of_attorney_exists` (revoke it first),\nan expired one is replaced.\n\nТокен: директор ООО «Ромашка».",
         "method": "POST",
         "url": "${[ base_url ]}/organizations/:organization_id/members/:account_id/poa",
         "urlParameters": [
@@ -9340,7 +9340,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_gUp5OBYSWR",
         "name": "Предодобренные предложения",
-        "description": "Valid offers, the largest first; an empty list when nothing is pre-approved.\n\nТокен: директор ООО «Ромашка».",
+        "description": "Valid offers, the largest first; an empty list when nothing is pre-approved — and for a\nmember who may not apply (no `submit_application`: the power of attorney is revoked or\nexpired).\n\nТокен: директор ООО «Ромашка».",
         "method": "GET",
         "url": "${[ base_url ]}/organizations/:organization_id/pre-approved-offers",
         "urlParameters": [
@@ -11018,6 +11018,39 @@
         "bodyType": null,
         "body": {},
         "sortPriority": 16000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_romashka ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
+        "id": "rq_frOHKP7eOl",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_4r4NbfqXel",
+        "name": "Отозвать доверенность",
+        "description": "Revoked by the head confirmed by the registry: the rights it gave (submitting\napplications, signing, the pre-approved offers) end at once. The member without one —\n404 `power_of_attorney_not_found`.\n\nТокен: директор ООО «Ромашка».",
+        "method": "DELETE",
+        "url": "${[ base_url ]}/organizations/:organization_id/members/:account_id/poa",
+        "urlParameters": [
+          {
+            "enabled": true,
+            "name": ":organization_id",
+            "value": "${[ organization_id ]}"
+          },
+          {
+            "enabled": true,
+            "name": ":account_id",
+            "value": "${[ member_account_id ]}"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 17000.0,
         "authenticationType": "bearer",
         "authentication": {
           "token": "${[ token_romashka ]}",

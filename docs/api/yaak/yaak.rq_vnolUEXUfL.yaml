@@ -5,7 +5,9 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_gUp5OBYSWR
 name: Предодобренные предложения
 description: |-
-  Valid offers, the largest first; an empty list when nothing is pre-approved.
+  Valid offers, the largest first; an empty list when nothing is pre-approved — and for a
+  member who may not apply (no `submit_application`: the power of attorney is revoked or
+  expired).
 
   Токен: директор ООО «Ромашка».
 method: GET

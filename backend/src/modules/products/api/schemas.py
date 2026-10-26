@@ -7,6 +7,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from src.core.domain import Money
 from src.modules.products.application import mappers
+from src.modules.products.application.services import KeyRateShift
 from src.modules.products.domain.calculator import PaymentSchedule
 from src.modules.products.domain.product import CreditProduct
 from src.modules.products.domain.product import ProductStatus as Status
@@ -72,6 +73,30 @@ class SupportProgramRead(_Read):
     okved_whitelist: list[str]
 
 
+class MarketRateRead(_Read):
+    """The stored rates as clients see them today: moved by the key rate in force minus the
+    one the catalog is set at."""
+
+    key_rate: Decimal
+    catalog_key_rate: Decimal
+    rate_base: Decimal
+    rate_max: Decimal
+    # The support program cap, moved the same way; null — no program.
+    support_rate_cap: Decimal | None
+
+    @classmethod
+    def of(cls, product: CreditProduct, shift: KeyRateShift) -> "MarketRateRead":
+        moved = product.at_key_rate(shift.points)
+        program = moved.support_program
+        return cls(
+            key_rate=shift.key_rate,
+            catalog_key_rate=shift.catalog_key_rate,
+            rate_base=moved.rate.base,
+            rate_max=moved.rate.max,
+            support_rate_cap=program.rate_cap if program is not None else None,
+        )
+
+
 class ProductRead(_Read):
     code: str
     frontend_id: str
@@ -113,6 +138,18 @@ class ProductRead(_Read):
     @classmethod
     def of(cls, product: CreditProduct) -> "ProductRead":
         return cls.model_validate(mappers.product_dto(product))
+
+
+class CatalogProductRead(ProductRead):
+    """`/products/all`: the stored rates (at the catalog key rate, what PUT takes) and the
+    rates clients see today; null — the market module is off, nothing moves."""
+
+    market_rate: MarketRateRead | None
+
+    @classmethod
+    def at(cls, product: CreditProduct, shift: KeyRateShift | None) -> "CatalogProductRead":
+        market = MarketRateRead.of(product, shift) if shift is not None else None
+        return cls.model_validate(ProductRead.of(product).model_dump() | {"market_rate": market})
 
 
 class RequiredDocumentBody(BaseModel):
