@@ -429,6 +429,7 @@ uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check 
   - ruff, import-linter, mypy по модулям `scoring`, `products`, `decision`, `assistant`, `market`, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
   - интеграционные тесты, тесты моков, юнит-тесты и сборка фронтенда;
+  - аудит зависимостей backend, моков и фронта на известные уязвимости (`pip-audit`, `npm audit`);
   - подъём всего стенда так, как его запускает жюри: проверка, что оба compose-файла валидны, затем `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника (без профиля `ai` ждёт `mode: rules`).
 
 ## Что вошло, ограничения и что дальше
