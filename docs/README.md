@@ -29,7 +29,7 @@
 | [architecture/architecture.drawio](architecture/architecture.drawio) | схема draw.io — единая точка правды по архитектуре: модули, Kafka, путь заявки от подачи до предложения |
 | [platform.md](platform.md) | как устроен модуль и фасады, Kafka с outbox/inbox/DLQ, доступ, ядро, тесты, миграции и сиды, CI |
 | [scoring-architecture.md](scoring-architecture.md) | **скоринг и кредитное решение сквозь модули**: обогащение → стоп-факторы → две модели → политика → исход; предодобрение, стартап, версии, аудит |
-| [process/bpmn.md](process/bpmn.md) | процесс одобрения в BPMN, пять маршрутов, шаги и таймауты, сравнение со схемой «как сейчас», нормы |
+| [process/bpmn.md](process/bpmn.md) | процесс одобрения в BPMN — та же схема, что в architecture.drawio: путь клиента, пять маршрутов, шаги и таймауты, стоп-факторы, модели и стратегия решения, нормы |
 | [state-machine.md](state-machine.md) | статусы заявки и переходы |
 | [data-model.md](data-model.md) | модель данных по модулям (ER) |
 | [sla.md](sla.md) | SLA, отказоустойчивость, деградация |

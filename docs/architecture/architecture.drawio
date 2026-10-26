@@ -1448,7 +1448,7 @@
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-225" parent="prPs5f1BAs8E5Q0yjU3Z-218" style="swimlane;whiteSpace=wrap;html=1;startSize=30;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="Модели оценки риска (scoring): PD-модель pd_model_v2 + ML-модель ml_logreg_v1" vertex="1">
           <mxGeometry height="560" width="2636" x="174" y="60" as="geometry" />
         </mxCell>
-        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-226" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="CalculateScore&lt;br&gt;(нет снимка обогащения — ScoringFailed)" vertex="1">
+        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-226" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="Вызов модели&lt;br&gt;(заявка — CalculateScore; предодобрение — события clients и ночной пакет)" vertex="1">
           <mxGeometry height="36" width="36" x="32" y="282" as="geometry" />
         </mxCell>
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-227" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Определить сегмент&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;ЮЛ / ИП / новый клиент&lt;/font&gt;" vertex="1">
@@ -1460,7 +1460,7 @@
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-229" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Скоркарта ЮЛ&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;обороты в банке ≥ 6 мес.&lt;/font&gt;" vertex="1">
           <mxGeometry height="70" width="150" x="495" y="125" as="geometry" />
         </mxCell>
-        <mxCell id="z7dRUYlRLlDY_hOJLyeX-229" edge="1" parent="prPs5f1BAs8E5Q0yjU3Z-225" source="prPs5f1BAs8E5Q0yjU3Z-230" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;defaultLabelBackgroundColor=gap;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" target="prPs5f1BAs8E5Q0yjU3Z-228" value="">
+        <mxCell id="z7dRUYlRLlDY_hOJLyeX-229" edge="1" parent="prPs5f1BAs8E5Q0yjU3Z-225" source="prPs5f1BAs8E5Q0yjU3Z-228" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;defaultLabelBackgroundColor=gap;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" target="prPs5f1BAs8E5Q0yjU3Z-230" value="ИП">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-230" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Скоркарта ИП&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;обороты в банке ≥ 6 мес.&lt;/font&gt;" vertex="1">
@@ -1478,7 +1478,7 @@
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-234" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="Данные полные? (quality_v1)" vertex="1">
           <mxGeometry height="100" width="120" x="1040" y="250" as="geometry" />
         </mxCell>
-        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-235" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;quality = degraded&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;не ответили ФНС или БКИ, полнота &amp;lt; 0,7 — модели всё равно считаются&lt;/font&gt;" vertex="1">
+        <mxCell id="prPs5f1BAs8E5Q0yjU3Z-235" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;quality = degraded&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;не ответили ФНС или БКИ, полнота ниже 0,7 — модели всё равно считаются&lt;/font&gt;" vertex="1">
           <mxGeometry height="70" width="150" x="1025" y="435" as="geometry" />
         </mxCell>
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-237" parent="prPs5f1BAs8E5Q0yjU3Z-225" style="rounded=0;whiteSpace=wrap;html=1;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;b&gt;Пропуски и выбросы&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;бин «нет данных», винзоризация&lt;/font&gt;" vertex="1">
@@ -1542,7 +1542,7 @@
         <mxCell id="prPs5f1BAs8E5Q0yjU3Z-251" edge="1" parent="prPs5f1BAs8E5Q0yjU3Z-225" source="prPs5f1BAs8E5Q0yjU3Z-228" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;defaultLabelBackgroundColor=gap;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" target="prPs5f1BAs8E5Q0yjU3Z-231" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="z7dRUYlRLlDY_hOJLyeX-230" connectable="0" parent="prPs5f1BAs8E5Q0yjU3Z-251" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];defaultLabelBackgroundColor=gap;movable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="t" vertex="1">
+        <mxCell id="z7dRUYlRLlDY_hOJLyeX-230" connectable="0" parent="prPs5f1BAs8E5Q0yjU3Z-251" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];defaultLabelBackgroundColor=gap;movable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="новый клиент" vertex="1">
           <mxGeometry relative="1" x="-0.0383" y="-2" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
