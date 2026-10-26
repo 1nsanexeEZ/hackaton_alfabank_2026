@@ -74,6 +74,22 @@ class SqlAlchemyDecisionRepository:
     async def latest_for_application(self, application_id: UUID) -> DecisionResult | None:
         return await self._latest(application_id)
 
+    async def latest_for_applications(
+        self, application_ids: Sequence[UUID]
+    ) -> dict[UUID, DecisionResult]:
+        if not application_ids:
+            return {}
+        stmt = (
+            select(DecisionResultRecord)
+            .where(DecisionResultRecord.application_id.in_(list(application_ids)))
+            .order_by(DecisionResultRecord.sequence.desc())
+        )
+        latest: dict[UUID, DecisionResult] = {}
+        for record in await self._session.scalars(stmt):
+            if record.application_id not in latest:
+                latest[record.application_id] = _to_domain(record)
+        return latest
+
     async def latest_automatic(self, application_id: UUID) -> DecisionResult | None:
         return await self._latest(application_id, decided_by_type="auto")
 

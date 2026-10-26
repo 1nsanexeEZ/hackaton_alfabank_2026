@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
 
@@ -83,6 +84,9 @@ class FakeScoringFacade:
 
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None:
         return self.results.get(application_id)
+
+    async def get_results(self, application_ids: Sequence[UUID]) -> dict[UUID, ScoringResultDTO]:
+        return {i: self.results[i] for i in application_ids if i in self.results}
 
     async def estimate(
         self, company: CompanyProfileDTO, amount: Decimal | None = None

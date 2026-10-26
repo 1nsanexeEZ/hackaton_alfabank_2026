@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, Query
 
 from src.core.access.dependencies import require_permissions
 from src.core.access.permissions import Permissions
+from src.modules.bff.application.dto.scoring_overview import ScoringOverviewDTO
 from src.modules.bff.presentation.dependencies import (
     BackofficeMetricsDep,
     CanReadBackoffice,
+    ScoringOverviewDep,
     UnderwriterCardDep,
     UnderwritingQueueDep,
 )
@@ -67,3 +69,21 @@ async def metrics(
 ) -> BackofficeMetricsDTO:
     """By days and products; the last 30 days by default."""
     return await use_case.execute(date_from, date_to)
+
+
+@router.get(
+    "/scoring-overview",
+    response_model=ScoringOverviewDTO,
+    dependencies=[Depends(require_permissions(Permissions.SCORING_READ))],
+)
+async def scoring_overview(
+    _: CanReadBackoffice,
+    use_case: ScoringOverviewDep,
+    limit: Annotated[int, Query(ge=1, le=200, description="How many latest applications")] = 50,
+) -> ScoringOverviewDTO:
+    """Scoring over the submitted applications in one call: counts over the latest 1000 of
+    them (`considered`) — scored, stopped before the models, models agree by zone, incomplete
+    data, sent to an underwriter, decided automatically; grades of both models, the zone
+    matrix, model and policy versions; and the latest `limit` applications with both grades
+    and the decision."""
+    return await use_case.execute(limit)

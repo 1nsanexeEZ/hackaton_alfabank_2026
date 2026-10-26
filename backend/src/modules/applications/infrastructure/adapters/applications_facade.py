@@ -16,6 +16,7 @@ from src.modules.applications.application.use_cases.cards import (
     GetScoringInputUseCase,
     ListDocumentsUseCase,
     ListForOrganizationUseCase,
+    ListSubmittedUseCase,
     ReadDocumentUseCase,
 )
 from src.modules.applications.facade import ApplicationsFacade
@@ -30,6 +31,7 @@ class ApplicationsFacadeImpl(ApplicationsFacade):
         list_for_organization: ListForOrganizationUseCase,
         list_documents: ListDocumentsUseCase,
         read_document: ReadDocumentUseCase,
+        list_submitted: ListSubmittedUseCase,
     ) -> None:
         self._get_card = get_card
         self._get_completeness = get_completeness
@@ -37,6 +39,7 @@ class ApplicationsFacadeImpl(ApplicationsFacade):
         self._list_for_organization = list_for_organization
         self._list_documents = list_documents
         self._read_document = read_document
+        self._list_submitted = list_submitted
 
     async def get_card(self, application_id: UUID) -> ApplicationCardDTO:
         return await self._get_card.execute(application_id)
@@ -51,6 +54,9 @@ class ApplicationsFacadeImpl(ApplicationsFacade):
         self, organization_id: UUID, active_only: bool = False
     ) -> list[ApplicationSummaryDTO]:
         return await self._list_for_organization.execute(organization_id, active_only)
+
+    async def list_submitted(self, limit: int) -> list[ApplicationSummaryDTO]:
+        return await self._list_submitted.execute(limit)
 
     async def list_documents(
         self, application_id: UUID, document_type: str | None = None

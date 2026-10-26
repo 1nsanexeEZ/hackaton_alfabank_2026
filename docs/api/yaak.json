@@ -10601,6 +10601,34 @@
       },
       {
         "model": "http_request",
+        "id": "rq_BlSZKS3Dhb",
+        "workspaceId": "wk_6MYZUPM7tf",
+        "folderId": "fl_AyvWxbeHqI",
+        "name": "Сводка скоринга для админки",
+        "description": "Scoring over the submitted applications in one call: counts over the latest 1000 of\nthem (`considered`) — scored, stopped before the models, models agree by zone, incomplete\ndata, sent to an underwriter, decided automatically; grades of both models, the zone\nmatrix, model and policy versions; and the latest `limit` applications with both grades\nand the decision.\n\nТокен: андеррайтер банка.",
+        "method": "GET",
+        "url": "${[ base_url ]}/bff/backoffice/scoring-overview",
+        "urlParameters": [
+          {
+            "enabled": false,
+            "name": "limit",
+            "value": "20"
+          }
+        ],
+        "headers": [],
+        "bodyType": null,
+        "body": {},
+        "sortPriority": 4000.0,
+        "authenticationType": "bearer",
+        "authentication": {
+          "token": "${[ token_underwriter ]}",
+          "prefix": "Bearer"
+        },
+        "createdAt": "2026-10-24T00:00:00",
+        "updatedAt": "2026-10-24T00:00:00"
+      },
+      {
+        "model": "http_request",
         "id": "rq_7XCEmqhNfc",
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_i55ggaV5Pj",

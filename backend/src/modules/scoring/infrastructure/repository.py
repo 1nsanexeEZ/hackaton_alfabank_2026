@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
@@ -57,6 +58,22 @@ class SqlAlchemyScoringRepository:
         )
         record = (await self._session.scalars(stmt)).first()
         return _to_domain(record) if record is not None else None
+
+    async def latest_for_applications(
+        self, application_ids: Sequence[UUID]
+    ) -> dict[UUID, ScoringResult]:
+        if not application_ids:
+            return {}
+        stmt = (
+            select(ScoringResultRecord)
+            .where(ScoringResultRecord.application_id.in_(list(application_ids)))
+            .order_by(ScoringResultRecord.computed_at.desc(), ScoringResultRecord.id)
+        )
+        latest: dict[UUID, ScoringResult] = {}
+        for record in await self._session.scalars(stmt):
+            if record.application_id not in latest:
+                latest[record.application_id] = _to_domain(record)
+        return latest
 
     async def recent_pd_inputs(self, limit: int) -> list[tuple[ScoringResult, dict[str, Any]]]:
         """Последний результат PD-модели по каждой из `limit` самых свежих заявок со снимком

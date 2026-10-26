@@ -1,0 +1,30 @@
+type: http_request
+model: http_request
+id: rq_BlSZKS3Dhb
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_AyvWxbeHqI
+name: Сводка скоринга для админки
+description: |-
+  Scoring over the submitted applications in one call: counts over the latest 1000 of
+  them (`considered`) — scored, stopped before the models, models agree by zone, incomplete
+  data, sent to an underwriter, decided automatically; grades of both models, the zone
+  matrix, model and policy versions; and the latest `limit` applications with both grades
+  and the decision.
+
+  Токен: андеррайтер банка.
+method: GET
+url: ${[ base_url ]}/bff/backoffice/scoring-overview
+urlParameters:
+- enabled: false
+  name: limit
+  value: '20'
+headers: []
+bodyType: null
+body: {}
+sortPriority: 4000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_underwriter ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

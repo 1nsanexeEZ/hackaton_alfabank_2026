@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,6 +46,10 @@ class DecisionFacadeImpl:
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         result = await self._decisions.latest_for_application(application_id)
         return decision_dto(result) if result is not None else None
+
+    async def get_decisions(self, application_ids: Sequence[UUID]) -> dict[UUID, DecisionDTO]:
+        results = await self._decisions.latest_for_applications(application_ids)
+        return {application_id: decision_dto(r) for application_id, r in results.items()}
 
     async def get_client_view(self, application_id: UUID) -> ClientDecisionDTO | None:
         result = await self._decisions.latest_for_application(application_id)

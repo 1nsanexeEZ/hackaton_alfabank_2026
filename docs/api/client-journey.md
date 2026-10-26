@@ -380,6 +380,7 @@ Dashboard {
 | `GET /tasks?role=&status=`, `GET /tasks/{id}` | задачи; деталь — вместе с процессом |
 | `GET /processes/{application_id}`, `GET /workflows`, `GET /workflows/{code}/diagram` | процесс заявки и BPMN-схема для подсветки текущего шага |
 | `GET /bff/backoffice/metrics?date_from=&date_to=` | метрики по дням и продуктам |
+| `GET /bff/backoffice/scoring-overview?limit=50` | сводка скоринга для админки одним запросом (`scoring.read`): по последним до 1000 поданным заявкам — `considered`, `scored`, `stopped_before_models`, `with_ml`, `models_agree`, `degraded`, `manual_review`, `decided`, `decided_auto`; `by_grade[{grade, pd, ml}]`, `zones[{pd_zone, ml_zone, count}]` (зоны A–D / E–G / H–J), `versions[{kind: pd|ml|policy, version, count}]`; `items[]` — последние `limit` заявок с грейдами обеих моделей, качеством данных и решением |
 
 ---
 

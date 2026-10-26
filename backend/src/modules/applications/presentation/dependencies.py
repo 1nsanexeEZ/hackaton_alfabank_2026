@@ -39,6 +39,7 @@ from src.modules.applications.application.use_cases.cards import (
     GetScoringInputUseCase,
     ListDocumentsUseCase,
     ListForOrganizationUseCase,
+    ListSubmittedUseCase,
     ReadDocumentUseCase,
 )
 from src.modules.applications.application.use_cases.commands import (
@@ -110,6 +111,7 @@ def applications_facade(
         ListForOrganizationUseCase(repository),
         ListDocumentsUseCase(repository),
         ReadDocumentUseCase(repository, storage),
+        ListSubmittedUseCase(repository),
     )
 
 
