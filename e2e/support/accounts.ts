@@ -21,5 +21,12 @@ export const ZAKAT_OWNER: DemoAccount = {
   shortName: 'Олег Закатов',
 }
 
+/** Андеррайтер стенда: решает заявки, которые клиент сам закрыть не может (подготовка стенда, support/api.ts) */
+export const UNDERWRITER: DemoAccount = {
+  login: 'underwriter@bank.test',
+  caption: 'Андеррайтер',
+  shortName: 'Андрей Андеррайтеров',
+}
+
 /** Пароль всех демо-учёток (DEMO_PASSWORD в .env стенда): нужен для входа по паролю и подписи договора */
 export const DEMO_PASSWORD = process.env.E2E_DEMO_PASSWORD ?? 'Demo-2026!'

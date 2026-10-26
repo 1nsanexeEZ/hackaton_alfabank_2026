@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
 
-import { DEMO_PASSWORD, type DemoAccount } from './accounts'
+import { DEMO_PASSWORD, UNDERWRITER, type DemoAccount } from './accounts'
 
 /**
  * Подготовка стенда через API — то же, что клиент сделал бы в кабинете руками.
@@ -23,13 +23,79 @@ const CANCELLABLE = new Set(['draft', 'submitted', 'info_requested', 'offer_read
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const bearer = (body: unknown): Headers => ({ Authorization: `Bearer ${(body as { access_token: string }).access_token}` })
+
 async function login(request: APIRequestContext, account: DemoAccount): Promise<Headers> {
   const response = await request.post('/api/auth/login', { data: { login: account.login, password: DEMO_PASSWORD } })
   if (!response.ok()) {
     throw new Error(`Вход ${account.login} через API: ${response.status()} ${await response.text()}`)
   }
-  const { access_token: token } = (await response.json()) as { access_token: string }
-  return { Authorization: `Bearer ${token}` }
+  return bearer(await response.json())
+}
+
+async function accountId(request: APIRequestContext, headers: Headers): Promise<string | null> {
+  const response = await request.get('/api/me', { headers })
+  return response.ok() ? ((await response.json()) as { id: string }).id : null
+}
+
+/**
+ * Сотрудники, которые могут решить задачу, по id учётки: демо-учётки стенда (андеррайтер, затем админ) —
+ * так решится и задача, которую кто-то из них уже взял. Демо-вход выключен — андеррайтер по паролю.
+ */
+async function staffSessions(request: APIRequestContext): Promise<Map<string, Headers>> {
+  const sessions = new Map<string, Headers>()
+  const listed = await request.get('/api/auth/demo-accounts')
+  const staff = listed.ok() ? ((await listed.json()) as { login: string; role: string }[]).filter((item) => item.role !== 'client') : []
+  for (const account of staff) {
+    const response = await request.post('/api/auth/demo-login', { data: { login: account.login } })
+    if (!response.ok()) continue
+    const headers = bearer(await response.json())
+    const id = await accountId(request, headers)
+    if (id) sessions.set(id, headers)
+  }
+  if (!sessions.size) {
+    const headers = await login(request, UNDERWRITER)
+    const id = await accountId(request, headers)
+    if (id) sessions.set(id, headers)
+  }
+  return sessions
+}
+
+interface QueueItem {
+  task_id: string
+  application_id: string
+  assignee_id: string | null
+}
+
+/** Задача по заявке в очереди андеррайтера: status=open — и свободные, и уже взятые */
+async function openTask(request: APIRequestContext, headers: Headers, applicationId: string): Promise<QueueItem | undefined> {
+  const LIMIT = 100
+  for (let offset = 0; ; offset += LIMIT) {
+    const response = await request.get(`/api/bff/backoffice/queue?status=open&limit=${LIMIT}&offset=${offset}`, { headers })
+    if (!response.ok()) return undefined
+    const page = (await response.json()) as { items: QueueItem[]; total: number }
+    const found = page.items.find((item) => item.application_id === applicationId)
+    if (found || offset + LIMIT >= page.total) return found
+  }
+}
+
+/**
+ * Заявку на ручной проверке клиент закрыть не может — её решает андеррайтер, как в рабочем месте /admin:
+ * берёт задачу и отказывает с комментарием. Взятую задачу решает тот, кто её взял, если это демо-учётка.
+ * Задачи ещё нет (конвейер не дошёл) или её взял кто-то другой — ничего не делаем, следующий круг посмотрит снова.
+ */
+async function rejectByUnderwriter(request: APIRequestContext, sessions: Map<string, Headers>, applicationId: string): Promise<void> {
+  const [first] = sessions.values()
+  if (!first) return
+  const task = await openTask(request, first, applicationId)
+  if (!task) return
+  const headers = task.assignee_id ? sessions.get(task.assignee_id) : first
+  if (!headers) return
+  if (!task.assignee_id) await request.post(`/api/tasks/${task.task_id}/claim`, { headers })
+  await request.post(`/api/tasks/${task.task_id}/complete`, {
+    headers,
+    data: { decision: 'reject', comment: 'Закрыта перед e2e-тестом' },
+  })
 }
 
 async function activeApplications(request: APIRequestContext, headers: Headers, productCode: string) {
@@ -65,8 +131,9 @@ async function sign(request: APIRequestContext, headers: Headers, id: string): P
 
 /**
  * У компании одна активная заявка на продукт: прошлый прогон или проверка руками могли её оставить,
- * и мастер не даст подать новую. Закрываем, как закрыл бы клиент: отменяем, а начатое подписание
- * доводим до выдачи. Пока банк решает (in_review) или выдаёт (signed) — ждём.
+ * и мастер не даст подать новую. Закрываем, как закрыли бы клиент и банк: черновик и ждущее клиента
+ * отменяем, начатое подписание доводим до выдачи, заявку на ручной проверке решает андеррайтер (отказ).
+ * Пока конвейер решает сам или банк выдаёт (signed) — ждём.
  */
 export async function closeActiveApplications(
   request: APIRequestContext,
@@ -75,6 +142,7 @@ export async function closeActiveApplications(
   timeoutMs = 90_000,
 ): Promise<void> {
   const headers = await login(request, account)
+  let staff: Map<string, Headers> | undefined
   const deadline = Date.now() + timeoutMs
   for (;;) {
     const active = await activeApplications(request, headers, productCode)
@@ -83,7 +151,7 @@ export async function closeActiveApplications(
       const list = active.map((item) => `№ ${item.number} (${item.status})`).join(', ')
       throw new Error(
         `У ${account.login} остались активные заявки по ${productCode}: ${list}. ` +
-          'Скорее всего, заявка ждёт андеррайтера — решите её в рабочем месте /admin и запустите тесты снова.',
+          'Задачу по ней, видимо, взял сотрудник не из демо-учёток — решите её в рабочем месте /admin и запустите тесты снова.',
       )
     }
     for (const item of active) {
@@ -92,6 +160,9 @@ export async function closeActiveApplications(
         await request.post(`/api/applications/${item.id}/cancel`, { headers, data: { reason: 'Закрыта перед e2e-тестом' } })
       } else if (item.status === 'signing') {
         await sign(request, headers, item.id)
+      } else if (item.status === 'in_review') {
+        staff ??= await staffSessions(request)
+        await rejectByUnderwriter(request, staff, item.id)
       }
     }
     await sleep(2_000)
