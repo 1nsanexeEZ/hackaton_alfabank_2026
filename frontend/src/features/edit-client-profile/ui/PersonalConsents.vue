@@ -36,7 +36,7 @@ async function revoke(type: ConsentType) {
 const latest = (type: ConsentType) => state.items?.find((item) => item.type === type) ?? null
 
 function lapse(item: ConsentDto | null): string {
-  if (!item) return 'Не давали'
+  if (!item) return 'Не дано'
   if (item.revoked_at) return `Отозвано ${formatDate(item.revoked_at)}`
   return item.valid_until ? `Истекло ${formatDate(item.valid_until)}` : 'Не действует'
 }
