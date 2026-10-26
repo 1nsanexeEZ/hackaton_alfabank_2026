@@ -279,19 +279,34 @@ function onFocusOut(event: FocusEvent) {
 <style scoped>
 /* Стрелки: от них расходится кольцо, при наведении — увеличение с поворотом */
 .catalog-arrow {
+  position: relative;
   transition:
     background-color 0.2s,
     scale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     rotate 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Кольцо — отдельный слой, который растёт и гаснет: анимированный box-shadow перерисовывал стрелку каждый кадр */
+.catalog-arrow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0.25rem rgb(18 18 19 / 0.18);
+  opacity: 0;
+  pointer-events: none;
   animation: catalog-ring 2.4s ease-out infinite;
 }
 
-.catalog-arrow + .catalog-arrow {
+.catalog-arrow + .catalog-arrow::after {
   animation-delay: 1.2s;
 }
 
-.catalog-arrow:hover {
+.catalog-arrow:hover::after {
   animation: none;
+}
+
+.catalog-arrow:hover {
   background-color: var(--color-surface-strong);
   scale: 1.1;
   rotate: -6deg;
@@ -303,11 +318,13 @@ function onFocusOut(event: FocusEvent) {
 
 @keyframes catalog-ring {
   0% {
-    box-shadow: 0 0 0 0 rgb(18 18 19 / 0.22);
+    opacity: 1;
+    transform: scale(1);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 0.75rem rgb(18 18 19 / 0);
+    opacity: 0;
+    transform: scale(1.4);
   }
 }
 
@@ -390,7 +407,7 @@ function onFocusOut(event: FocusEvent) {
 
 @media (prefers-reduced-motion: reduce) {
   .catalog-dot,
-  .catalog-arrow {
+  .catalog-arrow::after {
     animation: none;
   }
 
@@ -403,9 +420,13 @@ function onFocusOut(event: FocusEvent) {
 <style>
 /*
  * Не scoped: ширину раскрытой карточки ряд передаёт через переменную. Наведение на полоску её
- * только приподнимает, поэтому ширины в ряду постоянны.
+ * только приподнимает, поэтому ширины в ряду постоянны. Контент любой карточки сразу этой ширины.
  */
 @media (width >= 64rem) {
+  .catalog-track > .flex-card {
+    --flex-card-content-w: var(--catalog-expanded-w);
+  }
+
   .catalog-track > .flex-card.is-expanded {
     --flex-card-expanded-w: var(--catalog-expanded-w);
     --flex-card-expanded-grow: 0;
