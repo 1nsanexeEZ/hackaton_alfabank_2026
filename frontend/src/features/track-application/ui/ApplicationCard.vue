@@ -149,7 +149,7 @@ const now = computed<Now | null>(() => {
         icon: CircleCheck,
         eyebrow: 'Готово',
         title: 'Договор подписан сторонами, кредит выдан',
-        text: `Деньги отправлены на расчётный счёт компании${when}. На демо-стенде выдача смоделирована: денежных операций нет.`,
+        text: `Деньги отправлены на расчётный счёт компании${when}.`,
       }
     }
     case 'rejected':
@@ -523,9 +523,6 @@ const footerHint = computed(() => {
                   @download="downloadContract"
                 />
                 <SignaturesView v-if="sealedDocumentId" :document-id="sealedDocumentId" />
-                <p v-if="status === 'issued' && !hasContractDocument(contract)" class="text-xs text-ink-secondary">
-                  Подписание и выдача смоделированы (моки ЭДО и АБС): реальных подписей и денежных операций нет.
-                </p>
               </template>
               <div v-else-if="contractError" class="space-y-3">
                 <p class="text-sm text-brand" role="alert">{{ contractError }}</p>
