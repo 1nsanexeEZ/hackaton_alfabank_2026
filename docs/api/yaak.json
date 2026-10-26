@@ -9532,7 +9532,7 @@
         "workspaceId": "wk_6MYZUPM7tf",
         "folderId": "fl_q0wUTDO0aH",
         "name": "Из чего собирается политика",
-        "description": "What a policy document is made of: the grade scales, the outcomes, the reason codes\nwith their client texts (not editable here: a code without a text is refused), the\nstop-factor keys, registry statuses, routing flags, zones of the two models and the\nnames of collateral types and alternative products.\n\nТокен: андеррайтер банка.",
+        "description": "What a policy document is made of: the grade scales, the outcomes, the reason codes\nwith their default client texts (a draft overrides them in `reason_texts` of its\ndocument; a code without a text is refused), the\nstop-factor keys, registry statuses, routing flags, zones of the two models and the\nnames of collateral types and alternative products.\n\nТокен: андеррайтер банка.",
         "method": "GET",
         "url": "${[ base_url ]}/decision/policies/catalog",
         "urlParameters": [],

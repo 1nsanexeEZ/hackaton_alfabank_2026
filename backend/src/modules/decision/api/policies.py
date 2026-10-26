@@ -44,7 +44,8 @@ async def list_versions(versions: PolicyVersionsDep) -> list[PolicyVersionSummar
 @router.get("/catalog", response_model=PolicyCatalogRead, dependencies=CanRead)
 async def get_catalog(versions: PolicyVersionsDep) -> PolicyCatalogRead:
     """What a policy document is made of: the grade scales, the outcomes, the reason codes
-    with their client texts (not editable here: a code without a text is refused), the
+    with their default client texts (a draft overrides them in `reason_texts` of its
+    document; a code without a text is refused), the
     stop-factor keys, registry statuses, routing flags, zones of the two models and the
     names of collateral types and alternative products."""
     return PolicyCatalogRead.of(versions.catalog())
