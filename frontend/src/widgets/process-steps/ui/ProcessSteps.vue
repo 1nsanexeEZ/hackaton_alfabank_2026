@@ -23,7 +23,7 @@ const STEPS: readonly { title: string; text: string; actor: Actor; art: string }
   },
   {
     title: 'Отправьте заявку',
-    text: 'Нужны только ИНН, сумма и цель. Данные о компании подтянутся автоматически.',
+    text: 'Нужны только ИНН, сумма и цель. Данные о компании загрузятся автоматически.',
     actor: 'client',
     art: sendArt,
   },

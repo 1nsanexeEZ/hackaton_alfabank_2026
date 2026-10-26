@@ -52,7 +52,7 @@ const index = ref(0)
 watch(active, () => (index.value = 0))
 
 const mode = computed<'example' | 'loading' | 'error' | 'empty' | 'list'>(() => {
-  // Токен есть, а профиль ещё не подтянулся — это не «не вошёл», пример не показываем
+  // Токен есть, а профиль ещё не загрузился — это не «не вошёл», пример не показываем
   if (!customer.state.token) return 'example'
   if (active.value?.length) return 'list'
   if (active.value) return 'empty'

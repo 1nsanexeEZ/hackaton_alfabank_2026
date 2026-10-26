@@ -29,7 +29,7 @@ const BENEFITS = [
   },
   {
     title: 'Без повторного ввода',
-    text: 'Данные о компании подтягиваем по ИНН, документы загружаются один раз.',
+    text: 'Данные о компании загружаем сами по ИНН, документы вы добавляете один раз.',
     art: autofillArt,
     tone: 'sky',
   },
@@ -44,7 +44,7 @@ const BENEFITS = [
         :icon="Building2"
         tone="info"
         title="Данные по ИНН"
-        caption="подтянули сами"
+        caption="загрузили сами"
       />
       <HintCard
         class="absolute top-28 right-36"

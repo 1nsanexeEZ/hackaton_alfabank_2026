@@ -8,7 +8,7 @@ import { BaseButton } from '@/shared/ui'
 
 /**
  * Реквизиты из базы банка — клиенту их не вводить — и сверка с ЕГРЮЛ. Сверку бэкенд делает и сам по
- * каждой заявке; кнопка — чтобы подтянуть изменения из реестра сейчас (POST /organizations/{id}/verification).
+ * каждой заявке; кнопка — чтобы загрузить изменения из реестра сейчас (POST /organizations/{id}/verification).
  * Откуда банк берёт данные и с чем сверяет, клиенту не называем: «актуальны», «нужно уточнить», «обновить».
  */
 const props = defineProps<{ company: OrganizationDetailDto; verification: VerificationResultDto | null; verifying: boolean }>()

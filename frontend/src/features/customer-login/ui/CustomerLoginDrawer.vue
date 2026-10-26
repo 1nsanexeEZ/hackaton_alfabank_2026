@@ -22,7 +22,7 @@ import LoginSuccessTransition from './LoginSuccessTransition.vue'
  * Восстановление сессии по сохранённому токену анимацию не запускает — только явный вход здесь.
  */
 const props = withDefaults(defineProps<{ description?: string; next?: AfterLogin }>(), {
-  description: 'Войдите, чтобы оформить заявку: данные компании подтянем автоматически',
+  description: 'Войдите, чтобы оформить заявку: данные компании загрузим автоматически',
   next: 'profile',
 })
 
