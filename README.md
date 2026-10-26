@@ -69,20 +69,37 @@ docker compose --profile ai up -d      # стенд + ollama
 backend/scripts/ai-smoke.sh            # проверка: статус, вопрос, поток, injection
 ```
 
+**На Windows (PowerShell)** sh-скрипты не запускаются — те же шаги командами Docker:
+
+```powershell
+docker compose --profile ai up -d ollama                                             # поднять ollama
+docker compose --profile ai exec ollama ollama pull qwen3:4b-instruct-2507-q4_K_M    # один раз: скачать модель (~2,5 ГБ)
+docker compose --profile ai up -d --wait                                             # стенд + ollama
+curl.exe http://localhost:8080/api/assistant/status                                  # ждём "mode":"llm"
+```
+
+Лёгкая модель на Windows: `docker compose --profile ai exec ollama ollama pull qwen2.5:1.5b`, затем `$env:ASSISTANT_LLM_MODEL="qwen2.5:1.5b"; $env:OLLAMA_MEM_LIMIT="2g"; docker compose --profile ai up -d --wait`. Переменные `$env:` живут только в этом окне PowerShell — чтобы не набирать их каждый раз, запишите их в `.env` (см. ниже).
+
 - **Где чат:** кнопка «Умный помощник» в шапке сайта после входа клиентом.
 - **Офлайн:** после скачивания модели стенд работает без интернета. Не скачана модель — помощник отвечает по шаблонам, ничего не падает.
 - **Прогрев:** backend при старте сам загружает модель в память — на CPU это 20–40 с.
 - **Лёгкая модель** для машин с 8 ГБ: `backend/scripts/ai-pull-model.sh qwen2.5:1.5b`, затем `ASSISTANT_LLM_MODEL=qwen2.5:1.5b OLLAMA_MEM_LIMIT=2g docker compose --profile ai up -d`.
-- **Ollama вне Docker** (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 backend/scripts/ai-pull-model.sh`, затем `ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1 docker compose up -d backend`.
+- **Ollama вне Docker** (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 backend/scripts/ai-pull-model.sh`, затем `ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1 docker compose up -d --wait` (PowerShell: `ollama pull qwen3:4b-instruct-2507-q4_K_M`, затем `$env:ASSISTANT_LLM_BASE_URL="http://host.docker.internal:11434/v1"; docker compose up -d --wait`).
 - **Совсем без модели:** `ASSISTANT_LLM_PROVIDER=off`.
 
 ### С ИИ: свой провайдер (OpenAI-совместимый API)
 
-Помощник ходит в модель через порт `LanguageModel` по OpenAI-совместимому API (`POST {base URL}/chat/completions`). Подойдёт любой провайдер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, шлюз банка. Base URL, ключ и название модели задаются в `.env` в корне репозитория:
+Помощник ходит в модель через порт `LanguageModel` по OpenAI-совместимому API (`POST {base URL}/chat/completions`). Подойдёт любой провайдер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, шлюз банка. Менять код не нужно — три настройки в `.env`.
 
-```bash
-cp .env.example .env
-```
+**1. Взять у провайдера три значения:** base URL (адрес API, без `/chat/completions`), ключ (в личном кабинете провайдера, раздел API keys) и название модели — так, как оно записано у провайдера.
+
+| Провайдер | `ASSISTANT_LLM_BASE_URL` | Пример `ASSISTANT_LLM_MODEL` |
+|---|---|---|
+| [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` | `qwen/qwen-2.5-72b-instruct` |
+| ranvik (на нём работает наш стенд alfa-hack.ru) | `https://api.ranvik.ru/v1` | `deepseek-flash` — DeepSeek V4.1 Flash, веса под MIT |
+| свой сервер на этой машине: vLLM, llama.cpp, LM Studio | `http://host.docker.internal:<порт>/v1` | как модель названа на сервере |
+
+**2. Создать `.env` в корне репозитория** (рядом с `docker-compose.yml`; на Windows — `notepad .env`) с четырьмя строками:
 
 ```dotenv
 ASSISTANT_LLM_PROVIDER=api                          # внешний OpenAI-совместимый API
@@ -91,11 +108,19 @@ ASSISTANT_LLM_API_KEY=<ваш ключ>                    # уходит заг
 ASSISTANT_LLM_MODEL=qwen/qwen-2.5-72b-instruct      # название модели у провайдера: только открытые веса
 ```
 
+Остальное берётся из значений по умолчанию. Все настройки с пояснениями — в [`.env.example`](.env.example).
+
+**3. Перезапустить стенд и проверить:**
+
 ```bash
-docker compose up -d backend
-curl http://localhost:8080/api/assistant/status
+docker compose up -d --wait
+curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 # {"enabled": true, "mode": "llm", "provider": "api", "model": "qwen/qwen-2.5-72b-instruct", "host": "openrouter.ai", "reachable": true, "reason": null}
 ```
+
+Перезапускайте весь стенд (`up -d`), а не только `backend`: вместе с backend перезапустится и nginx, иначе он будет обращаться к старому адресу контейнера и отдавать 502.
+
+**4. Задать помощнику вопрос** в кабинете клиента. `reachable: true` значит только, что провайдер отвечает, — ключ проверяется первым вопросом. Ответ живым текстом за несколько секунд — всё подключено; ответ шаблоном — неверный ключ или модель: в `docker compose logs backend` у строки `assistant answer … fallback=` будет причина вместо `None`.
 
 - **Ключ не коммитьте:** `.env` в `.gitignore`, в репозитории только `.env.example` с пустым ключом.
 - **Модель** — с открытыми весами. Ориентир экспертов — до 120 млрд параметров, организаторы подтвердили, что это рекомендация. Закрытые модели (`gpt-*`, `claude`, `gemini`, `gigachat`, `yandexgpt`…) помощник отклоняет по названию: `enabled: false` и причина в `reason`.
