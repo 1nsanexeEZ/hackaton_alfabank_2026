@@ -1,8 +1,11 @@
+from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from uuid import uuid4
 
 from src.core.access.permissions import Permissions
 from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
+from src.modules.scoring.facade import MlScoreDTO
 from tests.bff import factories
 from tests.bff.conftest import World
 
@@ -177,4 +180,52 @@ def test_metrics_reject_a_reversed_or_huge_period(world: World) -> None:
 def test_metrics_are_for_bank_staff(world: World) -> None:
     response = world.get("/bff/backoffice/metrics", world.as_client(world.director))
 
+    assert response.status_code == 403
+
+
+# --- scoring overview ------------------------------------------------------------------
+
+
+def test_scoring_overview_in_one_call(world: World) -> None:
+    agree = world.add_application(status="offer_ready")
+    disagree = world.add_application(status="in_review")
+    stopped = world.add_application(status="rejected")
+    world.add_application(status="draft")
+    ml = MlScoreDTO("ml-1", Decimal("0.02"), 700, "B", (), ())
+    world.scoring.add_result(replace(factories.scoring_result(agree.id), ml=ml))
+    world.scoring.add_result(
+        replace(factories.scoring_result(disagree.id), grade="H", ml=ml, quality="degraded")
+    )
+    world.decision.add_decision(factories.decision(agree.id, "APPROVE"))
+    world.decision.add_decision(factories.decision(disagree.id, "MANUAL_REVIEW"))
+    world.decision.add_decision(
+        factories.decision(stopped.id, "REJECT", reason_codes=("STOP_TAX_ARREARS",))
+    )
+
+    response = world.get("/bff/backoffice/scoring-overview", world.as_underwriter(), limit=2)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (body["considered"], body["scored"], body["with_ml"]) == (3, 2, 2)
+    assert (body["stopped_before_models"], body["models_agree"], body["degraded"]) == (1, 1, 1)
+    assert (body["manual_review"], body["decided"], body["decided_auto"]) == (1, 2, 2)
+    grades = {g["grade"]: (g["pd"], g["ml"]) for g in body["by_grade"]}
+    assert grades["C"] == (1, 0) and grades["H"] == (1, 0) and grades["B"] == (0, 2)
+    zones = {(z["pd_zone"], z["ml_zone"]): z["count"] for z in body["zones"]}
+    assert zones[("green", "green")] == 1 and zones[("red", "green")] == 1
+    assert {(v["kind"], v["version"], v["count"]) for v in body["versions"]} >= {
+        ("pd", "scorecard-1", 2),
+        ("ml", "ml-1", 2),
+    }
+    assert len(body["items"]) == 2
+    by_id = {i["application_id"]: i for i in body["items"]}
+    if str(disagree.id) in by_id:
+        assert by_id[str(disagree.id)]["models_disagree"] is True
+
+
+def test_scoring_overview_needs_scoring_read(world: World) -> None:
+    response = world.get(
+        "/bff/backoffice/scoring-overview",
+        world.as_underwriter(without=(Permissions.SCORING_READ,)),
+    )
     assert response.status_code == 403

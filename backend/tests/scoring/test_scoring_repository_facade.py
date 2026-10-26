@@ -247,3 +247,32 @@ async def test_get_result_none_when_absent(
     async with session_factory() as session:
         dto = await ScoringFacadeImpl(session, FixedModel(_CARD)).get_result(uuid4())
     assert dto is None
+
+
+async def test_get_results_takes_the_latest_of_each_application(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    first, stored = _result()
+    later = replace(
+        first,
+        id=uuid4(),
+        requested_by_command=uuid4(),
+        score=first.score + 10,
+        computed_at=datetime(2030, 1, 1, tzinfo=UTC),
+    )
+    other, other_stored = _result()
+    other = replace(other, id=uuid4(), application_id=uuid4())
+    async with session_factory() as session:
+        repository = SqlAlchemyScoringRepository(session)
+        await repository.add(first, input_snapshot=stored)
+        await repository.add(later, input_snapshot=stored)
+        await repository.add(other, input_snapshot=other_stored)
+        await session.commit()
+
+    async with session_factory() as session:
+        facade = ScoringFacadeImpl(session, FixedModel(_CARD))
+        dtos = await facade.get_results([first.application_id, other.application_id, uuid4()])
+        assert await facade.get_results([]) == {}
+
+    assert set(dtos) == {first.application_id, other.application_id}
+    assert dtos[first.application_id].score == later.score

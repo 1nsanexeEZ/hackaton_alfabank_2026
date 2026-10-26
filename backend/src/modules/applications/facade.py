@@ -68,6 +68,10 @@ class ApplicationsFacade(Protocol):
         self, organization_id: UUID, active_only: bool = False
     ) -> list[ApplicationSummaryDTO]: ...
 
+    async def list_submitted(self, limit: int) -> list[ApplicationSummaryDTO]:
+        """Every company's applications except drafts, the latest activity first."""
+        ...
+
     async def list_documents(
         self, application_id: UUID, document_type: str | None = None
     ) -> list[DocumentDTO]: ...

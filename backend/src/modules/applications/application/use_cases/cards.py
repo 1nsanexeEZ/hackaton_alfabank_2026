@@ -20,6 +20,7 @@ from src.modules.applications.application.mappers.dto import (
     summary_dto,
 )
 from src.modules.applications.application.use_cases.common import violations
+from src.modules.applications.domain.enums import ApplicationStatus
 from src.modules.applications.domain.statuses import ACTIVE_STATUSES
 from src.modules.clients.facade import ClientsFacade
 
@@ -71,6 +72,19 @@ class ListForOrganizationUseCase:
     ) -> list[ApplicationSummaryDTO]:
         statuses = [s.value for s in ACTIVE_STATUSES] if active_only else None
         applications = await self._repository.search(None, organization_id, statuses, MAX_LIST, 0)
+        return [summary_dto(application) for application in applications]
+
+
+class ListSubmittedUseCase:
+    """Applications of every company, drafts aside, the latest activity first: for the bank's
+    summaries."""
+
+    def __init__(self, repository: ApplicationRepository) -> None:
+        self._repository = repository
+
+    async def execute(self, limit: int) -> list[ApplicationSummaryDTO]:
+        statuses = [s.value for s in ApplicationStatus if s is not ApplicationStatus.DRAFT]
+        applications = await self._repository.search(None, None, statuses, limit, 0)
         return [summary_dto(application) for application in applications]
 
 

@@ -246,3 +246,5 @@ class ApplicationSummaryDTO:
     submitted_at: datetime | None = None
     # Who made the decision the client got: auto | underwriter; None — no decision yet.
     decided_by: str | None = None
+    # The company's name as it was at submission; None for a draft.
+    company_name: str | None = None

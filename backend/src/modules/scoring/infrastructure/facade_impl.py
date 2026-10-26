@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
 
@@ -17,6 +18,7 @@ from src.modules.scoring.domain.model import (
     MlScore,
     RequestInput,
     ScoringInput,
+    ScoringResult,
     TaxInput,
 )
 from src.modules.scoring.domain.prescreen import FounderPrescreen, PersonHistoryInput
@@ -113,27 +115,11 @@ class ScoringFacadeImpl:
 
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None:
         result = await self._repo.latest_for_application(application_id)
-        if result is None:
-            return None
-        return ScoringResultDTO(
-            id=result.id,
-            application_id=result.application_id,
-            model_version=result.model_version,
-            score=result.score,
-            grade=result.grade,
-            factors=_factors(result.factors),
-            flags=tuple(result.flags),
-            data_completeness=result.data_completeness,
-            computed_at=result.computed_at,
-            segment=result.segment,
-            scorecard=result.scorecard,
-            pd_12m=result.pd_12m,
-            reason_codes=result.reason_codes,
-            ml=_ml(result.ml) if result.ml is not None else None,
-            quality=result.quality,
-            quality_reasons=result.quality_reasons,
-            ml_not_applicable=result.ml_not_applicable,
-        )
+        return _result_dto(result) if result is not None else None
+
+    async def get_results(self, application_ids: Sequence[UUID]) -> dict[UUID, ScoringResultDTO]:
+        results = await self._repo.latest_for_applications(application_ids)
+        return {application_id: _result_dto(r) for application_id, r in results.items()}
 
     async def estimate(
         self, company: CompanyProfileDTO, amount: Decimal | None = None
@@ -210,4 +196,26 @@ def _ml(ml: MlScore) -> MlScoreDTO:
         grade=ml.grade,
         factors=_factors(ml.factors),
         reason_codes=ml.reason_codes,
+    )
+
+
+def _result_dto(result: ScoringResult) -> ScoringResultDTO:
+    return ScoringResultDTO(
+        id=result.id,
+        application_id=result.application_id,
+        model_version=result.model_version,
+        score=result.score,
+        grade=result.grade,
+        factors=_factors(result.factors),
+        flags=tuple(result.flags),
+        data_completeness=result.data_completeness,
+        computed_at=result.computed_at,
+        segment=result.segment,
+        scorecard=result.scorecard,
+        pd_12m=result.pd_12m,
+        reason_codes=result.reason_codes,
+        ml=_ml(result.ml) if result.ml is not None else None,
+        quality=result.quality,
+        quality_reasons=result.quality_reasons,
+        ml_not_applicable=result.ml_not_applicable,
     )

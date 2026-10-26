@@ -81,3 +81,21 @@ async def test_nothing_decided_yet(session_factory: Sessions) -> None:
         assert await facade.get_decision(uuid4()) is None
         assert await facade.get_client_view(uuid4()) is None
         assert await facade.get_pre_approved(uuid4()) == []
+
+
+async def test_decisions_of_a_list_are_the_latest_of_each(session_factory: Sessions) -> None:
+    """Ручное решение поверх автоматического — в пакете последнее, как у `get_decision`."""
+    world = await build_world("s3_vector", acts_for_itself=True)
+    other = await build_world("s1_romashka")
+    await make_decision(session_factory, world)
+    await make_decision(session_factory, other)
+    await record_manual(session_factory, world, manual_command(world, "APPROVE", amount="2000000"))
+
+    async with session_factory() as session:
+        facade = DecisionFacadeImpl(session, FrozenClock(NOW))
+        found = await facade.get_decisions([world.application_id, other.application_id, uuid4()])
+        assert await facade.get_decisions([]) == {}
+
+    assert set(found) == {world.application_id, other.application_id}
+    assert found[world.application_id].decided_by_type == "underwriter"
+    assert found[world.application_id] == await decision(session_factory, world.application_id)

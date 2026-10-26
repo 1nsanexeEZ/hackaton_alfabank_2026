@@ -357,7 +357,14 @@ def summary_dto(application: CreditApplication) -> ApplicationSummaryDTO:
         updated_at=application.updated_at,
         submitted_at=application.submitted_at,
         decided_by=summary.decided_by if (summary := application.decision_summary) else None,
+        company_name=_company_name(application),
     )
+
+
+def _company_name(application: CreditApplication) -> str | None:
+    snapshot = application.org_snapshot
+    name = snapshot.data.get("name") if snapshot is not None else None
+    return str(name) if name else None
 
 
 def scoring_input(application: CreditApplication) -> ScoringInputDTO:

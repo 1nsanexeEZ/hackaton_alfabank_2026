@@ -6619,6 +6619,59 @@
         }
       }
     },
+    "/bff/backoffice/scoring-overview": {
+      "get": {
+        "tags": [
+          "bff"
+        ],
+        "summary": "Scoring Overview",
+        "description": "Scoring over the submitted applications in one call: counts over the latest 1000 of\nthem (`considered`) — scored, stopped before the models, models agree by zone, incomplete\ndata, sent to an underwriter, decided automatically; grades of both models, the zone\nmatrix, model and policy versions; and the latest `limit` applications with both grades\nand the decision.",
+        "operationId": "scoring_overview_bff_backoffice_scoring_overview_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "How many latest applications",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "How many latest applications"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoringOverviewDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assistant/status": {
       "get": {
         "tags": [
@@ -13610,6 +13663,29 @@
           "sum"
         ],
         "title": "GovContractsDTO"
+      },
+      "GradeCountDTO": {
+        "properties": {
+          "grade": {
+            "type": "string",
+            "title": "Grade"
+          },
+          "pd": {
+            "type": "integer",
+            "title": "Pd"
+          },
+          "ml": {
+            "type": "integer",
+            "title": "Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "pd",
+          "ml"
+        ],
+        "title": "GradeCountDTO"
       },
       "GradeShiftRead": {
         "properties": {
@@ -20827,6 +20903,291 @@
         ],
         "title": "RuleTraceDTO"
       },
+      "ScoredApplicationDTO": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
+          "pd_12m": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pd 12M"
+          },
+          "ml_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Score"
+          },
+          "ml_grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Grade"
+          },
+          "ml_pd_12m": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Pd 12M"
+          },
+          "ml_not_applicable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ml Not Applicable"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "models_disagree": {
+            "type": "boolean",
+            "title": "Models Disagree"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "decided_by_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By Type"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "number",
+          "company_name",
+          "product_code",
+          "amount",
+          "status",
+          "submitted_at",
+          "score",
+          "grade",
+          "pd_12m",
+          "ml_score",
+          "ml_grade",
+          "ml_pd_12m",
+          "ml_not_applicable",
+          "quality",
+          "models_disagree",
+          "outcome",
+          "decided_by_type",
+          "reason_codes"
+        ],
+        "title": "ScoredApplicationDTO"
+      },
+      "ScoringOverviewDTO": {
+        "properties": {
+          "considered": {
+            "type": "integer",
+            "title": "Considered"
+          },
+          "scored": {
+            "type": "integer",
+            "title": "Scored"
+          },
+          "stopped_before_models": {
+            "type": "integer",
+            "title": "Stopped Before Models"
+          },
+          "with_ml": {
+            "type": "integer",
+            "title": "With Ml"
+          },
+          "models_agree": {
+            "type": "integer",
+            "title": "Models Agree"
+          },
+          "degraded": {
+            "type": "integer",
+            "title": "Degraded"
+          },
+          "manual_review": {
+            "type": "integer",
+            "title": "Manual Review"
+          },
+          "decided": {
+            "type": "integer",
+            "title": "Decided"
+          },
+          "decided_auto": {
+            "type": "integer",
+            "title": "Decided Auto"
+          },
+          "by_grade": {
+            "items": {
+              "$ref": "#/components/schemas/GradeCountDTO"
+            },
+            "type": "array",
+            "title": "By Grade"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ZonePairDTO"
+            },
+            "type": "array",
+            "title": "Zones"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionCountDTO"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScoredApplicationDTO"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "considered",
+          "scored",
+          "stopped_before_models",
+          "with_ml",
+          "models_agree",
+          "degraded",
+          "manual_review",
+          "decided",
+          "decided_auto",
+          "by_grade",
+          "zones",
+          "versions",
+          "items"
+        ],
+        "title": "ScoringOverviewDTO",
+        "description": "Counts are over `considered` submitted applications (the latest ones, up to the cap);\n`items` — the latest `limit` of them."
+      },
       "ScoringResultDTO": {
         "properties": {
           "id": {
@@ -23236,6 +23597,34 @@
         ],
         "title": "VerifiedSignatureOut"
       },
+      "VersionCountDTO": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pd",
+              "ml",
+              "policy"
+            ],
+            "title": "Kind"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "version",
+          "count"
+        ],
+        "title": "VersionCountDTO"
+      },
       "ViolationOut": {
         "properties": {
           "code": {
@@ -23287,6 +23676,30 @@
           "flows"
         ],
         "title": "WorkflowOut"
+      },
+      "ZonePairDTO": {
+        "properties": {
+          "pd_zone": {
+            "type": "string",
+            "title": "Pd Zone"
+          },
+          "ml_zone": {
+            "type": "string",
+            "title": "Ml Zone"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pd_zone",
+          "ml_zone",
+          "count"
+        ],
+        "title": "ZonePairDTO",
+        "description": "Applications scored by both models with this pair of zones."
       },
       "ZskRiskDTO": {
         "properties": {

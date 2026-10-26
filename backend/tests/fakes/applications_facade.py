@@ -65,6 +65,29 @@ class FakeApplicationsFacade:
             and (not active_only or c.status in ACTIVE_STATUSES)
         ]
 
+    async def list_submitted(self, limit: int) -> list[ApplicationSummaryDTO]:
+        cards = sorted(
+            (c for c in self.cards.values() if c.status != "draft"),
+            key=lambda c: c.updated_at,
+            reverse=True,
+        )
+        return [
+            ApplicationSummaryDTO(
+                id=c.id,
+                number=c.number,
+                organization_id=c.organization_id,
+                product_code=c.product_code,
+                amount=c.request.amount if c.request else None,
+                term_months=c.request.term_months if c.request else None,
+                status=c.status,
+                client_stage=c.client_stage,
+                updated_at=c.updated_at,
+                submitted_at=c.submitted_at,
+                company_name=c.org_snapshot.name if c.org_snapshot else None,
+            )
+            for c in cards[:limit]
+        ]
+
     async def list_documents(
         self, application_id: UUID, document_type: str | None = None
     ) -> list[DocumentDTO]:
