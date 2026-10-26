@@ -151,7 +151,8 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 | Что видите | Что сделать |
 |---|---|
-| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория с двумя строками: `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` (порт — любой свободный, в обеих строках одинаковый), затем `docker compose up -d --wait` и откройте http://localhost:8081. Без второй строки сайт откроется, но не загрузятся документы. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория со строкой `HTTP_PORT=8081` (любой свободный порт), затем `docker compose up -d --wait` и откройте http://localhost:8081. Загрузка документов и QR-код договора возьмут тот же порт сами. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| Стенд открыт не по `localhost` (с другого компьютера по IP): не загружаются документы, QR в договоре ведёт на `localhost` | Добавьте в `.env` адрес из строки браузера, например `MINIO_PUBLIC_ENDPOINT=http://192.168.1.10:8080`, и выполните `docker compose up -d --wait`. Договоры, подписанные раньше, сохранят старый адрес: подписанный PDF в архиве не меняется |
 | `Cannot connect to the Docker daemon`, `dockerDesktopLinuxEngine: The system cannot find the file specified` | Не запущен Docker Desktop: запустите и дождитесь Engine running |
 | `no space left on device` или окно Docker Desktop «There was a problem with WSL» | Кончилось место на диске с данными Docker. Нужно около 6 ГБ, с локальной моделью — ещё около 7 ГБ. Освободите место или перенесите данные Docker на другой диск: Docker Desktop → Settings → Resources → Advanced → Disk image location |
 | `--wait` закончился ошибкой `container … is unhealthy` или по таймауту | Чаще всего машина медленная и сервис не успел подняться. Повторите ту же команду `docker compose up -d --build --wait --wait-timeout 600` — она продолжит с того места. Не помогло — `docker compose logs --tail=100 <сервис>` |
@@ -275,7 +276,7 @@ Compose читает `.env` из корня репозитория. В конт�
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | учётка MinIO, общая для MinIO и backend |
 | `MINIO_BUCKET_NAME` | `credit-documents` | бакет документов заявок; договоры — в отдельном бакете `credit-contracts` с Object Lock |
 | `HTTP_PORT` | `8080` | порт сайта на этой машине |
-| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:8080` | адрес presigned URL и QR-кода договора (то, что видит браузер); порт должен совпадать с `HTTP_PORT` |
+| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:${HTTP_PORT}` | адрес сайта, который видит браузер: на него подписаны presigned URL, на его `/verify` ведёт QR-код договора. Задавать, только если сайт открывают не по `localhost`: публичный домен или IP машины в сети |
 | `MESSAGING_MODE` | `kafka` | `kafka` — брокер из compose; `in_process` — без брокера (локальный запуск); `manual` — тесты |
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
