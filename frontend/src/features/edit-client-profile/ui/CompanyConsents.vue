@@ -51,7 +51,7 @@ async function revoke(organizationId: string) {
         icon="company"
         :caption="company.organizationName"
         :title="CONSENT_TEXT.credit_bureau_company.title"
-        description="С ним заявку не нужно подтверждать галочкой — банк сразу запросит отчёт по компании."
+        description="Пока согласие действует, банк запрашивает отчёт по компании для каждой новой заявки — давать согласие заново не нужно."
         law="218-ФЗ, ст. 6"
         :body="CONSENT_TEXT.credit_bureau_company.body"
         :active="Boolean(company.consent?.given)"

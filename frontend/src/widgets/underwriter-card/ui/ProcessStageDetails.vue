@@ -63,7 +63,7 @@ const events = computed(() => {
   )
 })
 
-const SOURCE_TEXT: Record<string, string> = { profile: 'из профиля', application: 'галочкой в заявке' }
+const SOURCE_TEXT: Record<string, string> = { profile: 'из профиля', application: 'в заявке' }
 const VERIFICATION_TEXT: Record<string, string> = {
   verified: 'сверена — предскоринг считается',
   mismatch: 'расхождения с реестром — без сверки предскоринга нет',
