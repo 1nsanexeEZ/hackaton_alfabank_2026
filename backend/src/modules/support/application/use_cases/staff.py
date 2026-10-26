@@ -32,7 +32,8 @@ class ListQueueUseCase:
         scope: QueueScope,
         limit: int,
         offset: int,
-    ) -> list[TicketSummaryDTO]:
+    ) -> tuple[list[TicketSummaryDTO], int]:
+        """A page and the total."""
         query = TicketQuery(
             statuses=tuple(statuses),
             unassigned=scope == "unassigned",
@@ -40,7 +41,8 @@ class ListQueueUseCase:
             limit=limit,
             offset=offset,
         )
-        return [summary_dto(t) for t in await self._repository.search(access, query)]
+        tickets = await self._repository.search(access, query)
+        return [summary_dto(t) for t in tickets], await self._repository.count(access, query)
 
 
 class TakeTicketUseCase(TicketChange):

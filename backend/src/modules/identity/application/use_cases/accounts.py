@@ -44,11 +44,13 @@ class ListAccountsUseCase:
     def __init__(self, accounts: AccountRepository) -> None:
         self._accounts = accounts
 
-    async def execute(self, access: AccessContext, limit: int, offset: int) -> list[AccountDTO]:
-        return [
-            AccountDTO.from_entity(account)
-            for account in await self._accounts.list(access, limit, offset)
-        ]
+    async def execute(
+        self, access: AccessContext, limit: int, offset: int
+    ) -> tuple[list[AccountDTO], int]:
+        """A page and the total."""
+        accounts = await self._accounts.list(access, limit, offset)
+        total = await self._accounts.count(access)
+        return [AccountDTO.from_entity(account) for account in accounts], total
 
 
 class GetAccountUseCase:

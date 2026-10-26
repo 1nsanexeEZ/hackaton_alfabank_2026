@@ -3,8 +3,9 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
+from src.core.http.pagination import TOTAL_HEADER
 from src.modules.support.application.dto.tickets import NewTicketDTO
 from src.modules.support.domain.enums import TicketStatus
 from src.modules.support.presentation.dependencies import (
@@ -43,14 +44,17 @@ async def open_ticket(data: TicketCreate, access: CanWrite, use_case: OpenTicket
 
 @router.get("", response_model=list[TicketListItem])
 async def list_my_tickets(
+    response: Response,
     access: CanRead,
     use_case: ListMyTicketsDep,
     status_filter: Annotated[list[TicketStatus] | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[TicketListItem]:
-    """The client's tickets, newest activity first."""
-    tickets = await use_case.execute(access, status_filter or [], limit, offset)
+    """The client's tickets, newest activity first. The total by the same filter is in the
+    `X-Total-Count` header."""
+    tickets, total = await use_case.execute(access, status_filter or [], limit, offset)
+    response.headers[TOTAL_HEADER] = str(total)
     return [TicketListItem.model_validate(ticket) for ticket in tickets]
 
 

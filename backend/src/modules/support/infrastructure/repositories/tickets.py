@@ -20,6 +20,16 @@ def _visible(stmt: Select[TicketRecord], access: AccessContext) -> Select[Ticket
     return cast(Select[TicketRecord], apply_access_context(stmt, TicketRecord, access))
 
 
+def _filtered(stmt: Select[TicketRecord], query: TicketQuery) -> Select[TicketRecord]:
+    if query.statuses:
+        stmt = stmt.where(TicketRecord.status.in_([s.value for s in query.statuses]))
+    if query.unassigned:
+        stmt = stmt.where(TicketRecord.assignee_id.is_(None))
+    if query.assignee_id is not None:
+        stmt = stmt.where(TicketRecord.assignee_id == query.assignee_id)
+    return stmt
+
+
 class SqlAlchemyTicketRepository(TicketRepository):
     """Keeps the rows it loaded, so `save` updates them in place and the
     `version` column guards against a concurrent writer."""
@@ -62,16 +72,17 @@ class SqlAlchemyTicketRepository(TicketRepository):
         self._remember(ticket, record)
 
     async def search(self, access: AccessContext, query: TicketQuery) -> list[SupportTicket]:
-        stmt = _visible(select(TicketRecord), access)
-        if query.statuses:
-            stmt = stmt.where(TicketRecord.status.in_([s.value for s in query.statuses]))
-        if query.unassigned:
-            stmt = stmt.where(TicketRecord.assignee_id.is_(None))
-        if query.assignee_id is not None:
-            stmt = stmt.where(TicketRecord.assignee_id == query.assignee_id)
+        stmt = _filtered(_visible(select(TicketRecord), access), query)
         stmt = stmt.order_by(TicketRecord.updated_at.desc(), TicketRecord.id)
         records = (await self._session.scalars(stmt.limit(query.limit).offset(query.offset))).all()
         return [to_domain(record) for record in records]
+
+    async def count(self, access: AccessContext, query: TicketQuery) -> int:
+        ids = _filtered(_visible(select(TicketRecord), access), query).with_only_columns(
+            TicketRecord.id
+        )
+        total = await self._session.scalar(select(func.count()).select_from(ids.subquery()))
+        return int(total or 0)
 
     def _remember(self, ticket: SupportTicket, record: TicketRecord) -> None:
         self._records[ticket.id] = record

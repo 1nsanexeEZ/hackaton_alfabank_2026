@@ -6,7 +6,8 @@ folderId: fl_XaejLZxLdI
 name: Мои заявки
 description: |-
   Newest first. `decided_by=auto` — the decisions the client got from the automatic
-  policy without a person; combines with `status`.
+  policy without a person; combines with `status`. The total by the same filter is in the
+  `X-Total-Count` header.
 
   Отсюда `application_id` справочника: самая новая заявка Ромашки.
 

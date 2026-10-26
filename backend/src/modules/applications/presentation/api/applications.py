@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response, status
 
+from src.core.http.pagination import TOTAL_HEADER
 from src.modules.applications.domain.contract_documents import ContractDocumentKind
 from src.modules.applications.domain.value_objects import DecidedBy
 from src.modules.applications.presentation.dependencies import (
@@ -61,6 +62,7 @@ async def create_draft(
 
 @router.get("", response_model=list[ApplicationListItem])
 async def list_applications(
+    response: Response,
     access: CanRead,
     use_case: ListApplicationsDep,
     organization_id: UUID | None = None,
@@ -70,10 +72,12 @@ async def list_applications(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ApplicationListItem]:
     """Newest first. `decided_by=auto` — the decisions the client got from the automatic
-    policy without a person; combines with `status`."""
-    applications = await use_case.execute(
+    policy without a person; combines with `status`. The total by the same filter is in the
+    `X-Total-Count` header."""
+    applications, total = await use_case.execute(
         access, organization_id, status_filter, limit, offset, decided_by
     )
+    response.headers[TOTAL_HEADER] = str(total)
     return [ApplicationListItem.model_validate(application) for application in applications]
 
 
