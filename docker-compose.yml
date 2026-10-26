@@ -188,13 +188,18 @@ services:
       - "${HTTP_PORT:-8080}:80"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    # nginx запоминает IP upstream при старте: пересоздан backend, MinIO или frontend — без
+    # перезапуска nginx стучится в старый адрес и отдаёт 502. restart: true перезапускает его вслед за ними.
     depends_on:
       backend:
         condition: service_healthy
+        restart: true
       minio:
         condition: service_started
+        restart: true
       frontend:
         condition: service_started
+        restart: true
     networks:
       - alfa_network
 
