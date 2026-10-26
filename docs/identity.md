@@ -129,8 +129,9 @@
 - Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` — `false`. В `.env.example` — `true`.
 - **На публичном стенде флаг выключен.** Ручка выдаёт токен без пароля: включать её там, где стенд доступен из интернета, нельзя.
 - Флаг выключен → обе ручки отвечают 404, как будто их нет.
-- `POST /auth/demo-login {"login": "owner@romashka.test"}` → тот же ответ, что у `/auth/login`. Логин — email или телефон демо-учётки. Логин не из списка (в том числе admin) или удалённая учётка → 404.
-- `GET /auth/demo-accounts` → `[{"login", "phone", "role", "caption", "full_name"}]` — существующие демо-учётки в порядке `demo_data`, без паролей. `caption` — подпись для кнопки («Директор ООО „Ромашка“», «Андеррайтер»).
+- Кроме учёток из `demo_data` в один клик входит админ из `BOOTSTRAP_ADMIN_EMAIL` (роль `admin`, подпись «Администратор»).
+- `POST /auth/demo-login {"login": "owner@romashka.test"}` → тот же ответ, что у `/auth/login`. Логин — email или телефон демо-учётки или email админа. Логин не из списка или удалённая учётка → 404.
+- `GET /auth/demo-accounts` → `[{"login", "phone", "role", "caption", "full_name"}]` — существующие демо-учётки в порядке `demo_data`, админ последним, без паролей. `caption` — подпись для кнопки («Директор ООО „Ромашка“», «Андеррайтер», «Администратор»).
 
 ## API
 
@@ -138,7 +139,7 @@
 |---|---|---|---|
 | POST | `/auth/login` | — | `{login, password}` → `{access_token, token_type, expires_in}` |
 | POST | `/auth/demo-login` | — | `{login}` → токен демо-учётки без пароля; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
-| GET | `/auth/demo-accounts` | — | Список демо-учёток для кнопок входа; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
+| GET | `/auth/demo-accounts` | — | Список демо-учёток и админа для кнопок входа; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
 | GET | `/.well-known/jwks.json` | — | Публичный ключ для проверки токенов |
 | GET | `/me` | любой валидный токен | Аккаунт, роль, профиль, пермишны и политики из токена |
 | PATCH | `/me/profile` | `profile.update` | Правка своего профиля; ФИО и должность — ещё и `profile.update_name`, без него другие значения — 422 `identity_locked` |

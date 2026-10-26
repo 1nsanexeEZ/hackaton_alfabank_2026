@@ -101,7 +101,7 @@
           "auth"
         ],
         "summary": "Demo Accounts",
-        "description": "Demo accounts for `POST /auth/demo-login`. 404 without DEMO_LOGIN_ENABLED=true.",
+        "description": "Demo accounts for `POST /auth/demo-login`, the admin from BOOTSTRAP_ADMIN_EMAIL last.\n404 without DEMO_LOGIN_ENABLED=true.",
         "operationId": "demo_accounts_auth_demo_accounts_get",
         "responses": {
           "200": {
