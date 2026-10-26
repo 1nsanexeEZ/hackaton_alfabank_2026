@@ -42,9 +42,9 @@ function openEvent(id: string) {
   const item = items.value.find((entry) => entry.id === id)
   if (!item) return
   void notifications.markRead(item)
-  // Ответ поддержки ведёт в чат обращения (/support/{id}), события заявки — в её карточку
+  // Ответ поддержки ведёт в чат обращения (/support/{id}), события заявки — в её карточку, если компания ещё своя
   if (item.link?.startsWith('/support/')) emit('openLink', item.link)
-  else if (item.application_id) emit('openApplication', item.application_id)
+  else if (item.application_id && notifications.isOwnCompany(item)) emit('openApplication', item.application_id)
 }
 
 // В причинах новости бэкенд пишет код продукта («продукт CREDIT_LINE — предодобрен») — показываем название
@@ -101,9 +101,10 @@ const PRIORITY_DOT: Record<string, string> = { high: 'bg-brand', normal: 'bg-inf
                     <span v-if="item.link?.startsWith('/support/')" class="flex items-center gap-1 font-medium text-ink-secondary">
                       К обращению <ArrowRight class="size-3.5" aria-hidden="true" />
                     </span>
-                    <span v-else-if="item.application_id" class="flex items-center gap-1 font-medium text-ink-secondary">
+                    <span v-else-if="item.application_id && notifications.isOwnCompany(item)" class="flex items-center gap-1 font-medium text-ink-secondary">
                       К заявке <ArrowRight class="size-3.5" aria-hidden="true" />
                     </span>
+                    <span v-else-if="item.application_id">Нет доступа к компании</span>
                   </p>
                 </div>
               </div>

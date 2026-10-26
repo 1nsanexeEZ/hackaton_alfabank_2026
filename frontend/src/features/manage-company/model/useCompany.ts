@@ -1,5 +1,6 @@
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
+import { liveFeed } from '@/entities/notification'
 import {
   ApiError,
   clientApi,
@@ -53,6 +54,8 @@ export function useCompany() {
   const poaError = shallowRef<{ field: 'number' | null; message: string } | null>(null)
   /** Ошибка добавления участника — под полем «Email или телефон» */
   const memberError = ref<string | null>(null)
+  /** Открытую компанию у пользователя забрали — исключили из участников: почему она пропала */
+  const accessLost = ref<string | null>(null)
 
   const can = (permission: string) => detail.value?.my_permissions.includes(permission as never) ?? false
   const canEditFinancials = computed(() => can('edit_financials'))
@@ -92,10 +95,48 @@ export function useCompany() {
       members.value = nextMembers
     } catch (caught) {
       error.value = errorMessage(caught)
+      if (isNotFound(caught)) void syncMembership(false)
     } finally {
       loading.value = false
     }
   }
+
+  const isNotFound = (caught: unknown) => caught instanceof ApiError && caught.status === 404
+
+  /**
+   * Сверка с бэкендом, в каких компаниях пользователь ещё участник. Исключили из открытой — данные
+   * чужой уже компании не держим: открываем другую с пояснением, а без компаний — пустое состояние.
+   * Остался участником — роль или права могли смениться: открытую перечитываем (reload).
+   */
+  async function syncMembership(reload = true) {
+    const current = organizationId.value
+    let list: OrganizationSummaryDto[]
+    try {
+      list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+    } catch {
+      return
+    }
+    organizations.value = list
+    if (current && list.some((item) => item.id === current)) {
+      if (reload) await loadCompany()
+      return
+    }
+    if (current) {
+      const name = detail.value?.id === current ? detail.value.name : 'компании'
+      accessLost.value = `Доступ к ${name} закрыт: вас исключили из участников`
+      actionError.value = null
+      detail.value = null
+      reports.value = []
+      preApproved.value = []
+      members.value = []
+      error.value = null
+    }
+    organizationId.value = list[0]?.id ?? ''
+    if (!current && organizationId.value) await loadCompany()
+  }
+
+  // Запись о компании в живой ленте — исключили, добавили, сменили роль: сверяемся сразу, без перезагрузки
+  onScopeDispose(liveFeed.onCompany(() => void syncMembership()))
 
   watch(organizationId, (next, previous) => {
     if (previous && next !== previous) {
@@ -116,6 +157,8 @@ export function useCompany() {
       return true
     } catch (caught) {
       actionError.value = errorMessage(caught)
+      // Компании не нашлось — возможно, пользователя исключили, а живая лента этого не принесла
+      if (isNotFound(caught)) void syncMembership(false)
       return false
     } finally {
       busy.value = null
@@ -245,6 +288,7 @@ export function useCompany() {
     verification,
     poaError,
     memberError,
+    accessLost,
     canEditFinancials,
     canSubmit,
     canManageMembers,

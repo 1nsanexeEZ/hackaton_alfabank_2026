@@ -17,6 +17,7 @@ export function useNotifications() {
   const feedError = ref<string | null>(null)
 
   const organizations = shallowRef<OrganizationSummaryDto[]>([])
+  const organizationsLoaded = ref(false)
   const organizationId = ref<string>('')
   /** События одной компании; пусто — все */
   const feedOrganizationId = ref<string>('')
@@ -42,11 +43,21 @@ export function useNotifications() {
     }
   }
 
-  async function loadOrganizations() {
-    if (organizations.value.length) return
+  async function loadOrganizations(force = false) {
+    if (organizationsLoaded.value && !force) return
     organizations.value = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
-    organizationId.value ||= organizations.value[0]?.id ?? ''
+    organizationsLoaded.value = true
+    if (!organizations.value.some((item) => item.id === organizationId.value)) organizationId.value = organizations.value[0]?.id ?? ''
+    if (!organizations.value.some((item) => item.id === feedOrganizationId.value)) feedOrganizationId.value = ''
   }
+
+  /**
+   * Событие компании, где пользователь ещё участник. Записи компании, из которой исключили, бэкенд
+   * в ленте не отдаёт, но уже показанные остаются на экране, пока лента не перечитана: карточка их заявки
+   * ответит 404 — ссылку на неё не показываем. Пока компании не загрузились — считаем своими, чтобы ссылки не мигали.
+   */
+  const isOwnCompany = (item: FeedItemDto) =>
+    !item.organization_id || !organizationsLoaded.value || organizations.value.some((organization) => organization.id === item.organization_id)
 
   async function loadNews() {
     newsLoading.value = true
@@ -73,6 +84,17 @@ export function useNotifications() {
     items.value.unshift(item)
   })
   onBeforeUnmount(stopLive)
+  /*
+   * Исключили из компании, добавили, сменили роль — список компаний перечитываем, а за ним и ленту:
+   * записи компании, где пользователь больше не участник, бэкенд в ней не отдаёт
+   */
+  onBeforeUnmount(
+    liveFeed.onCompany(() => {
+      loadOrganizations(true)
+        .then(() => loadFeed())
+        .catch(() => undefined)
+    }),
+  )
 
   async function markRead(item: FeedItemDto) {
     if (item.read_at) return
@@ -118,6 +140,7 @@ export function useNotifications() {
     organizationId,
     feedOrganizationId,
     loadOrganizations,
+    isOwnCompany,
     news,
     newsLoading,
     newsError,

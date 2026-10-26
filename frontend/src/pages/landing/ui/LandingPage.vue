@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import { loanDraft, type ApplicationDraft } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
+import { liveFeed } from '@/entities/notification'
 import { fitLoanParams, getDefaultLoanParams } from '@/features/calculate-loan'
 import { clientApi, type LoanPurpose } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
@@ -60,22 +61,34 @@ const companies = shallowRef<{ id: string; name: string; canSubmit: boolean }[] 
 const applyBlocked = computed(() => Boolean(companies.value?.length) && !companies.value!.some((item) => item.canSubmit))
 const calculatorCompany = ref('')
 
+async function loadCompanies() {
+  try {
+    const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+    companies.value = list.map((item) => ({ id: item.id, name: item.name, canSubmit: item.my_permissions.includes('submit_application') }))
+    // Компания калькулятора та же, если ещё своя; иначе — с правом подачи
+    if (list.some((item) => item.id === calculatorCompany.value)) return
+    const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
+    calculatorCompany.value = preferred?.id ?? ''
+  } catch {
+    // Без компаний калькулятор считает по базовой ставке, как для гостя
+  }
+}
+
 watch(
   () => customer.state.me?.id,
-  async (id) => {
+  (id) => {
     companies.value = null
     calculatorCompany.value = ''
-    if (!id) return
-    try {
-      const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
-      companies.value = list.map((item) => ({ id: item.id, name: item.name, canSubmit: item.my_permissions.includes('submit_application') }))
-      const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      calculatorCompany.value = preferred?.id ?? ''
-    } catch {
-      // Без компаний калькулятор считает по базовой ставке, как для гостя
-    }
+    if (id) void loadCompanies()
   },
   { immediate: true },
+)
+
+// Исключили из компании или дали права — «Оформить» и ставка калькулятора следуют сразу
+onBeforeUnmount(
+  liveFeed.onCompany(() => {
+    if (customer.state.me) void loadCompanies()
+  }),
 )
 
 /** Подбор и расчёт: сумма и срок уже подогнаны под выбранный продукт — переносим их в заявку как есть */

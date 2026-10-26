@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleCheck } from 'lucide-vue-next'
+import { CircleAlert, CircleCheck } from 'lucide-vue-next'
 import { computed, onMounted, watch } from 'vue'
 
 import type { ProductCatalog } from '@/entities/credit-product'
@@ -35,6 +35,7 @@ const {
   actionError,
   notice,
   verification,
+  accessLost,
   canEditFinancials,
   canManageMembers,
   canSubmit,
@@ -51,7 +52,18 @@ const productTitle = (code: string) => props.products?.find((product) => product
 </script>
 
 <template>
-  <AsyncState :loading="loading && !detail" :error="detail ? null : error" @retry="company.loadOrganizations">
+  <!-- Исключили из открытой компании: почему она пропала — и над другой компанией, и над пустым состоянием -->
+  <p v-if="accessLost" class="mb-6 flex items-start gap-2 rounded-2xl bg-warning-soft p-3 text-sm text-ink" role="alert">
+    <CircleAlert class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+    {{ accessLost }}
+  </p>
+  <AsyncState
+    :loading="loading && !detail"
+    :error="detail ? null : error"
+    :empty="!loading && !detail && !error && !organizations.length"
+    empty-text="Вы больше не участник ни одной компании — кабинет компании откроется, когда руководитель добавит вас снова"
+    @retry="company.loadOrganizations"
+  >
     <div v-if="detail" class="space-y-8">
       <SelectField v-if="organizationOptions.length > 1" v-model="organizationId" label="Компания" :options="organizationOptions" />
 

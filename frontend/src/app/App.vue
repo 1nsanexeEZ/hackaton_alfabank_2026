@@ -2,8 +2,9 @@
 import { watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
+import { myApplications } from '@/entities/application'
 import { assistant } from '@/entities/assistant'
-import { customer } from '@/entities/customer'
+import { customer, personalConsents } from '@/entities/customer'
 import { LogoutTransition } from '@/features/customer-logout'
 import { liveFeed } from '@/entities/notification'
 import { ROUTE_PATH } from '@/shared/config'
@@ -40,6 +41,16 @@ watch(
   (id) => (id ? liveFeed.start() : liveFeed.stop()),
   { immediate: true },
 )
+
+/*
+ * Состав компаний изменился (исключили, добавили, сменили роль) — общие списки заявок и согласий компаний
+ * перечитываем. Ленту бэкенд отдаёт только по компаниям, где пользователь участник сейчас: счётчик тоже
+ */
+liveFeed.onCompany(() => {
+  void myApplications.refresh()
+  void personalConsents.loadReminders()
+  void liveFeed.refreshUnread()
+})
 </script>
 
 <template>
