@@ -6,6 +6,8 @@
 
 ![Кредитный кабинет](docs/assets/screenshots/landing.jpg)
 
+**Онлайн-стенд:** https://alfa-hack.ru — браузер сначала спросит логин и пароль сайта (HTTP Basic Auth): **логин `admin`, пароль `cc0290a34743ad7cdc1ebb59fdc7e728bc72b92b668d9102f4eb7e8f8293f9eb`**. Дальше вход в кабинет по паролю демо-учётки, подробнее — [Онлайн-стенд](#онлайн-стенд).
+
 **С чего начать:**
 - [Карта документации](docs/README.md) — все документы и порядок чтения;
 - **[Ключевые фишки, исследование и результаты](docs/product/features.md)** — продуктовый обзор со скриншотами;
@@ -18,8 +20,10 @@
   - [Без ИИ](#без-ии)
   - [С ИИ: локальная модель](#с-ии-локальная-модель)
   - [С ИИ: свой провайдер](#с-ии-свой-провайдер-openai-совместимый-api)
+- [Если что-то не работает](#если-что-то-не-работает)
 - [Что проверить за 10 минут](#что-проверить-за-10-минут)
 - [Требования](#требования)
+- [Онлайн-стенд](#онлайн-стенд)
 - [Архитектура](#архитектура)
 - [Компоненты](#компоненты)
 - [Переменные окружения](#переменные-окружения)
@@ -57,7 +61,7 @@ curl http://localhost:8080/api/ready
 
 `/api/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. Swagger UI — http://localhost:8080/api/docs, OpenAPI — [`docs/api/openapi.json`](docs/api/openapi.json). Все пути API снаружи начинаются с `/api/`.
 
-Остановить стенд — `docker compose down`, удалить ещё и данные (БД, документы, Kafka, ключи) — `docker compose down -v`.
+Остановить стенд — `docker compose down`, удалить ещё и данные (БД, документы, Kafka, ключи) — `docker compose down -v`. Порт 8080 занят или стенд не поднялся — [Если что-то не работает](#если-что-то-не-работает).
 
 ### С ИИ: локальная модель
 
@@ -141,6 +145,22 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 Модели, деградация, защита от prompt injection и замеры качества — [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md).
 
+## Если что-то не работает
+
+Сначала посмотрите, какой сервис упал: `docker compose ps` (у всех, кроме `frontend` и `nginx`, должно быть `healthy`) и `docker compose logs --tail=100 <сервис>`.
+
+| Что видите | Что сделать |
+|---|---|
+| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория с двумя строками: `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` (порт — любой свободный, в обеих строках одинаковый), затем `docker compose up -d --wait` и откройте http://localhost:8081. Без второй строки сайт откроется, но не загрузятся документы. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| `Cannot connect to the Docker daemon`, `dockerDesktopLinuxEngine: The system cannot find the file specified` | Не запущен Docker Desktop: запустите и дождитесь Engine running |
+| `no space left on device` или окно Docker Desktop «There was a problem with WSL» | Кончилось место на диске с данными Docker. Нужно около 6 ГБ, с локальной моделью — ещё около 7 ГБ. Освободите место или перенесите данные Docker на другой диск: Docker Desktop → Settings → Resources → Advanced → Disk image location |
+| `--wait` закончился ошибкой `container … is unhealthy` или по таймауту | Чаще всего машина медленная и сервис не успел подняться. Повторите ту же команду `docker compose up -d --build --wait --wait-timeout 600` — она продолжит с того места. Не помогло — `docker compose logs --tail=100 <сервис>` |
+| Сайт отвечает `502 Bad Gateway` | Сразу после старта — backend ещё поднимается, подождите минуту. Если 502 остаётся — `docker compose up -d --wait` (перезапускает nginx вслед за пересозданными сервисами) или `docker compose restart nginx` |
+| После обновления репозитория что-то ведёт себя странно (старые заявки, ошибки миграций) | Начать с чистой базы: `docker compose down -v`, затем снова `docker compose up -d --build --wait`. Демо-данные создадутся заново |
+| В логе backend в первые секунды `GroupCoordinatorNotAvailableError` | Это нормально: Kafka создаёт служебный топик на свежем томе, проходит само |
+| Windows: `backend/scripts/ai-pull-model.sh` → «Приложение не найдено» | PowerShell не запускает sh-скрипты — используйте [команды для Windows](#с-ии-локальная-модель) |
+| Помощник отвечает шаблонами: под ответом «Ответ по шаблону», в `/api/assistant/status` — `"mode": "rules"` | Модель недоступна: не скачана или не запущен профиль `ai` (локальная модель), неверный ключ или модель (свой провайдер). Причина — в `docker compose logs backend` у строки `assistant answer … fallback=`. Основной сценарий при этом работает. Вопросы с попыткой «забудь инструкции» шаблоном отвечают всегда — это защита |
+
 ## Что проверить за 10 минут
 
 Пароль демо-учёток нужен только для подписи договора — он в таблице [переменных окружения](#переменные-окружения) (`DEMO_PASSWORD`).
@@ -165,7 +185,7 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 - Docker с Compose v2: Docker Desktop на Windows и macOS или Docker Engine на Linux.
 - 12 ГБ оперативной памяти: стенд без ИИ — около 3 ГБ по `mem_limit`, с профилем `ai` и локальной моделью — около 7 ГБ.
-- Около 2,5 ГБ диска под образы (с моделью — ещё около 2,5 ГБ) и свободный порт 8080 (другой — `HTTP_PORT`).
+- Около 6 ГБ свободного диска под образы и кэш сборки (с локальной моделью — ещё около 7 ГБ: образ Ollama и сама модель) и свободный порт 8080 (занят — [как сменить](#если-что-то-не-работает)).
 - Интернет — только для первой сборки образов и скачивания модели; дальше стенд запускается офлайн.
 - Для разработки без Docker: Python 3.12 и [uv](https://docs.astral.sh/uv/), Node.js 22+.
 
@@ -182,15 +202,23 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 Замер — Docker Desktop на Windows 11 (WSL 2), без нагрузки, `docker stats` через минуту после старта.
 
-**Если не стартует:**
-- Порт 8080 занят — `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` в `.env`.
-- «There was a problem with WSL» или `no space left on device` — кончилось место на диске с данными Docker.
-- Что именно упало — `docker compose ps` и `docker compose logs --tail=100 <сервис>`.
-- На свежем томе Kafka в первые секунды backend пишет `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик, это проходит само.
+Не стартует или что-то не так — [Если что-то не работает](#если-что-то-не-работает).
 
 **Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `backend/scripts/ai-pull-model.sh`.
 
 **Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`; нужен Compose 2.24.4+ из-за тега `!override`).
+
+## Онлайн-стенд
+
+https://alfa-hack.ru — та же версия, что в `main`, ничего ставить не нужно.
+
+1. **Вход на сайт.** Сайт закрыт HTTP Basic Auth: браузер покажет окно входа — **логин `admin`, пароль `cc0290a34743ad7cdc1ebb59fdc7e728bc72b92b668d9102f4eb7e8f8293f9eb`**.
+2. **Вход в кабинет.** Кнопки «войти в один клик» на стенде нет — входите по паролю. Пароль всех демо-учёток — **`Demo-2026!`**, логины — в [таблице демо-учёток](#демо-данные-и-учётные-записи):
+   - клиент: на главной «Войти», например `owner@romashka.test`;
+   - сотрудник банка: https://alfa-hack.ru/admin/login, `underwriter@bank.test`.
+3. **API и Swagger** Basic Auth не требуют: https://alfa-hack.ru/api/docs, коллекция Yaak — окружение `stand`.
+
+Умный помощник на стенде отвечает через внешнюю модель с открытыми весами (DeepSeek V4.1 Flash у провайдера ranvik), на локальном стенде — по [Быстрому старту](#с-ии-локальная-модель).
 
 ## Архитектура
 

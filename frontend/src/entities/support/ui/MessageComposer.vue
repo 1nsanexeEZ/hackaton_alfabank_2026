@@ -38,12 +38,12 @@ function onKeydown(event: KeyboardEvent) {
       <span class="sr-only">Сообщение</span>
       <textarea
         v-model="text"
-        rows="2"
+        rows="1"
         :maxlength="MAX_LENGTH"
         :placeholder="placeholder"
         :aria-describedby="hintId"
         :disabled="disabled || pending"
-        class="block w-full resize-y rounded-xl bg-surface px-4 py-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:bg-white focus:ring-2 focus:ring-ink/20 disabled:opacity-60"
+        class="block min-h-12 w-full resize-y rounded-xl bg-surface px-4 py-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:bg-white focus:ring-2 focus:ring-ink/20 disabled:opacity-60"
         @keydown="onKeydown"
       />
     </label>
