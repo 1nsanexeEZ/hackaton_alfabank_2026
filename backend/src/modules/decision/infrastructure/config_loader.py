@@ -290,11 +290,14 @@ class _PolicySchema(_Strict):
     compliance: _Compliance = Field(default_factory=_Compliance)
     alternatives: _Alternatives
     offer: _Offer
+    # Тексты для клиента этой версии поверх `explanations_ru.yaml`: код → {text, hint}. Нет
+    # ключа — тексты по умолчанию; неизвестный код — 422.
+    reason_texts: dict[ReasonCode, _ReasonText] | None = None
 
 
 class _ReasonText(_Strict):
-    text: str = Field(min_length=1)
-    hint: str | None = None
+    text: str = Field(min_length=1, max_length=500)
+    hint: str | None = Field(default=None, max_length=500)
 
 
 class _ExplanationsSchema(_Strict):
@@ -315,14 +318,16 @@ def load_policy(
 
 def load_policy_files(policy_path: Path, explanations_path: Path) -> CreditPolicy:
     texts = _load_texts(explanations_path)
-    return _compile(_validated(_read(policy_path), texts, str(policy_path)), texts)
+    schema = _validated(_read(policy_path), texts, str(policy_path))
+    return _compile(schema, _with_overrides(texts, schema))
 
 
 def parse_policy(raw: Any, where: str) -> CreditPolicy:
     """Документ политики (YAML или версия из БД) → политика с текстами `explanations_ru.yaml`;
     не прошёл проверку — `PolicyDocumentError`."""
     texts = _default_texts()
-    return _compile(_validated(raw, texts, where), texts)
+    schema = _validated(raw, texts, where)
+    return _compile(schema, _with_overrides(texts, schema))
 
 
 def normalize_policy(raw: Any, where: str) -> dict[str, Any]:
@@ -463,11 +468,18 @@ def _validated(raw: Any, texts: _ExplanationsSchema, where: str) -> _PolicySchem
             for error in exc.errors()
         ]
         raise PolicyDocumentError(f"{where} не прошёл схему: {exc}", problems) from exc
-    problems = [*_check_policy(schema), *_check_cross(schema, texts)]
+    problems = [*_check_policy(schema), *_check_cross(schema, _with_overrides(texts, schema))]
     if problems:
         listed = "; ".join(f"{p.path}: {p.message}" for p in problems)
         raise PolicyDocumentError(f"{where}: {listed}", problems)
     return schema
+
+
+def _with_overrides(texts: _ExplanationsSchema, schema: _PolicySchema) -> _ExplanationsSchema:
+    """Тексты по умолчанию с текстами причин этой версии поверх."""
+    if not schema.reason_texts:
+        return texts
+    return texts.model_copy(update={"reasons": {**texts.reasons, **schema.reason_texts}})
 
 
 def _compile(schema: _PolicySchema, texts: _ExplanationsSchema) -> CreditPolicy:

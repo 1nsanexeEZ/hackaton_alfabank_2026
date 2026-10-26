@@ -16,7 +16,10 @@ from src.core.domain.clock import FrozenClock
 from src.core.exceptions.exceptions import InvalidStatusTransitionError, ValidationError
 from src.modules.decision.application.policy_versions import ActivePolicyProvider, PolicyVersions
 from src.modules.decision.domain.policy import CreditPolicy
-from src.modules.decision.infrastructure.config_loader import CreditPolicyDocuments
+from src.modules.decision.infrastructure.config_loader import (
+    CreditPolicyDocuments,
+    builtin_policy_body,
+)
 from src.modules.decision.infrastructure.models import (
     DecisionPolicyVersionRecord,
     DecisionResultRecord,
@@ -285,3 +288,45 @@ async def test_preview_decides_the_latest_automatic_decisions_again(
     assert (same.changed, same.outcome_changed) == (0, 0)
     assert unchanged.after.reason_codes == unchanged.before.reason_codes
     assert unchanged.after.policy_version == _BUILTIN
+
+
+_NEW_TEXT = "Вид деятельности компании банк сейчас не кредитует"
+
+
+def _reworded(body: dict[str, Any]) -> None:
+    _stop_okved("56")(body)
+    body["reason_texts"] = {
+        "STOP_FORBIDDEN_OKVED": {"text": _NEW_TEXT, "hint": "Подайте заявку от другой компании"}
+    }
+
+
+async def test_draft_rewords_the_client_texts(session_factory: Sessions) -> None:
+    """Тексты причин правятся в черновике: решение по версии объясняет клиенту новыми словами."""
+    version = await _draft(session_factory, edit=_reworded)
+    await _activate(session_factory, version)
+    policy = await _active(session_factory, ActivePolicyProvider(CreditPolicyDocuments()))
+    romashka = await build_world("s1_romashka")
+    await make_decision(session_factory, romashka, policy=policy)
+
+    async with session_factory() as session:
+        stored = (await _versions(session).get(version)).body
+        decision = await SqlAlchemyDecisionRepository(session).latest_for_application(
+            romashka.application_id
+        )
+    assert stored["reason_texts"]["STOP_FORBIDDEN_OKVED"]["text"] == _NEW_TEXT
+    assert decision is not None and decision.reason_codes == ("STOP_FORBIDDEN_OKVED",)
+    assert _NEW_TEXT in decision.client_explanation
+    # Встроенная политика объясняет по-прежнему.
+    assert _NEW_TEXT not in str(builtin_policy_body())
+
+
+async def test_unknown_or_empty_text_is_refused(session_factory: Sessions) -> None:
+    draft = await _draft(session_factory)
+    async with session_factory() as session:
+        versions = _versions(session)
+        body = (await versions.get(draft)).body
+        body["reason_texts"] = {"NOT_A_CODE": {"text": "x"}, "STOP_FORBIDDEN_OKVED": {"text": ""}}
+        with pytest.raises(ValidationError) as error:
+            await versions.update_draft(draft, body, None)
+    paths = {e["path"] for e in error.value.details["errors"]}  # type: ignore[index]
+    assert any(p.startswith("reason_texts") for p in paths)
