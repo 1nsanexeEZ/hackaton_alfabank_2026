@@ -168,3 +168,53 @@ export async function closeActiveApplications(
     await sleep(2_000)
   }
 }
+
+/**
+ * Проверка учредителя стартапа уже пройдена и действует (30 дней): сбросить её через API нельзя,
+ * поэтому сценарий «без проверки заявку не подать» идёт только на стенде, где её ещё не проходили.
+ */
+export async function founderPrescreenPassed(request: APIRequestContext, account: DemoAccount): Promise<boolean> {
+  const headers = await login(request, account)
+  const organizations = (await (await request.get('/api/organizations', { headers })).json()) as { id: string }[]
+  const [organization] = organizations
+  if (!organization) throw new Error(`У ${account.login} нет компании`)
+  const response = await request.get(`/api/organizations/${organization.id}/founder-prescreen`, { headers })
+  if (response.status() === 404) return false
+  const prescreen = (await response.json()) as { status: string; valid: boolean }
+  return prescreen.status === 'passed' && prescreen.valid
+}
+
+/**
+ * Заявка через API, как её отправил бы мастер: условия, согласия, ответы по 115-ФЗ — для тестов рабочего места,
+ * которым нужна поданная заявка, а не путь клиента. Документы не загружаем — подходит продукту без обязательных.
+ */
+export async function submitApplication(
+  request: APIRequestContext,
+  account: DemoAccount,
+  terms: { productCode: string; amount: number; termMonths: number; beneficialOwner: string },
+): Promise<{ id: string; number: string }> {
+  const headers = await login(request, account)
+  const [organization] = (await (await request.get('/api/organizations', { headers })).json()) as { id: string }[]
+  if (!organization) throw new Error(`У ${account.login} нет компании`)
+  const created = await request.post('/api/applications', {
+    headers,
+    data: { organization_id: organization.id, product_code: terms.productCode },
+  })
+  if (!created.ok()) throw new Error(`Черновик заявки: ${created.status()} ${await created.text()}`)
+  const { id, number } = (await created.json()) as { id: string; number: string }
+  const { version } = (await (await request.get(`/api/applications/${id}`, { headers })).json()) as { version: number }
+  const updated = await request.patch(`/api/applications/${id}`, {
+    headers,
+    data: {
+      version,
+      request: { amount: String(terms.amount), term_months: terms.termMonths, purpose: 'working_capital' },
+      consents: { personal_data: true, credit_bureau: true },
+      beneficiary: { acts_for_third_party: false },
+      beneficial_owners: { owners: [{ name: terms.beneficialOwner, basis: 'ownership', country: null }] },
+    },
+  })
+  if (!updated.ok()) throw new Error(`Заполнение заявки: ${updated.status()} ${await updated.text()}`)
+  const submitted = await request.post(`/api/applications/${id}/submit`, { headers })
+  if (!submitted.ok()) throw new Error(`Отправка заявки: ${submitted.status()} ${await submitted.text()}`)
+  return { id, number }
+}

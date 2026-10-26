@@ -1,4 +1,6 @@
-import { expect, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+import { expect, type Locator, type Page } from '@playwright/test'
 
 import { applicationWizard, choose, money } from './ui'
 
@@ -53,4 +55,47 @@ export async function openSubmittedFromHero(page: Page, number: string): Promise
   const hero = page.getByRole('article', { name: `Ваша заявка № ${number}` })
   await expect(hero).toBeVisible()
   await hero.getByRole('button', { name: 'Подробнее о заявке' }).click()
+}
+
+/** Мастер заявки с главной: «Оформить заявку» на первом экране вошедшим клиентом */
+export async function startApplication(page: Page, company: string): Promise<void> {
+  await page.goto('/')
+  await page.getByRole('main').getByRole('button', { name: 'Оформить заявку' }).first().click()
+  await expect(applicationWizard(page)).toContainText(company)
+}
+
+export interface UploadFile {
+  name: string
+  mimeType: string
+  buffer: Buffer
+}
+
+/** Небольшой PDF для документов заявки: банк проверяет формат и размер, а не содержимое */
+export const pdf = (name: string): UploadFile => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% e2e\n') })
+
+/** Документ на шаге «Анкета и документы»: «Выбрать файл» в строке документа — файл загружен, когда его можно удалить */
+export async function uploadDocument(page: Page, title: string, file: UploadFile): Promise<void> {
+  const row = applicationWizard(page).getByRole('listitem').filter({ hasText: title })
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), row.getByRole('button', { name: /Выбрать файл|Добавить файл/ }).click()])
+  await chooser.setFiles(file)
+  await expect(row.getByRole('button', { name: `Удалить ${file.name}` })).toBeVisible()
+}
+
+/** Выписка по счёту из сидов бэкенда (backend/seed/statements): по ней банк строит прогноз кассового разрыва */
+export const statement = (company: string): UploadFile => ({
+  name: `${company}.csv`,
+  mimeType: 'text/csv',
+  buffer: readFileSync(new URL(`../../backend/seed/statements/${company}.csv`, import.meta.url)),
+})
+
+/** Ответ на запрос банка в карточке заявки: каждый документ — «Загрузить», затем «Отправить ответ банку» */
+export async function answerInfoRequest(page: Page, card: Locator, uploads: { title: string; file: UploadFile }[]): Promise<void> {
+  await expect(card.getByRole('heading', { name: 'Банку нужны данные' })).toBeVisible()
+  for (const { title, file } of uploads) {
+    const row = card.getByRole('listitem').filter({ hasText: title })
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), row.getByRole('button', { name: /Загрузить|Добавить файл/ }).click()])
+    await chooser.setFiles(file)
+    await expect(row).toContainText(file.name)
+  }
+  await card.getByRole('button', { name: 'Отправить ответ банку' }).click()
 }
