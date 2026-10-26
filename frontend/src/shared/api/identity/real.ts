@@ -1,4 +1,4 @@
-import { http } from '../http'
+import { http, httpPage } from '../http'
 import type { AccountDto, IdentityApi } from './types'
 
 /** Страница GET /accounts — бэкенд отдаёт не больше 100 */
@@ -11,13 +11,15 @@ export const identityApi: IdentityApi = {
   demoLogin: (login) => http('/auth/demo-login', { method: 'POST', body: { login } }),
   me: () => http('/me'),
   updateProfile: (data) => http('/me/profile', { method: 'PATCH', body: data }),
-  listAccounts: (params = {}) => http('/accounts', { query: { limit: params.limit ?? ACCOUNTS_PAGE, offset: params.offset } }),
+  listAccounts: (params = {}) => httpPage('/accounts', { query: { limit: params.limit ?? ACCOUNTS_PAGE, offset: params.offset } }),
+  /** Все учётки страницами по 100: до total из X-Total-Count, без него — пока приходит полная страница */
   async listAllAccounts() {
     const all: AccountDto[] = []
     for (;;) {
-      const page = await http<AccountDto[]>('/accounts', { query: { limit: ACCOUNTS_PAGE, offset: all.length } })
-      all.push(...page)
-      if (page.length < ACCOUNTS_PAGE) return all
+      const page = await httpPage<AccountDto>('/accounts', { query: { limit: ACCOUNTS_PAGE, offset: all.length } })
+      all.push(...page.items)
+      const done = page.total !== null ? all.length >= page.total : page.items.length < ACCOUNTS_PAGE
+      if (done || !page.items.length) return all
     }
   },
   createAccount: (data) => http('/accounts', { method: 'POST', body: data }),

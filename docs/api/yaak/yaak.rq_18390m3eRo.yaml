@@ -1,0 +1,36 @@
+type: http_request
+model: http_request
+id: rq_18390m3eRo
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_ji3qMW82IV
+name: Добавить ключевую ставку
+description: |-
+  A rate from a date on; the date is the admin's (the Bank of Russia's rate takes effect
+  on the next working day after the decision). A rate from this date exists — 409
+  `conflict`; `decided_on` after `effective_from` — 422.
+
+  Ставка с 2030-01-01: цены демо до этой даты не меняются. Повторный запуск — 409: дата занята; убрать её — «Удалить будущую ставку».
+
+  Токен: администратор.
+method: POST
+url: ${[ base_url ]}/market/key-rates
+urlParameters: []
+headers:
+- enabled: true
+  name: Content-Type
+  value: application/json
+bodyType: application/json
+body:
+  text: |-
+    {
+      "value": "13.50",
+      "effective_from": "2030-01-01",
+      "note": "Из коллекции Yaak"
+    }
+sortPriority: 3000.0
+authenticationType: bearer
+authentication:
+  token: ${[ token_admin ]}
+  prefix: Bearer
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

@@ -6,7 +6,7 @@ import { CLIENT_STATUS_META, DOCUMENT_TITLE } from '@/entities/application'
 import { COLLATERAL_TYPE_LABEL, PURPOSE_LABEL, REPAYMENT_LABEL, type ProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
 import { liveFeed } from '@/entities/notification'
-import type { LoanPurpose, Repayment } from '@/shared/api'
+import { clientApi, type LoanPurpose, type Repayment } from '@/shared/api'
 import { formatDateTime, formatMoney, formatTerm, shakeInvalid } from '@/shared/lib'
 import { AsyncState, BaseButton, TextField } from '@/shared/ui'
 
@@ -149,7 +149,7 @@ const now = computed<Now | null>(() => {
         icon: CircleCheck,
         eyebrow: 'Готово',
         title: 'Договор подписан сторонами, кредит выдан',
-        text: `Деньги отправлены на расчётный счёт компании${when}. На демо-стенде выдача смоделирована: денежных операций нет.`,
+        text: `Деньги отправлены на расчётный счёт компании${when}.`,
       }
     }
     case 'rejected':
@@ -219,14 +219,31 @@ const uploadedDocuments = computed(() => card.value?.documents.filter((document)
 
 type Tab = 'terms' | 'schedule' | 'contract' | 'history' | 'events' | 'documents'
 
+/**
+ * Сколько уведомлений по этой заявке не прочитано: GET /feed/unread-count?application_id=.
+ * Пересчитываем, когда пришло новое (меняется общий счётчик ленты) и когда сервер записал прочтение во вкладке.
+ */
+const unreadEvents = ref(0)
+async function loadUnreadEvents() {
+  const id = card.value?.id
+  if (!id) return
+  try {
+    const { count } = await clientApi.unreadCount({ applicationId: id })
+    if (id === card.value?.id) unreadEvents.value = count
+  } catch {
+    // Счётчик — подсказка: не загрузился — вкладка просто без числа
+  }
+}
+watch([() => card.value?.id, () => liveFeed.state.unread], () => void loadUnreadEvents(), { immediate: true })
+
 const tabs = computed(() => {
-  const list: { id: Tab; label: string; count?: number }[] = [{ id: 'terms', label: 'Условия' }]
+  const list: { id: Tab; label: string; count?: number; unread?: boolean }[] = [{ id: 'terms', label: 'Условия' }]
   const payments = contract.value?.schedule.payments.length ?? 0
   if (payments) list.push({ id: 'schedule', label: 'График', count: payments })
   if (status.value === 'signing' || status.value === 'issued') list.push({ id: 'contract', label: 'Договор' })
   if (card.value?.timeline.length) list.push({ id: 'history', label: 'История' })
   // Черновик в ленту не пишет: уведомления по заявке появляются после подачи
-  if (status.value && status.value !== 'draft') list.push({ id: 'events', label: 'Уведомления' })
+  if (status.value && status.value !== 'draft') list.push({ id: 'events', label: 'Уведомления', count: unreadEvents.value, unread: true })
   if (uploadedDocuments.value.length) list.push({ id: 'documents', label: 'Документы', count: uploadedDocuments.value.length })
   return list
 })
@@ -250,7 +267,10 @@ function setTabButton(id: Tab, element: unknown) {
 }
 function placeIndicator() {
   const button = tabButtons.get(currentTab.value)
-  if (button) indicator.value = { left: button.offsetLeft, width: button.offsetWidth }
+  if (!button) return
+  const { offsetLeft: left, offsetWidth: width } = button
+  // Линия на месте (resize, обновление заявки) — новый объект зря перерисовал бы всю карточку
+  if (left !== indicator.value.left || width !== indicator.value.width) indicator.value = { left, width }
 }
 watch([currentTab, tabs], () => nextTick(placeIndicator), { flush: 'post' })
 onMounted(() => {
@@ -464,7 +484,13 @@ const footerHint = computed(() => {
                 :class="currentTab === tab.id ? 'font-bold text-ink' : 'font-semibold text-ink-secondary hover:text-ink'"
                 @click="selectedTab = tab.id"
               >
-                {{ tab.label }}<span v-if="tab.count" class="ml-1.5 text-xs font-medium text-ink-secondary">{{ tab.count }}</span>
+                {{ tab.label }}<span
+                  v-if="tab.count"
+                  class="ml-1.5 text-xs font-medium"
+                  :class="tab.unread ? 'rounded-full bg-brand px-1.5 py-0.5 leading-none text-white' : 'text-ink-secondary'"
+                  :aria-label="tab.unread ? `непрочитанных: ${tab.count}` : undefined"
+                  >{{ tab.count }}</span
+                >
               </button>
               <span
                 class="tab-indicator pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-brand"
@@ -520,9 +546,6 @@ const footerHint = computed(() => {
                   @download="downloadContract"
                 />
                 <SignaturesView v-if="sealedDocumentId" :document-id="sealedDocumentId" />
-                <p v-if="status === 'issued' && !hasContractDocument(contract)" class="text-xs text-ink-secondary">
-                  Подписание и выдача смоделированы (моки ЭДО и АБС): реальных подписей и денежных операций нет.
-                </p>
               </template>
               <div v-else-if="contractError" class="space-y-3">
                 <p class="text-sm text-brand" role="alert">{{ contractError }}</p>
@@ -550,7 +573,7 @@ const footerHint = computed(() => {
 
             <Transition name="tab-panel">
             <div v-if="currentTab === 'events'" id="application-panel-events" role="tabpanel" aria-labelledby="application-tab-events" class="pt-5">
-              <ApplicationEvents :application-id="card.id" />
+              <ApplicationEvents :application-id="card.id" @read="loadUnreadEvents" />
             </div>
             </Transition>
 

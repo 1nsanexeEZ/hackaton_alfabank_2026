@@ -6,7 +6,7 @@
 
 ## Смоделированные интеграции
 
-Реальных интеграций с банковскими и государственными системами в решении нет (ограничение кейса «Автономность»). Каждая внешняя система воспроизведена локальным моком за настоящей HTTP-границей: backend ходит к ней через адаптер, поэтому замена мока на реальный API — это новый адаптер, а не правка бизнес-логики. Моки живут в отдельном сервисе `external-mocks/` (FastAPI, порт 8100), данные синтетические.
+Реальных интеграций с банковскими и государственными системами в решении нет (ограничение кейса «Автономность»). Каждая внешняя система воспроизведена локальным моком за настоящей HTTP-границей: backend ходит к ней через адаптер, поэтому замена мока на реальный API — это новый адаптер, а не правка бизнес-логики. Моки живут в отдельном сервисе `external-mocks/` (FastAPI, порт 8100), данные синтетические. Полный список эндпоинтов — в `external-mocks/README.md`.
 
 | Внешняя система | Что делает в процессе | Мок | Адаптер в backend | Пометка |
 |---|---|---|---|---|
@@ -19,6 +19,9 @@
 | Перечни Росфинмониторинга | экстремизм и терроризм, решения МВК о замораживании, ФРОМУ — для проверки по 115-ФЗ | `POST /rfm/screen` — коды перечней строками | `RfmHttpSource` (`.../adapters/aml_http.py`) | **смоделировано**, записи синтетические |
 | База публичных должностных лиц | иностранные, российские ПДЛ и должностные лица международных организаций | `POST /pep/screen` | `PepHttpSource` (`.../adapters/aml_http.py`) | **смоделировано**, записи синтетические |
 | Платформа «Знай своего клиента» Банка России | уровень риска юрлица или ИП | `GET /zsk/{inn}` | `ZskHttpSource` (`.../adapters/aml_http.py`) | **смоделировано** |
+| Реестр лицензий | действующие лицензии компании и лицензируемый вид деятельности | `GET /licenses/{inn}` | `LicensesHttpSource` (`.../adapters/licenses_http.py`) | **смоделировано** |
+| АБС банка (клиент банка и обороты) | с какой даты компания клиент банка, помесячные обороты по счёту за 24 месяца | `GET /abs/accounts/{inn}` | `BankTurnoverHttpSource` (`.../adapters/bank_turnover_http.py`) | **смоделировано** |
+| Внутренний стоп-лист банка | стоп-фактор решения, согласия клиента не требует | `GET /abs/stop-list/{inn}` | `BankStopListHttpSource` (`.../adapters/bank_stop_list_http.py`) | **смоделировано** |
 | ЭДО / электронная подпись | подписание кредитной документации | `POST /edo/sign` → номер документа, `simulated: true` | `HttpEdoClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedEdoClient` внутри backend (`backend/src/modules/applications/infrastructure/adapters/edo_client.py`) | **смоделировано**, ответ API `simulated: true` |
 | Электронная подпись банка | подпись PDF кредитного договора после подписи клиента | ключ и сертификат демо-УЦ стенда, метка времени — встроенная служба pyHanko (`DummyTimeStamper`) | `PyHankoContractSealer` (`backend/src/modules/applications/infrastructure/adapters/contract_sealer.py`): настоящая подпись PAdES | **ключ демо-стенда**, не квалифицированный |
 | АБС банка (выдача средств) | перевод суммы кредита на счёт клиента | `POST /abs/disbursements` → номер договора, `simulated: true` | `HttpAbsClient`; если `APPLICATIONS_EXTERNAL_MOCKS_URL` пуст — `SimulatedAbsClient` (`backend/src/modules/applications/infrastructure/adapters/abs_client.py`) | **смоделировано** |
@@ -39,7 +42,7 @@
   | Qwen2.5-7B-Instruct | [huggingface.co/Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct); в Ollama — `qwen2.5:7b` (GGUF Q4_K_M) | Apache-2.0 | 7,6 млрд | необязательная: для машин с 16 ГБ, если нужен русский получше |
 
 - **ML-модель скоринга `ml_logreg_v1` обучена командой** — логистическая регрессия на синтетической популяции заявок (`backend/ml/population.py`, `backend/ml/train.py`); в образ попадают только её коэффициенты (`backend/src/modules/scoring/infrastructure/config/ml_logreg_v1.yaml`), инференс — чистый Python без ML-библиотек. Библиотеки обучения (scikit-learn, numpy, pandas, matplotlib, jupyter, nbconvert) — группа зависимостей `ml` в `backend/pyproject.toml`, ставятся только локально и в образ не входят.
-- **Внешних датасетов нет.** Все данные синтетические и созданы командой: компании, люди, финансовые показатели и кредитные истории (`backend/seed/demo_data.py`, `external-mocks/app/data.py`), каталог продуктов (`backend/seed/products.py`), тексты новостей ленты (`backend/seed/notifications.py`), досье для рабочего места сотрудника в режиме `mock` (`frontend/mocks/external-sources.json`, генератор `frontend/mocks/generate.py` с фиксированным seed). ИНН и ОГРН собраны с правильными контрольными цифрами; совпадение с реальными субъектами случайно.
+- **Внешних датасетов нет.** Все данные синтетические и созданы командой: компании, люди, финансовые показатели и кредитные истории (`backend/seed/demo_data.py`, `external-mocks/app/data.py`), каталог продуктов (`backend/seed/products.py`), тексты новостей ленты (`backend/seed/notifications.py`), синтетические банковские выписки (`backend/seed/statements/`, генератор `backend/scripts/generate_statements.py`). ИНН и ОГРН собраны с правильными контрольными цифрами; совпадение с реальными субъектами случайно.
 
 ## Образы Docker
 
@@ -239,8 +242,14 @@ Node.js 22+, версии зафиксированы точно в `frontend/pac
 | `vue-tsc` | 3.3.13 | MIT | проверка типов |
 | `@vue/tsconfig` | 0.9.1 | MIT | конфигурация TypeScript |
 | `@types/node` | 24.19.2 | MIT | типы Node.js |
+| `eslint` | 10.13.0 | MIT | линтер (`npm run lint`) |
+| `@eslint/js` | 10.0.1 | MIT | правила ESLint |
+| `eslint-plugin-vue` | 10.11.1 | MIT | правила для Vue |
+| `typescript-eslint` | 8.72.0 | MIT | разбор TypeScript для ESLint |
+| `vue-eslint-parser` | 10.4.1 | MIT | разбор `.vue` для ESLint |
+| `globals` | 17.13.0 | MIT | глобальные имена для ESLint |
 
-В браузер попадают только `vue`, `vue-router`, `lucide-vue-next` и шрифт Inter, остальное — инструменты сборки. Всего в `package-lock.json` 148 пакетов (вместе с транзитивными и платформенными бинарниками); их лицензии: MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, MPL-2.0 (`lightningcss` — обработка CSS при сборке) и OFL-1.1 (шрифт Inter).
+В браузер попадают только `vue`, `vue-router`, `lucide-vue-next` и шрифт Inter, остальное — инструменты сборки и проверки. Всего в `package-lock.json` 247 пакетов (вместе с транзитивными и платформенными бинарниками); их лицензии: MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, MPL-2.0 (`lightningcss` и его платформенные сборки — обработка CSS при сборке), BlueOak-1.0.0 (`minimatch`, зависимость ESLint) и OFL-1.1 (шрифт Inter).
 
 ## Инструменты разработки
 
@@ -250,6 +259,7 @@ Node.js 22+, версии зафиксированы точно в `frontend/pac
 |---|---|---|
 | uv | MIT OR Apache-2.0 | установка зависимостей, запуск тестов |
 | ruff, mypy, pytest, import-linter, testcontainers | см. таблицы dev-зависимостей | проверки в CI (`.github/workflows/ci.yml`) |
-| GitHub Actions: `actions/checkout`, `actions/setup-python`, `astral-sh/setup-uv`, `appleboy/ssh-action` | MIT | CI и деплой стенда |
+| Playwright (`@playwright/test` 1.64.1, `playwright`, `playwright-core`), `typescript` 6.0.3, `@types/node` 24.19.2 | Apache-2.0, MIT | e2e-тесты кабинета клиента (`e2e/`, [`e2e/README.md`](e2e/README.md)); браузер Chromium скачивается командой `npx playwright install chromium` и в репозиторий не входит |
+| GitHub Actions: `actions/checkout`, `actions/setup-node`, `astral-sh/setup-uv` | MIT | CI (`.github/workflows/ci.yml`); деплой стенда (`.github/workflows/deploy.yml`) идёт по SSH обычным `ssh` без сторонних actions |
 
-BPMN-схемы маршрутов и инструмент их редактирования появятся вместе с модулем `process`; в этой версии их нет.
+BPMN-схемы маршрутов — файлы BPMN 2.0 `backend/src/modules/process/workflows/*.bpmn`; их исполняет собственный движок модуля `process` (разбор XML — `lxml`). Редактор схем в поставку не входит.

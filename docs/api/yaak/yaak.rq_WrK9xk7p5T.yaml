@@ -1,0 +1,23 @@
+type: http_request
+model: http_request
+id: rq_WrK9xk7p5T
+workspaceId: wk_6MYZUPM7tf
+folderId: fl_ji3qMW82IV
+name: Действующая ключевая ставка
+description: |-
+  The key rate in force on the date. Nothing entered for it — `KEY_RATE` from the
+  settings with `source: settings`.
+method: GET
+url: ${[ base_url ]}/market/key-rate
+urlParameters:
+- enabled: false
+  name: 'on'
+  value: ''
+headers: []
+bodyType: null
+body: {}
+sortPriority: 1000.0
+authenticationType: none
+authentication: {}
+createdAt: '2026-10-24T00:00:00'
+updatedAt: '2026-10-24T00:00:00'

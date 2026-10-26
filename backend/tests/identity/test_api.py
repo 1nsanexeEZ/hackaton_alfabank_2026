@@ -89,7 +89,10 @@ def test_permission_is_checked_on_the_route(
     create_account(client, admin_token, reader["id"], email="reader@example.com")
     token = login("reader@example.com", PASSWORD)
 
-    assert client.get("/accounts", headers=auth(token)).status_code == 200
+    accounts = client.get("/accounts", params={"limit": 1}, headers=auth(token))
+    assert accounts.status_code == 200 and len(accounts.json()) == 1
+    # The bootstrap admin and the reader.
+    assert accounts.headers["X-Total-Count"] == "2"
     denied = client.post(
         "/accounts",
         json={

@@ -6,7 +6,10 @@
 
 ![Кредитный кабинет](docs/assets/screenshots/landing.jpg)
 
+**Онлайн-стенд:** https://alfa-hack.ru — браузер сначала спросит логин и пароль сайта (HTTP Basic Auth): **логин `admin`, пароль `cc0290a34743ad7cdc1ebb59fdc7e728bc72b92b668d9102f4eb7e8f8293f9eb`**. Дальше вход в кабинет по паролю демо-учётки, подробнее — [Онлайн-стенд](#онлайн-стенд).
+
 **С чего начать:**
+- [Карта документации](docs/README.md) — все документы и порядок чтения;
 - **[Ключевые фишки, исследование и результаты](docs/product/features.md)** — продуктовый обзор со скриншотами;
 - [Быстрый старт](#быстрый-старт) — стенд без ИИ и с ИИ;
 - [Что проверить за 10 минут](#что-проверить-за-10-минут) — пошаговый сценарий.
@@ -17,8 +20,10 @@
   - [Без ИИ](#без-ии)
   - [С ИИ: локальная модель](#с-ии-локальная-модель)
   - [С ИИ: свой провайдер](#с-ии-свой-провайдер-openai-совместимый-api)
+- [Если что-то не работает](#если-что-то-не-работает)
 - [Что проверить за 10 минут](#что-проверить-за-10-минут)
 - [Требования](#требования)
+- [Онлайн-стенд](#онлайн-стенд)
 - [Архитектура](#архитектура)
 - [Компоненты](#компоненты)
 - [Переменные окружения](#переменные-окружения)
@@ -56,7 +61,7 @@ curl http://localhost:8080/api/ready
 
 `/api/ready` отвечает `{"status": "ok", "checks": {"database": "ok", "kafka": "ok"}}`. Swagger UI — http://localhost:8080/api/docs, OpenAPI — [`docs/api/openapi.json`](docs/api/openapi.json). Все пути API снаружи начинаются с `/api/`.
 
-Остановить стенд — `docker compose down`, удалить ещё и данные (БД, документы, Kafka, ключи) — `docker compose down -v`.
+Остановить стенд — `docker compose down`, удалить ещё и данные (БД, документы, Kafka, ключи) — `docker compose down -v`. Порт 8080 занят или стенд не поднялся — [Если что-то не работает](#если-что-то-не-работает).
 
 ### С ИИ: локальная модель
 
@@ -68,20 +73,37 @@ docker compose --profile ai up -d      # стенд + ollama
 backend/scripts/ai-smoke.sh            # проверка: статус, вопрос, поток, injection
 ```
 
+**На Windows (PowerShell)** sh-скрипты не запускаются — те же шаги командами Docker:
+
+```powershell
+docker compose --profile ai up -d ollama                                             # поднять ollama
+docker compose --profile ai exec ollama ollama pull qwen3:4b-instruct-2507-q4_K_M    # один раз: скачать модель (~2,5 ГБ)
+docker compose --profile ai up -d --wait                                             # стенд + ollama
+curl.exe http://localhost:8080/api/assistant/status                                  # ждём "mode":"llm"
+```
+
+Лёгкая модель на Windows: `docker compose --profile ai exec ollama ollama pull qwen2.5:1.5b`, затем `$env:ASSISTANT_LLM_MODEL="qwen2.5:1.5b"; $env:OLLAMA_MEM_LIMIT="2g"; docker compose --profile ai up -d --wait`. Переменные `$env:` живут только в этом окне PowerShell — чтобы не набирать их каждый раз, запишите их в `.env` (см. ниже).
+
 - **Где чат:** кнопка «Умный помощник» в шапке сайта после входа клиентом.
 - **Офлайн:** после скачивания модели стенд работает без интернета. Не скачана модель — помощник отвечает по шаблонам, ничего не падает.
 - **Прогрев:** backend при старте сам загружает модель в память — на CPU это 20–40 с.
 - **Лёгкая модель** для машин с 8 ГБ: `backend/scripts/ai-pull-model.sh qwen2.5:1.5b`, затем `ASSISTANT_LLM_MODEL=qwen2.5:1.5b OLLAMA_MEM_LIMIT=2g docker compose --profile ai up -d`.
-- **Ollama вне Docker** (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 backend/scripts/ai-pull-model.sh`, затем `ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1 docker compose up -d backend`.
+- **Ollama вне Docker** (на CPU обычно быстрее): установите Ollama, выполните `OLLAMA_OUTSIDE_DOCKER=1 backend/scripts/ai-pull-model.sh`, затем `ASSISTANT_LLM_BASE_URL=http://host.docker.internal:11434/v1 docker compose up -d --wait` (PowerShell: `ollama pull qwen3:4b-instruct-2507-q4_K_M`, затем `$env:ASSISTANT_LLM_BASE_URL="http://host.docker.internal:11434/v1"; docker compose up -d --wait`).
 - **Совсем без модели:** `ASSISTANT_LLM_PROVIDER=off`.
 
 ### С ИИ: свой провайдер (OpenAI-совместимый API)
 
-Помощник ходит в модель через порт `LanguageModel` по OpenAI-совместимому API (`POST {base URL}/chat/completions`). Подойдёт любой провайдер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, шлюз банка. Base URL, ключ и название модели задаются в `.env` в корне репозитория:
+Помощник ходит в модель через порт `LanguageModel` по OpenAI-совместимому API (`POST {base URL}/chat/completions`). Подойдёт любой провайдер с моделью с открытыми весами: OpenRouter, vLLM, llama.cpp server, LM Studio, шлюз банка. Менять код не нужно — три настройки в `.env`.
 
-```bash
-cp .env.example .env
-```
+**1. Взять у провайдера три значения:** base URL (адрес API, без `/chat/completions`), ключ (в личном кабинете провайдера, раздел API keys) и название модели — так, как оно записано у провайдера.
+
+| Провайдер | `ASSISTANT_LLM_BASE_URL` | Пример `ASSISTANT_LLM_MODEL` |
+|---|---|---|
+| [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` | `qwen/qwen-2.5-72b-instruct` |
+| ranvik (на нём работает наш стенд alfa-hack.ru) | `https://api.ranvik.ru/v1` | `deepseek-flash` — DeepSeek V4.1 Flash, веса под MIT |
+| свой сервер на этой машине: vLLM, llama.cpp, LM Studio | `http://host.docker.internal:<порт>/v1` | как модель названа на сервере |
+
+**2. Создать `.env` в корне репозитория** (рядом с `docker-compose.yml`; на Windows — `notepad .env`) с четырьмя строками:
 
 ```dotenv
 ASSISTANT_LLM_PROVIDER=api                          # внешний OpenAI-совместимый API
@@ -90,11 +112,19 @@ ASSISTANT_LLM_API_KEY=<ваш ключ>                    # уходит заг
 ASSISTANT_LLM_MODEL=qwen/qwen-2.5-72b-instruct      # название модели у провайдера: только открытые веса
 ```
 
+Остальное берётся из значений по умолчанию. Все настройки с пояснениями — в [`.env.example`](.env.example).
+
+**3. Перезапустить стенд и проверить:**
+
 ```bash
-docker compose up -d backend
-curl http://localhost:8080/api/assistant/status
+docker compose up -d --wait
+curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 # {"enabled": true, "mode": "llm", "provider": "api", "model": "qwen/qwen-2.5-72b-instruct", "host": "openrouter.ai", "reachable": true, "reason": null}
 ```
+
+Перезапускайте весь стенд (`up -d`), а не только `backend`: вместе с backend перезапустится и nginx, иначе он будет обращаться к старому адресу контейнера и отдавать 502.
+
+**4. Задать помощнику вопрос** в кабинете клиента. `reachable: true` значит только, что провайдер отвечает, — ключ проверяется первым вопросом. Ответ живым текстом за несколько секунд — всё подключено; ответ шаблоном — неверный ключ или модель: в `docker compose logs backend` у строки `assistant answer … fallback=` будет причина вместо `None`.
 
 - **Ключ не коммитьте:** `.env` в `.gitignore`, в репозитории только `.env.example` с пустым ключом.
 - **Модель** — с открытыми весами. Ориентир экспертов — до 120 млрд параметров, организаторы подтвердили, что это рекомендация. Закрытые модели (`gpt-*`, `claude`, `gemini`, `gigachat`, `yandexgpt`…) помощник отклоняет по названию: `enabled: false` и причина в `reason`.
@@ -111,9 +141,26 @@ curl http://localhost:8080/api/assistant/status
 | `ASSISTANT_LLM_TIMEOUT_S`, `ASSISTANT_LLM_CONCURRENCY`, `ASSISTANT_LLM_MAX_QUEUE` | `25`, `1`, `4` | срок ответа, одновременных генераций, очередь |
 | `ASSISTANT_LLM_EXTRA_ALLOWED_HOSTS` | пусто | только `local`: ещё хосты внутри периметра |
 | `ASSISTANT_RATE_LIMIT_PER_MINUTE` | `10` | вопросов в минуту на пользователя |
-| `OLLAMA_MEM_LIMIT` | `4g` | память контейнера `ollama` |
+| `OLLAMA_MEM_LIMIT`, `OLLAMA_KEEP_ALIVE` | `4g`, `30m` | память контейнера `ollama`, сколько держать модель в памяти без запросов |
 
 Модели, деградация, защита от prompt injection и замеры качества — [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md).
+
+## Если что-то не работает
+
+Сначала посмотрите, какой сервис упал: `docker compose ps` (у всех, кроме `frontend` и `nginx`, должно быть `healthy`) и `docker compose logs --tail=100 <сервис>`.
+
+| Что видите | Что сделать |
+|---|---|
+| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория со строкой `HTTP_PORT=8081` (любой свободный порт), затем `docker compose up -d --wait` и откройте http://localhost:8081. Загрузка документов и QR-код договора возьмут тот же порт сами. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| Стенд открыт не по `localhost` (с другого компьютера по IP): не загружаются документы, QR в договоре ведёт на `localhost` | Добавьте в `.env` адрес из строки браузера, например `MINIO_PUBLIC_ENDPOINT=http://192.168.1.10:8080`, и выполните `docker compose up -d --wait`. Договоры, подписанные раньше, сохранят старый адрес: подписанный PDF в архиве не меняется |
+| `Cannot connect to the Docker daemon`, `dockerDesktopLinuxEngine: The system cannot find the file specified` | Не запущен Docker Desktop: запустите и дождитесь Engine running |
+| `no space left on device` или окно Docker Desktop «There was a problem with WSL» | Кончилось место на диске с данными Docker. Нужно около 6 ГБ, с локальной моделью — ещё около 7 ГБ. Освободите место или перенесите данные Docker на другой диск: Docker Desktop → Settings → Resources → Advanced → Disk image location |
+| `--wait` закончился ошибкой `container … is unhealthy` или по таймауту | Чаще всего машина медленная и сервис не успел подняться. Повторите ту же команду `docker compose up -d --build --wait --wait-timeout 600` — она продолжит с того места. Не помогло — `docker compose logs --tail=100 <сервис>` |
+| Сайт отвечает `502 Bad Gateway` | Сразу после старта — backend ещё поднимается, подождите минуту. Если 502 остаётся — `docker compose up -d --wait` (перезапускает nginx вслед за пересозданными сервисами) или `docker compose restart nginx` |
+| После обновления репозитория что-то ведёт себя странно (старые заявки, ошибки миграций) | Начать с чистой базы: `docker compose down -v`, затем снова `docker compose up -d --build --wait`. Демо-данные создадутся заново |
+| В логе backend в первые секунды `GroupCoordinatorNotAvailableError` | Это нормально: Kafka создаёт служебный топик на свежем томе, проходит само |
+| Windows: `backend/scripts/ai-pull-model.sh` → «Приложение не найдено» | PowerShell не запускает sh-скрипты — используйте [команды для Windows](#с-ии-локальная-модель) |
+| Помощник отвечает шаблонами: под ответом «Ответ по шаблону», в `/api/assistant/status` — `"mode": "rules"` | Модель недоступна: не скачана или не запущен профиль `ai` (локальная модель), неверный ключ или модель (свой провайдер). Причина — в `docker compose logs backend` у строки `assistant answer … fallback=`. Основной сценарий при этом работает. Вопросы с попыткой «забудь инструкции» шаблоном отвечают всегда — это защита |
 
 ## Что проверить за 10 минут
 
@@ -139,7 +186,7 @@ curl http://localhost:8080/api/assistant/status
 
 - Docker с Compose v2: Docker Desktop на Windows и macOS или Docker Engine на Linux.
 - 12 ГБ оперативной памяти: стенд без ИИ — около 3 ГБ по `mem_limit`, с профилем `ai` и локальной моделью — около 7 ГБ.
-- Около 2,5 ГБ диска под образы (с моделью — ещё около 2,5 ГБ) и свободный порт 8080 (другой — `HTTP_PORT`).
+- Около 6 ГБ свободного диска под образы и кэш сборки (с локальной моделью — ещё около 7 ГБ: образ Ollama и сама модель) и свободный порт 8080 (занят — [как сменить](#если-что-то-не-работает)).
 - Интернет — только для первой сборки образов и скачивания модели; дальше стенд запускается офлайн.
 - Для разработки без Docker: Python 3.12 и [uv](https://docs.astral.sh/uv/), Node.js 22+.
 
@@ -156,26 +203,35 @@ curl http://localhost:8080/api/assistant/status
 
 Замер — Docker Desktop на Windows 11 (WSL 2), без нагрузки, `docker stats` через минуту после старта.
 
-**Если не стартует:**
-- Порт 8080 занят — `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` в `.env`.
-- «There was a problem with WSL» или `no space left on device` — кончилось место на диске с данными Docker.
-- Что именно упало — `docker compose ps` и `docker compose logs --tail=100 <сервис>`.
-- На свежем томе Kafka в первые секунды backend пишет `GroupCoordinatorNotAvailableError` — брокер создаёт служебный топик, это проходит само.
+Не стартует или что-то не так — [Если что-то не работает](#если-что-то-не-работает).
 
 **Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `backend/scripts/ai-pull-model.sh`.
 
-**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`).
+**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик доступен только после Basic Auth ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`; нужен Compose 2.24.4+ из-за тега `!override`).
+
+## Онлайн-стенд
+
+https://alfa-hack.ru — та же версия, что в `main`, ничего ставить не нужно.
+
+1. **Вход на сайт.** Сайт закрыт HTTP Basic Auth: браузер покажет окно входа — **логин `admin`, пароль `cc0290a34743ad7cdc1ebb59fdc7e728bc72b92b668d9102f4eb7e8f8293f9eb`**.
+2. **Вход в кабинет — одной кнопкой, как локально:**
+   - клиент: на главной «Войти» → выберите компанию и человека из списка;
+   - сотрудник банка: https://alfa-hack.ru/admin/login → кнопка демо-учётки сотрудника под формой.
+
+   Можно и по паролю: пароль всех демо-учёток — **`Demo-2026!`**, логины — в [таблице демо-учёток](#демо-данные-и-учётные-записи). Подпись договора пароль спрашивает всегда.
+3. **API и Swagger** Basic Auth не требуют: https://alfa-hack.ru/api/docs, коллекция Yaak — окружение `stand`.
+
+Умный помощник на стенде отвечает через внешнюю модель с открытыми весами (DeepSeek V4.1 Flash у провайдера ranvik), на локальном стенде — по [Быстрому старту](#с-ии-локальная-модель).
 
 ## Архитектура
 
-Модульный монолит на FastAPI: один процесс backend, внутри — 13 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
-
-![Контейнеры](docs/architecture/img/1-containers.png)
+Модульный монолит на FastAPI: один процесс backend, внутри — 14 модулей с собственными таблицами, доменом и API (ограниченные контексты DDD). Модули читают друг друга только через фасады (`facade.py`) и пишут друг другу только командами через Kafka. Границы и слои проверяет import-linter в CI.
 
 | Модуль | Зачем |
 |---|---|
 | `identity` | вход по email или телефону, JWT RS256, роли с пермишнами и политиками (RBAC + ABAC), личные согласия — [`docs/identity.md`](docs/identity.md) |
 | `clients` | компании, участники, права внутри компании (кто подаёт, кто подписывает), доверенности, отчётность, бизнес-план, сверка с ЕГРЮЛ — [`docs/modules/clients.md`](docs/modules/clients.md) |
+| `market` | ключевая ставка Банка России с датой начала действия, история для админа — [`docs/modules/market.md`](docs/modules/market.md) |
 | `products` | каталог из 9 продуктов, подбор с объяснением, калькулятор, eligibility — [`docs/product/credit-products.md`](docs/product/credit-products.md) |
 | `applications` | заявка — единственный владелец статуса: черновик, документы (MinIO), подача, дозапрос, предложение, договор PDF, подпись, выдача — [`docs/modules/applications.md`](docs/modules/applications.md) |
 | `process` | движок BPMN: маршрут продукта (5 маршрутов), команды модулям, задачи андеррайтера, таймауты — [`docs/process/bpmn.md`](docs/process/bpmn.md) |
@@ -185,22 +241,22 @@ curl http://localhost:8080/api/assistant/status
 | `notifications` | лента событий и персональные новости, SSE — [`docs/modules/notifications.md`](docs/modules/notifications.md) |
 | `support` | чат клиента с поддержкой, очередь сотрудников — [`docs/modules/support.md`](docs/modules/support.md) |
 | `projector` | модели чтения под экраны — [`docs/modules/projector.md`](docs/modules/projector.md) |
-| `bff` | ответы под экраны кабинета и бэк-офиса — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
+| `bff` | ответы под экраны кабинета и бэк-офиса — [`settings/client-journey.md`](settings/client-journey.md) |
 | `assistant` | умный помощник: маршрутизатор на правилах, факты из фасадов, модель за портом `LanguageModel` (Ollama или свой OpenAI-совместимый API), постпроверка, история диалогов — [`docs/ai.md`](docs/ai.md) |
 
 **Kafka.** Transactional outbox: изменение и событие о нём — в одной транзакции. Inbox отсекает повторы, у каждого топика есть `<topic>.dlq`. Хранение бессрочное — projector перестраивает модели чтения с нуля.
 
-**Архитектура по уровням** — контекст, контейнеры, модули и карта связей, слои модуля, потоки — в [`docs/architecture/architecture.md`](docs/architecture/architecture.md). Схемы draw.io по страницам — [`docs/architecture/architecture-overview.drawio`](docs/architecture/architecture-overview.drawio). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
+**Архитектура** — модули, Kafka и путь заявки от подачи до предложения — на схеме draw.io [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio). Скоринг и кредитное решение сквозь модули — [`docs/scoring-architecture.md`](docs/scoring-architecture.md). Процесс одобрения в BPMN — [`docs/process/bpmn.md`](docs/process/bpmn.md), модель данных — [`docs/data-model.md`](docs/data-model.md), диаграмма состояний заявки — [`docs/state-machine.md`](docs/state-machine.md).
 
 ## Компоненты
 
 | Компонент | Версия | Где |
 |---|---|---|
-| Python, FastAPI, Pydantic | 3.12, 0.156, 2.14 | `backend`, `external-mocks` |
+| Python, FastAPI, Pydantic | 3.12, 0.156 (`external-mocks` — 0.157), 2.14 | `backend`, `external-mocks` |
 | SQLAlchemy (async), Alembic, asyncpg | 2.1, 1.20 | `backend` |
 | FastStream (Kafka) | 0.7 | `backend` |
-| pyHanko, fpdf2, qrcode | 0.38, 2.8 | договор PDF, подпись банка PAdES |
-| argon2-cffi, PyJWT | — | пароли, JWT RS256 |
+| pyHanko, fpdf2, qrcode | 0.38, 2.8, 8.2 | договор PDF, подпись банка PAdES |
+| argon2-cffi, PyJWT | 25.1, 2.15 | пароли (argon2id), JWT RS256 |
 | PostgreSQL | 16.4 | `db` |
 | Apache Kafka (KRaft) | 3.8.0 | `kafka` |
 | MinIO | 2026.7.17 | `minio` |
@@ -222,15 +278,16 @@ Compose читает `.env` из корня репозитория. В конт�
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | учётка MinIO, общая для MinIO и backend |
 | `MINIO_BUCKET_NAME` | `credit-documents` | бакет документов заявок; договоры — в отдельном бакете `credit-contracts` с Object Lock |
 | `HTTP_PORT` | `8080` | порт сайта на этой машине |
-| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:8080` | адрес presigned URL и QR-кода договора (то, что видит браузер); порт должен совпадать с `HTTP_PORT` |
+| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:${HTTP_PORT}` | адрес сайта, который видит браузер: на него подписаны presigned URL, на его `/verify` ведёт QR-код договора. Задавать, только если сайт открывают не по `localhost`: публичный домен или IP машины в сети |
 | `MESSAGING_MODE` | `kafka` | `kafka` — брокер из compose; `in_process` — без брокера (локальный запуск); `manual` — тесты |
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
-| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля; на публичном стенде выключен |
+| `DEMO_LOGIN_ENABLED` | `true` | вход в демо-учётку без пароля (`POST /auth/demo-login`, список — `GET /auth/demo-accounts`; при `false` оба отвечают 404); на публичном стенде включён, но оба пути закрыты Basic Auth сайта (`nginx.prod.conf`). В списке последним идёт администратор из `BOOTSTRAP_ADMIN_EMAIL` |
 | `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | моки подписания (ЭДО) и выдачи (АБС); без переменной оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут и число повторов |
-| `DECISION_KEY_RATE` | `16.50` | ключевая ставка Банка России, % годовых: от неё считается ставка предложения; синтетическое значение, на дату проверки сверить с cbr.ru |
+| `KEY_RATE` | `14.00` | ключевая ставка Банка России, % годовых (решение от 23.10.2026, сверять с cbr.ru), если в истории ключевой ничего не действует: историю ведёт админ (`/market/key-rates`, [market](docs/modules/market.md)); от ключевой считается фондирование в ставке предложения |
+| `CATALOG_KEY_RATE` | `16.50` | ключевая, при которой заданы ставки каталога продуктов: клиенту коридор ставки и потолок господдержки показываются сдвинутыми на «действующая ключевая − `CATALOG_KEY_RATE`» (при 14% — −2,5 п.п.); в админке каталога — ставки как заданы |
 | `MOCK_LATENCY_MS_MIN`, `MOCK_LATENCY_MS_MAX`, `MOCK_FAILURE_RATE`, `MOCK_BKI_ALWAYS_FAIL_INNS` | `100`, `400`, `0`, `7705729405` | поведение `external-mocks`: задержка, доля ответов 503, ИНН, по которым БКИ всегда недоступно. Чтобы показать ретраи и деградацию, поднимите `MOCK_FAILURE_RATE` (например, `0.1`) |
 
 Адреса сервисов внутри сети (`kafka:9092`, `http://minio:9000`, `db:5432`) и пути к ключам зафиксированы в `docker-compose.yml`. Фронтенд для разработки настраивается своим `frontend/.env.example`.
@@ -239,7 +296,7 @@ Compose читает `.env` из корня репозитория. В конт�
 
 Предприниматель уже клиент банка (ответ организаторов), поэтому регистрации нет: компании, участники и учётки создаются сидами при старте (`backend/seed/`, константы — [`backend/seed/demo_data.py`](backend/seed/demo_data.py)). Все данные синтетические.
 
-Пароль всех демо-учёток — `DEMO_PASSWORD`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). При `DEMO_LOGIN_ENABLED=true` — кнопкой без пароля; подпись договора всё равно спросит пароль.
+Пароль всех демо-учёток — `DEMO_PASSWORD`. Войти можно по email или по телефону в любом формате (`8 (999) 000-00-01`). При `DEMO_LOGIN_ENABLED=true` — кнопкой без пароля; подпись договора всё равно спросит пароль. Клиенты входят на сайт, сотрудники — на `/admin/login`: учётка сотрудника на сайт не пускает.
 
 | Email | Телефон | Роль | Кто это |
 |---|---|---|---|
@@ -252,7 +309,7 @@ Compose читает `.env` из корня репозитория. В конт�
 | `owner@sboy.test` | `+79990000007` | client | Сбоев С. С., директор ООО «Сбой» |
 | `owner@start.test` | `+79990000008` | client | Стартов С. С., учредитель и директор ООО «Старт» (стартап) |
 | `underwriter@bank.test` | `+79990000101` | underwriter | Андеррайтеров А., сотрудник банка: все заявки, задачи, решения, бэк-офис |
-| `admin@example.com` | — | admin | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`: аккаунты и роли, каталог продуктов, версии PD-модели и кредитной политики |
+| `admin@example.com` | — | admin | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (создаётся при первом старте, пароль не `DEMO_PASSWORD`): аккаунты и роли, каталог продуктов, ключевая ставка, версии PD-модели и кредитной политики. Демо-вход одной кнопкой («Администратор») включается так же, как у остальных |
 
 | Компания | Форма, ИНН | Что в ней проверяется |
 |---|---|---|
@@ -279,6 +336,9 @@ Compose читает `.env` из корня репозитория. В конт�
 | Перечни Росфинмониторинга (экстремизм и терроризм, решения МВК, ФРОМУ) | `POST /rfm/screen` | смоделировано, записи синтетические |
 | База публичных должностных лиц | `POST /pep/screen` | смоделировано, записи синтетические |
 | Платформа «Знай своего клиента» Банка России | `GET /zsk/{inn}` | смоделировано |
+| Реестр лицензий | `GET /licenses/{inn}` | смоделировано |
+| АБС: обороты по счёту, клиент банка с даты | `GET /abs/accounts/{inn}` | смоделировано |
+| АБС: внутренний стоп-лист банка | `GET /abs/stop-list/{inn}` | смоделировано |
 | ЭДО / подписание | `POST /edo/sign` | смоделировано, ответ API `simulated: true` |
 | Электронная подпись банка на договоре | настоящая подпись PAdES с меткой времени, ключ демо-УЦ стенда | ключ демо-стенда, не квалифицированный |
 | АБС / выдача средств | `POST /abs/disbursements` | смоделировано, ответ `simulated: true` |
@@ -331,13 +391,14 @@ Compose читает `.env` из корня репозитория. В конт�
 |---|---|
 | **Фишки, исследование, результаты** | [`docs/product/features.md`](docs/product/features.md) |
 | **Виды кредитов**, выгодоприобретатель и третьи лица | [`docs/product/credit-products.md`](docs/product/credit-products.md) |
-| Кейс, наше понимание, ответы организаторов и экспертов | [`docs/case.md`](docs/case.md), [`docs/webinar-2026-10-21.md`](docs/webinar-2026-10-21.md), [`docs/chat-insights.md`](docs/chat-insights.md) |
-| Архитектура по уровням: контекст, контейнеры, модули DDD, слои, потоки | [`docs/architecture/architecture.md`](docs/architecture/architecture.md), [`architecture-overview.drawio`](docs/architecture/architecture-overview.drawio), [`docs/platform.md`](docs/platform.md) |
+| Кейс, наше понимание, ответы организаторов и экспертов | [`settings/case.md`](settings/case.md), [`settings/webinar-2026-10-21.md`](settings/webinar-2026-10-21.md), [`settings/chat-insights.md`](settings/chat-insights.md) |
+| Архитектура: модули, Kafka, путь заявки от подачи до предложения | [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio), [`docs/platform.md`](docs/platform.md) |
+| **Скоринг и кредитное решение**: обогащение, стоп-факторы, PD- и ML-модель, политика, предодобрение, версии, аудит | [`docs/scoring-architecture.md`](docs/scoring-architecture.md), [`docs/modules/scoring.md`](docs/modules/scoring.md), [`docs/modules/decision.md`](docs/modules/decision.md) |
 | Процесс одобрения в BPMN, сравнение с исходной схемой, законы | [`docs/process/bpmn.md`](docs/process/bpmn.md), файлы маршрутов [`backend/src/modules/process/workflows/`](backend/src/modules/process/workflows/) |
 | Договор и электронная подпись: статьи 63-ФЗ и ГК, как формируется подпись | [`docs/contract-signing.md`](docs/contract-signing.md) |
 | Модель данных (ER) | [`docs/data-model.md`](docs/data-model.md) |
 | Диаграмма состояний заявки | [`docs/state-machine.md`](docs/state-machine.md) |
-| Описание API | Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`docs/api/client-journey.md`](docs/api/client-journey.md) |
+| Описание API | путеводитель [`docs/api/README.md`](docs/api/README.md), Swagger UI http://localhost:8080/api/docs, [`docs/api/openapi.json`](docs/api/openapi.json), коллекция Yaak [`docs/api/yaak/`](docs/api/yaak/), путь клиента по шагам и ответы BFF — [`settings/client-journey.md`](settings/client-journey.md) |
 | Модули | [`docs/identity.md`](docs/identity.md), [`docs/modules/`](docs/modules/) |
 | Умный помощник: модели, свой провайдер, деградация, защита, качество | [`docs/ai.md`](docs/ai.md), контракт API — [`docs/assistant-api.md`](docs/assistant-api.md) |
 | Персональные данные (152-ФЗ) | [`docs/personal-data.md`](docs/personal-data.md) |
@@ -355,18 +416,21 @@ uv run pytest                     # SQLite, без Docker
 uv run pytest -m integration      # Postgres и Kafka в testcontainers, нужен Docker
 uv run ruff check . && uv run ruff format --check .
 uv run lint-imports               # границы модулей
+uv run mypy src/modules/scoring src/modules/products src/modules/decision src/modules/assistant src/modules/market   # типы, как в CI
 uv run python -m scripts.export_openapi   # обновить docs/api/openapi.json после изменения API
 uv run python -m scripts.export_yaak      # и коллекцию Yaak (--check — свежая ли)
 ```
 
-- **Без Docker** backend поднимается с `MESSAGING_MODE=in_process` (брокер не нужен) и своим `DATABASE_URL`.
+- **Без Docker** нужен свой Postgres: `DATABASE_URL` по умолчанию `postgresql+asyncpg://app:app@localhost:5432/app`, `MESSAGING_MODE` по умолчанию `in_process` (брокер не нужен). `SEED_DEMO_DATA` и `DEMO_LOGIN_ENABLED` в коде выключены (в compose включены): для демо-данных задайте их `true` в `backend/.env`. Запуск — `uv run alembic upgrade head && uv run uvicorn src.main:app`, как в `backend/Dockerfile`. Все настройки — `backend/src/core/config.py`.
 - **Моки:** `cd external-mocks && uv sync && uv run pytest`. Тесты помощника — в общем наборе backend (`tests/assistant`, фейковая модель, без сети).
-- **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)).
+- **Фронтенд:** `cd frontend && npm ci && npm run dev` → http://localhost:5173, dev-сервер проксирует `/api` в запущенный backend ([`frontend/README.md`](frontend/README.md)). Юнит-тесты логики фронта — `npm test` (Vitest).
+- **E2E-тесты** на Playwright — сценарии S-1…S-10 сквозь клиента и андеррайтера и рабочее место банка, на запущенном стенде: `cd e2e && npm ci && npx playwright install chromium && npm test` ([`e2e/README.md`](e2e/README.md)).
 - **CI** (`.github/workflows/ci.yml`) на каждый PR в `develop` и `main`:
-  - ruff, import-linter, тесты;
+  - ruff, import-linter, mypy по модулям `scoring`, `products`, `decision`, `assistant`, `market`, тесты;
   - миграции Alembic на Postgres: upgrade → downgrade → upgrade, одна голова, `alembic check`;
-  - интеграционные тесты, тесты моков, сборка фронтенда;
-  - подъём всего стенда так, как его запускает жюри: `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника.
+  - интеграционные тесты, тесты моков, юнит-тесты и сборка фронтенда;
+  - аудит зависимостей backend, моков и фронта на известные уязвимости (`pip-audit`, `npm audit`);
+  - подъём всего стенда так, как его запускает жюри: проверка, что оба compose-файла валидны, затем `docker compose up --wait` и проверка сайта, API, входа, кабинета и статуса помощника (без профиля `ai` ждёт `mode: rules`).
 
 ## Что вошло, ограничения и что дальше
 

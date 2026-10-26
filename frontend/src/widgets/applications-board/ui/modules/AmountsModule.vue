@@ -3,32 +3,25 @@ import { computed } from 'vue'
 
 import { ColumnChart } from '@/shared/ui'
 
-import { amountOf, useBoard } from '../../model/useBoardData'
+import { toAmount, useBoard } from '../../model/useBoardData'
 
-const { applications } = useBoard()
+const { overview } = useBoard()
 
-/** Диапазоны сумм, ₽: верхняя граница не включается */
-const BUCKETS: readonly { label: string; to: number }[] = [
-  { label: 'до 1 млн', to: 1_000_000 },
-  { label: '1–3 млн', to: 3_000_000 },
-  { label: '3–10 млн', to: 10_000_000 },
-  { label: '10–30 млн', to: 30_000_000 },
-  { label: '30+ млн', to: Infinity },
-]
+/** Подпись диапазона из границ сводки, ₽: «до 1 млн», «1–3 млн», «30+ млн» */
+function bucketLabel(min: string, max: string | null) {
+  const from = toAmount(min) / 1_000_000
+  if (max === null) return `${from}+ млн`
+  const to = toAmount(max) / 1_000_000
+  return from ? `${from}–${to} млн` : `до ${to} млн`
+}
 
-const counts = computed(() => {
-  const withAmount = applications.value.map(amountOf).filter((amount) => amount > 0)
-  return BUCKETS.map((bucket, index) => {
-    const from = index ? BUCKETS[index - 1]!.to : 0
-    return withAmount.filter((amount) => amount >= from && amount < bucket.to).length
-  })
-})
+const buckets = computed(() => overview.value?.amount_buckets ?? [])
 </script>
 
 <template>
   <ColumnChart
-    :labels="BUCKETS.map((bucket) => bucket.label)"
-    :series="[{ label: 'Заявок в диапазоне', color: 'var(--color-night)', values: counts }]"
+    :labels="buckets.map((bucket) => bucketLabel(bucket.min, bucket.max))"
+    :series="[{ label: 'Заявок в диапазоне', color: 'var(--color-night)', values: buckets.map((bucket) => bucket.count) }]"
     :height="148"
   />
 </template>

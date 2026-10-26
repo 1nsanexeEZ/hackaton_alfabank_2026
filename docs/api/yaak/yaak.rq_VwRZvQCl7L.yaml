@@ -5,7 +5,8 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_wXQZoZJb93
 name: Очередь обращений
 description: |-
-  Tickets of all clients, newest activity first.
+  Tickets of all clients, newest activity first. The total by the same filter is in the
+  `X-Total-Count` header.
 
   Токен: андеррайтер банка.
 method: GET

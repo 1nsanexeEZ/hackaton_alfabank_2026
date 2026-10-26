@@ -37,7 +37,7 @@ stateDiagram-v2
 
 | Статус | Значение в API | Что происходит | Финальный |
 |---|---|---|---|
-| `DRAFT` | `draft` | Черновик: клиент заполняет параметры, поля продукта, залог, согласия, загружает документы. Реквизиты компании подставляются из данных банка | — |
+| `DRAFT` | `draft` | Черновик: клиент заполняет параметры, поля продукта, залог, ответы о выгодоприобретателе и бенефициарных владельцах (115-ФЗ), согласия, загружает документы. Реквизиты компании подставляются из данных банка | — |
 | `SUBMITTED` | `submitted` | Подана: данные заморожены, снят снимок компании (`org_snapshot`), банк ещё не начал обработку | — |
 | `IN_REVIEW` | `in_review` | Банк обрабатывает: проверка полноты, обогащение, скоринг, решение. Подпись этапа для клиента — отдельное поле `client_stage` (см. ниже) | — |
 | `INFO_REQUESTED` | `info_requested` | Банк запросил сведения или документы, ждём клиента | — |
@@ -60,26 +60,26 @@ stateDiagram-v2
 
 - **клиент** (`client`) — действие пользователя через HTTP API модуля `applications`, `actor_id` — его аккаунт;
 - **процесс** (`process`) — команда движка процесса в топике `applications.commands` (контракты — `backend/src/core/messaging/contracts/applications.py`, консьюмер — `applications/presentation/consumers.py`);
-- **система** (`system`) — фоновая проверка срока предложения: цикл `run_offer_expiry` (`applications/presentation/expiry.py`) периодически запускает `ExpireOffersUseCase` для заявок с истёкшим `expires_at`, по транзакции на заявку.
+- **система** (`system`) — фоновая проверка срока предложения: цикл `run_offer_expiry` (`applications/presentation/expiry.py`) раз в 60 с (`APPLICATIONS_OFFER_EXPIRY_INTERVAL_SECONDS`, работает при `RUN_BACKGROUND_JOBS`) запускает `ExpireOffersUseCase` для заявок с истёкшим `expires_at`, по транзакции на заявку.
 
 | Из | В | Кто | Чем вызывается | Метод агрегата | Условия | Событие кроме `ApplicationStatusChanged` |
 |---|---|---|---|---|---|---|
 | — | `DRAFT` | клиент | `POST /applications` | `create_draft` | право компании `submit_application`; компания подходит продукту (`products.check_eligibility`); нет другой активной заявки на этот продукт | — |
-| `DRAFT` | `SUBMITTED` | клиент | `POST /applications/{id}/submit` | `submit` | право `submit_application`; запрос полон, сумма и срок в границах продукта; поля продукта валидны по схеме; залог, если продукт его требует; загружены обязательные документы; оба согласия; нет другой активной заявки | `ApplicationSubmitted` |
+| `DRAFT` | `SUBMITTED` | клиент | `POST /applications/{id}/submit` | `submit` | право `submit_application`; запрос полон, сумма и срок в границах продукта; поля продукта валидны по схеме; залог, если продукт его требует; загружены обязательные документы, а при «действую в интересах третьего лица» — ещё и договор с ним (`beneficiary_contract`); согласия на обработку ПДн и запрос в БКИ; нет другой активной заявки | `ApplicationSubmitted` |
 | `DRAFT` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | право `submit_application` | `ApplicationCancelled` |
 | `SUBMITTED` | `IN_REVIEW` | процесс | команда `StartReview` | `start_review` | повтор в `IN_REVIEW` ничего не меняет | — |
 | `SUBMITTED` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | право `submit_application` | `ApplicationCancelled` |
 | `IN_REVIEW` | `INFO_REQUESTED` | процесс | команда `RequestInfo` | `request_info` | запрос просит хотя бы одно поле или документ | — |
 | `IN_REVIEW` | `OFFER_READY` | процесс | команда `PresentOffer` | `present_offer` | срок действия предложения ещё не истёк | — |
 | `IN_REVIEW` | `REJECTED` | процесс | команда `RejectApplication` | `reject` | — | — |
-| `INFO_REQUESTED` | `IN_REVIEW` | клиент | `POST /applications/{id}/info-requests/{rid}/answer` | `answer_info_request` | запрос открыт; загружены все запрошенные документы | `ApplicationInfoProvided` |
+| `INFO_REQUESTED` | `IN_REVIEW` | клиент | `POST /applications/{id}/info-requests/{rid}/answer` | `answer_info_request` | запрос открыт; загружены все запрошенные документы; если клиент изменил ответ о выгодоприобретателе на «в интересах третьего лица» — загружен и договор с ним | `ApplicationInfoProvided` |
 | `INFO_REQUESTED` | `REJECTED` | процесс | команда `RejectApplication` | `reject` | процесс сдаётся, если клиент так и не ответил; открытый запрос помечается `expired` | — |
 | `INFO_REQUESTED` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | открытый запрос помечается `expired` | `ApplicationCancelled` |
 | `OFFER_READY` | `SIGNING` | клиент | `POST /applications/{id}/offer/accept` | `accept_offer` | предложение не истекло, иначе 409 `offer_expired` | `OfferAccepted` |
 | `OFFER_READY` | `OFFER_DECLINED` | клиент | `POST /applications/{id}/offer/decline` | `decline_offer` | причина необязательна | `OfferDeclined` |
 | `OFFER_READY` | `EXPIRED` | система | фоновая проверка `expires_at` | `expire_offer` | срок действительно истёк, иначе ничего не меняется | `OfferExpired` |
 | `OFFER_READY` | `CANCELLED` | клиент | `POST /applications/{id}/cancel` | `cancel` | — | `ApplicationCancelled` |
-| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password, offer_hash, document_hash, rules_version}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); `offer_hash` из договора совпадает с текущим предложением (иначе 409 `offer_changed`); `document_hash` — хеш PDF-проекта этого предложения (иначе 422 `document_changed`), `rules_version` — действующие правила ЭП (иначе 422 `rules_outdated`); документ уходит в ЭДО-мок, затем банк подписывает итоговый PDF | `ApplicationSigned` |
+| `SIGNING` | `SIGNED` | клиент | `POST /applications/{id}/sign` `{password, offer_hash, document_hash?, rules_version?}` | `sign` | право компании `sign` (подтверждённое полномочие или доверенность); пароль введён ещё раз (step-up через `identity.verify_password`, неверный — 422 `invalid_password`); `offer_hash` из договора совпадает с текущим предложением (иначе 409 `offer_changed`); `document_hash` и `rules_version` необязательны, но если переданы, проверяются: `document_hash` — хеш PDF-проекта этого предложения (иначе 422 `document_changed`; проекта ещё нет — 409 `document_pending`), `rules_version` — действующие правила ЭП (иначе 422 `rules_outdated`); подпись уходит в ЭДО-мок, сразу после неё банк подписывает итоговый PDF (PAdES), оба шага — в журнале подписания | `ApplicationSigned` |
 | `SIGNED` | `DISBURSED` | процесс | команда `MarkDisbursed` | `mark_disbursed` | повтор в `DISBURSED` ничего не меняет | — |
 
 Чего в таблице нет, того нет и в коде: например, после принятия предложения (`SIGNING`) заявку уже нельзя отменить, а отклонённую — подать заново.
@@ -101,7 +101,7 @@ stateDiagram-v2
 | Статус | Что может клиент |
 |---|---|
 | `DRAFT` | всё: параметры запроса, поля продукта, залог, согласия, документы (загрузить, удалить) |
-| `INFO_REQUESTED` | только то, что перечислено в открытом запросе: названные поля или разделы (`request`, `collateral`, `consents`, `product_fields`) и документы запрошенных типов; удалить — только документы, загруженные в ответ на этот запрос |
+| `INFO_REQUESTED` | только то, что перечислено в открытом запросе: названные поля или разделы (`request`, `collateral`, `consents`, `beneficiary`, `beneficial_owners`, `product_fields`) и документы запрошенных типов; удалить — только документы, загруженные в ответ на этот запрос |
 | остальные | ничего; попытка — 409 `not_editable` |
 
 Снимки компании (`org_snapshot`) и условий продукта (`product_terms`) после подачи не меняются: решение принимается по данным на момент подачи.

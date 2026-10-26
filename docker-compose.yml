@@ -115,15 +115,19 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-credit-documents}
-      # Host the browser uses for presigned URLs (nginx proxies /credit-documents/ to MinIO).
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:8080}
+      # Address of the site the browser sees: presigned URLs are signed for it (nginx proxies
+      # /credit-documents/ to MinIO) and the contract QR code leads to its /verify page.
+      # Follows HTTP_PORT, so changing the port takes one variable.
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:${HTTP_PORT:-8080}}
       # Signing (EDO) and payout (ABS) go through the external mocks (simulated, marked in API answers).
       APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-http://external-mocks:8100}
       ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
       ENRICHMENT_SOURCE_TIMEOUT_SECONDS: ${ENRICHMENT_SOURCE_TIMEOUT_SECONDS:-3}
       ENRICHMENT_RETRIES: ${ENRICHMENT_RETRIES:-3}
-      # Key rate of the Bank of Russia, % per year: the base of the offer rate in decision.
-      DECISION_KEY_RATE: ${DECISION_KEY_RATE:-16.50}
+      # Key rate of the Bank of Russia, % per year: the funding part of the offer rate; the
+      # catalog rates, set at CATALOG_KEY_RATE, follow it.
+      KEY_RATE: ${KEY_RATE:-14.00}
+      CATALOG_KEY_RATE: ${CATALOG_KEY_RATE:-16.50}
       MESSAGING_MODE: ${MESSAGING_MODE:-kafka}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
@@ -186,13 +190,18 @@ services:
       - "${HTTP_PORT:-8080}:80"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    # nginx запоминает IP upstream при старте: пересоздан backend, MinIO или frontend — без
+    # перезапуска nginx стучится в старый адрес и отдаёт 502. restart: true перезапускает его вслед за ними.
     depends_on:
       backend:
         condition: service_healthy
+        restart: true
       minio:
         condition: service_started
+        restart: true
       frontend:
         condition: service_started
+        restart: true
     networks:
       - alfa_network
 

@@ -20,6 +20,7 @@ from src.modules.products.facade import (
     RecommendationDTO,
     Repayment,
 )
+from src.modules.products.infrastructure.key_rates import key_rates
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 
 
@@ -30,12 +31,22 @@ def borrower_profiles(facades: FacadeRegistry, session: AsyncSession) -> Borrowe
 
 
 class ProductsFacadeImpl:
-    """Access to the organization is checked by the caller."""
+    """Access to the organization is checked by the caller. Rates follow the key rate in
+    force, as the catalog shows them to clients."""
 
-    def __init__(self, session: AsyncSession, facades: FacadeRegistry) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        facades: FacadeRegistry,
+        catalog_key_rate: Decimal = Decimal(0),
+    ) -> None:
         self._session = session
         self._facades = facades
-        self._service = ProductService(SqlAlchemyProductRepository(session))
+        self._service = ProductService(
+            SqlAlchemyProductRepository(session),
+            key_rates=key_rates(facades, session),
+            catalog_key_rate=catalog_key_rate,
+        )
 
     async def get_product(self, code: str) -> ProductDTO:
         return mappers.product_dto(await self._service.get(code))

@@ -15,6 +15,9 @@ from src.modules.bff.application.use_cases.applications import (
     ApplicationCardUseCase,
     ListApplicationsUseCase,
 )
+from src.modules.bff.application.use_cases.applications_overview import (
+    ApplicationsOverviewUseCase,
+)
 from src.modules.bff.application.use_cases.backoffice import (
     BackofficeMetricsUseCase,
     UnderwriterCardUseCase,
@@ -25,6 +28,7 @@ from src.modules.bff.application.use_cases.products import (
     PersonalScheduleUseCase,
     RecommendProductsUseCase,
 )
+from src.modules.bff.application.use_cases.scoring_overview import ScoringOverviewUseCase
 from src.modules.bff.infrastructure.adapters.neighbours import FacadeNeighbours
 
 
@@ -73,6 +77,14 @@ def get_backoffice_metrics(
     return BackofficeMetricsUseCase(neighbours, clock)
 
 
+def get_applications_overview(neighbours: NeighboursDep) -> ApplicationsOverviewUseCase:
+    return ApplicationsOverviewUseCase(neighbours)
+
+
+def get_scoring_overview(neighbours: NeighboursDep) -> ScoringOverviewUseCase:
+    return ScoringOverviewUseCase(neighbours)
+
+
 DashboardDep = Annotated[DashboardUseCase, Depends(get_dashboard)]
 ListApplicationsDep = Annotated[ListApplicationsUseCase, Depends(get_list_applications)]
 ApplicationCardDep = Annotated[ApplicationCardUseCase, Depends(get_application_card)]
@@ -81,6 +93,8 @@ PersonalScheduleDep = Annotated[PersonalScheduleUseCase, Depends(get_personal_sc
 UnderwritingQueueDep = Annotated[UnderwritingQueueUseCase, Depends(get_underwriting_queue)]
 UnderwriterCardDep = Annotated[UnderwriterCardUseCase, Depends(get_underwriter_card)]
 BackofficeMetricsDep = Annotated[BackofficeMetricsUseCase, Depends(get_backoffice_metrics)]
+ScoringOverviewDep = Annotated[ScoringOverviewUseCase, Depends(get_scoring_overview)]
+ApplicationsOverviewDep = Annotated[ApplicationsOverviewUseCase, Depends(get_applications_overview)]
 
 # Clients get these with the `org_member` policy: organization_ids is the list
 # of their companies; rights inside the company are checked by clients.ensure_can.

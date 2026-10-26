@@ -3,7 +3,7 @@ counters, active applications, what waits for the client, the consents given and
 missing, the pre-approval or the startup's way to it (the founder's prescreen, the
 business plan, the project assessment), the feed and the news."""
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from uuid import UUID
 
 from src.core.access.access_context import AccessContext
@@ -24,7 +24,12 @@ from src.modules.bff.application.dto.organizations import (
 )
 from src.modules.bff.application.interfaces.neighbours import Neighbours
 from src.modules.bff.application.use_cases.common import ensure_visible, segment_of
-from src.modules.bff.domain.actions import CONSENT_PENDING_STATUSES, consent_todo, todo_for
+from src.modules.bff.domain.actions import (
+    CONSENT_PENDING_STATUSES,
+    SUBMIT,
+    consent_todo,
+    todo_for,
+)
 from src.modules.bff.domain.consents import PROFILE_CONSENTS
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.facade import DecisionFacade
@@ -70,13 +75,19 @@ class DashboardUseCase:
             raise NotFoundError("Organization not found")
         snapshot = await self._n(ClientsFacade).get_snapshot(chosen)
 
+        # The pre-approval is an offer to apply: who may not apply (an employee whose power
+        # of attorney is revoked or expired) does not see it, nor is asked to act.
+        permissions = summary.my_permissions
+        may_apply = SUBMIT in permissions
         projector = self._n(ProjectorFacade)
         counters = await projector.get_organization_dashboard(chosen)
+        if counters is not None and not may_apply:
+            counters = replace(counters, pre_approved_max_amount=None, pre_approved_rate_from=None)
         recent = await projector.list_applications(chosen, limit=_RECENT_ROWS)
         active = [r for r in recent.items if r.status in ACTIVE_STATUSES]
         todo = []
         for row in active:
-            found = todo_for(row.action_required, row.number)
+            found = todo_for(row.action_required, row.number, permissions)
             if found is not None:
                 kind, title = found
                 todo.append(
@@ -102,16 +113,14 @@ class DashboardUseCase:
         )
 
         segment = segment_of(snapshot)
-        startup = None
-        if segment == "startup":
-            pre_approved: tuple[PreApprovedProductDTO, ...] = await self._n.optional(
-                "pre_approved", lambda: self._pre_approved(chosen, basis="project"), ()
-            )
-            startup = await self._startup(chosen)
-        else:
+        # A startup is pre-approved only by its project.
+        basis = "project" if segment == "startup" else None
+        pre_approved: tuple[PreApprovedProductDTO, ...] = ()
+        if may_apply:
             pre_approved = await self._n.optional(
-                "pre_approved", lambda: self._pre_approved(chosen), ()
+                "pre_approved", lambda: self._pre_approved(chosen, basis=basis), ()
             )
+        startup = await self._startup(chosen) if segment == "startup" else None
         feed = await self._n.optional(
             "feed", lambda: self._feed(account_id, chosen), FeedDTO(unread=0, items=())
         )

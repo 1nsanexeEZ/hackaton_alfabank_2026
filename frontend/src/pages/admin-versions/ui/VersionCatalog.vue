@@ -84,7 +84,7 @@ const policyLists = computed(() => {
     <div class="overflow-x-auto rounded-xl ring-1 ring-line">
       <table class="w-full min-w-[36rem]">
         <caption class="bg-surface-soft px-3 py-2 text-left text-xs font-medium text-ink-secondary">
-          Коды причин: код без текста в документе — ошибка 422, тексты через API не правятся
+          Коды причин и тексты по умолчанию — свои тексты задаются в черновике политики
         </caption>
         <tbody>
           <tr v-for="reason in policy.reasons" :key="reason.code" class="border-t border-line align-top">

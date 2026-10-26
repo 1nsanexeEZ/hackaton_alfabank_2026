@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import { loanDraft, type ApplicationDraft } from '@/entities/application'
 import { findProduct, useProductCatalog } from '@/entities/credit-product'
 import { customer } from '@/entities/customer'
+import { liveFeed } from '@/entities/notification'
 import { fitLoanParams, getDefaultLoanParams } from '@/features/calculate-loan'
 import { clientApi, type LoanPurpose } from '@/shared/api'
 import { SECTION_ID } from '@/shared/config'
@@ -55,25 +56,39 @@ function applyForProduct(productId: string) {
  * Компании вошедшего клиента: подбор проверяет выбранную, калькулятор считает по ставке её предодобрения
  * (POST /bff/products/{code}/calculate), а «Оформить» открывает заявку от неё же
  */
-const companies = shallowRef<{ id: string; name: string }[] | null>(null)
+const companies = shallowRef<{ id: string; name: string; canSubmit: boolean }[] | null>(null)
+/** Вошёл, но ни в одной компании нет права подачи заявки: «Оформить» на витрине недоступна */
+const applyBlocked = computed(() => Boolean(companies.value?.length) && !companies.value!.some((item) => item.canSubmit))
 const calculatorCompany = ref('')
+
+async function loadCompanies() {
+  try {
+    const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+    companies.value = list.map((item) => ({ id: item.id, name: item.name, canSubmit: item.my_permissions.includes('submit_application') }))
+    // Компания калькулятора та же, если ещё своя; иначе — с правом подачи
+    if (list.some((item) => item.id === calculatorCompany.value)) return
+    const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
+    calculatorCompany.value = preferred?.id ?? ''
+  } catch {
+    // Без компаний калькулятор считает по базовой ставке, как для гостя
+  }
+}
 
 watch(
   () => customer.state.me?.id,
-  async (id) => {
+  (id) => {
     companies.value = null
     calculatorCompany.value = ''
-    if (!id) return
-    try {
-      const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
-      companies.value = list.map((item) => ({ id: item.id, name: item.name }))
-      const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      calculatorCompany.value = preferred?.id ?? ''
-    } catch {
-      // Без компаний калькулятор считает по базовой ставке, как для гостя
-    }
+    if (id) void loadCompanies()
   },
   { immediate: true },
+)
+
+// Исключили из компании или дали права — «Оформить» и ставка калькулятора следуют сразу
+onBeforeUnmount(
+  liveFeed.onCompany(() => {
+    if (customer.state.me) void loadCompanies()
+  }),
 )
 
 /** Подбор и расчёт: сумма и срок уже подогнаны под выбранный продукт — переносим их в заявку как есть */
@@ -108,7 +123,7 @@ function continueApplication(draft: ApplicationDraft) {
           :companies="companies"
           @apply="applyFromCalculator"
         />
-        <ProductsCatalog :products="products" @calculate="calculateProduct" @apply="applyForProduct" />
+        <ProductsCatalog :products="products" :apply-blocked="applyBlocked" @calculate="calculateProduct" @apply="applyForProduct" />
       </template>
       <!-- Секции продуктов и калькулятора ждут каталог; якоря держим, чтобы ссылки из шапки работали -->
       <section v-else :id="SECTION_ID.products" class="py-16 lg:py-24">

@@ -6,15 +6,16 @@ import { DonutChart } from '@/shared/ui'
 import { STATUS_GROUPS } from '../../model/status'
 import { useBoard } from '../../model/useBoardData'
 
-const { applications } = useBoard()
+const { overview } = useBoard()
 
-const segments = computed(() =>
-  STATUS_GROUPS.map((group) => ({
+const segments = computed(() => {
+  const statuses = overview.value?.statuses ?? []
+  return STATUS_GROUPS.map((group) => ({
     label: group.label,
     color: group.color,
-    value: applications.value.filter((item) => group.statuses.includes(item.status)).length,
-  })),
-)
+    value: statuses.filter((item) => group.statuses.includes(item.key)).reduce((sum, item) => sum + item.count, 0),
+  }))
+})
 </script>
 
 <template>

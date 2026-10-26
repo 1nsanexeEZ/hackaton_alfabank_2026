@@ -12,5 +12,6 @@ services:
 
   backend:
     environment:
-      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-false}
+      # вход в демо-учётки в один клик открыт и на стенде: список и вход закрыты Basic Auth сайта (nginx.prod.conf)
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-true}
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-https://alfa-hack.ru}

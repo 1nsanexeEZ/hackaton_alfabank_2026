@@ -1,5 +1,8 @@
-/** Что можно вводить в поле: только цифры, число с дробной частью, сумму с разделителями тысяч или телефон */
-export type InputFilter = 'digits' | 'decimal' | 'amount' | 'phone'
+/**
+ * Что можно вводить в поле: только цифры, число с дробной частью, сумму с разделителями тысяч,
+ * сумму со знаком (прибыль бывает убытком) или телефон
+ */
+export type InputFilter = 'digits' | 'decimal' | 'amount' | 'signedAmount' | 'phone'
 
 const NBSP = '\u00a0'
 
@@ -22,6 +25,12 @@ export function sanitizeInput(value: string, filter: InputFilter): string {
   if (filter === 'digits') return value.replace(/\D/g, '')
   // телефон: цифры, «+» только в начале, скобки, пробелы и дефисы для читаемости
   if (filter === 'phone') return value.replace(/[^\d+()\s-]/g, '').replace(/(?!^)\+/g, '')
+  if (filter === 'signedAmount') {
+    // минус — только в начале; дальше как обычная сумма
+    const negative = /^\s*[-−–]/.test(value)
+    const digits = sanitizeInput(value.replace(/^\s*[-−–]/, ''), 'amount')
+    return negative ? `-${digits}` : digits
+  }
   if (filter === 'amount') {
     // дробная часть суммы при вставке отбрасывается: «3000000.00» — это три миллиона, а не триста миллионов
     const whole = value.replace(/[\s\u00a0\u202f]/g, '').split(/[.,]/)[0] ?? ''
@@ -34,8 +43,9 @@ export function sanitizeInput(value: string, filter: InputFilter): string {
   return `${whole},${rest.join('').replace(/,/g, '').slice(0, 2)}`
 }
 
-/** Клавиатура телефона под фильтр поля */
-export function inputModeFor(filter: InputFilter): 'numeric' | 'decimal' | 'tel' {
+/** Клавиатура телефона под фильтр поля; со знаком — обычная: на цифровой нет минуса */
+export function inputModeFor(filter: InputFilter): 'numeric' | 'decimal' | 'tel' | 'text' {
   if (filter === 'phone') return 'tel'
+  if (filter === 'signedAmount') return 'text'
   return filter === 'decimal' ? 'decimal' : 'numeric'
 }

@@ -27,17 +27,17 @@ export const STATUS_GROUPS: readonly { label: string; color: string; statuses: r
 ]
 
 /**
- * Этапы воронки: сколько заявок ДОШЛИ до этапа (не где они сейчас). Отказ и отказ клиента тоже прошли
- * «Решение»; отказ клиента и истёкшее предложение были одобрены.
+ * Подписи этапов воронки. Сколько заявок ДОШЛИ до этапа (не где они сейчас), считает бэкенд:
+ * отказ тоже прошёл «Решение», отказ клиента и истёкшее предложение были одобрены.
  */
-export const FUNNEL: readonly { label: string; reached: readonly ApplicationStatusCode[] }[] = [
-  { label: 'Начаты', reached: [] },
-  { label: 'Поданы', reached: ['submitted', 'in_review', 'info_requested', 'offer_ready', 'signing', 'signed', 'disbursed', 'rejected', 'offer_declined', 'expired'] },
-  { label: 'Решение банка', reached: ['offer_ready', 'signing', 'signed', 'disbursed', 'rejected', 'offer_declined', 'expired'] },
-  { label: 'Одобрены', reached: ['offer_ready', 'signing', 'signed', 'disbursed', 'offer_declined', 'expired'] },
-  { label: 'Подписаны', reached: ['signed', 'disbursed'] },
-  { label: 'Кредит выдан', reached: ['disbursed'] },
-]
+export const FUNNEL_LABEL: Record<string, string> = {
+  started: 'Начаты',
+  submitted: 'Поданы',
+  decided: 'Решение банка',
+  approved: 'Одобрены',
+  signed: 'Подписаны',
+  disbursed: 'Кредит выдан',
+}
 
 /** Шаги мини-трекера в ленте — как у клиента: подача, решение, подписание, выдача */
 export const TRACK = ['Подана', 'Решение', 'Подписание', 'Выдача'] as const

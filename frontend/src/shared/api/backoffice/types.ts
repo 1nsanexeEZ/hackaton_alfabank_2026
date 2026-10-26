@@ -7,6 +7,8 @@ import type {
   ClientStatus,
   ConsentsDto,
   FounderPrescreenDto,
+  KeyRateDto,
+  KeyRateSource,
   OrganizationDetailDto,
   OrganizationSummaryDto,
   PreApprovedOfferDto,
@@ -17,7 +19,7 @@ import type {
   SupportTicketStatus,
   ThirdPartyDto,
 } from '../client/types'
-import type { DownloadedFile } from '../http'
+import type { DownloadedFile, Page } from '../http'
 
 /**
  * Бэк-офис андеррайтера на бэкенде (docs/api/client-journey.md §3.8): очередь задач,
@@ -139,7 +141,15 @@ export interface UnderwriterApplicationDto {
   } | null
   status: ApplicationStatusCode
   client_stage: string | null
-  documents: { id: string; type: string; filename: string; status: string; uploaded_at: string | null; review_comment: string | null }[]
+  documents: {
+    id: string
+    type: string
+    filename: string
+    status: string
+    uploaded_at: string | null
+    review_comment: string | null
+    size_bytes?: number
+  }[]
   info_requests: { id: string; requested_documents: string[]; comment: string; status: string; created_at: string; answered_at: string | null }[]
   offer: { kind: string; amount: string; term_months: number; rate: string; monthly_payment: string; conditions: string[]; expires_at: string } | null
   submitted_at: string | null
@@ -286,6 +296,7 @@ export interface EnrichmentDto {
     tax_arrears: string
     avg_headcount: number
     reported_revenue: string | null
+    reported_expenses?: string | null
     report_year: number | null
     tax_regime: string
     disqualified_head: boolean
@@ -552,7 +563,7 @@ export interface TaskResultInput {
 /* ---------- Ведение каталога продуктов (PR #200, docs/modules/products.md) ---------- */
 
 /** Условия продукта для PUT /products/{code}: карточка из GET без code, version и status */
-export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status'>
+export type ProductInput = Omit<ProductDto, 'code' | 'version' | 'status' | 'market_rate'>
 
 /** Новый продукт: версия 1 в конце каталога, черновик или сразу в продаже */
 export interface ProductCreateInput extends ProductInput {
@@ -638,18 +649,134 @@ export interface InnCheckDto {
   organization_id: string | null
 }
 
+/** GET /bff/backoffice/scoring-overview: счётчики — по considered последним поданным заявкам */
+export interface ScoringOverviewDto {
+  considered: number
+  scored: number
+  /** Стоп-фактор до моделей: решение есть, скоринга нет */
+  stopped_before_models: number
+  with_ml: number
+  /** Обе модели в одной зоне — из with_ml */
+  models_agree: number
+  /** Неполные данные: решает человек */
+  degraded: number
+  manual_review: number
+  /** Итоговое решение: одобрение, контрпредложение или отказ */
+  decided: number
+  decided_auto: number
+  by_grade: { grade: Grade; pd: number; ml: number }[]
+  /** Пары зон двух моделей, по заявкам, где посчитали обе */
+  zones: { pd_zone: 'green' | 'yellow' | 'red'; ml_zone: 'green' | 'yellow' | 'red'; count: number }[]
+  versions: { kind: 'pd' | 'ml' | 'policy'; version: string; count: number }[]
+  items: ScoredApplicationDto[]
+}
+
+export interface ScoredApplicationDto {
+  application_id: string
+  number: string
+  company_name: string | null
+  product_code: string
+  amount: string | null
+  status: ApplicationStatusCode
+  submitted_at: string | null
+  /** PD-модель; null — не считали (стоп-фактор до моделей или ещё не дошли) */
+  score: number | null
+  grade: Grade | null
+  pd_12m: string | null
+  ml_score: number | null
+  ml_grade: Grade | null
+  ml_pd_12m: string | null
+  ml_not_applicable: string | null
+  quality: string | null
+  /** Посчитали обе модели, и зоны разные */
+  models_disagree: boolean
+  outcome: string | null
+  decided_by_type: string | null
+  reason_codes: string[]
+}
+
+/** GET /bff/backoffice/applications-overview: по всем заявкам всех компаний, считает база */
+export interface ApplicationsOverviewDto {
+  total: number
+  submitted: number
+  /** Сумма запросов по поданным, строкой */
+  requested_amount: string
+  approved: number
+  decided: number
+  /** Воронка: докуда дошли — started, submitted, decided, approved, signed, disbursed */
+  funnel: { key: string; count: number; amount: string }[]
+  statuses: { key: ApplicationStatusCode; count: number; amount: string }[]
+  products: { product_code: string; product_name: string; count: number; amount: string }[]
+  /** Корзины суммы: до 1, 1–3, 3–10, 10–30, от 30 млн; max null — без верхней границы */
+  amount_buckets: { min: string; max: string | null; count: number }[]
+  latest: OverviewApplicationDto[]
+}
+
+export interface OverviewApplicationDto {
+  application_id: string
+  organization_id: string
+  number: string
+  company_name: string
+  inn: string
+  product_code: string
+  product_name: string
+  amount: string | null
+  status: ApplicationStatusCode
+  client_stage: string | null
+  submitted_at: string | null
+  updated_at: string
+}
+
+/** Ключевая ставка в истории: с даты начала действия, кто ввёл и можно ли ещё удалить */
+export interface KeyRateRecordDto {
+  value: string
+  effective_from: string
+  /** Дата решения совета директоров — не позже effective_from */
+  decided_on: string | null
+  source: KeyRateSource
+  note: string | null
+  created_at: string | null
+  /** Действует сегодня */
+  in_force: boolean
+  /** Ещё не действовала (или действует с сегодня) — можно удалить */
+  removable: boolean
+}
+
+/** GET /market/key-rates: история, новые сверху, и ставка на сегодня */
+export interface KeyRateHistoryDto {
+  current: KeyRateDto
+  items: KeyRateRecordDto[]
+}
+
+/** POST /market/key-rates: ставка с даты; на эту дату уже есть — 409 conflict */
+export interface KeyRateInput {
+  value: string
+  effective_from: string
+  decided_on?: string | null
+  note?: string | null
+}
+
 /** Порядок очереди: срок по SLA, сумма, балл скоринга, создана */
 export type QueueSort = 'due_at' | 'amount' | 'score' | 'created_at'
 
 export interface BackofficeApi {
-  /** limit до 100; total — сколько задач всего с этим статусом */
-  queue(query?: { status?: string; sort?: QueueSort; limit?: number; offset?: number }): Promise<QueuePageDto>
+  /** limit до 100; review — вид проверки; total — сколько задач всего по тому же фильтру */
+  queue(query?: { status?: string; sort?: QueueSort; review?: ReviewKind; limit?: number; offset?: number }): Promise<QueuePageDto>
   card(applicationId: string): Promise<UnderwriterCardDto>
   /** Взять задачу на себя */
   claim(taskId: string): Promise<UnderwriterTaskDto>
   /** Решение по задаче: одобрить, контрпредложение, отказ, запрос информации */
   complete(taskId: string, input: TaskResultInput): Promise<UnderwriterTaskDto>
   metrics(query?: { dateFrom?: string; dateTo?: string }): Promise<MetricsDto>
+  /** Сводка скоринга по последним поданным заявкам (до 1000); items — последние limit, до 200 */
+  scoringOverview(limit?: number): Promise<ScoringOverviewDto>
+  /** Сводка по всем заявкам для панели обзора; latest — сколько последних заявок, до 50 */
+  applicationsOverview(latest?: number): Promise<ApplicationsOverviewDto>
+  /** Ключевая ставка: история и ведение (scoring.read / scoring.update) */
+  keyRates(): Promise<KeyRateHistoryDto>
+  addKeyRate(input: KeyRateInput): Promise<KeyRateRecordDto>
+  /** Только ещё не действовавшую; действовавшая — история, 409 invalid_transition */
+  removeKeyRate(effectiveFrom: string): Promise<void>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
   /** PDF договора — банк видит договоры всех заявок; kind не задан — последний готовый */
   contractDocument(applicationId: string, kind?: 'draft' | 'signed'): Promise<DownloadedFile>
@@ -658,7 +785,7 @@ export interface BackofficeApi {
   /** Схема маршрута — BPMN 2.0 XML */
   workflowDiagram(code: string): Promise<string>
   /** Все заявки, свежие сверху; сотруднику — всех компаний, со статусом, этапом и черновиками */
-  applications(query?: StaffApplicationsQuery): Promise<StaffApplicationDto[]>
+  applications(query?: StaffApplicationsQuery): Promise<Page<StaffApplicationDto>>
   /** Сотрудник видит все компании банка */
   organizations(): Promise<OrganizationSummaryDto[]>
   organization(organizationId: string): Promise<OrganizationDetailDto>
@@ -692,7 +819,7 @@ export interface BackofficeApi {
     scope?: 'all' | 'unassigned' | 'mine'
     limit?: number
     offset?: number
-  }): Promise<SupportTicketListItemDto[]>
+  }): Promise<Page<SupportTicketListItemDto>>
   supportTicket(id: string): Promise<SupportTicketDto>
   /** Уже взято — 409 already_taken, кто взял — в details.assignee_id */
   takeSupportTicket(id: string): Promise<SupportTicketDto>

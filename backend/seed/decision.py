@@ -16,12 +16,12 @@ from src.modules.clients.infrastructure.repositories.organization import (
 )
 from src.modules.decision.application.policy_versions import ActivePolicyProvider
 from src.modules.decision.application.pre_approval import RecalculatePreApprovedUseCase
-from src.modules.decision.config import DecisionSettings
 from src.modules.decision.infrastructure.config_loader import CreditPolicyDocuments
 from src.modules.decision.infrastructure.repository import (
     SqlAlchemyPolicyVersionRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_NEEDED = (ClientsFacade, ProductsFacade, ScoringFacade)
+_NEEDED = (ClientsFacade, ProductsFacade, ScoringFacade, MarketFacade)
 
 
 async def seed(context: "SeedContext") -> None:
@@ -38,8 +38,8 @@ async def seed(context: "SeedContext") -> None:
     if missing:
         logger.warning("Pre-approved offers are skipped, facades are not registered: %s", missing)
         return
-    key_rate = DecisionSettings().key_rate
     async with context.session_factory() as session:
+        key_rate = (await context.facades.get(MarketFacade, session).key_rate()).value
         # Как у консьюмера: активная версия политики админа или встроенная.
         policy = await ActivePolicyProvider(CreditPolicyDocuments()).active(
             SqlAlchemyPolicyVersionRepository(session)

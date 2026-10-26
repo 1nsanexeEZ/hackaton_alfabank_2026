@@ -9,7 +9,7 @@ schedule and the signing log.
 """
 
 import logging
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,6 +18,7 @@ from fpdf import FPDF, XPos, YPos
 from fpdf.fonts import FontFace
 from qrcode.constants import ERROR_CORRECT_M
 
+from src.core.domain.moscow import in_moscow as _msk
 from src.modules.applications.application.dto.contract_documents import (
     BankSealDTO,
     ClientSignatureDTO,
@@ -29,7 +30,6 @@ from src.modules.applications.infrastructure.contract_pdf.money import money, ru
 FONTS = Path(__file__).parent / "fonts"
 # fontTools tells about every font subset at INFO; that is noise in the logs.
 logging.getLogger("fontTools").setLevel(logging.WARNING)
-MSK = timezone(timedelta(hours=3), "МСК")
 MONTHS = (
     "января",
     "февраля",
@@ -89,11 +89,6 @@ WIDTH = 178.0
 
 def _entrepreneur(legal_form: str) -> bool:
     return str(legal_form) == "IE"
-
-
-def _msk(moment: datetime) -> datetime:
-    aware = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment
-    return aware.astimezone(MSK)
 
 
 def _long_date(day: date) -> str:

@@ -23,6 +23,7 @@ from src.modules.decision.infrastructure.repository import (
     SqlAlchemyPolicyVersionRepository,
     SqlAlchemyPreApprovedOfferRepository,
 )
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -39,6 +40,7 @@ class _Bound:
         self.clients = facades.get(ClientsFacade, session)
         self.products = facades.get(ProductsFacade, session)
         self.scoring = facades.get(ScoringFacade, session)
+        self.market = facades.get(MarketFacade, session)
         self.outbox = SqlAlchemyOutboxWriter(session, PRODUCER, clock)
 
 
@@ -98,6 +100,10 @@ class SqlAlchemyPreApprovalTransaction(PreApprovalTransaction):
     @property
     def scoring(self) -> ScoringFacade:
         return self._objects().scoring
+
+    @property
+    def market(self) -> MarketFacade:
+        return self._objects().market
 
     @property
     def outbox(self) -> OutboxWriter:

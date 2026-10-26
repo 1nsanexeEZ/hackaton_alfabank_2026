@@ -17,6 +17,7 @@ from src.core.uow import UnitOfWork
 from src.modules.clients.facade import ClientsFacade
 from src.modules.decision.domain.policy_version import PolicyVersion
 from src.modules.decision.domain.result import DecisionResult
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -38,6 +39,9 @@ class PreApprovedOffer:
     factors_summary: tuple[str, ...]
     valid_until: date
     computed_at: datetime
+    # Ключевая, с которой посчитано; None — проектное предложение или посчитано до того, как
+    # предложение стало её помнить (такие считаются устаревшими).
+    key_rate: Decimal | None = None
 
 
 class DecisionRepository(Protocol):
@@ -103,6 +107,14 @@ class PreApprovedOfferRepository(Protocol):
         продлить пересчётом, только новой проектной оценкой."""
         ...
 
+    async def organizations_priced_at_other_key_rate(
+        self, key_rate: Decimal, limit: int
+    ) -> list[UUID]:
+        """Компании, у которых хоть одно предложение по оценке без заявки посчитано не по этой
+        ключевой (или ставка не записана). Проектные не считаются, как и в
+        `organizations_expiring_by`."""
+        ...
+
 
 class PreApprovalTransaction(UnitOfWork, Protocol):
     """Транзакция на своей сессии — вне запроса и обработчика Kafka (ночной пакет): вход
@@ -123,6 +135,9 @@ class PreApprovalTransaction(UnitOfWork, Protocol):
 
     @property
     def scoring(self) -> ScoringFacade: ...
+
+    @property
+    def market(self) -> MarketFacade: ...
 
     @property
     def outbox(self) -> OutboxWriter: ...

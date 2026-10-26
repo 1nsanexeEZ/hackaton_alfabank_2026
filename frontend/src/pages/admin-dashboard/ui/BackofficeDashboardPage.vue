@@ -15,6 +15,6 @@ const greeting = computed(() => {
 </script>
 
 <template>
-  <AdminPageHeader :title="greeting" description="Кредитный конвейер в графиках: воронка, поток решений, очередь специалиста, продукты и скоринг" />
+  <AdminPageHeader :title="greeting" description="Главное по кредитному конвейеру: заявки, решения, воронка и очередь специалиста" />
   <ApplicationsBoard />
 </template>

@@ -5,7 +5,11 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_4r4NbfqXel
 name: Выдать доверенность
 description: |-
-  Issued by the head confirmed by the registry; replaces the previous one.
+  Issued by the head confirmed by the registry. The number: letters and digits separated
+  by spaces, dots, slashes or hyphens, with a digit, up to 32 characters, "№" is dropped —
+  otherwise 422 `invalid_format`; another member's number — 409 `number_taken`. One at a
+  time: a current or not yet started one — 409 `power_of_attorney_exists` (revoke it first),
+  an expired one is replaced.
 
   Токен: директор ООО «Ромашка».
 method: POST

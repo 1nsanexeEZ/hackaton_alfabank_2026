@@ -116,6 +116,9 @@ def write(record: CreditProductRecord, product: CreditProduct) -> None:
     record.status = product.status.value
     record.sort_order = product.sort_order
     record.frontend_id = product.frontend_id
+    record.keywords = list(product.keywords)
+    record.tag = product.tag
+    record.decision_time = product.decision_time
     record.name = product.name
     record.short_description = product.short_description
     record.description_plain = product.description_plain
@@ -178,6 +181,9 @@ def to_domain(record: CreditProductRecord) -> CreditProduct:
         short_description=record.short_description,
         description_plain=record.description_plain,
         frontend_id=record.frontend_id,
+        keywords=tuple(record.keywords or ()),
+        tag=record.tag,
+        decision_time=record.decision_time,
         purposes=frozenset(record.purposes),
         facility=record.facility,
         repayment_options=tuple(record.repayment_options),

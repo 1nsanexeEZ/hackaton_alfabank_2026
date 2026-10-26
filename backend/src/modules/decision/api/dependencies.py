@@ -18,7 +18,6 @@ from src.modules.decision.application.policy_versions import (
     PolicyProvider,
     PolicyVersions,
 )
-from src.modules.decision.config import DecisionSettings
 from src.modules.decision.domain.policy import CreditPolicy
 from src.modules.decision.infrastructure.config_loader import CreditPolicyDocuments
 from src.modules.decision.infrastructure.repository import (
@@ -27,6 +26,7 @@ from src.modules.decision.infrastructure.repository import (
     SqlAlchemyPolicyVersionRepository,
 )
 from src.modules.enrichment.facade import EnrichmentFacade
+from src.modules.market.facade import MarketFacade
 from src.modules.products.facade import ProductsFacade
 from src.modules.scoring.facade import ScoringFacade
 
@@ -86,8 +86,11 @@ def get_input_builders(
     return builder
 
 
-def get_key_rate() -> Decimal:
-    return DecisionSettings().key_rate
+async def get_key_rate(
+    market: Annotated[MarketFacade, Depends(use_facade(MarketFacade))],
+) -> Decimal:
+    """In force today (the market module), as the consumers take it."""
+    return (await market.key_rate()).value
 
 
 PolicyVersionsDep = Annotated[PolicyVersions, Depends(get_policy_versions)]

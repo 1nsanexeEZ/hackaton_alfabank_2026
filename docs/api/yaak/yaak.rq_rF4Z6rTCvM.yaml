@@ -5,7 +5,8 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_wXQZoZJb93
 name: Мои обращения
 description: |-
-  The client's tickets, newest activity first.
+  The client's tickets, newest activity first. The total by the same filter is in the
+  `X-Total-Count` header.
 
   Токен: директор ООО «Ромашка».
 method: GET

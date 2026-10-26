@@ -116,7 +116,8 @@
       "score": 610,
       "risk_grade": "C",
       "cash_gap": true,
-      "routing_reasons": []
+      "routing_reasons": [],
+      "review": null
     },
     {
       "task_id": "fe1e31f3-e1ea-52ea-b3a7-ed2df2a5446b",
@@ -138,7 +139,8 @@
       "cash_gap": true,
       "routing_reasons": [
         "SHORT_BUSINESS_HISTORY"
-      ]
+      ],
+      "review": "check"
     }
   ],
   "projector_application_timeline": [

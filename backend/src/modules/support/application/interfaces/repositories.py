@@ -36,3 +36,7 @@ class TicketRepository(Protocol):
     async def search(self, access: AccessContext, query: TicketQuery) -> list[SupportTicket]:
         """Newest activity first."""
         ...
+
+    async def count(self, access: AccessContext, query: TicketQuery) -> int:
+        """How many tickets `search` pages through (`limit` and `offset` aside)."""
+        ...

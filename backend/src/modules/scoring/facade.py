@@ -1,6 +1,7 @@
 """Scoring contract: the explainable score of an application, a quick estimate
 for pre-approval and the checks of a startup before its application."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -146,6 +147,10 @@ class ProjectAssessmentDTO:
 
 class ScoringFacade(Protocol):
     async def get_result(self, application_id: UUID) -> ScoringResultDTO | None: ...
+
+    async def get_results(self, application_ids: Sequence[UUID]) -> dict[UUID, ScoringResultDTO]:
+        """The latest result of each application that has one: one query for a list."""
+        ...
 
     async def estimate(
         self, company: CompanyProfileDTO, amount: Decimal | None = None

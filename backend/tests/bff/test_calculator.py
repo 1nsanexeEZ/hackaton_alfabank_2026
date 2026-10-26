@@ -95,6 +95,17 @@ def test_without_a_pre_approval_the_base_rate_is_used(world: World) -> None:
     assert body["degraded"] == []
 
 
+def test_who_may_not_apply_gets_the_base_rate(world: World) -> None:
+    """An employee without a power of attorney is not offered the pre-approval."""
+    pre_approve(world)
+
+    body = calculate(world, headers=world.as_client(world.employee)).json()
+
+    assert body["pre_approved"] is None
+    assert body["within_pre_approved"] is None
+    assert Decimal(body["schedule"]["rate"]) != Decimal("18.5")
+
+
 def test_within_the_pre_approved_terms(world: World) -> None:
     pre_approve(world)
 

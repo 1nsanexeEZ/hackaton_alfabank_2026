@@ -148,9 +148,9 @@ const allSet = computed(() => Boolean(password.value) && (!withDocument.value ||
       <ShieldCheck class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
       <template v-if="withDocument">
         Вы подписываете простой электронной подписью — паролем от кабинета. Сразу после вас договор подпишет банк своей
-        электронной подписью с меткой времени. Ключ банка — демо-стенда, не квалифицированный.
+        электронной подписью с меткой времени.
       </template>
-      <template v-else>Подписание смоделировано: документ уходит в мок ЭДО, реальной электронной подписи и выдачи денег нет.</template>
+      <template v-else>Вы подписываете простой электронной подписью — паролем от кабинета.</template>
     </p>
 
     <BaseModal v-if="rules" v-model:open="rulesOpen" :title="rules.title" :description="rulesDate ? `Редакция от ${rulesDate}` : undefined" wide>

@@ -107,6 +107,9 @@ def test_client_sees_only_own_tickets(world: World) -> None:
 
     mine = world.client.get("/support/tickets", headers=world.as_client(world.director))
     assert [t["id"] for t in mine.json()] == [own["id"]]
+    assert mine.headers["X-Total-Count"] == "1"
+    queue = world.client.get("/support/queue", params={"limit": 1}, headers=world.as_admin())
+    assert len(queue.json()) == 1 and queue.headers["X-Total-Count"] == "2"
     # A colleague from the same company is not a reason to see the ticket.
     stranger = world.client.get(
         f"/support/tickets/{colleague['id']}", headers=world.as_client(world.director)

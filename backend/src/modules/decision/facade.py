@@ -1,7 +1,7 @@
 """Decision contract. The full decision (rule trace, reason codes) is for the
 bank only; the client view never carries them."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -208,6 +208,10 @@ class ProjectAssessmentDTO:
 class DecisionFacade(Protocol):
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         """Back office only: includes rule_trace and reason codes."""
+        ...
+
+    async def get_decisions(self, application_ids: Sequence[UUID]) -> dict[UUID, DecisionDTO]:
+        """The latest decision of each application that has one: one query for a list."""
         ...
 
     async def get_client_view(self, application_id: UUID) -> ClientDecisionDTO | None: ...

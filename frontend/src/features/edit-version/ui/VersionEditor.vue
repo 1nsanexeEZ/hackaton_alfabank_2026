@@ -98,7 +98,7 @@ async function save() {
     <div class="flex flex-wrap items-end justify-between gap-3">
       <SegmentedControl v-model="tab" :options="TABS" label="Как показать документ" small />
       <p v-if="!editable" class="text-xs text-ink-secondary">
-        {{ version.status === 'draft' ? 'Правка черновиков — с правом scoring.update' : 'Править можно только черновик — скопируйте версию' }}
+        {{ version.status === 'draft' ? 'Правка черновиков — с правом scoring.update' : 'Эта версия только для чтения — «Изменить» вверху откроет её черновик' }}
       </p>
     </div>
 

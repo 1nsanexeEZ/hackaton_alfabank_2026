@@ -4,12 +4,14 @@ from uuid import UUID
 from src.modules.projector.facade import (
     ApplicationOverviewDTO,
     ApplicationPageDTO,
+    ApplicationStatsDTO,
     Audience,
     BackofficeMetricsDTO,
     OrganizationDashboardDTO,
     QueueItemDTO,
     QueuePageDTO,
     QueueSort,
+    ReviewKind,
     TimelineEntryDTO,
 )
 
@@ -21,6 +23,7 @@ class FakeProjectorFacade:
         self.queue: dict[UUID, QueueItemDTO] = {}
         self.timeline: list[TimelineEntryDTO] = []
         self.metrics: BackofficeMetricsDTO | None = None
+        self.application_stats = ApplicationStatsDTO((), (), ())
 
     def add_overview(self, row: ApplicationOverviewDTO) -> ApplicationOverviewDTO:
         self.overviews[row.application_id] = row
@@ -57,6 +60,9 @@ class FakeProjectorFacade:
     ) -> OrganizationDashboardDTO | None:
         return self.dashboards.get(organization_id)
 
+    async def get_application_stats(self, latest: int = 10) -> ApplicationStatsDTO:
+        return self.application_stats
+
     async def get_underwriting_queue(
         self,
         role: str,
@@ -64,8 +70,13 @@ class FakeProjectorFacade:
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO:
-        rows = [r for r in self.queue.values() if r.status == status]
+        rows = [
+            r
+            for r in self.queue.values()
+            if r.status == status and (review is None or r.review == review)
+        ]
         return QueuePageDTO(items=tuple(rows[offset : offset + limit]), total=len(rows))
 
     async def get_timeline(

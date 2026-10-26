@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from src.modules.decision.facade import (
@@ -37,6 +38,9 @@ class FakeDecisionFacade:
 
     async def get_decision(self, application_id: UUID) -> DecisionDTO | None:
         return self.decisions.get(application_id)
+
+    async def get_decisions(self, application_ids: Sequence[UUID]) -> dict[UUID, DecisionDTO]:
+        return {i: self.decisions[i] for i in application_ids if i in self.decisions}
 
     async def get_client_view(self, application_id: UUID) -> ClientDecisionDTO | None:
         decision = self.decisions.get(application_id)

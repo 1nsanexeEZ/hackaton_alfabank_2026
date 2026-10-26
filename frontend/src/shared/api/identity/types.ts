@@ -3,6 +3,7 @@
  * Поля в snake_case, как их отдаёт бэкенд.
  */
 import type { DemoAccountDto } from '../client/types'
+import type { Page } from '../http'
 
 export type Permission =
   | 'admin'
@@ -117,7 +118,8 @@ export interface IdentityApi {
   demoLogin(login: string): Promise<TokenResponse>
   me(): Promise<MeDto>
   updateProfile(data: Partial<ProfileDto>): Promise<MeDto>
-  listAccounts(params?: { limit?: number; offset?: number }): Promise<AccountDto[]>
+  /** total — сколько учёток всего */
+  listAccounts(params?: { limit?: number; offset?: number }): Promise<Page<AccountDto>>
   /** Все учётки: страницами по 100, пока не придёт неполная */
   listAllAccounts(): Promise<AccountDto[]>
   createAccount(data: AccountCreateInput): Promise<AccountDto>

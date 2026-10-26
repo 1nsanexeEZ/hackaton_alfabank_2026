@@ -51,7 +51,7 @@ const currentYear = new Date().getFullYear()
       <div
         class="mt-12 flex flex-col gap-3 border-t border-night-line pt-6 text-xs text-on-night-secondary lg:flex-row lg:justify-between"
       >
-        <p>© {{ currentYear }} Команда хакатона «Альфа Будущее»</p>
+        <p>© {{ currentYear }} BATTALION_404</p>
         <p class="max-w-2xl lg:text-right">
           Прототип. Условия, компании и заявки синтетические и не являются публичной офертой.
         </p>

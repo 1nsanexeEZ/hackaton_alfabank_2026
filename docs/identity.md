@@ -7,7 +7,7 @@
 
 | Вопрос | Решение |
 |---|---|
-| Регистрация | Нет. Пользователь уже клиент банка (ответ организаторов, `docs/case.md`, раздел 5). Аккаунты создают bootstrap (admin), сид (роли и демо-учётки) и API |
+| Регистрация | Нет. Пользователь уже клиент банка (ответ организаторов, `settings/case.md`, раздел 5). Аккаунты создают bootstrap (admin), сид (роли и демо-учётки) и API |
 | Вход | Email или телефон + пароль, одна ручка `POST /auth/login`. Телефон нормализуется: `8 (999) 123-45-67` → `+79991234567` |
 | Токен | Только access JWT, **RS256**, TTL **30 минут** (`JWT_ACCESS_TTL_MINUTES`). Ни access, ни refresh не храним, refresh нет |
 | Проверка токена | По публичному ключу. JWKS отдаётся на `GET /.well-known/jwks.json`, так что проверку можно вынести из Identity |
@@ -126,11 +126,12 @@
 
 Чтобы эксперты не вводили пароли, есть вход без пароля в демо-учётки — организаторы разрешили «готовый демо-профиль».
 
-- Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` — `false`. В `.env.example` — `true`.
-- **На публичном стенде флаг выключен.** Ручка выдаёт токен без пароля: включать её там, где стенд доступен из интернета, нельзя.
+- Флаг `DEMO_LOGIN_ENABLED`: в `Settings` по умолчанию `false`, в `docker-compose.yml` — `true` (локальная проверка жюри, вход в один клик), в `docker-compose.prod.yml` тоже `true`, но на стенде `/api/auth/demo-login` и `/api/auth/demo-accounts` закрыты Basic Auth сайта (`docker/nginx/nginx.prod.conf`). В `.env.example` — `true`.
+- **На публичном стенде ручки закрыты Basic Auth сайта.** Ручка выдаёт токен без пароля, поэтому открытой из интернета её оставлять нельзя: войти в один клик может только тот, кто знает логин и пароль сайта.
 - Флаг выключен → обе ручки отвечают 404, как будто их нет.
-- `POST /auth/demo-login {"login": "owner@romashka.test"}` → тот же ответ, что у `/auth/login`. Логин — email или телефон демо-учётки. Логин не из списка (в том числе admin) или удалённая учётка → 404.
-- `GET /auth/demo-accounts` → `[{"login", "phone", "role", "caption", "full_name"}]` — существующие демо-учётки в порядке `demo_data`, без паролей. `caption` — подпись для кнопки («Директор ООО „Ромашка“», «Андеррайтер»).
+- Кроме учёток из `demo_data` в один клик входит админ из `BOOTSTRAP_ADMIN_EMAIL` (роль `admin`, подпись «Администратор»).
+- `POST /auth/demo-login {"login": "owner@romashka.test"}` → тот же ответ, что у `/auth/login`. Логин — email или телефон демо-учётки или email админа. Логин не из списка или удалённая учётка → 404.
+- `GET /auth/demo-accounts` → `[{"login", "phone", "role", "caption", "full_name"}]` — существующие демо-учётки в порядке `demo_data`, админ последним, без паролей. `caption` — подпись для кнопки («Директор ООО „Ромашка“», «Андеррайтер», «Администратор»).
 
 ## API
 
@@ -138,7 +139,7 @@
 |---|---|---|---|
 | POST | `/auth/login` | — | `{login, password}` → `{access_token, token_type, expires_in}` |
 | POST | `/auth/demo-login` | — | `{login}` → токен демо-учётки без пароля; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
-| GET | `/auth/demo-accounts` | — | Список демо-учёток для кнопок входа; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
+| GET | `/auth/demo-accounts` | — | Список демо-учёток и админа для кнопок входа; только при `DEMO_LOGIN_ENABLED=true`, иначе 404 |
 | GET | `/.well-known/jwks.json` | — | Публичный ключ для проверки токенов |
 | GET | `/me` | любой валидный токен | Аккаунт, роль, профиль, пермишны и политики из токена |
 | PATCH | `/me/profile` | `profile.update` | Правка своего профиля; ФИО и должность — ещё и `profile.update_name`, без него другие значения — 422 `identity_locked` |
@@ -148,7 +149,7 @@
 | GET | `/organizations/{id}/consents` | любой валидный токен + `view` в компании | Согласия компании: действующие и история, новые сверху |
 | POST | `/organizations/{id}/consents` | любой валидный токен + `submit_application` в компании | `{types: ["credit_bureau_company"]}` → 201 |
 | DELETE | `/organizations/{id}/consents/{type}` | любой валидный токен + `submit_application` в компании | Отзыв любым представителем; повторный — тоже 204 |
-| GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit`/`offset` |
+| GET | `/accounts` | `accounts.read` | Список с ABAC-фильтром, `limit` (1–100, по умолчанию 50), `offset`; общее число по тому же фильтру — в заголовке `X-Total-Count` |
 | GET | `/accounts/{id}` | `accounts.read` | 404, если строка отфильтрована политикой |
 | POST | `/accounts` | `accounts.create` | Аккаунт + профиль |
 | PATCH | `/accounts/{id}` | `accounts.update` | Email, телефон, пароль, роль, профиль |

@@ -1,6 +1,8 @@
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
+import { liveFeed } from '@/entities/notification'
 import {
+  ApiError,
   clientApi,
   type FinancialReportDto,
   type FinancialReportInput,
@@ -13,6 +15,19 @@ import {
   type VerificationResultDto,
 } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
+
+/** Номер доверенности — как проверяет бэкенд: буквы и цифры, между ними пробел, точка, / или -, хотя бы одна цифра */
+export const POA_NUMBER_HINT = 'Номер: буквы и цифры, можно пробел, точку, / и -, хотя бы одна цифра, до 32 знаков'
+const POA_NUMBER = /^[0-9A-Za-zА-Яа-яЁё]+(?:[ ./-]+[0-9A-Za-zА-Яа-яЁё]+)*$/
+
+/** Знак № в начале и лишние пробелы бэкенд убирает сам — так же и мы перед проверкой */
+export const normalizePoaNumber = (value: string) => value.replace(/^\s*№\s*/, '').replace(/\s+/g, ' ').trim()
+
+export function poaNumberError(value: string): string | null {
+  const number = normalizePoaNumber(value)
+  if (!number) return 'Укажите номер доверенности'
+  return number.length <= 32 && POA_NUMBER.test(number) && /\d/.test(number) ? null : POA_NUMBER_HINT
+}
 
 /** Пересчёт предодобрения после нового отчёта идёт по событию — подождём и перечитаем */
 const PRE_APPROVAL_RECALC_MS = 1_500
@@ -35,6 +50,12 @@ export function useCompany() {
   const notice = ref<string | null>(null)
   /** Итог последней ручной сверки с ЕГРЮЛ: что обновили молча */
   const verification = shallowRef<VerificationResultDto | null>(null)
+  /** Ошибка формы доверенности: про номер — под полем номера, остальное — над кнопками формы */
+  const poaError = shallowRef<{ field: 'number' | null; message: string } | null>(null)
+  /** Ошибка добавления участника — под полем «Email или телефон» */
+  const memberError = ref<string | null>(null)
+  /** Открытую компанию у пользователя забрали — исключили из участников: почему она пропала */
+  const accessLost = ref<string | null>(null)
 
   const can = (permission: string) => detail.value?.my_permissions.includes(permission as never) ?? false
   const canEditFinancials = computed(() => can('edit_financials'))
@@ -74,10 +95,48 @@ export function useCompany() {
       members.value = nextMembers
     } catch (caught) {
       error.value = errorMessage(caught)
+      if (isNotFound(caught)) void syncMembership(false)
     } finally {
       loading.value = false
     }
   }
+
+  const isNotFound = (caught: unknown) => caught instanceof ApiError && caught.status === 404
+
+  /**
+   * Сверка с бэкендом, в каких компаниях пользователь ещё участник. Исключили из открытой — данные
+   * чужой уже компании не держим: открываем другую с пояснением, а без компаний — пустое состояние.
+   * Остался участником — роль или права могли смениться: открытую перечитываем (reload).
+   */
+  async function syncMembership(reload = true) {
+    const current = organizationId.value
+    let list: OrganizationSummaryDto[]
+    try {
+      list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+    } catch {
+      return
+    }
+    organizations.value = list
+    if (current && list.some((item) => item.id === current)) {
+      if (reload) await loadCompany()
+      return
+    }
+    if (current) {
+      const name = detail.value?.id === current ? detail.value.name : 'компании'
+      accessLost.value = `Доступ к ${name} закрыт: вас исключили из участников`
+      actionError.value = null
+      detail.value = null
+      reports.value = []
+      preApproved.value = []
+      members.value = []
+      error.value = null
+    }
+    organizationId.value = list[0]?.id ?? ''
+    if (!current && organizationId.value) await loadCompany()
+  }
+
+  // Запись о компании в живой ленте — исключили, добавили, сменили роль: сверяемся сразу, без перезагрузки
+  onScopeDispose(liveFeed.onCompany(() => void syncMembership()))
 
   watch(organizationId, (next, previous) => {
     if (previous && next !== previous) {
@@ -98,6 +157,8 @@ export function useCompany() {
       return true
     } catch (caught) {
       actionError.value = errorMessage(caught)
+      // Компании не нашлось — возможно, пользователя исключили, а живая лента этого не принесла
+      if (isNotFound(caught)) void syncMembership(false)
       return false
     } finally {
       busy.value = null
@@ -122,24 +183,62 @@ export function useCompany() {
       'Отчёт отправлен. Предварительное одобрение пересчитается по новым данным.',
     )
 
-  const addMember = (login: string, role: MemberRole) =>
-    run(
-      'member',
-      async () => {
-        await clientApi.addMember(organizationId.value, login.trim(), role)
-        members.value = await clientApi.members(organizationId.value)
-      },
-      'Участник добавлен',
-    )
+  async function addMember(login: string, role: MemberRole) {
+    busy.value = 'member'
+    actionError.value = null
+    notice.value = null
+    memberError.value = null
+    try {
+      await clientApi.addMember(organizationId.value, login.trim(), role)
+      members.value = await clientApi.members(organizationId.value)
+      notice.value = 'Участник добавлен'
+      return true
+    } catch (caught) {
+      // Добавить можно только того, у кого уже есть учётная запись в банке: сначала его подключает банк
+      memberError.value =
+        caught instanceof ApiError && caught.details.code === 'account_not_found'
+          ? 'Такого клиента в банке нет. Добавить можно сотрудника, у которого уже есть вход в кабинет — по его email или телефону'
+          : errorMessage(caught)
+      return false
+    } finally {
+      busy.value = null
+    }
+  }
 
-  const grantPowerOfAttorney = (accountId: string, input: PowerOfAttorneyInput) =>
+  async function grantPowerOfAttorney(accountId: string, input: PowerOfAttorneyInput) {
+    busy.value = `poa:${accountId}`
+    actionError.value = null
+    notice.value = null
+    poaError.value = null
+    try {
+      await clientApi.grantPowerOfAttorney(organizationId.value, accountId, input)
+      members.value = await clientApi.members(organizationId.value)
+      notice.value = 'Доверенность выдана'
+      return true
+    } catch (caught) {
+      const code = caught instanceof ApiError ? caught.details.code : undefined
+      const message = code === 'invalid_format' ? POA_NUMBER_HINT : errorMessage(caught)
+      poaError.value = { field: code === 'invalid_format' || code === 'number_taken' ? 'number' : null, message }
+      return false
+    } finally {
+      busy.value = null
+    }
+  }
+
+  /** Отзыв: права участника меняются сразу — перечитываем участников и предодобрение (без права подачи его не видно) */
+  const revokePowerOfAttorney = (accountId: string) =>
     run(
-      `poa:${accountId}`,
+      `revoke:${accountId}`,
       async () => {
-        await clientApi.grantPowerOfAttorney(organizationId.value, accountId, input)
-        members.value = await clientApi.members(organizationId.value)
+        await clientApi.revokePowerOfAttorney(organizationId.value, accountId)
+        const [nextMembers, nextOffers] = await Promise.all([
+          clientApi.members(organizationId.value),
+          clientApi.preApprovedOffers(organizationId.value),
+        ])
+        members.value = nextMembers
+        preApproved.value = nextOffers
       },
-      'Доверенность выдана',
+      'Доверенность отозвана',
     )
 
   /** Сверка с ЕГРЮЛ/ЕГРИП мимо кэша: адрес, КПП, ОКВЭД, наименование обновляются, руководитель — в расхождения */
@@ -187,6 +286,9 @@ export function useCompany() {
     actionError,
     notice,
     verification,
+    poaError,
+    memberError,
+    accessLost,
     canEditFinancials,
     canSubmit,
     canManageMembers,
@@ -195,6 +297,7 @@ export function useCompany() {
     submitReport,
     addMember,
     grantPowerOfAttorney,
+    revokePowerOfAttorney,
     verify,
     changeMemberRole,
     removeMember,

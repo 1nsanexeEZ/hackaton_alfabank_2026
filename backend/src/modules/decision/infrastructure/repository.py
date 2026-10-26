@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,6 +73,22 @@ class SqlAlchemyDecisionRepository:
 
     async def latest_for_application(self, application_id: UUID) -> DecisionResult | None:
         return await self._latest(application_id)
+
+    async def latest_for_applications(
+        self, application_ids: Sequence[UUID]
+    ) -> dict[UUID, DecisionResult]:
+        if not application_ids:
+            return {}
+        stmt = (
+            select(DecisionResultRecord)
+            .where(DecisionResultRecord.application_id.in_(list(application_ids)))
+            .order_by(DecisionResultRecord.sequence.desc())
+        )
+        latest: dict[UUID, DecisionResult] = {}
+        for record in await self._session.scalars(stmt):
+            if record.application_id not in latest:
+                latest[record.application_id] = _to_domain(record)
+        return latest
 
     async def latest_automatic(self, application_id: UUID) -> DecisionResult | None:
         return await self._latest(application_id, decided_by_type="auto")
@@ -257,6 +273,22 @@ class SqlAlchemyPreApprovedOfferRepository:
             .group_by(PreApprovedOfferRecord.organization_id)
             .having(soonest <= day)
             .order_by(soonest, PreApprovedOfferRecord.organization_id)
+            .limit(limit)
+        )
+        return list(await self._session.scalars(stmt))
+
+    async def organizations_priced_at_other_key_rate(
+        self, key_rate: Decimal, limit: int
+    ) -> list[UUID]:
+        offer = PreApprovedOfferRecord
+        stmt = (
+            select(offer.organization_id)
+            .where(
+                offer.basis != "project",
+                or_(offer.key_rate.is_(None), offer.key_rate != key_rate),
+            )
+            .group_by(offer.organization_id)
+            .order_by(func.min(offer.computed_at), offer.organization_id)
             .limit(limit)
         )
         return list(await self._session.scalars(stmt))
@@ -455,6 +487,7 @@ def _offer_record(offer: PreApprovedOffer) -> PreApprovedOfferRecord:
         factors_summary=list(offer.factors_summary),
         valid_until=offer.valid_until,
         computed_at=offer.computed_at,
+        key_rate=offer.key_rate,
     )
 
 
@@ -469,4 +502,5 @@ def _offer(record: PreApprovedOfferRecord) -> PreApprovedOffer:
         factors_summary=tuple(record.factors_summary),
         valid_until=record.valid_until,
         computed_at=record.computed_at,
+        key_rate=None if record.key_rate is None else Decimal(str(record.key_rate)),
     )

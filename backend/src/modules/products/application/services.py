@@ -1,10 +1,11 @@
 """Use cases of products: catalog, terms snapshot, eligibility, matching, calculator."""
 
+from dataclasses import dataclass
 from decimal import Decimal
 
 from src.core.domain import Money
 from src.core.exceptions.exceptions import NotFoundError, ValidationError
-from src.modules.products.application.ports import ProductRepository
+from src.modules.products.application.ports import KeyRates, ProductRepository
 from src.modules.products.domain.calculator import PaymentCalculator, PaymentSchedule
 from src.modules.products.domain.product import CreditProduct, ProductStatus
 from src.modules.products.domain.recommender import ProductRecommender, Recommendation
@@ -16,23 +17,44 @@ from src.modules.products.domain.value_objects import (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class KeyRateShift:
+    """The key rate in force and the one the catalog rates are set at."""
+
+    key_rate: Decimal
+    catalog_key_rate: Decimal
+
+    @property
+    def points(self) -> Decimal:
+        return self.key_rate - self.catalog_key_rate
+
+
 class ProductService:
+    """Products as clients and other modules see them: the catalog rates are set at
+    `catalog_key_rate` and move by the key rate in force minus it, read on every call (a new
+    rate is in force at once). Without `key_rates` nothing moves. Keeping the catalog
+    (`ProductCatalog`) sees the stored rates."""
+
     def __init__(
         self,
         products: ProductRepository,
         calculator: PaymentCalculator | None = None,
         recommender: ProductRecommender | None = None,
+        key_rates: KeyRates | None = None,
+        catalog_key_rate: Decimal = Decimal(0),
     ) -> None:
         self._products = products
         self._calculator = calculator or PaymentCalculator()
         self._recommender = recommender or ProductRecommender(self._calculator)
+        self._key_rates = key_rates
+        self._catalog_key_rate = catalog_key_rate
 
     async def get(self, code: str) -> CreditProduct:
         """Active or archived; a draft is not published yet."""
         product = await self._products.get_current(code)
         if product is None or product.status == ProductStatus.DRAFT:
             raise NotFoundError("Product not found", details={"code": code})
-        return product
+        return product.at_key_rate(await self._shift())
 
     async def get_selectable(self, code: str) -> CreditProduct:
         product = await self.get(code)
@@ -41,7 +63,8 @@ class ProductService:
 
     async def list_active(self, purpose: str | None = None) -> list[CreditProduct]:
         products = await self._products.list_active()
-        return [p for p in products if purpose is None or p.serves(purpose)]
+        shift = await self._shift()
+        return [p.at_key_rate(shift) for p in products if purpose is None or p.serves(purpose)]
 
     async def terms_snapshot(self, code: str) -> ProductTerms:
         return (await self.get(code)).snapshot()
@@ -89,6 +112,17 @@ class ProductService:
         self, amount: Money, term_months: int, rate: Decimal, repayment: str
     ) -> PaymentSchedule:
         return self._calculator.schedule(amount, term_months, rate, repayment)
+
+    async def key_rate_shift(self) -> KeyRateShift | None:
+        """None without `key_rates`: nothing moves."""
+        if self._key_rates is None:
+            return None
+        return KeyRateShift(await self._key_rates.current(), self._catalog_key_rate)
+
+    async def _shift(self) -> Decimal:
+        """How far the catalog rates move: the key rate now minus the one they are set at."""
+        shift = await self.key_rate_shift()
+        return shift.points if shift is not None else Decimal(0)
 
 
 def _out_of_range(field: str, low: Decimal | int, high: Decimal | int) -> ValidationError:

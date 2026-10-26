@@ -36,7 +36,7 @@ async function revoke(type: ConsentType) {
 const latest = (type: ConsentType) => state.items?.find((item) => item.type === type) ?? null
 
 function lapse(item: ConsentDto | null): string {
-  if (!item) return 'Не давали'
+  if (!item) return 'Не дано'
   if (item.revoked_at) return `Отозвано ${formatDate(item.revoked_at)}`
   return item.valid_until ? `Истекло ${formatDate(item.valid_until)}` : 'Не действует'
 }
@@ -90,10 +90,7 @@ const summary = computed(() => {
       </span>
     </div>
 
-    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <h3 class="text-base font-bold text-ink">Мои согласия</h3>
-      <span class="text-[0.8125rem] text-ink-secondary">за себя, а не за компанию</span>
-    </div>
+    <h3 class="text-base font-bold text-ink">Мои согласия</h3>
 
     <AsyncState :loading="state.loading && !state.items" :error="state.items ? null : state.error" @retry="personalConsents.load(true)">
       <div class="space-y-3">
@@ -115,7 +112,7 @@ const summary = computed(() => {
           :confirm-text="card.about.confirm"
           @revoke="revoke(card.type)"
         >
-          <PersonalConsentPrompt :type="card.type" action="Дать согласие" />
+          <PersonalConsentPrompt :type="card.type" action="Дать согласие" :with-text="false" />
         </ConsentCard>
       </div>
 

@@ -11,7 +11,7 @@ from src.core.access.access_context import AccessContext
 from src.core.access.dependencies import get_access_context_for
 from src.core.access.permissions import Permissions
 from src.core.domain.clock import Clock
-from src.core.facades import FacadeRegistry, use_facade
+from src.core.facades import FacadeRegistry, get_facade_registry, use_facade
 from src.core.infrastructure.database.session import DbSession
 from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.core.messaging.subscriber import HandlerContext
@@ -39,6 +39,7 @@ from src.modules.applications.application.use_cases.cards import (
     GetScoringInputUseCase,
     ListDocumentsUseCase,
     ListForOrganizationUseCase,
+    ListSubmittedUseCase,
     ReadDocumentUseCase,
 )
 from src.modules.applications.application.use_cases.commands import (
@@ -93,6 +94,7 @@ from src.modules.applications.infrastructure.repositories.contract_documents imp
     SqlAlchemyContractDocumentRepository,
 )
 from src.modules.clients.facade import ClientsFacade
+from src.modules.enrichment.facade import EnrichmentFacade
 from src.modules.identity.facade import IdentityFacade
 from src.modules.products.facade import ProductsFacade
 
@@ -110,6 +112,7 @@ def applications_facade(
         ListForOrganizationUseCase(repository),
         ListDocumentsUseCase(repository),
         ReadDocumentUseCase(repository, storage),
+        ListSubmittedUseCase(repository),
     )
 
 
@@ -335,8 +338,13 @@ def get_confirm_upload(
     clients: Clients,
     storage: Storage,
     clock: ClockDep,
+    request: Request,
+    session: DbSession,
 ) -> ConfirmUploadUseCase:
-    return ConfirmUploadUseCase(uow, repository, outbox, clients, storage, clock)
+    facades = get_facade_registry(request)
+    # Without enrichment (some tests) a statement is not checked before the forecast.
+    enrichment = facades.get(EnrichmentFacade, session) if facades.has(EnrichmentFacade) else None
+    return ConfirmUploadUseCase(uow, repository, outbox, clients, storage, clock, enrichment)
 
 
 def get_delete_document(

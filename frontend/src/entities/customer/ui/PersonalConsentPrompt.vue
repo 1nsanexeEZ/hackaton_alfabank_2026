@@ -9,14 +9,18 @@ import { CONSENT_TEXT, personalConsents, type AnyConsentType } from '../model/co
 /**
  * Дать согласие одной кнопкой: текст согласия раскрывается (или сразу открыт), срок виден сразу.
  * Личное согласие человек даёт за себя — прав в компании не нужно; согласие компании — за компанию
- * organizationId, с правом подавать заявки.
+ * organizationId, с правом подавать заявки. withText = false — текст уже показан рядом (карточка согласия), только кнопка.
  */
-const props = withDefaults(defineProps<{ type?: AnyConsentType; organizationId?: string; action?: string; open?: boolean }>(), {
-  type: 'credit_bureau_personal',
-  organizationId: undefined,
-  action: 'Даю согласие',
-  open: false,
-})
+const props = withDefaults(
+  defineProps<{ type?: AnyConsentType; organizationId?: string; action?: string; open?: boolean; withText?: boolean }>(),
+  {
+    type: 'credit_bureau_personal',
+    organizationId: undefined,
+    action: 'Даю согласие',
+    open: false,
+    withText: true,
+  },
+)
 
 const emit = defineEmits<{ given: [] }>()
 
@@ -39,7 +43,7 @@ async function give() {
 
 <template>
   <div class="space-y-3">
-    <details class="text-xs text-ink-secondary" :open="open">
+    <details v-if="withText" class="text-xs text-ink-secondary" :open="open">
       <summary class="cursor-pointer font-medium hover:text-ink">
         Текст согласия «{{ CONSENT_TEXT[type].title }}» · {{ CONSENT_TEXT[type].validity }}
       </summary>

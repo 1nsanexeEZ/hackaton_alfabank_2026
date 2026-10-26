@@ -1,11 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.core.access.access_context import AccessContext
 from src.core.access.dependencies import get_access_context_for, require_permissions
 from src.core.access.permissions import Permissions
+from src.core.http.pagination import TOTAL_HEADER
 from src.modules.identity.presentation.dependencies import (
     CreateAccountDep,
     DeleteAccountDep,
@@ -24,12 +25,15 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 @router.get("", response_model=list[AccountRead])
 async def list_accounts(
+    response: Response,
     access: Annotated[AccessContext, Depends(get_access_context_for(Permissions.ACCOUNTS_READ))],
     use_case: ListAccountsDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[AccountRead]:
-    accounts = await use_case.execute(access, limit, offset)
+    """The total by the same filter is in the `X-Total-Count` header."""
+    accounts, total = await use_case.execute(access, limit, offset)
+    response.headers[TOTAL_HEADER] = str(total)
     return [AccountRead.model_validate(account) for account in accounts]
 
 

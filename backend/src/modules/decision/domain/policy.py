@@ -373,7 +373,10 @@ def _grade_rate(
     key_rate: Decimal,
     coverage: Decimal | None,
 ) -> tuple[Decimal, list[RuleHit]]:
-    """policy_v1/v2: база продукта + надбавка за грейд − скидка за залог + сдвиг ключевой."""
+    """policy_v1/v2: база продукта + надбавка за грейд − скидка за залог + сдвиг ключевой.
+    Каталог отдаёт коридор уже сдвинутым за ключевой (KEY_RATE − CATALOG_KEY_RATE), так что при
+    ключевой не равной ключевой каталога эти версии сдвинули бы ставку дважды: они остались
+    для golden-тестов на зафиксированных входах."""
     premium = config.grade_premium.get(grade, _ZERO)
     discount = (
         config.collateral_discount

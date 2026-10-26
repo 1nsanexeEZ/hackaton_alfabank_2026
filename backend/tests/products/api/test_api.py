@@ -390,7 +390,7 @@ def new_product(**overrides: Any) -> dict[str, Any]:
 
 def as_body(card: dict[str, Any]) -> dict[str, Any]:
     """A product card read back is the body of new terms."""
-    return {k: v for k, v in card.items() if k not in ("code", "version", "status")}
+    return {k: v for k, v in card.items() if k not in ("code", "version", "status", "market_rate")}
 
 
 def stored(settings: Settings, code: str, version: int) -> CreditProduct | None:
@@ -542,3 +542,59 @@ def test_off_sale_a_published_product_is_archived_and_a_draft_deleted(
     assert "FACTORING" not in [p["code"] for p in api.get("/products/all", headers=headers).json()]
     # The code is free again.
     assert api.post("/products", json=new_product(), headers=headers).status_code == 201
+
+
+# --- rates follow the key rate ------------------------------------------------------------
+
+
+def test_clients_get_rates_at_the_key_rate(settings: Settings) -> None:
+    """Key rate 14 against the catalog's 16.5: clients get every rate 2.5 points lower, the
+    catalog is kept with the rates it was set at."""
+    settings = settings.model_copy(update={"key_rate": Decimal("14.00")})
+    create_schema(settings.database_url)
+    asyncio.run(_seed(settings))
+    app = create_app(settings)
+    with TestClient(app) as api:
+        unsecured = api.get("/products/UNSECURED").json()
+        rates = (Decimal(unsecured["rate_base"]), Decimal(unsecured["rate_max"]))
+        assert rates == (Decimal(21), Decimal("27.5"))
+        gov = next(p for p in api.get("/products").json() if p["code"] == "GOV_SUPPORT")
+        assert Decimal(gov["rate_base"]) == Decimal("9.5")
+        assert Decimal(gov["support_program"]["rate_cap"]) == Decimal("12.5")
+        schedule = api.post(
+            "/products/UNSECURED/calculate", json={"amount": "1000000", "term_months": 12}
+        ).json()
+        assert Decimal(schedule["rate"]) == 21
+        kept = api.get("/products/all", headers=manager(app)).json()
+        stored_rate = next(p for p in kept if p["code"] == "UNSECURED")["rate_base"]
+        assert Decimal(stored_rate) == Decimal("23.5")
+
+
+def test_showcase_card_is_kept_with_the_product(app: FastAPI, api: TestClient) -> None:
+    unsecured = api.get("/products/UNSECURED").json()
+    assert unsecured["keywords"] == ["Без залога", "Быстро", "На любые цели"]
+    assert (unsecured["tag"], unsecured["decision_time"]) == ("Популярный", "5 минут")
+    assert api.get("/products/SECURED").json()["tag"] is None
+
+    card = {"keywords": ["Факторинг", "Отсрочка"], "tag": "Новинка", "decision_time": "1 день"}
+    response = api.post("/products", json=new_product(**card), headers=manager(app))
+    assert response.status_code == 201, response.text
+    assert {k: response.json()[k] for k in card} == card
+    plain = api.post(
+        "/products", json=new_product(code="PLAIN", frontend_id="plain"), headers=manager(app)
+    ).json()
+    assert (plain["keywords"], plain["tag"], plain["decision_time"]) == ([], None, None)
+
+
+@pytest.mark.parametrize(
+    "card",
+    [
+        {"keywords": ["а", "б", "в", "г", "д", "е"]},
+        {"keywords": [""]},
+        {"tag": "х" * 41},
+        {"decision_time": ""},
+    ],
+)
+def test_showcase_card_has_limits(app: FastAPI, api: TestClient, card: dict[str, Any]) -> None:
+    response = api.post("/products", json=new_product(**card), headers=manager(app))
+    assert response.status_code == 422, response.text

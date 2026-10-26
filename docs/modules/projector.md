@@ -66,12 +66,14 @@ projector/
 | Таблица | Ключ | Поля и источник |
 |---|---|---|
 | `projector_application_overview` | `application_id` | карточка заявки (`get_card`): номер, `organization_id`, продукт, сумма, срок, статус, `client_stage`, оффер (сумма, ставка), `submitted_at`, `updated_at`, `version` → `source_version`; название продукта — `products.get_product`; компания и ИНН — снимок в карточке (у черновика — `clients.get_snapshot`); `action_required` — из статуса (`info_requested` → `info`, `offer_ready` → `offer`, `signing` → `sign`). Из событий `DecisionMade`: `decision_outcome`, `decided_by`, `decided_at` (первое финальное решение), `manual_review_at` (первая отправка андеррайтеру), `time_to_decision_sec`. С `OrganizationOwnedMixin`: политика `org_member` работает и здесь |
-| `projector_underwriting_queue` | `task_id` | задача (`process.get_task`): тип, роль, статус, исполнитель, срок, создана; стадия задачи → `source_version`. Из обзора: номер, компания, ИНН, продукт, сумма. Из скоринга (`get_result`): балл, грейд, `cash_gap` (флаг `cash_gap…`). `routing_reasons` — `reason_codes` текущего решения, пока оно `MANUAL_REVIEW`; `review` в DTO (`check` / `dispute`) выводится из них при чтении (`decision.facade.review_kind`), не хранится |
+| `projector_underwriting_queue` | `task_id` | задача (`process.get_task`): тип, роль, статус, исполнитель, срок, создана; стадия задачи → `source_version`. Из обзора: номер, компания, ИНН, продукт, сумма. Из скоринга (`get_result`): балл, грейд, `cash_gap` (флаг `cash_gap…`). `routing_reasons` — `reason_codes` текущего решения, пока оно `MANUAL_REVIEW`; `review` (`check` / `dispute`) выводится из них при сборке (`decision.facade.review_kind`) и хранится в строке: очередь фильтруется по нему в запросе (`?review=`), `total` — по фильтру |
 | `projector_application_timeline` | `id` = uuid5 от `event_id` | одна запись на событие; `source_event_id` уникален; `at` = `occurred_at`; `kind` (`status`, `stage`, `task`, `decision`), `title`, `audience` (`client` / `bank`), `details` |
 | `projector_organization_dashboard` | `organization_id` | счётчики из обзора: активные заявки (`ACTIVE_STATUSES` applications), ждущие клиента (`action_required ≠ none`); предодобренные — `decision.get_pre_approved` (максимум суммы, минимум ставки); `last_activity_at` — самое позднее событие компании |
 | `projector_backoffice_metrics` | `(day, product_code)` | на день (UTC) и продукт: `submitted`, `approved`, `counter_offers`, `rejected`, `manual_reviews`, `auto_decisions`, `decision_time_total_sec`, `decision_time_count`; среднее считается при чтении |
 
 Индексы: обзор — `(organization_id, updated_at)`, `(organization_id, status)`, `submitted_at`, `decided_at`, `manual_review_at` (пересчёт метрик); очередь — `(candidate_role, status, …)` под каждую сортировку; лента — `(application_id, at)`.
+
+Миграции: `projector_0001` (таблицы), `projector_0002` (колонка `review` в очереди).
 
 ## События → обновления
 
@@ -148,7 +150,8 @@ docker compose exec backend python -m scripts.projector_rebuild
 |---|---|
 | `list_applications(organization_id, status=None, limit, offset)` | заявки компании, новые изменения первыми, `total` — до пагинации |
 | `get_organization_dashboard(organization_id)` | дашборд или `None`, если по компании ещё не было событий |
-| `get_underwriting_queue(role, status="open", sort, limit, offset)` | задачи роли, по строке на заявку — её последняя задача (у заявки, вернувшейся андеррайтеру, их несколько); заявка попадает в выборку по статусу этой задачи, `total` — по заявкам. `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
+| `get_application_stats(latest=10)` | сводка по всем заявкам для обзора банка: группы «статус × продукт» (число и сумма запрошенного), корзины сумм (до 1, 1–3, 3–10, 10–30, 30+ млн), последние `latest` заявок с названием компании; считает БД. Из этого `bff` собирает `applications-overview` |
+| `get_underwriting_queue(role, status="open", sort, limit, offset, review=None)` | задачи роли, по строке на заявку — её последняя задача (у заявки, вернувшейся андеррайтеру, их несколько); заявка попадает в выборку по статусу этой задачи, `total` — по заявкам; `review` (`check` / `dispute`) отбирает строки с этой отметкой, `total` — по фильтру. `open` — `open` и `in_progress`, `closed` — `done` и `cancelled`, иначе точный статус. Сортировки: `due_at` — ближайший срок первым, `amount` — крупные первыми, `score` — рискованные (низкий балл) первыми, `created_at` — старые первыми; пустые значения в конце. `overdue` считается при чтении по `clock` |
 | `get_timeline(application_id, audience)` | записи по времени; клиенту — только клиентские |
 | `get_backoffice_metrics(date_from, date_to)` | см. «Метрики для SLA» |
 

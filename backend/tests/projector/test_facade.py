@@ -63,6 +63,45 @@ async def test_list_applications_newest_first_with_pages_and_status(
     assert item.amount == Decimal("3000000") and item.updated_at.tzinfo is not None
 
 
+async def test_application_stats_group_every_company_in_the_database(
+    store: OpenStore, facade: OpenFacade
+) -> None:
+    rows = [
+        overview(status="draft", amount=None),
+        overview(status="in_review", amount=Decimal("500000")),
+        overview(status="in_review", amount=Decimal("3000000"), organization_id=OTHER),
+        overview(
+            status="disbursed",
+            product_code="SECURED",
+            product_name="Под залог",
+            amount=Decimal("45000000"),
+            updated_at=T0 + timedelta(hours=1),
+        ),
+    ]
+    async with store() as s:
+        for row in rows:
+            await s.save_overview(row)
+
+    async with facade() as projector:
+        stats = await projector.get_application_stats(latest=2)
+
+    groups = {(g.status, g.product_code): (g.count, g.amount) for g in stats.groups}
+    assert groups == {
+        ("draft", "UNSECURED"): (1, Decimal(0)),
+        ("in_review", "UNSECURED"): (2, Decimal("3500000")),
+        ("disbursed", "SECURED"): (1, Decimal("45000000")),
+    }
+    assert [(b.min, b.max, b.count) for b in stats.amount_buckets] == [
+        (Decimal(0), Decimal(1_000_000), 1),
+        (Decimal(1_000_000), Decimal(3_000_000), 0),
+        (Decimal(3_000_000), Decimal(10_000_000), 1),
+        (Decimal(10_000_000), Decimal(30_000_000), 0),
+        (Decimal(30_000_000), None, 1),
+    ]
+    assert [r.application_id for r in stats.latest][0] == rows[3].application_id
+    assert len(stats.latest) == 2 and stats.latest[0].company_name == "ООО «Ромашка»"
+
+
 async def test_dashboard(store: OpenStore, facade: OpenFacade) -> None:
     async with store() as s:
         await s.save_dashboard(
@@ -149,6 +188,28 @@ async def test_queue_status_filter_and_pages(
     assert (first.total, len(first.items), len(rest.items)) == (4, 3, 1)
     assert taken.total == 1 and taken.items[0].assignee_id is not None
     assert done.total == closed.total == 1
+
+
+async def test_queue_review_filter_counts_the_whole_queue(
+    store: OpenStore, facade: OpenFacade
+) -> None:
+    """The filter is in the query: `total` is of all such tasks, not of one page."""
+    kinds = ["check", "dispute", "dispute", None, "dispute"]
+    async with store() as s:
+        for i, kind in enumerate(kinds):
+            await s.save_queue_item(
+                queue_item(review=kind, created_at=T0 + timedelta(minutes=i))  # type: ignore[arg-type]
+            )
+
+    async with facade() as projector:
+        disputes = await projector.get_underwriting_queue("underwriter", limit=2, review="dispute")
+        checks = await projector.get_underwriting_queue("underwriter", review="check")
+        everything = await projector.get_underwriting_queue("underwriter")
+
+    assert (disputes.total, len(disputes.items)) == (3, 2)
+    assert {i.review for i in disputes.items} == {"dispute"}
+    assert checks.total == 1 and checks.items[0].review == "check"
+    assert everything.total == 5
 
 
 async def test_queue_has_one_row_per_application_its_latest_task(

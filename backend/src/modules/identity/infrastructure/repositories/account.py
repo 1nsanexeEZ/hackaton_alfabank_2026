@@ -1,7 +1,7 @@
 from collections.abc import Collection, Sequence
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, exists, select
+from sqlalchemy import ColumnElement, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Executable
 
@@ -36,6 +36,12 @@ class SqlAlchemyAccountRepository(AccountRepository):
         stmt = apply_access_context(page, AccountModel, access)
         rows = (await self._session.scalars(stmt)).unique().all()
         return [account_to_entity(row) for row in rows]
+
+    async def count(self, access: AccessContext) -> int:
+        stmt = apply_access_context(
+            select(func.count(AccountModel.id)).select_from(AccountModel), AccountModel, access
+        )
+        return int(await self._session.scalar(stmt) or 0)
 
     async def get(self, access: AccessContext, account_id: UUID) -> Account | None:
         stmt = apply_access_context(

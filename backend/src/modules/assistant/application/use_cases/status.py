@@ -1,16 +1,21 @@
 from src.modules.assistant.application.dto.assistant import StatusDTO
-from src.modules.assistant.application.interfaces.language_model import LanguageModelSetup
+from src.modules.assistant.application.interfaces.language_model import (
+    LanguageModelSetup,
+    ModelReachability,
+)
 
 
 class GetStatusUseCase:
-    """Who answers now: the model (`llm`) or the templates (`rules`)."""
+    """Who answers now: the model (`llm`) or the templates (`rules`). Answers at once: whether
+    the model is up is the last background check (`ModelReachability`)."""
 
-    def __init__(self, setup: LanguageModelSetup) -> None:
+    def __init__(self, setup: LanguageModelSetup, reachability: ModelReachability) -> None:
         self._setup = setup
+        self._reachability = reachability
 
     async def execute(self) -> StatusDTO:
         model = self._setup.model
-        reachable = await model.ping() if model else False
+        reachable = await self._reachability.reachable(model) if model else False
         return StatusDTO(
             enabled=model is not None,
             mode="llm" if reachable else "rules",

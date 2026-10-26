@@ -13,7 +13,7 @@ import { onlyDigits } from '@/shared/lib'
 
 /**
  * Форма условий продукта. В ней — то, что меняют чаще всего: суммы, сроки, ставки, авторешение,
- * кому продукт подходит, залог и маршрут. Остальное (документы, доп. поля заявки, господдержка,
+ * кому продукт подходит, залог, маршрут и витрина (короткие слова, метка, время решения). Остальное (документы, доп. поля заявки, господдержка,
  * полное описание) берём из продукта как есть: PUT требует карточку целиком.
  */
 export type Guarantee = ProductDto['guarantee']
@@ -23,6 +23,10 @@ export interface ProductForm {
   frontendId: string
   name: string
   shortDescription: string
+  /** Короткие слова для карточки через запятую, до 5 */
+  keywords: string
+  tag: string
+  decisionTime: string
   amountMin: string
   amountMax: string
   termMin: string
@@ -57,6 +61,9 @@ export function toForm(product: ProductDto | null): ProductForm {
     frontendId: product?.frontend_id ?? '',
     name: product?.name ?? '',
     shortDescription: product?.short_description ?? '',
+    keywords: (product?.keywords ?? []).join(', '),
+    tag: product?.tag ?? '',
+    decisionTime: product?.decision_time ?? '',
     amountMin: product ? money(product.amount_min) : '',
     amountMax: product ? money(product.amount_max) : '',
     termMin: product ? String(product.term_min_months) : '',
@@ -81,16 +88,30 @@ export function toForm(product: ProductDto | null): ProductForm {
 }
 
 const amount = (value: string) => Number(onlyDigits(value))
+/** Ограничения витрины на бэкенде: до 5 слов, каждое, метка и время решения — до 40 знаков */
+const SHOWCASE_MAX = 40
+const KEYWORDS_MAX = 5
+export const splitKeywords = (value: string) =>
+  value
+    .split(',')
+    .map((word) => word.trim())
+    .filter(Boolean)
 const percent = (value: string) => Number(value.trim().replace(',', '.'))
 
 export function validate(form: ProductForm, isNew: boolean): ProductFormErrors {
   const errors: ProductFormErrors = {}
   if (isNew) {
-    if (!/^[A-Z][A-Z0-9_]{1,31}$/.test(form.code.trim())) errors.code = 'Латиница в верхнем регистре, цифры и _, до 32 знаков'
+    if (!form.code) errors.code = 'Выберите код из справочника'
+    else if (!/^[A-Z][A-Z0-9_]{1,31}$/.test(form.code.trim())) errors.code = 'Латиница в верхнем регистре, цифры и _, до 32 знаков'
     if (!/^[a-z][a-z0-9-]{1,31}$/.test(form.frontendId.trim())) errors.frontendId = 'Латиница в нижнем регистре, цифры и -, до 32 знаков'
   }
   if (!form.name.trim()) errors.name = 'Укажите название'
   if (!form.shortDescription.trim()) errors.shortDescription = 'Пара слов о продукте для каталога'
+  const keywords = splitKeywords(form.keywords)
+  if (keywords.length > KEYWORDS_MAX) errors.keywords = `Не больше ${KEYWORDS_MAX} слов`
+  else if (keywords.some((word) => word.length > SHOWCASE_MAX)) errors.keywords = `Каждое — до ${SHOWCASE_MAX} знаков`
+  if (form.tag.trim().length > SHOWCASE_MAX) errors.tag = `До ${SHOWCASE_MAX} знаков`
+  if (form.decisionTime.trim().length > SHOWCASE_MAX) errors.decisionTime = `До ${SHOWCASE_MAX} знаков`
   if (!(amount(form.amountMin) > 0)) errors.amountMin = 'Больше нуля'
   if (!(amount(form.amountMax) >= amount(form.amountMin))) errors.amountMax = 'Не меньше суммы «от»'
   const termMin = Number(onlyDigits(form.termMin))
@@ -140,6 +161,9 @@ export function toInput(form: ProductForm, base: ProductDto | null): ProductInpu
     application_fields_schema: base?.application_fields_schema ?? {},
     workflow_code: form.workflowCode,
     auto_decision_limit: String(amount(form.autoDecisionLimit)),
+    keywords: splitKeywords(form.keywords),
+    tag: form.tag.trim() || null,
+    decision_time: form.decisionTime.trim() || null,
   }
 }
 

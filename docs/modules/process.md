@@ -83,9 +83,21 @@ process/
 
 Закрытие задачи андеррайтером и следующий шаг процесса идут в одной транзакции.
 
+## Таблицы и миграции
+
+| Таблица | Что |
+|---|---|
+| `process_workflow_definitions` | снимки графов маршрутов, по которым идут экземпляры |
+| `process_instances` | экземпляр процесса на заявку |
+| `process_step_executions` | выполнения шагов |
+| `process_user_tasks` | задачи сотрудников; индекс очереди `(candidate_role, status, due_at)` |
+
+Миграции: `process_0001` (рантайм), `process_0002` (причина задачи — `reason`), `process_0003`
+(причины по-русски).
+
 ## API
 
-Права — `tasks.read` / `tasks.update`.
+Права — `tasks.read` / `tasks.update`. Список `GET /tasks`: `limit` (1–100, по умолчанию 50), `offset`.
 
 | Метод | Путь | Что |
 |---|---|---|
@@ -102,17 +114,23 @@ process/
 **Почему задача у андеррайтера.** У задачи есть `reason`, у процесса — `manual_review_reason`:
 причина, по которой заявка у человека, помимо кодов причин самого решения. Это ручное решение,
 которое decision не принял (`ManualDecisionRejected`: «Ручное решение не принято: …» с текстом
-decision), или шаг, который упал или повторился больше `max_iterations` раз. `null` — заявку отдало
+decision), или шаг, который упал («Сбой на этапе «…» (техническая причина)») или повторился больше
+`max_iterations` раз («Этап «…» повторился больше N раз — нужно решение специалиста»). Все причины —
+по-русски, старые английские миграция `process_0003` переписала. `null` — заявку отдало
 человеку само решение (MANUAL_REVIEW). У процесса причина сбрасывается, когда андеррайтер закрывает
 задачу; у задачи остаётся. Обе видны и в карточке `/bff/backoffice/applications/{id}` (`process`,
 `task`).
+
+Сама ручная проверка (`underwriter_review`) лимитом повторов не ограничена: каждый раунд решает
+человек. Поэтому после любого числа отказов в ручном решении открывается новая задача, а процесс не
+уходит в `failed` с заявкой, навсегда оставшейся `in_review`.
 
 ## Kafka
 
 | Топик | Группа | Что делает |
 |---|---|---|
 | `applications.events` | `process.applications-events` | `ApplicationSubmitted` — старт, `ApplicationCancelled` — отмена, события клиента (`ApplicationInfoProvided`, `OfferAccepted`, `OfferDeclined`, `OfferExpired`, `ApplicationSigned`) — ход процесса |
-| `enrichment.events`, `scoring.events`, `decision.events` | `process.<topic>` | ответы на команды (`StopFactorsPassed` — тоже); принимается только ответ с `causation_id` = id отправленной команды |
+| `enrichment.events`, `scoring.events`, `decision.events` | `process.enrichment-events`, `process.scoring-events`, `process.decision-events` | ответы на команды (`StopFactorsPassed` — тоже); принимается только ответ с `causation_id` = id отправленной команды |
 
 Команды и события `process.events` уходят через outbox той же транзакции.
 

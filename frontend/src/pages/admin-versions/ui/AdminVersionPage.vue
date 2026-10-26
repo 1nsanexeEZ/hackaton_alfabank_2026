@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { Copy, Rocket, Trash2, Undo2 } from 'lucide-vue-next'
+import { Copy, Pencil, Rocket, Trash2, Undo2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { VERSION_KIND_META, VERSION_STATUS_META, versionsApi, type VersionKind } from '@/entities/scoring-version'
 import { displayName, useSession } from '@/entities/session'
-import { CreateDraftModal, VersionActionModal, VersionEditor } from '@/features/edit-version'
+import { CreateDraftModal, draftToEdit, VersionActionModal, VersionEditor } from '@/features/edit-version'
 import { backofficeApi, identityApi, type ModelCatalogDto, type PolicyCatalogDto, type VersionDto } from '@/shared/api'
 import { ADMIN_ROUTE } from '@/shared/config'
-import { formatDateTime, useAsyncData } from '@/shared/lib'
+import { errorMessage, formatDateTime, useAsyncData } from '@/shared/lib'
 import { AsyncState, BaseBadge, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 import { AdminPageHeader } from '@/widgets/admin-layout'
 import { VersionPreview } from '@/widgets/version-preview'
@@ -75,6 +75,24 @@ function onChanged(saved: VersionDto) {
 const list = { name: ADMIN_ROUTE.versions, query: { kind: props.kind } }
 const openCopy = (created: VersionDto) =>
   router.push({ name: ADMIN_ROUTE.version, params: { kind: props.kind, version: created.version } })
+
+/** «Изменить» действующую или архивную: открываем черновик на её основе — он сразу правится */
+const editing = ref(false)
+const editError = ref<string | null>(null)
+
+async function edit() {
+  if (!current.value) return
+  editing.value = true
+  editError.value = null
+  try {
+    const draft = await draftToEdit(props.kind, current.value.version, versions.data.value ?? [])
+    await router.push({ name: ADMIN_ROUTE.version, params: { kind: props.kind, version: draft } })
+  } catch (caught) {
+    editError.value = errorMessage(caught)
+  } finally {
+    editing.value = false
+  }
+}
 </script>
 
 <template>
@@ -87,7 +105,18 @@ const openCopy = (created: VersionDto) =>
       </p>
     </template>
     <template v-if="current && canManage" #actions>
-      <BaseButton size="s" variant="secondary" :disabled="!versions.data.value" @click="isCopyOpen = true">
+      <BaseButton
+        v-if="current.status !== 'draft'"
+        size="s"
+        :variant="current.status === 'active' ? 'primary' : 'secondary'"
+        :loading="editing"
+        :disabled="!versions.data.value"
+        @click="edit"
+      >
+        <Pencil class="size-4" aria-hidden="true" />
+        Изменить
+      </BaseButton>
+      <BaseButton v-else size="s" variant="secondary" :disabled="!versions.data.value" @click="isCopyOpen = true">
         <Copy class="size-4" aria-hidden="true" />
         Копировать в черновик
       </BaseButton>
@@ -104,6 +133,11 @@ const openCopy = (created: VersionDto) =>
 
   <AsyncState :loading="version.loading.value" :error="version.error.value" :empty="!current" @retry="version.reload">
     <template v-if="current">
+      <p v-if="editError" class="mb-4 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand" role="alert">{{ editError }}</p>
+      <p v-if="current.status === 'draft' && canManage" class="mb-4 rounded-xl bg-warning-soft px-4 py-3 text-sm text-ink">
+        Черновик ни на что не влияет: поправьте документ, сохраните и нажмите «Активировать» — с этого момента по нему
+        считаются новые заявки
+      </p>
       <dl class="mb-6 grid gap-x-6 gap-y-3 rounded-2xl bg-white p-5 text-sm ring-1 ring-line sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt class="text-ink-secondary">На основе</dt>

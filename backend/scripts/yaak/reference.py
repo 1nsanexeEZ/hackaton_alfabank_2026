@@ -38,6 +38,11 @@ FOLDERS: list[tuple[str, str, str]] = [
         "Версии кредитной политики: черновик, правка, примерка на прошлых решениях, активация "
         "и откат.",
     ),
+    (
+        "market",
+        "Ключевая ставка",
+        "Действующая ключевая (открыто) и её история: ставка с датой начала, удаление будущей.",
+    ),
     ("feed", "Лента и новости", "События по заявкам, поток SSE, персональные новости."),
     ("support", "Техподдержка", "Обращения клиента, очередь сотрудников, взятие и переписка."),
     (
@@ -93,6 +98,7 @@ NAMES: dict[str, str] = {
     "PATCH /organizations/{organization_id}/members/{account_id}": "Сменить роль участника",
     "DELETE /organizations/{organization_id}/members/{account_id}": "Убрать участника",
     "POST /organizations/{organization_id}/members/{account_id}/poa": "Выдать доверенность",
+    "DELETE /organizations/{organization_id}/members/{account_id}/poa": "Отозвать доверенность",
     "GET /organizations/{organization_id}/financial-reports": "Финансовая отчётность",
     "POST /organizations/{organization_id}/financial-reports": "Подать отчётность",
     "GET /organizations/{organization_id}/business-plan": "Бизнес-план стартапа",
@@ -164,6 +170,8 @@ NAMES: dict[str, str] = {
     "GET /bff/backoffice/queue": "Очередь андеррайтера",
     "GET /bff/backoffice/applications/{application_id}": "Карточка андеррайтера",
     "GET /bff/backoffice/metrics": "Метрики бэк-офиса",
+    "GET /bff/backoffice/scoring-overview": "Сводка скоринга для админки",
+    "GET /bff/backoffice/applications-overview": "Сводка заявок для админки",
     "GET /scoring/models": "Версии PD-модели",
     "GET /scoring/models/catalog": "Из чего собирается модель",
     "GET /scoring/models/{version}": "Версия модели с документом",
@@ -180,6 +188,10 @@ NAMES: dict[str, str] = {
     "DELETE /decision/policies/{version}": "Удалить черновик политики",
     "POST /decision/policies/{version}/activate": "Активировать версию политики",
     "POST /decision/policies/{version}/preview": "Примерить политику на прошлых решениях",
+    "GET /market/key-rate": "Действующая ключевая ставка",
+    "GET /market/key-rates": "История ключевой ставки",
+    "POST /market/key-rates": "Добавить ключевую ставку",
+    "DELETE /market/key-rates/{effective_from}": "Удалить будущую ставку",
     "GET /health": "Сервис жив",
     "GET /ready": "Сервис готов (БД, Kafka)",
 }
@@ -195,6 +207,8 @@ _CATALOG_KEEPING = {
     ("post", "/products/{code}/activate"),
 }
 YAAK_PRODUCT = "YAAK_DEMO"
+# The admin enters a key rate far ahead: the demo prices do not move until then.
+YAAK_KEY_RATE_DATE = "2030-01-01"
 # Keeping the versions of the PD model: the admin works on a draft of its own.
 _MODEL_KEEPING = {
     ("post", "/scoring/models"),
@@ -330,6 +344,10 @@ NOTES: dict[str, str] = {
     "POST /scoring/models/{version}/preview": (
         "Под андеррайтером: последние заявки, посчитанные PD-моделью, пересчитываются этой "
         "версией, ничего не пишется. Пусто — сначала пройдите сценарий с подачей заявки."
+    ),
+    "POST /market/key-rates": (
+        f"Ставка с {YAAK_KEY_RATE_DATE}: цены демо до этой даты не меняются. Повторный запуск — "
+        "409: дата занята; убрать её — «Удалить будущую ставку»."
     ),
     "POST /decision/policies": (
         "Копия встроенной политики `policy_v10`: отсюда `policy_version` справочника "
@@ -520,6 +538,11 @@ def _bodies() -> dict[str, Any]:
             "body": Raw(answer(ref("GET", "/scoring/models/{version}"), "$.body")),
             "comment": "Правка из коллекции Yaak",
         },
+        "POST /market/key-rates": {
+            "value": "13.50",
+            "effective_from": YAAK_KEY_RATE_DATE,
+            "note": "Из коллекции Yaak",
+        },
         "POST /decision/policies": {
             "based_on": "policy_v10",
             "comment": "Черновик из коллекции Yaak",
@@ -572,6 +595,7 @@ def _role(method: str, path: str, operation: dict[str, Any]) -> str | None:
         or (method, path) in _CATALOG_KEEPING
         or (method, path) in _MODEL_KEEPING
         or (method, path) in _POLICY_KEEPING
+        or path.startswith("/market/key-rates")
     ):
         return "admin"
     if path.startswith(("/scoring/models", "/decision/policies")):
@@ -616,6 +640,8 @@ def _path_value(method: str, path: str, param: str) -> str:
         return "credit_bureau_company" if path.startswith("/organizations") else "personal_data"
     if param == "version":
         return var("policy_version" if path.startswith("/decision/policies") else "model_version")
+    if param == "effective_from":
+        return YAAK_KEY_RATE_DATE
     return var(param)
 
 

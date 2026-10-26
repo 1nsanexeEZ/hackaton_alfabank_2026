@@ -375,14 +375,64 @@ def test_power_of_attorney_rules() -> None:
         org.grant_power_of_attorney(Actor.member(head_id), uuid4(), poa(P.SIGN), NOW)
 
 
-def test_new_power_of_attorney_replaces_the_old_one() -> None:
+def test_one_power_of_attorney_at_a_time() -> None:
+    org, head_id = with_head("romashka")
+    head = Actor.member(head_id)
+    employee = add(org, R.EMPLOYEE)
+    org.grant_power_of_attorney(head, employee, poa(P.SIGN), NOW)
+    with pytest.raises(ConflictError) as error:
+        org.grant_power_of_attorney(head, employee, poa(P.SUBMIT_APPLICATION, number="2"), NOW)
+    assert details_code(error) == "power_of_attorney_exists"
+    # An expired one is replaced.
+    later = NOW + timedelta(days=400)
+    org.grant_power_of_attorney(
+        head,
+        employee,
+        poa(
+            P.SUBMIT_APPLICATION,
+            number="2",
+            issued_at=later.date(),
+            valid_until=later.date() + timedelta(days=30),
+        ),
+        later,
+    )
+    assert org.permissions_of(employee, later) == frozenset({P.VIEW, P.SUBMIT_APPLICATION})
+
+
+def test_number_is_not_another_members_one() -> None:
+    org, head_id = with_head("romashka")
+    head = Actor.member(head_id)
+    accountant = add(org, R.ACCOUNTANT)
+    employee = add(org, R.EMPLOYEE)
+    org.grant_power_of_attorney(head, accountant, poa(P.SIGN, number="77 АА 1234567"), NOW)
+    with pytest.raises(ConflictError) as error:
+        org.grant_power_of_attorney(head, employee, poa(P.SIGN, number="77аа1234567"), NOW)
+    assert details_code(error) == "number_taken"
+    with pytest.raises(ConflictError):
+        org.add_member(head, uuid4(), R.EMPLOYEE, NOW, power_of_attorney=poa(P.SIGN))
+
+
+def test_revoked_power_of_attorney_gives_nothing() -> None:
     org, head_id = with_head("romashka")
     employee = add(org, R.EMPLOYEE)
-    org.grant_power_of_attorney(Actor.member(head_id), employee, poa(P.SIGN), NOW)
     org.grant_power_of_attorney(
-        Actor.member(head_id), employee, poa(P.SUBMIT_APPLICATION, number="2"), NOW
+        Actor.member(head_id), employee, poa(P.SUBMIT_APPLICATION, P.SIGN), NOW
     )
-    assert org.permissions_of(employee, NOW) == frozenset({P.VIEW, P.SUBMIT_APPLICATION})
+    accountant = add(org, R.ACCOUNTANT)
+    with pytest.raises(PermissionDeniedError):
+        org.revoke_power_of_attorney(Actor.member(accountant), employee, NOW)
+
+    member = org.revoke_power_of_attorney(Actor.member(head_id), employee, NOW)
+
+    assert member.power_of_attorney is None
+    assert member.authority is Authority.UNCONFIRMED
+    assert org.permissions_of(employee, NOW) == frozenset({P.VIEW})
+    with pytest.raises(NotFoundError) as error:
+        org.revoke_power_of_attorney(BANK, employee, NOW)
+    assert details_code(error) == "power_of_attorney_not_found"
+    # Revoked, it can be issued anew.
+    org.grant_power_of_attorney(BANK, employee, poa(P.SIGN), NOW)
+    assert org.can(employee, P.SIGN, NOW)
 
 
 # --- verification ------------------------------------------------------------

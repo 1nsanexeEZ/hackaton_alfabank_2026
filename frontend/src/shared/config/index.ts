@@ -48,6 +48,7 @@ export const ADMIN_ROUTE = {
   products: 'admin-products',
   scoring: 'admin-scoring',
   versions: 'admin-versions',
+  keyRate: 'admin-key-rate',
   version: 'admin-version',
   users: 'admin-users',
   roles: 'admin-roles',

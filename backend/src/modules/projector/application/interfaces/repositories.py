@@ -1,8 +1,10 @@
+from collections.abc import Sequence
 from datetime import date
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from src.modules.projector.domain.enums import QueueSort
+from src.modules.projector.domain.enums import QueueSort, ReviewKind
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     ApplicationOverview,
@@ -66,10 +68,30 @@ class ReadModelQueries(Protocol):
 
     async def get_dashboard(self, organization_id: UUID) -> OrganizationDashboard | None: ...
 
+    async def application_groups(self) -> list[tuple[str, str, str, int, Decimal]]:
+        """(status, product_code, product_name, count, amount sum) over every application."""
+        ...
+
+    async def amount_buckets(self, edges: Sequence[Decimal]) -> list[int]:
+        """How many applications have an amount below edges[0], in [edges[i-1], edges[i]),
+        and from the last edge on: len(edges) + 1 counts. Without an amount — not counted."""
+        ...
+
+    async def latest_overviews(self, limit: int) -> list[ApplicationOverview]:
+        """Every company's rows, recently updated first."""
+        ...
+
     async def queue_of(
-        self, role: str, statuses: tuple[str, ...], sort: QueueSort, limit: int, offset: int
+        self,
+        role: str,
+        statuses: tuple[str, ...],
+        sort: QueueSort,
+        limit: int,
+        offset: int,
+        review: ReviewKind | None = None,
     ) -> tuple[list[QueueItem], int]:
-        """A page of the role's tasks in those statuses, in the `sort` order, and the total."""
+        """A page of the role's tasks in those statuses (and of that kind of review), in the
+        `sort` order, and the total by the same filter."""
         ...
 
     async def timeline_of(self, application_id: UUID, client_only: bool) -> list[TimelineEntry]:

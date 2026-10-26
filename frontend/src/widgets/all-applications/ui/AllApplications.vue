@@ -67,6 +67,8 @@ backofficeApi
 const items = ref<StaffApplicationDto[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const total = ref<number | null>(null)
+/** Есть ли ещё: по total из X-Total-Count, без него — пока приходит полная страница */
 const more = ref(false)
 
 async function load(append = false) {
@@ -80,8 +82,9 @@ async function load(append = false) {
       limit: PAGE,
       offset: append ? items.value.length : 0,
     })
-    items.value = append ? [...items.value, ...page] : page
-    more.value = page.length === PAGE
+    items.value = append ? [...items.value, ...page.items] : page.items
+    total.value = page.total
+    more.value = page.total !== null ? items.value.length < page.total : page.items.length === PAGE
   } catch (caught) {
     error.value = errorMessage(caught)
   } finally {
@@ -116,7 +119,10 @@ const productTitle = (code: string) => products.value?.find((product) => product
   <PanelCard flush>
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
       <SegmentedControl v-model="group" :options="GROUPS" label="Какие заявки показать" />
-      <p v-if="items.length" class="text-sm text-ink-secondary">Показано {{ items.length }}{{ more ? '+' : '' }}</p>
+      <p v-if="items.length" class="text-sm text-ink-secondary">
+        <template v-if="total !== null">{{ more ? `Показано ${items.length} из ${total}` : `Всего: ${total}` }}</template>
+        <template v-else>Показано {{ items.length }}{{ more ? '+' : '' }}</template>
+      </p>
     </div>
     <div class="flex flex-wrap gap-3 border-b border-line px-4 py-3">
       <SelectField v-model="decidedBy" class="w-48" label="Кто решил" :options="DECIDED_BY" dense />

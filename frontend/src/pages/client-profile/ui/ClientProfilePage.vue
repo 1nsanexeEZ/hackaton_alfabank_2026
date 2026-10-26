@@ -15,7 +15,7 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-vue-next'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { CLIENT_STATUS_META, ACTION_REQUIRED_LABEL, isActiveApplication, myApplications } from '@/entities/application'
@@ -98,6 +98,18 @@ watch(
   { immediate: true },
 )
 
+// Исключили из компании, добавили, сменили роль — «Мои компании» и предодобрение перечитываем сразу, без перезагрузки
+onBeforeUnmount(liveFeed.onCompany(() => void loadCompanies()))
+
+/** Заявку подают от компании с правом подачи; пока компании грузятся — кнопку не блокируем */
+const applyHint = computed(() => {
+  if (!companies.value) return null
+  if (!companies.value.length) return 'Заявку подают от компании — вы пока не участник ни одной'
+  return companies.value.some((item) => item.my_permissions.includes('submit_application'))
+    ? null
+    : 'Подать заявку может руководитель или сотрудник с доверенностью'
+})
+
 const initials = computed(() => {
   const profile = me.value?.profile
   const letters = [profile?.first_name, profile?.last_name].filter(Boolean).map((part) => part!.charAt(0))
@@ -121,7 +133,7 @@ const bestOffer = computed(() => {
 const count = (value: number) => String(value)
 
 /** Счётчики шапки: value — число (null — ещё грузится), empty — показать «—» вместо нуля */
-const stats = computed(() => [
+const allStats = computed(() => [
   { label: 'Заявок в работе', value: myApplications.state.items ? active.value.length : null, format: count, icon: FileText },
   {
     label: 'Ждут вашего действия',
@@ -139,6 +151,8 @@ const stats = computed(() => [
   },
   { label: 'Новых уведомлений', value: liveFeed.state.unread, format: count, icon: Bell },
 ])
+/** Предодобрения нет (или нет права подачи — бэкенд его не отдаёт) — плитку не показываем, а не «—» */
+const stats = computed(() => allStats.value.filter((stat) => !(stat.icon === BadgeCheck && stat.empty)))
 
 const router = useRouter()
 
@@ -196,12 +210,15 @@ function signOut() {
               </p>
             </div>
           </div>
-          <div class="flex flex-col gap-3 sm:flex-row" data-rise>
-            <BaseButton size="l" @click="startApplication()">
-              <Plus class="size-4" aria-hidden="true" />
-              Оформить заявку
-            </BaseButton>
-            <BaseButton size="l" variant="glass" @click="openCabinet('applications')">Мои заявки</BaseButton>
+          <div data-rise>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <BaseButton size="l" :disabled="Boolean(applyHint)" @click="startApplication()">
+                <Plus class="size-4" aria-hidden="true" />
+                Оформить заявку
+              </BaseButton>
+              <BaseButton size="l" variant="glass" @click="openCabinet('applications')">Мои заявки</BaseButton>
+            </div>
+            <p v-if="applyHint" class="mt-2 text-sm text-on-night-secondary">{{ applyHint }}</p>
           </div>
         </div>
 
@@ -337,7 +354,9 @@ function signOut() {
               </ul>
               <div v-else-if="myApplications.state.items" class="px-5 pb-5">
                 <p class="text-sm text-ink-secondary">Заявок пока нет — подберём кредит под задачу за пару минут.</p>
+                <p v-if="applyHint" class="mt-3 text-sm text-ink-secondary">{{ applyHint }}</p>
                 <button
+                  v-else
                   type="button"
                   class="mt-3 flex items-center gap-1.5 text-sm font-semibold text-brand"
                   @click="startApplication()"

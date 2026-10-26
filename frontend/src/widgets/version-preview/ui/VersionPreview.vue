@@ -42,7 +42,7 @@ async function run() {
         : backofficeApi.decisionPolicies.preview(props.version, Number(limit.value)),
       numbers.value.size ? Promise.resolve(null) : backofficeApi.applications({ limit: 100 }).catch(() => null),
     ])
-    if (applications) numbers.value = new Map(applications.map((item) => [item.id, item.number]))
+    if (applications) numbers.value = new Map(applications.items.map((item) => [item.id, item.number]))
     if (props.kind === 'model') model.value = result as ModelPreviewDto
     else policy.value = result as PolicyPreviewDto
   } catch (caught) {

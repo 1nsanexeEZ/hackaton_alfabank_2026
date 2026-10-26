@@ -147,7 +147,7 @@ class GrantPowerOfAttorneyUseCase:
         account_id: UUID,
         data: GrantPowerOfAttorneyDTO,
     ) -> MemberDTO:
-        power_of_attorney = PowerOfAttorney(
+        power_of_attorney = PowerOfAttorney.issue(
             number=data.number,
             issued_at=data.issued_at,
             valid_until=data.valid_until,
@@ -158,6 +158,32 @@ class GrantPowerOfAttorneyUseCase:
             member = org.grant_power_of_attorney(
                 actor_of(access), account_id, power_of_attorney, self._clock.now()
             )
+            await save_with_events(self._organizations, self._outbox, org)
+            await self._uow.commit()
+        return MemberDTO.of(member, None, self._clock.now())
+
+
+class RevokePowerOfAttorneyUseCase:
+    """By the head confirmed by the registry or the bank; the rights it gave end at once."""
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        organizations: OrganizationRepository,
+        outbox: EventOutbox,
+        clock: Clock,
+    ) -> None:
+        self._uow = uow
+        self._organizations = organizations
+        self._outbox = outbox
+        self._clock = clock
+
+    async def execute(
+        self, access: AccessContext, organization_id: UUID, account_id: UUID
+    ) -> MemberDTO:
+        async with self._uow:
+            org = await get_to_change(self._organizations, access, organization_id)
+            member = org.revoke_power_of_attorney(actor_of(access), account_id, self._clock.now())
             await save_with_events(self._organizations, self._outbox, org)
             await self._uow.commit()
         return MemberDTO.of(member, None, self._clock.now())

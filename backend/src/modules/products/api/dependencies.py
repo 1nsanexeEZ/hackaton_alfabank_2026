@@ -15,11 +15,16 @@ from src.modules.products.application.borrowers import BorrowerProfiles
 from src.modules.products.application.catalog import ProductCatalog
 from src.modules.products.application.services import ProductService
 from src.modules.products.infrastructure.facade_impl import borrower_profiles
+from src.modules.products.infrastructure.key_rates import key_rates
 from src.modules.products.infrastructure.repository import SqlAlchemyProductRepository
 
 
-def get_product_service(session: DbSession) -> ProductService:
-    return ProductService(SqlAlchemyProductRepository(session))
+def get_product_service(request: Request, session: DbSession) -> ProductService:
+    return ProductService(
+        SqlAlchemyProductRepository(session),
+        key_rates=key_rates(get_facade_registry(request), session),
+        catalog_key_rate=request.app.state.settings.catalog_key_rate,
+    )
 
 
 def get_product_catalog(

@@ -9,6 +9,7 @@ from src.modules.clients.presentation.dependencies import (
     ListMembersDep,
     ReadAccess,
     RemoveMemberDep,
+    RevokePowerOfAttorneyDep,
     UpdateAccess,
 )
 from src.modules.clients.presentation.schemas.members import (
@@ -69,6 +70,24 @@ async def grant_power_of_attorney(
     access: UpdateAccess,
     use_case: GrantPowerOfAttorneyDep,
 ) -> MemberRead:
-    """Issued by the head confirmed by the registry; replaces the previous one."""
+    """Issued by the head confirmed by the registry. The number: letters and digits separated
+    by spaces, dots, slashes or hyphens, with a digit, up to 32 characters, "№" is dropped —
+    otherwise 422 `invalid_format`; another member's number — 409 `number_taken`. One at a
+    time: a current or not yet started one — 409 `power_of_attorney_exists` (revoke it first),
+    an expired one is replaced."""
     member = await use_case.execute(access, organization_id, account_id, data.to_dto())
+    return MemberRead.model_validate(member)
+
+
+@router.delete("/{organization_id}/members/{account_id}/poa", response_model=MemberRead)
+async def revoke_power_of_attorney(
+    organization_id: UUID,
+    account_id: UUID,
+    access: UpdateAccess,
+    use_case: RevokePowerOfAttorneyDep,
+) -> MemberRead:
+    """Revoked by the head confirmed by the registry: the rights it gave (submitting
+    applications, signing, the pre-approved offers) end at once. The member without one —
+    404 `power_of_attorney_not_found`."""
+    member = await use_case.execute(access, organization_id, account_id)
     return MemberRead.model_validate(member)

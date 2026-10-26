@@ -104,10 +104,24 @@ def test_demo_login_by_phone(demo_client: TestClient) -> None:
     assert me["role"]["name"] == "underwriter"
 
 
-@pytest.mark.parametrize("login", [ADMIN_EMAIL, "nobody@romashka.test", "+79990009999", "x"])
+@pytest.mark.parametrize("login", ["nobody@romashka.test", "+79990009999", "x"])
 def test_demo_login_is_only_for_demo_accounts(demo_client: TestClient, login: str) -> None:
     response = demo_client.post("/auth/demo-login", json={"login": login})
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("login", [ADMIN_EMAIL, ADMIN_EMAIL.upper()])
+def test_bootstrap_admin_demo_logs_in(demo_client: TestClient, login: str) -> None:
+    response = demo_client.post("/auth/demo-login", json={"login": login})
+
+    assert response.status_code == 200, response.text
+    me = demo_client.get("/me", headers=bearer(response.json()["access_token"])).json()
+    assert me["email"] == ADMIN_EMAIL
+    assert me["role"]["name"] == "admin"
+
+
+def test_admin_demo_login_is_off_by_default(client: TestClient) -> None:
+    assert client.post("/auth/demo-login", json={"login": ADMIN_EMAIL}).status_code == 404
 
 
 def test_deleted_demo_account_cannot_demo_login(demo_client: TestClient) -> None:
@@ -130,7 +144,7 @@ def test_demo_accounts_list(demo_client: TestClient) -> None:
 
     assert response.status_code == 200
     items = response.json()
-    assert [item["login"] for item in items] == [demo.email for demo in ACCOUNTS]
+    assert [item["login"] for item in items] == [demo.email for demo in ACCOUNTS] + [ADMIN_EMAIL]
     for item in items:
         assert set(item) == {"login", "phone", "role", "caption", "full_name"}
     assert DEMO_PASSWORD not in response.text
@@ -141,8 +155,15 @@ def test_demo_accounts_list(demo_client: TestClient) -> None:
         "caption": "Директор ООО «Ромашка»",
         "full_name": "Смирнова Анна Сергеевна",
     }
-    assert items[-1]["role"] == "underwriter"
-    assert items[-1]["full_name"] == "Андеррайтеров Андрей"
+    assert items[-2]["role"] == "underwriter"
+    assert items[-2]["full_name"] == "Андеррайтеров Андрей"
+    assert items[-1] == {
+        "login": ADMIN_EMAIL,
+        "phone": None,
+        "role": "admin",
+        "caption": "Администратор",
+        "full_name": "Admin Admin",
+    }
 
 
 @pytest.mark.parametrize("email", ["owner@romashka.test", "underwriter@bank.test"])

@@ -15,6 +15,9 @@ from src.core.messaging.subscriber import Subscription
 from src.modules.assistant.application.interfaces.language_model import LanguageModelSetup
 from src.modules.assistant.infrastructure.adapters.language_models import build_language_model
 from src.modules.assistant.infrastructure.adapters.model_gate import warm_up_when_served
+from src.modules.assistant.infrastructure.adapters.model_status import (
+    BackgroundModelReachability,
+)
 from src.modules.assistant.infrastructure.adapters.rate_limiter import InMemoryRateLimiter
 from src.modules.assistant.infrastructure.config import AssistantSettings
 from src.modules.assistant.infrastructure.exception_handler import register_exception_handlers
@@ -35,6 +38,7 @@ def wire(app: FastAPI) -> None:
     """The assistant has no facade: nobody reads it."""
     config = AssistantSettings()
     app.state.assistant_model = build_language_model(config)
+    app.state.assistant_reachability = BackgroundModelReachability()
     app.state.assistant_rate_limiter = InMemoryRateLimiter(
         config.rate_limit_per_minute, RATE_WINDOW_S, time.monotonic
     )

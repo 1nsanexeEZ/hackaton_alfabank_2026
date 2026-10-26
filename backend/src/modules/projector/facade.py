@@ -9,19 +9,27 @@ from typing import Protocol
 from uuid import UUID
 
 from src.modules.projector.application.dto.applications import (
+    AmountBucketDTO,
+    ApplicationGroupDTO,
     ApplicationOverviewDTO,
     ApplicationPageDTO,
+    ApplicationStatsDTO,
+    LatestApplicationDTO,
     OrganizationDashboardDTO,
 )
 from src.modules.projector.application.dto.metrics import BackofficeMetricsDTO, DailyMetricsDTO
 from src.modules.projector.application.dto.queue import QueueItemDTO, QueuePageDTO
 from src.modules.projector.application.dto.timeline import TimelineEntryDTO
-from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSort
+from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSort, ReviewKind
 
 __all__ = [
     "ActionRequired",
     "ApplicationOverviewDTO",
+    "AmountBucketDTO",
+    "ApplicationGroupDTO",
     "ApplicationPageDTO",
+    "ApplicationStatsDTO",
+    "LatestApplicationDTO",
     "Audience",
     "BackofficeMetricsDTO",
     "DailyMetricsDTO",
@@ -30,6 +38,7 @@ __all__ = [
     "QueueItemDTO",
     "QueuePageDTO",
     "QueueSort",
+    "ReviewKind",
     "TimelineEntryDTO",
 ]
 
@@ -47,6 +56,11 @@ class ProjectorFacade(Protocol):
         self, organization_id: UUID
     ) -> OrganizationDashboardDTO | None: ...
 
+    async def get_application_stats(self, latest: int = 10) -> ApplicationStatsDTO:
+        """Every company's applications for the bank's overview: groups by status and
+        product, amount buckets, the latest `latest` rows."""
+        ...
+
     async def get_underwriting_queue(
         self,
         role: str,
@@ -54,6 +68,7 @@ class ProjectorFacade(Protocol):
         sort: QueueSort = "due_at",
         limit: int = 20,
         offset: int = 0,
+        review: ReviewKind | None = None,
     ) -> QueuePageDTO: ...
 
     async def get_timeline(

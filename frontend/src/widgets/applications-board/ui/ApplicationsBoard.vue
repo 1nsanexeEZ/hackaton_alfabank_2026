@@ -4,7 +4,7 @@ import { computed, ref, type Component } from 'vue'
 
 import { AsyncState, BaseButton, PanelCard, SegmentedControl } from '@/shared/ui'
 
-import { useBoardLayout, type ModuleId } from '../model/layout'
+import { packRows, useBoardLayout, type ModuleId } from '../model/layout'
 import { provideBoard, useBoardData, type Period } from '../model/useBoardData'
 import AmountsModule from './modules/AmountsModule.vue'
 import DecidedModule from './modules/DecidedModule.vue'
@@ -44,6 +44,7 @@ const COMPONENT: Record<ModuleId, Component> = {
 const ON_METRICS: readonly ModuleId[] = ['flow', 'decided']
 
 const SPAN = { 1: '', 2: 'xl:col-span-2', 3: 'md:col-span-2 xl:col-span-3' } as const
+const placed = computed(() => packRows(visible.value))
 
 const PERIODS: readonly { value: Period; label: string }[] = [
   { value: '7', label: '7 дней' },
@@ -56,23 +57,19 @@ const configuring = ref(false)
 function stateOf(id: ModuleId) {
   if (ON_METRICS.includes(id)) return { loading: data.metricsLoading.value && !data.metrics.value, error: data.metrics.value ? null : data.metricsError.value }
   if (id === 'queue') return { loading: data.queueLoading.value && !data.queue.value, error: data.queue.value ? null : data.queueError.value }
-  if (id === 'kpi') return { loading: data.applicationsLoading.value && !data.applications.value.length, error: data.applicationsError.value }
   return {
-    loading: data.applicationsLoading.value && !data.applications.value.length,
-    error: data.applications.value.length ? null : data.applicationsError.value,
+    loading: data.overviewLoading.value && !data.overview.value,
+    error: data.overview.value ? null : data.overviewError.value,
   }
 }
 
-const empty = computed(() => !data.applicationsLoading.value && !data.applicationsError.value && !data.applications.value.length)
+const empty = computed(() => !data.overviewLoading.value && !data.overviewError.value && data.overview.value?.total === 0)
 </script>
 
 <template>
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap items-center gap-3">
-        <SegmentedControl v-model="data.period.value" :options="PERIODS" label="Период метрик" small />
-        <span class="text-xs text-ink-secondary">период — для потока решений, автоматики и времени решения</span>
-      </div>
+      <SegmentedControl v-model="data.period.value" :options="PERIODS" label="Период для решений по дням, автоматики и времени решения" small />
       <div class="flex gap-2">
         <BaseButton variant="secondary" size="s" @click="data.reload">
           <RefreshCw class="size-4" aria-hidden="true" />
@@ -138,11 +135,18 @@ const empty = computed(() => !data.applicationsLoading.value && !data.applicatio
     </PanelCard>
 
     <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <PanelCard v-for="module in visible" :key="module.id" :title="module.title" :description="module.description" :class="SPAN[module.span]">
-        <AsyncState :loading="stateOf(module.id).loading" :error="stateOf(module.id).error" @retry="data.reload">
-          <component :is="COMPONENT[module.id]" />
-        </AsyncState>
-      </PanelCard>
+      <template v-for="{ module, span } in placed" :key="module.id">
+        <div v-if="module.bare" :class="SPAN[span]">
+          <AsyncState :loading="stateOf(module.id).loading" :error="stateOf(module.id).error" @retry="data.reload">
+            <component :is="COMPONENT[module.id]" />
+          </AsyncState>
+        </div>
+        <PanelCard v-else :title="module.title" :description="module.description" :class="SPAN[span]">
+          <AsyncState :loading="stateOf(module.id).loading" :error="stateOf(module.id).error" @retry="data.reload">
+            <component :is="COMPONENT[module.id]" />
+          </AsyncState>
+        </PanelCard>
+      </template>
       <PanelCard v-if="!visible.length" class="md:col-span-2 xl:col-span-3">
         <p class="py-8 text-center text-sm text-ink-secondary">Все модули скрыты — включите нужные в «Настроить панель»</p>
       </PanelCard>

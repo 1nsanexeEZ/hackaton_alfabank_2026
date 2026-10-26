@@ -24,7 +24,7 @@ const router = useRouter()
 const presetApplication = computed(() => (typeof route.query.application === 'string' ? route.query.application : null))
 const creating = computed(() => route.query.new === '1' || Boolean(presetApplication.value))
 
-/** total в ответе нет: «Показать ещё», пока пришла полная страница */
+/** «Показать ещё», пока загружено меньше total из X-Total-Count; без него — пока приходит полная страница */
 const PAGE = 50
 
 const tickets = shallowRef<SupportTicketListItemDto[] | null>(null)
@@ -39,8 +39,8 @@ async function load(append = false) {
     const page = await clientApi.supportTickets({ limit: PAGE, offset: append ? (tickets.value?.length ?? 0) : 0 })
     // Свежее обращение могло сдвинуть страницы — дубли по id не берём
     const known = new Set(append ? (tickets.value ?? []).map((item) => item.id) : [])
-    tickets.value = append ? [...(tickets.value ?? []), ...page.filter((item) => !known.has(item.id))] : page
-    more.value = page.length === PAGE
+    tickets.value = append ? [...(tickets.value ?? []), ...page.items.filter((item) => !known.has(item.id))] : page.items
+    more.value = page.total !== null ? tickets.value.length < page.total : page.items.length === PAGE
   } catch (caught) {
     error.value = errorMessage(caught)
   } finally {

@@ -5,7 +5,7 @@ workspaceId: wk_6MYZUPM7tf
 folderId: fl_LRnXWnQzgy
 name: BFF бэк-офиса
 description: Очередь, карточка андеррайтера, метрики.
-sortPriority: 16000.0
+sortPriority: 17000.0
 authenticationType: null
 authentication: {}
 createdAt: '2026-10-24T00:00:00'

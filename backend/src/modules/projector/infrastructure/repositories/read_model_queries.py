@@ -1,14 +1,16 @@
 """Reads behind the facade (ReadModelQueries): filters, sorts and pages."""
 
+from collections.abc import Sequence
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.projector.application.interfaces.repositories import ReadModelQueries
-from src.modules.projector.domain.enums import QueueSort
+from src.modules.projector.domain.enums import QueueSort, ReviewKind
 from src.modules.projector.domain.metrics import DailyMetrics
 from src.modules.projector.domain.read_models import (
     ApplicationOverview,
@@ -62,12 +64,56 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
         rows = (await self._session.scalars(stmt)).all()
         return [to_record(ApplicationOverview, row) for row in rows], total or 0
 
+    async def application_groups(self) -> list[tuple[str, str, str, int, Decimal]]:
+        row = ApplicationOverviewRow
+        stmt = (
+            select(
+                row.status,
+                row.product_code,
+                func.max(row.product_name),
+                func.count(),
+                func.coalesce(func.sum(row.amount), 0),
+            )
+            .group_by(row.status, row.product_code)
+            .order_by(row.status, row.product_code)
+        )
+        return [
+            (status, code, name, int(count), Decimal(str(amount)))
+            for status, code, name, count, amount in (await self._session.execute(stmt)).all()
+        ]
+
+    async def amount_buckets(self, edges: Sequence[Decimal]) -> list[int]:
+        amount = ApplicationOverviewRow.amount
+        bucket = case(
+            *((amount < edge, index) for index, edge in enumerate(edges)), else_=len(edges)
+        ).label("bucket")
+        stmt = select(bucket, func.count()).where(amount.is_not(None), amount > 0).group_by(bucket)
+        counts: dict[int, int] = dict((await self._session.execute(stmt)).tuples().all())
+        return [int(counts.get(index, 0)) for index in range(len(edges) + 1)]
+
+    async def latest_overviews(self, limit: int) -> list[ApplicationOverview]:
+        stmt = (
+            select(ApplicationOverviewRow)
+            .order_by(
+                ApplicationOverviewRow.updated_at.desc(), ApplicationOverviewRow.application_id
+            )
+            .limit(limit)
+        )
+        rows = (await self._session.scalars(stmt)).all()
+        return [to_record(ApplicationOverview, row) for row in rows]
+
     async def get_dashboard(self, organization_id: UUID) -> OrganizationDashboard | None:
         row = await self._session.get(OrganizationDashboardRow, organization_id)
         return None if row is None else to_record(OrganizationDashboard, row)
 
     async def queue_of(
-        self, role: str, statuses: tuple[str, ...], sort: QueueSort, limit: int, offset: int
+        self,
+        role: str,
+        statuses: tuple[str, ...],
+        sort: QueueSort,
+        limit: int,
+        offset: int,
+        review: ReviewKind | None = None,
     ) -> tuple[list[QueueItem], int]:
         # One row per application — its latest task: a returned application has
         # several, and it belongs to the tab of the one it is on now.
@@ -86,6 +132,8 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
         )
         latest = select(ranked.c.task_id).where(ranked.c.rank == 1)
         conditions = [Q.candidate_role == role, Q.status.in_(statuses), Q.task_id.in_(latest)]
+        if review is not None:
+            conditions.append(Q.review == review)
         total = await self._session.scalar(select(func.count()).select_from(Q).where(*conditions))
         stmt = (
             select(Q)

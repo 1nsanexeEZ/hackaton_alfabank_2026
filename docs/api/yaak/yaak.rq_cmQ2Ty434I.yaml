@@ -6,7 +6,9 @@ folderId: fl_IzRxHh5qB6
 name: Все продукты с черновиками и архивом
 description: |-
   For keeping the catalog: every product in its latest version, drafts and archived
-  ones too, in catalog order.
+  ones too, in catalog order. The rates are the stored ones, set at the catalog key rate
+  (they are what PUT takes); `market_rate` — the same moved to the key rate in force, as
+  clients see them now.
 
   Токен: администратор.
 method: GET

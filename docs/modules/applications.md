@@ -31,7 +31,8 @@ applications/
 │   └── esign_rules.py        # Правила электронного взаимодействия (соглашение о ПЭП)
 ├── application/
 │   ├── dto/                  # applications (фасад), drafts (автосохранение, UNSET),
-│   │                         # views (ответы API), common (UNSET)
+│   │                         # views (ответы API), contract_documents (договор, проверка),
+│   │                         # common (UNSET)
 │   ├── interfaces/           # repositories, storage (DocumentStorage), edo (EdoClient),
 │   │                         # contracts (ContractRenderer, ContractSealer, ContractArchive),
 │   │                         # abs (AbsClient), outbox (MessageOutbox),
@@ -50,7 +51,7 @@ applications/
 │   ├── config.py             # ApplicationsSettings (APPLICATIONS_*)
 │   ├── contract_pdf/         # печатная форма договора (fpdf2) и шрифты PT Sans, PT Mono (OFL)
 │   ├── database/             # models
-│   └── repositories/         # applications, mappers
+│   └── repositories/         # applications, contract_documents, mappers
 └── presentation/
     ├── api/                  # applications — роутер /applications; contracts — /esign/rules и
     │                         # публичная проверка /contracts/verify
@@ -141,7 +142,8 @@ applications/
 Миграции не нужно: тип документа — строка (`applications_documents.type`), перечня на уровне БД нет.
 
 Оба лица уходят в `FetchEnrichment.third_parties` и проверяются по
-перечням на каждой заявке; решение — в `decision` (`policy_v8`). Сам договор автоматически не
+перечням на каждой заявке; решение — в `decision` (действующая политика `policy_v10`, третьи лица
+появились в `policy_v8`). Сам договор автоматически не
 разбирается, его смотрит сотрудник на ручной проверке. У третьего лица можно указать
 страну (`country`, ISO 3166-1 alpha-2, если не Россия): участник из государства, не выполняющего
 рекомендации ФАТФ, повышает группу риска (`policy_v9`).
@@ -165,6 +167,20 @@ applications/
 последнему итоговому решению из `decision_results`. Клиентская карточка это поле не отдаёт; список
 отдаёт его в каждой строке и фильтрует по `decided_by`.
 
+## Таблицы и миграции
+
+| Таблица | Что |
+|---|---|
+| `applications_applications` | заявка: статус, версия, JSON-колонки черновика; `decided_by` — отдельной колонкой |
+| `applications_documents`, `applications_info_requests` | документы и запросы банка |
+| `applications_status_history` | история статусов |
+| `applications_signatures` | подпись клиента: IP, user-agent, номер документа ЭДО, `document_hash`, `rules_version` |
+| `applications_contract_documents` | PDF договора (`draft` / `signed`), уникален по заявке, виду и `offer_hash` |
+| `applications_contract_events` | журнал подписания с хеш-цепочкой, уникален по заявке и `seq` |
+
+Миграции: `applications_0001` (начальная), `_0002` (выдача), `_0003` (выгодоприобретатель), `_0004`
+(`decided_by`), `_0005` (бенефициары со слов клиента), `_0006` (PDF договора и журнал).
+
 ## API
 
 Права — `requests.read` / `requests.create` / `requests.update`; клиент видит только заявки своих
@@ -174,7 +190,7 @@ applications/
 | Метод | Путь | Что |
 |---|---|---|
 | POST | `/applications` | черновик на компанию и продукт, реквизиты — из данных банка |
-| GET | `/applications` | список, новые сверху: `organization_id`, `status` (можно несколько), `decided_by` (`auto` / `underwriter`), `limit`, `offset`; в строке есть `decided_by` |
+| GET | `/applications` | список, новые сверху: `organization_id`, `status` (можно несколько), `decided_by` (`auto` / `underwriter`), `limit` (1–100, по умолчанию 20), `offset`; в строке есть `decided_by`, общее число по тому же фильтру — в заголовке `X-Total-Count` |
 | GET | `/applications/{id}` | заявка с `available_actions` и `my_permissions` |
 | PATCH | `/applications/{id}` | автосохранение черновика по `version` |
 | GET | `/applications/{id}/completeness` | чего не хватает для подачи |
@@ -205,5 +221,6 @@ applications/
 ## Фасад
 
 `ApplicationsFacade`: `get_card`, `get_completeness`, `get_scoring_input`, `list_for_organization`,
-`list_documents`, `read_document`. Читают `process`, `scoring`, `decision`, `enrichment`, `projector`,
-`notifications`, `bff`; проверок доступа в фасаде нет — вызывает доверенный код.
+`list_submitted` (заявки всех компаний без черновиков, последние сверху — для `scoring-overview` в
+`bff`), `list_documents`, `read_document`. Читают `process`, `scoring`, `decision`, `enrichment`,
+`projector`, `notifications`, `bff`; проверок доступа в фасаде нет — вызывает доверенный код.

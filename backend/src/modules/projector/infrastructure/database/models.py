@@ -85,6 +85,8 @@ class UnderwritingQueueRow(Base):
     risk_grade: Mapped[str | None] = mapped_column(String(8))
     cash_gap: Mapped[bool]
     routing_reasons: Mapped[list[str]] = mapped_column(JSONType)
+    # Stored, not computed on read: the queue filters by it in SQL.
+    review: Mapped[str | None] = mapped_column(String(16))
 
 
 class TimelineEntryRow(Base):

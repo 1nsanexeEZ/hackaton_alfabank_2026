@@ -1,4 +1,4 @@
-import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
 
 import {
   APPLICATION_STATUS_META,
@@ -18,6 +18,7 @@ import {
   type ProductCatalog,
 } from '@/entities/credit-product'
 import { customer, founderPrescreen, personalConsents, prescreenPassed, type CompanyStartupInfo } from '@/entities/customer'
+import { liveFeed } from '@/entities/notification'
 import {
   ApiError,
   clientApi,
@@ -308,14 +309,46 @@ export function useApplicationWizard(products: () => ProductCatalog) {
       // Сотрудник банка видит все компании, но не участник ни одной (my_role = null) — подать заявку не может
       const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
       organizations.value = list
-      const preferred = list.find((item) => item.my_permissions.includes('submit_application')) ?? list[0]
-      terms.organizationId = takeRequestedOrganization(list) ?? preferred?.id ?? ''
+      // Компанию из нескольких клиент выбирает сам: подставленная первая — чужая заявка, если не заметить
+      terms.organizationId = takeRequestedOrganization(list) ?? (list.length === 1 ? list[0]!.id : '')
     } catch (caught) {
       organizationsError.value = errorMessage(caught)
     } finally {
       organizationsLoading.value = false
     }
   }
+
+  /**
+   * Исключили из компании, пока открыт мастер, — список перечитываем, а пропавшую компанию снимаем
+   * с выбора: заявку от неё бэкенд уже не примет
+   */
+  onScopeDispose(
+    liveFeed.onCompany(async () => {
+      if (!organizations.value) return
+      try {
+        const list = (await clientApi.listOrganizations()).filter((item) => item.my_role !== null)
+        const lost = organizations.value.find((item) => item.id === terms.organizationId)?.name ?? 'выбранной компании'
+        organizations.value = list
+        if (!terms.organizationId || list.some((item) => item.id === terms.organizationId)) return
+        terms.organizationId = list.length === 1 ? list[0]!.id : ''
+        if (step.value !== 'done') step.value = 'terms'
+        // После смены компании: её наблюдатель убирает подсказку у поля, а эту надо оставить
+        await nextTick()
+        const next = list.length === 1 ? `. Заявка пойдёт от ${list[0]!.name}` : list.length ? '. Выберите другую компанию' : ''
+        fieldErrors.value = { ...fieldErrors.value, organization: `Доступ к ${lost} закрыт — вас исключили из участников${next}` }
+      } catch {
+        // Не ответил — проверит бэкенд при сохранении черновика
+      }
+    }),
+  )
+
+  // Выбрал компанию — подсказка «выберите компанию» или «доступ закрыт» больше не нужна
+  watch(
+    () => terms.organizationId,
+    (id) => {
+      if (id) delete fieldErrors.value.organization
+    },
+  )
 
   /** Компания черновика, который клиент продолжает с первого экрана; берём один раз */
   function takeRequestedOrganization(list: OrganizationSummaryDto[]): string | undefined {
@@ -436,7 +469,7 @@ export function useApplicationWizard(products: () => ProductCatalog) {
 
   /**
    * Заявка по продукту уже есть. Черновик (например, начатый до перезагрузки страницы) продолжаем:
-   * условия перезапишутся тем, что клиент ввёл сейчас, а залог, анкета и документы подтянутся из него.
+   * условия перезапишутся тем, что клиент ввёл сейчас, а залог, анкета и документы загрузятся из него.
    * Заявку, которая уже в работе, не трогаем — объясняем, почему новую подать нельзя.
    */
   async function resume(id: string) {

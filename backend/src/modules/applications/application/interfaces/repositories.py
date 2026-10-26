@@ -48,6 +48,16 @@ class ApplicationRepository(Protocol):
         decided_by: DecidedBy | None = None,
     ) -> list[CreditApplication]: ...
 
+    async def count(
+        self,
+        access: AccessContext | None,
+        organization_id: UUID | None,
+        statuses: Sequence[str] | None,
+        decided_by: DecidedBy | None = None,
+    ) -> int:
+        """How many applications `search` pages through."""
+        ...
+
     async def offers_expired_by(self, moment: datetime, limit: int) -> list[UUID]: ...
 
     async def set_client_stage(

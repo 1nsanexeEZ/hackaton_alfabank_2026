@@ -26,6 +26,7 @@ import {
 import { errorMessage } from '@/shared/lib'
 import { BaseButton, BaseModal, SelectField, TextField, ToggleSwitch } from '@/shared/ui'
 
+import { FACILITY_LOAN_TYPE, findProductCode, frontendIdOf, PRODUCT_CODES } from '../model/productCodes'
 import { toCreateInput, toForm, toInput, validate, type Guarantee, type ProductForm, type ProductFormErrors } from '../model/productForm'
 import OptionChips from './OptionChips.vue'
 
@@ -77,19 +78,49 @@ const isDirty = computed(
   () => !props.product || props.product.status === 'archived' || JSON.stringify(toForm(props.product)) !== JSON.stringify(form),
 )
 
-/** Копия условий: код, карточка и название — свои у нового продукта */
+/** Копия условий: код, карточка и название — свои у нового продукта, вид выдачи — по коду */
 watch(templateCode, () => {
   if (!template.value) return
   const { code, frontendId, name, shortDescription } = form
   Object.assign(form, toForm(template.value), { code, frontendId, name, shortDescription })
+  const entry = findProductCode(code)
+  if (entry) form.facility = entry.facility
 })
+
+/** Код из справочника: сначала свободные, занятые каталогом — ниже и не выбираются; рядом — вид ссуды по форме ЦБ 0409303 */
+const codeOptions = computed(() =>
+  PRODUCT_CODES.map((entry) => {
+    const taken = props.catalog.some((product) => product.code === entry.code)
+    return {
+      value: entry.code,
+      label: `${entry.code} — ${entry.title} · ${FACILITY_LOAN_TYPE[entry.facility]}${taken ? ' · занят' : ''}`,
+      disabled: taken,
+    }
+  }).sort((a, b) => Number(a.disabled) - Number(b.disabled)),
+)
+const codeEntry = computed(() => findProductCode(form.code))
+
+/** Выбрали код — карточка на сайте, вид выдачи и название (если его ещё нет) берутся из справочника */
+watch(
+  () => form.code,
+  (code) => {
+    const entry = findProductCode(code)
+    if (!isNew.value || !entry) return
+    form.frontendId = frontendIdOf(entry.code)
+    form.facility = entry.facility
+    if (!form.name.trim()) form.name = entry.title
+  },
+)
 
 const options = <T extends string>(labels: Record<T, string>) =>
   (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }))
 
 const PURPOSES = options<LoanPurpose>(PURPOSE_LABEL)
 const REPAYMENTS = options<Repayment>(REPAYMENT_LABEL)
-const FACILITIES = options<Facility>(FACILITY_LABEL)
+const FACILITIES = (Object.entries(FACILITY_LABEL) as [Facility, string][]).map(([value, label]) => ({
+  value,
+  label: `${label} · вид ссуды ${FACILITY_LOAN_TYPE[value]}`,
+}))
 const LEGAL_FORMS = options<LegalForm>(LEGAL_FORM_LABEL as Record<LegalForm, string>)
 const COLLATERAL_KINDS = options<CollateralKind>(COLLATERAL_LABEL)
 const COLLATERAL_TYPES = options<CollateralType>(COLLATERAL_TYPE_LABEL as Record<CollateralType, string>)
@@ -163,13 +194,30 @@ async function submit() {
     <form id="product-form" class="space-y-6" novalidate @submit.prevent="submit">
       <section v-if="isNew" class="grid gap-3 sm:grid-cols-2">
         <SelectField v-model="templateCode" label="На основе продукта" :options="templateOptions" dense class="sm:col-span-2" />
-        <TextField v-model="form.code" label="Код" dense placeholder="EQUIPMENT_LEASE" :error="errors.code" hint="Не меняется у всех версий продукта" />
-        <TextField v-model="form.frontendId" label="Карточка на сайте" dense placeholder="equipment-lease" :error="errors.frontendId" />
+        <div>
+          <SelectField v-model="form.code" label="Код" placeholder="Выберите из справочника" :options="codeOptions" dense />
+          <p v-if="errors.code" class="mt-1.5 text-sm text-brand">{{ errors.code }}</p>
+          <p v-else class="mt-1.5 text-sm text-ink-secondary">
+            {{ codeEntry ? `Вид ссуды ${FACILITY_LOAN_TYPE[codeEntry.facility]} по форме ЦБ 0409303. ` : '' }}Не меняется у всех версий продукта
+          </p>
+        </div>
+        <TextField v-model="form.frontendId" label="Карточка на сайте" dense placeholder="equipment" hint="Подставляется по коду" :error="errors.frontendId" />
       </section>
 
       <section class="grid gap-3 sm:grid-cols-2">
         <TextField v-model="form.name" label="Название" dense :error="errors.name" class="sm:col-span-2" />
         <TextField v-model="form.shortDescription" label="Коротко для каталога" dense :error="errors.shortDescription" class="sm:col-span-2" />
+        <TextField
+          v-model="form.keywords"
+          label="Слова на карточке"
+          dense
+          placeholder="Без залога, Быстро, На любые цели"
+          hint="Через запятую, до 5"
+          :error="errors.keywords"
+          class="sm:col-span-2"
+        />
+        <TextField v-model="form.tag" label="Метка" dense placeholder="Популярный" hint="Пусто — без метки" :error="errors.tag" />
+        <TextField v-model="form.decisionTime" label="Время решения" dense placeholder="1 рабочий день" hint="Пусто — по авторешению" :error="errors.decisionTime" />
       </section>
 
       <section>

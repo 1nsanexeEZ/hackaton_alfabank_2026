@@ -15,7 +15,7 @@ from src.modules.bff.application.dto.products import (
     SuggestionDTO,
 )
 from src.modules.bff.application.interfaces.neighbours import Neighbours
-from src.modules.bff.application.use_cases.common import ensure_visible, segment_of
+from src.modules.bff.application.use_cases.common import ensure_visible, may_apply, segment_of
 from src.modules.bff.domain.affordability import monthly_payment_capacity
 from src.modules.bff.domain.enums import AffordableBy
 from src.modules.clients.facade import ClientsFacade, OrganizationSnapshotDTO
@@ -51,7 +51,8 @@ class RecommendProductsUseCase:
                 offers = await self._n(DecisionFacade).get_pre_approved(organization_id)
                 return {o.product_code: o.max_amount for o in offers}
 
-            pre_approved = await self._n.optional("pre_approved", load, {})
+            if await may_apply(self._n, access, organization_id):
+                pre_approved = await self._n.optional("pre_approved", load, {})
         found = sorted(
             await self._n(ProductsFacade).recommend(purpose, amount, term_months, organization_id),
             key=lambda r: r.rank,
@@ -110,7 +111,9 @@ class PersonalScheduleUseCase:
             offers = await self._n(DecisionFacade).get_pre_approved(organization_id)
             return next((o for o in offers if o.product_code == code), None)
 
-        offer = await self._n.optional("pre_approved", load, None)
+        offer: PreApprovedOfferDTO | None = None
+        if await may_apply(self._n, access, organization_id):
+            offer = await self._n.optional("pre_approved", load, None)
         rate = offer.rate_from if offer is not None else product.rate_base
         schedule = products.calculate_payment(amount, term_months, rate, repayment)
         reasons = [ReasonDTO.of(r) for r in check.reasons]

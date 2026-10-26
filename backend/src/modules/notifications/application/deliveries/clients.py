@@ -82,10 +82,12 @@ class ClientDeliveries:
         return [Delivery(entry, (Recipient.account(event.account_id),))]
 
     async def _member_removed(self, event: MemberRemoved) -> list[Delivery]:
-        rendered = t.MEMBER_REMOVED.render(
+        """Not bound to the company and without a link: the former member can no
+        longer open it, and their feed hides the records of the company."""
+        title, body = t.MEMBER_REMOVED.render(
             organization=await self._ctx.client_name(event.organization_id)
         )
-        entry = company_entry(event.organization_id, rendered)
+        entry = FeedEntry(type="status_changed", audience="client", title=title, body=body)
         return [Delivery(entry, (Recipient.account(event.account_id),))]
 
     async def _member_role_changed(self, event: MemberRoleChanged) -> list[Delivery]:

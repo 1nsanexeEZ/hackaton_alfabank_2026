@@ -29,7 +29,10 @@ const BY_DETAILS_CODE: Record<string, string> = {
   org_permission_required: 'Недостаточно прав в компании для этого действия',
   already_member: 'Этот человек уже участник компании',
   account_not_found: 'Нет учётной записи с таким email или телефоном',
-  cannot_issue_power_of_attorney: 'Доверенность может выдать только руководитель компании',
+  cannot_issue_power_of_attorney: 'Доверенность может выдать или отозвать только руководитель компании',
+  number_taken: 'Доверенность с таким номером уже выдана другому сотруднику',
+  power_of_attorney_exists: 'У сотрудника уже есть доверенность — сначала отзовите её',
+  power_of_attorney_not_found: 'Доверенности у сотрудника уже нет',
   self_power_of_attorney: 'Доверенность нельзя выдать самому себе',
   expired: 'Срок доверенности уже истёк',
   period_not_closed: 'Этот период ещё не закончился — отчёт за него подать нельзя',
@@ -75,6 +78,12 @@ export function eligibilityMessage(reasons: readonly Reason[]): string {
   return failed.length ? `Компания не подходит под продукт: ${failed.join('; ')}` : 'Компания не подходит под продукт'
 }
 
+function statementMessage(message: string | undefined, line: unknown): string {
+  const text = message && /[а-яё]/i.test(message) ? message.replace(/\.$/, '') : 'Выписка не прочиталась'
+  const where = typeof line === 'number' && !/строк/i.test(text) ? ` — строка ${line}` : ''
+  return `${text}${where}. Исправьте файл и загрузите его ещё раз`
+}
+
 export function humanMessage(
   status: number,
   message: string | undefined,
@@ -84,6 +93,8 @@ export function humanMessage(
 ): string {
   const code = typeof details.code === 'string' ? details.code : undefined
   if (code === 'not_eligible' && Array.isArray(details.reasons)) return eligibilityMessage(details.reasons as Reason[])
+  // Выписка не разобралась: текст бэкенд пишет по-русски, номер строки — в details.line
+  if (code === 'statement_invalid') return statementMessage(message, details.line)
   if (code && BY_DETAILS_CODE[code]) return BY_DETAILS_CODE[code]
   // Часть сообщений бэкенд уже пишет по-русски — их показываем как есть
   if (message && /[а-яё]/i.test(message)) return message

@@ -15,8 +15,10 @@ def register(app: FastAPI) -> None:
 
 
 def wire(app: FastAPI) -> None:
+    catalog_key_rate = app.state.settings.catalog_key_rate
     app.state.facades.register(
-        ProductsFacade, lambda session: ProductsFacadeImpl(session, app.state.facades)
+        ProductsFacade,
+        lambda session: ProductsFacadeImpl(session, app.state.facades, catalog_key_rate),
     )
 
 
