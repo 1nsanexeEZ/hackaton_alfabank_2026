@@ -92,8 +92,8 @@ RateLimiter = Annotated[QuestionRateLimiter, Depends(get_rate_limiter)]
 # --- use cases -----------------------------------------------------------------
 
 
-def get_status(setup: ModelSetup) -> GetStatusUseCase:
-    return GetStatusUseCase(setup)
+def get_status(request: Request, setup: ModelSetup) -> GetStatusUseCase:
+    return GetStatusUseCase(setup, request.app.state.assistant_reachability)
 
 
 def get_start_conversation(

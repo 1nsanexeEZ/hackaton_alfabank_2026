@@ -141,7 +141,7 @@ curl http://localhost:8080/api/assistant/status
 
 | Метод | Что делает |
 |---|---|
-| `GET /assistant/status` | без входа: `enabled`, `mode` (`llm` / `rules`), `provider`, `model`, `host`, `reachable` (сервер отвечает и модель на нём есть), `reason` (почему выключен) |
+| `GET /assistant/status` | без входа: `enabled`, `mode` (`llm` / `rules`), `provider`, `model`, `host`, `reachable` (сервер отвечает и модель на нём есть — по последней проверке: она идёт в фоне не чаще раза в 10 с, статус отвечает сразу; первый запрос ждёт проверку не больше 0,5 с), `reason` (почему выключен) |
 | `GET /assistant/applications` | заявки компаний клиента для выбора в чате; сотрудник банка спрашивает по id заявки |
 | `POST /assistant/conversations` | новый диалог → `id` |
 | `GET /assistant/conversations/{id}` | история: только свой диалог, чужой — `404` |

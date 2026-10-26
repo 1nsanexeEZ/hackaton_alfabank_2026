@@ -51,6 +51,13 @@ class LanguageModel(Protocol):
         ...
 
 
+class ModelReachability(Protocol):
+    async def reachable(self, model: LanguageModel) -> bool:
+        """The last known answer of `model.ping()`, without waiting the ping's timeout: the
+        check runs in the background."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class LanguageModelSetup:
     """What `ASSISTANT_LLM_PROVIDER` gave: a model, or None and the reason."""
