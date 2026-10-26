@@ -115,7 +115,7 @@ const summary = computed(() => {
           :confirm-text="card.about.confirm"
           @revoke="revoke(card.type)"
         >
-          <PersonalConsentPrompt :type="card.type" action="Дать согласие" />
+          <PersonalConsentPrompt :type="card.type" action="Дать согласие" :with-text="false" />
         </ConsentCard>
       </div>
 
