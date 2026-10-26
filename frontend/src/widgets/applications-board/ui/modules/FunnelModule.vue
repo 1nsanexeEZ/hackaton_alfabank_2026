@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { FUNNEL } from '../../model/status'
+import { FUNNEL_LABEL } from '../../model/status'
 import { useBoard } from '../../model/useBoardData'
 
-const { applications } = useBoard()
+const { overview } = useBoard()
 
 /** Этап: сколько дошли, доля от начатых и переход с предыдущего этапа */
 const stages = computed(() => {
-  const all = applications.value.length
-  return FUNNEL.map((stage, index) => {
-    const count = index === 0 ? all : applications.value.filter((item) => stage.reached.includes(item.status)).length
-    return { label: stage.label, count, share: all ? count / all : 0 }
-  }).map((stage, index, list) => {
-    const previous = list[index - 1]
-    return { ...stage, conversion: previous && previous.count ? Math.round((stage.count / previous.count) * 100) : null }
-  })
+  const funnel = overview.value?.funnel ?? []
+  const all = funnel[0]?.count ?? 0
+  return funnel
+    .map((stage) => ({ label: FUNNEL_LABEL[stage.key] ?? stage.key, count: stage.count, share: all ? stage.count / all : 0 }))
+    .map((stage, index, list) => {
+      const previous = list[index - 1]
+      return { ...stage, conversion: previous && previous.count ? Math.round((stage.count / previous.count) * 100) : null }
+    })
 })
 </script>
 

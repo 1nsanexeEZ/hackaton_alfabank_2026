@@ -1,23 +1,15 @@
-import { computed, inject, provide, reactive, ref, shallowRef, watch, type InjectionKey } from 'vue'
+import { computed, inject, provide, ref, shallowRef, watch, type InjectionKey } from 'vue'
 
-import {
-  backofficeApi,
-  type ApplicationStatusCode,
-  type MetricsDto,
-  type QueuePageDto,
-  type StaffApplicationDto,
-  type UnderwriterCardDto,
-} from '@/shared/api'
+import { backofficeApi, type ApplicationsOverviewDto, type MetricsDto, type QueuePageDto, type ScoringOverviewDto } from '@/shared/api'
 import { errorMessage } from '@/shared/lib'
 
 /** Период метрик по дням: последние 7, 30 или 90 дней */
 export type Period = '7' | '30' | '90'
 
-/** Сколько заявок разбираем (страницы по 100) и сколько последних поданных оцениваем по карточкам */
-const PAGE = 100
-const MAX_PAGES = 3
+/** Сколько последних изменённых заявок показывает лента */
+const LATEST = 6
+/** По скольким последним поданным заявкам модуль скоринга считает средний балл */
 const SCORED_LIMIT = 30
-const PARALLEL = 6
 
 const isoDay = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -28,39 +20,34 @@ function daysAgo(days: number) {
   return date
 }
 
-export const amountOf = (item: StaffApplicationDto) => (item.amount ? Number(item.amount) : 0)
-export const isSubmitted = (status: ApplicationStatusCode) => status !== 'draft'
+/** Сумма строкой из сводки — числом; пустая и кривая — ноль */
+export const toAmount = (value: string | null | undefined) => (value ? Number(value) || 0 : 0)
 
 /**
- * Данные панели заявок. Сводной ручки нет, поэтому складываем из того, что отдаёт бэкенд:
- * - заявки — GET /applications (все статусы, до 300 последних): воронка, статусы, продукты, суммы, лента;
+ * Данные панели заявок — по одной ручке на источник:
+ * - сводка заявок — GET /bff/backoffice/applications-overview: воронка, статусы, продукты, суммы и лента
+ *   последних заявок по ВСЕМ заявкам, считает база;
  * - метрики — GET /bff/backoffice/metrics за период: поток по дням, автоматика и специалист, время решения;
  * - очередь специалиста — GET /bff/backoffice/queue (открытые задачи): сколько ждут, просрочка по SLA;
- * - карточки последних поданных — GET /bff/backoffice/applications/{id}: грейды скоринга. Их грузим, только
- *   когда модуль скоринга на панели виден: это до 30 запросов.
+ * - сводка скоринга — GET /bff/backoffice/scoring-overview: грейды. Её грузим, только когда модуль
+ *   скоринга на панели виден.
  */
 export function useBoardData() {
   const period = ref<Period>('30')
 
-  const applications = shallowRef<StaffApplicationDto[]>([])
-  const applicationsLoading = ref(true)
-  const applicationsError = ref<string | null>(null)
+  const overview = shallowRef<ApplicationsOverviewDto | null>(null)
+  const overviewLoading = ref(true)
+  const overviewError = ref<string | null>(null)
 
-  async function loadApplications() {
-    applicationsLoading.value = true
-    applicationsError.value = null
+  async function loadOverview() {
+    overviewLoading.value = true
+    overviewError.value = null
     try {
-      const loaded: StaffApplicationDto[] = []
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const batch = await backofficeApi.applications({ limit: PAGE, offset: page * PAGE })
-        loaded.push(...batch)
-        if (batch.length < PAGE) break
-      }
-      applications.value = loaded
+      overview.value = await backofficeApi.applicationsOverview(LATEST)
     } catch (caught) {
-      applicationsError.value = errorMessage(caught)
+      overviewError.value = errorMessage(caught)
     } finally {
-      applicationsLoading.value = false
+      overviewLoading.value = false
     }
   }
 
@@ -103,70 +90,52 @@ export function useBoardData() {
     return Array.from({ length: count }, (_, index) => isoDay(daysAgo(count - 1 - index)))
   })
 
-  const cards = shallowRef<UnderwriterCardDto[]>([])
-  const cardsLoading = ref(false)
-  let cardsRequested = false
+  const scoring = shallowRef<ScoringOverviewDto | null>(null)
+  const scoringLoading = ref(false)
+  let scoringRequested = false
 
-  /** Карточки для скоринга — по первому запросу модуля, порциями по 6 */
-  async function loadCards() {
-    if (cardsRequested) return
-    cardsRequested = true
-    cardsLoading.value = true
+  /** Сводка скоринга — по первому запросу модуля */
+  async function loadScoring() {
+    if (scoringRequested) return
+    scoringRequested = true
+    scoringLoading.value = true
     try {
-      const submitted = applications.value.filter((item) => isSubmitted(item.status)).slice(0, SCORED_LIMIT)
-      const loaded: UnderwriterCardDto[] = []
-      for (let index = 0; index < submitted.length; index += PARALLEL) {
-        const batch = await Promise.all(submitted.slice(index, index + PARALLEL).map((item) => backofficeApi.card(item.id).catch(() => null)))
-        loaded.push(...batch.filter((card): card is UnderwriterCardDto => card !== null))
-        cards.value = [...loaded]
-      }
+      scoring.value = await backofficeApi.scoringOverview(SCORED_LIMIT)
+    } catch {
+      scoringRequested = false
     } finally {
-      cardsLoading.value = false
-    }
-  }
-
-  /** Названия компаний — по одной загрузке на компанию */
-  const companies = reactive<Record<string, { name: string; inn: string } | null>>({})
-  function loadCompanies(ids: string[]) {
-    for (const id of new Set(ids)) {
-      if (id in companies) continue
-      companies[id] = null
-      backofficeApi
-        .organization(id)
-        .then((company) => (companies[id] = { name: company.name, inn: company.inn }))
-        .catch(() => undefined)
+      scoringLoading.value = false
     }
   }
 
   function reload() {
-    cardsRequested = false
-    cards.value = []
-    void loadApplications()
+    const hadScoring = scoringRequested
+    scoringRequested = false
+    void loadOverview()
     void loadMetrics()
     void loadQueue()
+    if (hadScoring) void loadScoring()
   }
 
-  void loadApplications()
+  void loadOverview()
   void loadMetrics()
   void loadQueue()
 
   return {
     period,
     days,
-    applications,
-    applicationsLoading,
-    applicationsError,
+    overview,
+    overviewLoading,
+    overviewError,
     metrics,
     metricsLoading,
     metricsError,
     queue,
     queueLoading,
     queueError,
-    cards,
-    cardsLoading,
-    loadCards,
-    companies,
-    loadCompanies,
+    scoring,
+    scoringLoading,
+    loadScoring,
     reload,
   }
 }

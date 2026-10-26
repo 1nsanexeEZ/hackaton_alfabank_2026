@@ -56,14 +56,13 @@ const configuring = ref(false)
 function stateOf(id: ModuleId) {
   if (ON_METRICS.includes(id)) return { loading: data.metricsLoading.value && !data.metrics.value, error: data.metrics.value ? null : data.metricsError.value }
   if (id === 'queue') return { loading: data.queueLoading.value && !data.queue.value, error: data.queue.value ? null : data.queueError.value }
-  if (id === 'kpi') return { loading: data.applicationsLoading.value && !data.applications.value.length, error: data.applicationsError.value }
   return {
-    loading: data.applicationsLoading.value && !data.applications.value.length,
-    error: data.applications.value.length ? null : data.applicationsError.value,
+    loading: data.overviewLoading.value && !data.overview.value,
+    error: data.overview.value ? null : data.overviewError.value,
   }
 }
 
-const empty = computed(() => !data.applicationsLoading.value && !data.applicationsError.value && !data.applications.value.length)
+const empty = computed(() => !data.overviewLoading.value && !data.overviewError.value && data.overview.value?.total === 0)
 </script>
 
 <template>

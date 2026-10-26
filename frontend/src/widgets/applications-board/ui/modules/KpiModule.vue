@@ -4,10 +4,9 @@ import { computed } from 'vue'
 
 import { formatMoneyShort } from '@/shared/lib'
 
-import { amountOf, isSubmitted, useBoard } from '../../model/useBoardData'
-import { FUNNEL } from '../../model/status'
+import { toAmount, useBoard } from '../../model/useBoardData'
 
-const { applications, metrics } = useBoard()
+const { overview, metrics } = useBoard()
 
 const REVIEW = ['submitted', 'in_review', 'info_requested']
 
@@ -19,15 +18,15 @@ function duration(seconds: number | null | undefined) {
 }
 
 const tiles = computed<{ icon: LucideIcon; label: string; value: string; hint: string; accent?: boolean }[]>(() => {
-  const list = applications.value
-  const submitted = list.filter((item) => isSubmitted(item.status))
-  const decided = list.filter((item) => FUNNEL[2]!.reached.includes(item.status)).length
-  const approved = list.filter((item) => FUNNEL[3]!.reached.includes(item.status)).length
+  const data = overview.value
+  const decided = data?.decided ?? 0
+  const approved = data?.approved ?? 0
+  const inReview = (data?.statuses ?? []).filter((item) => REVIEW.includes(item.key)).reduce((sum, item) => sum + item.count, 0)
   const share = metrics.value?.auto_decision_share
   return [
-    { icon: FileStack, label: 'Заявок', value: String(list.length), hint: `подано ${submitted.length}` },
-    { icon: Hourglass, label: 'На рассмотрении', value: String(list.filter((item) => REVIEW.includes(item.status)).length), hint: 'ждут решения или данных' },
-    { icon: Banknote, label: 'Запрошено', value: formatMoneyShort(submitted.reduce((sum, item) => sum + amountOf(item), 0)), hint: 'по поданным заявкам' },
+    { icon: FileStack, label: 'Заявок', value: String(data?.total ?? 0), hint: `подано ${data?.submitted ?? 0}` },
+    { icon: Hourglass, label: 'На рассмотрении', value: String(inReview), hint: 'ждут решения или данных' },
+    { icon: Banknote, label: 'Запрошено', value: formatMoneyShort(toAmount(data?.requested_amount)), hint: 'по поданным заявкам' },
     { icon: BadgeCheck, label: 'Одобрено', value: decided ? `${Math.round((approved / decided) * 100)}%` : '—', hint: `${approved} из ${decided} решённых`, accent: true },
     { icon: Bot, label: 'Решения автоматики', value: share != null ? `${Math.round(share * 100)}%` : '—', hint: 'от принятых за период' },
     { icon: Clock3, label: 'Время до решения', value: duration(metrics.value?.avg_time_to_decision_sec), hint: 'в среднем за период' },
