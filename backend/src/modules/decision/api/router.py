@@ -55,8 +55,14 @@ Products = Annotated[ProductsFacade, Depends(use_facade(ProductsFacade))]
 async def list_pre_approved_offers(
     organization_id: UUID, token: OrganizationsReader, clients: Clients, decisions: Decisions
 ) -> list[PreApprovedOfferRead]:
-    """Valid offers, the largest first; an empty list when nothing is pre-approved."""
+    """Valid offers, the largest first; an empty list when nothing is pre-approved — and for a
+    member who may not apply (no `submit_application`: the power of attorney is revoked or
+    expired)."""
     await ensure_can_view(token, organization_id, clients)
+    if not sees_every_organization(token):
+        permissions = await clients.get_member_permissions(token.subject, organization_id)
+        if OrgPermission.SUBMIT_APPLICATION.value not in permissions:
+            return []
     return [PreApprovedOfferRead.of(o) for o in await decisions.get_pre_approved(organization_id)]
 
 

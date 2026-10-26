@@ -34,6 +34,7 @@ from src.modules.clients.application.use_cases.members import (
     GrantPowerOfAttorneyUseCase,
     ListMembersUseCase,
     RemoveMemberUseCase,
+    RevokePowerOfAttorneyUseCase,
 )
 from src.modules.clients.application.use_cases.membership import (
     EnsureCanUseCase,
@@ -218,6 +219,12 @@ def get_grant_power_of_attorney(
     return GrantPowerOfAttorneyUseCase(uow, organizations, outbox, clock)
 
 
+def get_revoke_power_of_attorney(
+    uow: Uow, organizations: Organizations, outbox: Outbox, clock: ClockDep
+) -> RevokePowerOfAttorneyUseCase:
+    return RevokePowerOfAttorneyUseCase(uow, organizations, outbox, clock)
+
+
 # --- financial reports ---------------------------------------------------------
 
 
@@ -256,6 +263,9 @@ ChangeMemberRoleDep = Annotated[ChangeMemberRoleUseCase, Depends(get_change_memb
 RemoveMemberDep = Annotated[RemoveMemberUseCase, Depends(get_remove_member)]
 GrantPowerOfAttorneyDep = Annotated[
     GrantPowerOfAttorneyUseCase, Depends(get_grant_power_of_attorney)
+]
+RevokePowerOfAttorneyDep = Annotated[
+    RevokePowerOfAttorneyUseCase, Depends(get_revoke_power_of_attorney)
 ]
 ListFinancialReportsDep = Annotated[
     ListFinancialReportsUseCase, Depends(get_list_financial_reports)

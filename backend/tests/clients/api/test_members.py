@@ -230,6 +230,35 @@ def test_power_of_attorney_rules(demo: Demo) -> None:
     assert expired.status_code == 422 and expired.json()["details"]["code"] == "expired"
     not_delegable = demo.client.post(url, json=poa_body(scope=["manage_members"]), headers=headers)
     assert not_delegable.status_code == 422
+    bad_number = demo.client.post(url, json={**poa_body(), "number": "абв"}, headers=headers)
+    assert bad_number.status_code == 422
+    assert bad_number.json()["details"] == {"field": "number", "code": "invalid_format"}
+
+
+def test_power_of_attorney_is_revoked_before_a_new_one(demo: Demo) -> None:
+    accountant = demo.id_of(KUZNETSOVA)
+    url = members_url(demo, "romashka", accountant, "/poa")
+    headers = demo.as_client(SMIRNOVA)
+    granted = demo.client.post(
+        url, json={**poa_body(), "number": "№ 77 АА 1234567"}, headers=headers
+    )
+    assert granted.status_code == 200, granted.text
+    assert granted.json()["power_of_attorney"]["number"] == "77 АА 1234567"
+
+    second = demo.client.post(url, json={**poa_body(), "number": "2"}, headers=headers)
+    assert second.status_code == 409
+    assert second.json()["details"]["code"] == "power_of_attorney_exists"
+    # Only the head by the registry revokes.
+    assert demo.client.delete(url, headers=demo.as_client(KUZNETSOVA)).status_code == 403
+
+    revoked = demo.client.delete(url, headers=headers)
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json()["power_of_attorney"] is None
+    assert "sign" not in revoked.json()["permissions"]
+    missing = demo.client.delete(url, headers=headers)
+    assert missing.status_code == 404
+    assert missing.json()["details"]["code"] == "power_of_attorney_not_found"
+    assert demo.client.post(url, json=poa_body(), headers=headers).status_code == 200
 
 
 def test_admin_acts_for_the_bank(demo: Demo) -> None:

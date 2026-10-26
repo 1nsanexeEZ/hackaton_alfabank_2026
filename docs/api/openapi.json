@@ -1266,7 +1266,7 @@
           "products"
         ],
         "summary": "List All Products",
-        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order.",
+        "description": "For keeping the catalog: every product in its latest version, drafts and archived\nones too, in catalog order. The rates are the stored ones, set at the catalog key rate\n(they are what PUT takes); `market_rate` — the same moved to the key rate in force, as\nclients see them now.",
         "operationId": "list_all_products_products_all_get",
         "responses": {
           "200": {
@@ -1275,7 +1275,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ProductRead"
+                    "$ref": "#/components/schemas/CatalogProductRead"
                   },
                   "type": "array",
                   "title": "Response List All Products Products All Get"
@@ -2094,7 +2094,7 @@
           "organizations"
         ],
         "summary": "Grant Power Of Attorney",
-        "description": "Issued by the head confirmed by the registry; replaces the previous one.",
+        "description": "Issued by the head confirmed by the registry. The number: letters and digits separated\nby spaces, dots, slashes or hyphens, with a digit, up to 32 characters, \"№\" is dropped —\notherwise 422 `invalid_format`; another member's number — 409 `number_taken`. One at a\ntime: a current or not yet started one — 409 `power_of_attorney_exists` (revoke it first),\nan expired one is replaced.",
         "operationId": "grant_power_of_attorney_organizations__organization_id__members__account_id__poa_post",
         "security": [
           {
@@ -2133,6 +2133,63 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Revoke Power Of Attorney",
+        "description": "Revoked by the head confirmed by the registry: the rights it gave (submitting\napplications, signing, the pre-approved offers) end at once. The member without one —\n404 `power_of_attorney_not_found`.",
+        "operationId": "revoke_power_of_attorney_organizations__organization_id__members__account_id__poa_delete",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4222,7 +4279,7 @@
           "decision"
         ],
         "summary": "List Pre Approved Offers",
-        "description": "Valid offers, the largest first; an empty list when nothing is pre-approved.",
+        "description": "Valid offers, the largest first; an empty list when nothing is pre-approved — and for a\nmember who may not apply (no `submit_application`: the power of attorney is revoked or\nexpired).",
         "operationId": "list_pre_approved_offers_organizations__organization_id__pre_approved_offers_get",
         "security": [
           {
@@ -9521,6 +9578,281 @@
           "projected_balance"
         ],
         "title": "CashflowProjectionDTO"
+      },
+      "CatalogProductRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "frontend_id": {
+            "type": "string",
+            "title": "Frontend Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_description": {
+            "type": "string",
+            "title": "Short Description"
+          },
+          "description_plain": {
+            "type": "string",
+            "title": "Description Plain"
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "working_capital",
+                "cash_gap",
+                "equipment",
+                "vehicles",
+                "real_estate",
+                "contract_execution",
+                "refinancing",
+                "expansion"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "facility": {
+            "type": "string",
+            "enum": [
+              "term_loan",
+              "credit_line_revolving",
+              "credit_line_non_revolving",
+              "overdraft"
+            ],
+            "title": "Facility"
+          },
+          "repayment_options": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "annuity",
+                "differentiated",
+                "interest_only",
+                "by_contract_schedule"
+              ]
+            },
+            "type": "array",
+            "title": "Repayment Options"
+          },
+          "amount_min": {
+            "type": "string",
+            "title": "Amount Min"
+          },
+          "amount_max": {
+            "type": "string",
+            "title": "Amount Max"
+          },
+          "term_min_months": {
+            "type": "integer",
+            "title": "Term Min Months"
+          },
+          "term_max_months": {
+            "type": "integer",
+            "title": "Term Max Months"
+          },
+          "rate_base": {
+            "type": "string",
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "type": "string",
+            "title": "Rate Max"
+          },
+          "collateral_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Collateral Kind"
+          },
+          "collateral_required_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Required From"
+          },
+          "collateral_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collateral Types"
+          },
+          "guarantee": {
+            "type": "string",
+            "enum": [
+              "none",
+              "owner",
+              "msp_corporation"
+            ],
+            "title": "Guarantee"
+          },
+          "target_use_confirmation": {
+            "type": "boolean",
+            "title": "Target Use Confirmation"
+          },
+          "support_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportProgramRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_business_age_months": {
+            "type": "integer",
+            "title": "Min Business Age Months"
+          },
+          "allowed_legal_forms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Legal Forms"
+          },
+          "min_annual_revenue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Annual Revenue"
+          },
+          "required_documents": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocumentRead"
+            },
+            "type": "array",
+            "title": "Required Documents"
+          },
+          "application_fields_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Application Fields Schema"
+          },
+          "workflow_code": {
+            "type": "string",
+            "title": "Workflow Code"
+          },
+          "auto_decision_limit": {
+            "type": "string",
+            "title": "Auto Decision Limit"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "archived"
+            ],
+            "title": "Status"
+          },
+          "startup_only": {
+            "type": "boolean",
+            "title": "Startup Only"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "decision_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Time"
+          },
+          "market_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketRateRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "frontend_id",
+          "version",
+          "name",
+          "short_description",
+          "description_plain",
+          "purposes",
+          "facility",
+          "repayment_options",
+          "amount_min",
+          "amount_max",
+          "term_min_months",
+          "term_max_months",
+          "rate_base",
+          "rate_max",
+          "collateral_kind",
+          "collateral_required_from",
+          "collateral_types",
+          "guarantee",
+          "target_use_confirmation",
+          "support_program",
+          "min_business_age_months",
+          "allowed_legal_forms",
+          "min_annual_revenue",
+          "required_documents",
+          "application_fields_schema",
+          "workflow_code",
+          "auto_decision_limit",
+          "status",
+          "startup_only",
+          "keywords",
+          "tag",
+          "decision_time",
+          "market_rate"
+        ],
+        "title": "CatalogProductRead",
+        "description": "`/products/all`: the stored rates (at the catalog key rate, what PUT takes) and the\nrates clients see today; null — the market module is off, nothing moves."
       },
       "CheckRead": {
         "properties": {
@@ -15013,6 +15345,47 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "MarketRateRead": {
+        "properties": {
+          "key_rate": {
+            "type": "string",
+            "title": "Key Rate"
+          },
+          "catalog_key_rate": {
+            "type": "string",
+            "title": "Catalog Key Rate"
+          },
+          "rate_base": {
+            "type": "string",
+            "title": "Rate Base"
+          },
+          "rate_max": {
+            "type": "string",
+            "title": "Rate Max"
+          },
+          "support_rate_cap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Rate Cap"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key_rate",
+          "catalog_key_rate",
+          "rate_base",
+          "rate_max",
+          "support_rate_cap"
+        ],
+        "title": "MarketRateRead",
+        "description": "The stored rates as clients see them today: moved by the key rate in force minus the\none the catalog is set at."
       },
       "MeRead": {
         "properties": {

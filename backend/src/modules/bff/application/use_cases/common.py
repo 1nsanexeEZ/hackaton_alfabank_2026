@@ -30,6 +30,15 @@ async def ensure_visible(
         raise NotFoundError("Organization not found") from None
 
 
+async def may_apply(neighbours: Neighbours, access: AccessContext, organization_id: UUID) -> bool:
+    """The pre-approval is an offer to apply: shown to who has `submit_application`, not to an
+    employee whose power of attorney is revoked or expired."""
+    permissions = await neighbours(ClientsFacade).get_member_permissions(
+        access.user_id, organization_id
+    )
+    return OrgPermission.SUBMIT_APPLICATION.value in permissions
+
+
 def segment_of(snapshot: OrganizationSnapshotDTO) -> Segment:
     """A startup has no turnover yet: younger than the youngest product allows or without an
     annual report. It gets the founder's prescreen and the startup product."""

@@ -390,7 +390,7 @@ def new_product(**overrides: Any) -> dict[str, Any]:
 
 def as_body(card: dict[str, Any]) -> dict[str, Any]:
     """A product card read back is the body of new terms."""
-    return {k: v for k, v in card.items() if k not in ("code", "version", "status")}
+    return {k: v for k, v in card.items() if k not in ("code", "version", "status", "market_rate")}
 
 
 def stored(settings: Settings, code: str, version: int) -> CreditProduct | None:

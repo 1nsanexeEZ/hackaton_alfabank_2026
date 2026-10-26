@@ -113,6 +113,40 @@ def test_power_of_attorney_validation(kwargs: dict, code: str) -> None:
     assert error.value.details is not None and error.value.details["code"] == code
 
 
+@pytest.mark.parametrize(
+    "number,kept",
+    [
+        ("77 АА 1234567", "77 АА 1234567"),
+        (" № 77  АА 1234567 ", "77 АА 1234567"),
+        ("15/2026-Д", "15/2026-Д"),
+        ("Д-15", "Д-15"),
+        ("1", "1"),
+    ],
+)
+def test_issued_number_is_normalized(number: str, kept: str) -> None:
+    issued = PowerOfAttorney.issue(
+        number, NOW.date(), NOW.date() + timedelta(days=30), frozenset({P.SIGN})
+    )
+    assert issued.number == kept
+
+
+@pytest.mark.parametrize(
+    "number",
+    ["абв", "№", "--15", "15/", "15#2", "<script>1", "1" * 33],
+)
+def test_issued_number_format(number: str) -> None:
+    with pytest.raises(ValidationError) as error:
+        PowerOfAttorney.issue(
+            number, NOW.date(), NOW.date() + timedelta(days=30), frozenset({P.SIGN})
+        )
+    assert error.value.details == {"field": "number", "code": "invalid_format"}
+
+
+def test_stored_number_is_not_rechecked() -> None:
+    """Issued before the format check: still loads."""
+    assert poa(P.SIGN, number="без номера").number == "без номера"
+
+
 def test_ordered_follows_the_table() -> None:
     assert ordered(frozenset({P.SIGN, P.VIEW, P.EDIT_FINANCIALS})) == [
         P.VIEW,
