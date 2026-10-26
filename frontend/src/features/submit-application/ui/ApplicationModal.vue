@@ -106,6 +106,24 @@ watch(nudge, async () => {
   const rest = missing.value.slice(1).map((item) => fieldElement(item.key))
   shakeInvalid(rest.filter((element): element is HTMLElement => Boolean(element)).map(shakeTarget))
 })
+
+const alertBox = ref<HTMLElement>()
+const hasAlert = computed(() => Boolean(error.value || violations.value.length))
+
+/** Ошибка появляется под формой, за краем окна: прокручиваем к ней и встряхиваем, чтобы её заметили */
+function showAlert() {
+  const element = alertBox.value
+  if (!element) return
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  shakeInvalid([element])
+}
+
+// Новая ошибка или та же самая после повторного «Далее» — снова показываем
+watch([error, () => violations.value.length, busy], async ([, , isBusy]) => {
+  if (isBusy || !hasAlert.value) return
+  await nextTick()
+  showAlert()
+})
 </script>
 
 <template>
@@ -152,8 +170,9 @@ watch(nudge, async () => {
         />
 
         <div
-          v-if="error || violations.length"
-          class="mt-6 rounded-2xl bg-brand-soft p-4 text-sm text-brand"
+          v-if="hasAlert"
+          ref="alertBox"
+          class="mt-6 scroll-mb-6 rounded-2xl bg-brand-soft p-4 text-sm text-brand"
           role="alert"
         >
           <p class="flex items-center gap-2 font-semibold">
@@ -203,6 +222,15 @@ watch(nudge, async () => {
             </button>
             <span v-if="missingRest > 0" class="text-xs text-ink-secondary" :title="missingTitle">ещё {{ missingRest }}</span>
           </template>
+          <button
+            v-else-if="hasAlert"
+            type="button"
+            class="flex items-center gap-1.5 font-medium text-brand underline-offset-2 hover:underline"
+            @click="showAlert"
+          >
+            <AlertCircle class="size-4" aria-hidden="true" />
+            {{ error ? 'Посмотрите сообщение ниже' : 'Есть что исправить' }}
+          </button>
           <span v-else class="flex items-center gap-1.5 font-medium text-success">
             <CircleCheck class="size-4" aria-hidden="true" />
             Всё заполнено
