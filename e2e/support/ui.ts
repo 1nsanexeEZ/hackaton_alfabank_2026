@@ -14,7 +14,8 @@ export const applicationWizard = (page: Page) => page.getByRole('dialog', { name
  */
 export async function signInWithDemo(page: Page, account: DemoAccount): Promise<void> {
   const drawer = loginDrawer(page)
-  await drawer.getByRole('button', { name: account.caption }).click()
+  // Кнопка подписана «ФИО подпись»: подпись сверяем по концу — «ИП Иванов» не путаем с «…и ИП Иванова»
+  await drawer.getByRole('button', { name: new RegExp(`${escapeRegExp(account.caption)}$`) }).click()
   await expect(drawer).toBeHidden()
 }
 
@@ -32,6 +33,8 @@ export async function choose(page: Page, scope: Locator, label: string, option: 
   await page.getByRole('listbox').getByRole('option', { name: option, exact: true }).click()
   await expect(page.getByRole('listbox')).toBeHidden()
 }
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Деньги так, как их пишет сайт: «3 000 000 ₽» с неразрывными пробелами — в проверках пробелы любые */
 export const money = (amount: number) => new RegExp(`${amount.toLocaleString('ru-RU').replace(/\s/g, '\\s')}\\s₽`)
