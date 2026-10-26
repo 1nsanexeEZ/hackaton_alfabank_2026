@@ -104,6 +104,11 @@ class ProductRead(_Read):
     status: ProductStatus
     # Only for a company without turnover: younger than 6 months or without an annual report.
     startup_only: bool
+    # The showcase card: short words, a label («Популярный») and how soon the decision comes;
+    # null — not set.
+    keywords: list[str]
+    tag: str | None
+    decision_time: str | None
 
     @classmethod
     def of(cls, product: CreditProduct) -> "ProductRead":
@@ -191,6 +196,12 @@ class ProductBody(BaseModel):
     workflow_code: Annotated[str, Field(max_length=64)]
     # Up to this amount the decision may be taken without an underwriter.
     auto_decision_limit: Limit
+    # The showcase card: up to 5 short words, a label and the decision time, 40 chars each.
+    keywords: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(
+        default=[], max_length=5
+    )
+    tag: Annotated[str, Field(min_length=1, max_length=40)] | None = None
+    decision_time: Annotated[str, Field(min_length=1, max_length=40)] | None = None
 
     def product(self, code: str) -> CreditProduct:
         """A draft of version 1 until the catalog says otherwise."""
@@ -203,6 +214,9 @@ class ProductBody(BaseModel):
             short_description=self.short_description,
             description_plain=self.description_plain,
             frontend_id=self.frontend_id,
+            keywords=tuple(self.keywords),
+            tag=self.tag,
+            decision_time=self.decision_time,
             purposes=frozenset(self.purposes),
             facility=self.facility,
             repayment_options=tuple(self.repayment_options),

@@ -18603,6 +18603,43 @@
               }
             ],
             "title": "Auto Decision Limit"
+          },
+          "keywords": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Keywords",
+            "default": []
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "decision_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Time"
           }
         },
         "additionalProperties": false,
@@ -18916,6 +18953,43 @@
             ],
             "title": "Auto Decision Limit"
           },
+          "keywords": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Keywords",
+            "default": []
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "decision_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Time"
+          },
           "code": {
             "type": "string",
             "maxLength": 32,
@@ -19201,6 +19275,35 @@
           "startup_only": {
             "type": "boolean",
             "title": "Startup Only"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "decision_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Time"
           }
         },
         "type": "object",
@@ -19234,7 +19337,10 @@
           "workflow_code",
           "auto_decision_limit",
           "status",
-          "startup_only"
+          "startup_only",
+          "keywords",
+          "tag",
+          "decision_time"
         ],
         "title": "ProductRead"
       },
