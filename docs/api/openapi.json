@@ -6672,6 +6672,59 @@
         }
       }
     },
+    "/bff/backoffice/applications-overview": {
+      "get": {
+        "tags": [
+          "bff"
+        ],
+        "summary": "Applications Overview",
+        "description": "Every company's applications in one call, counted by the database: the funnel (how far\nthey got: started, submitted, decided, approved, signed, disbursed), statuses, products\nand requested amounts, amount buckets (up to 1, 1–3, 3–10, 10–30, 30+ mln) and the latest\n`latest` applications with the company name.",
+        "operationId": "applications_overview_bff_backoffice_applications_overview_get",
+        "security": [
+          {
+            "BearerJWT": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "latest",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 0,
+              "description": "How many latest applications",
+              "default": 10,
+              "title": "Latest"
+            },
+            "description": "How many latest applications"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationsOverviewDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assistant/status": {
       "get": {
         "tags": [
@@ -7436,6 +7489,37 @@
         ],
         "title": "AmlSubjectDTO",
         "description": "Кого проверили: организацию — по ИНН, человека — по ФИО."
+      },
+      "AmountBucketDTO": {
+        "properties": {
+          "min": {
+            "type": "string",
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "max",
+          "count"
+        ],
+        "title": "AmountBucketDTO",
+        "description": "Applications with a requested amount from `min` (inclusive) to `max` (exclusive)."
       },
       "ApplicationCardDTO": {
         "properties": {
@@ -8279,6 +8363,79 @@
         ],
         "title": "ApplicationUpdate",
         "description": "Autosave of a draft. Send only what changed; `collateral: null` removes it."
+      },
+      "ApplicationsOverviewDTO": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "submitted": {
+            "type": "integer",
+            "title": "Submitted"
+          },
+          "requested_amount": {
+            "type": "string",
+            "title": "Requested Amount"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "decided": {
+            "type": "integer",
+            "title": "Decided"
+          },
+          "funnel": {
+            "items": {
+              "$ref": "#/components/schemas/CountDTO"
+            },
+            "type": "array",
+            "title": "Funnel"
+          },
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/CountDTO"
+            },
+            "type": "array",
+            "title": "Statuses"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductCountDTO"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "amount_buckets": {
+            "items": {
+              "$ref": "#/components/schemas/AmountBucketDTO"
+            },
+            "type": "array",
+            "title": "Amount Buckets"
+          },
+          "latest": {
+            "items": {
+              "$ref": "#/components/schemas/LatestApplicationDTO"
+            },
+            "type": "array",
+            "title": "Latest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "submitted",
+          "requested_amount",
+          "approved",
+          "decided",
+          "funnel",
+          "statuses",
+          "products",
+          "amount_buckets",
+          "latest"
+        ],
+        "title": "ApplicationsOverviewDTO"
       },
       "ArbitrationDTO": {
         "properties": {
@@ -10721,6 +10878,29 @@
         ],
         "title": "ContractVerificationOut",
         "description": "What anyone with the QR code sees: no IP, no account ids, the client by initials."
+      },
+      "CountDTO": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "count",
+          "amount"
+        ],
+        "title": "CountDTO"
       },
       "CounterpartyRead": {
         "properties": {
@@ -14376,6 +14556,99 @@
           "removable"
         ],
         "title": "KeyRateRecordRead"
+      },
+      "LatestApplicationDTO": {
+        "properties": {
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Application Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "client_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Stage"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "organization_id",
+          "number",
+          "company_name",
+          "inn",
+          "product_code",
+          "product_name",
+          "amount",
+          "status",
+          "client_stage",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "LatestApplicationDTO"
       },
       "LicenseDTO": {
         "properties": {
@@ -18351,6 +18624,34 @@
         ],
         "title": "ProductBody",
         "description": "Terms of a product, as in `ProductRead`: the code is in the path, the\nversion and the status are set by the catalog."
+      },
+      "ProductCountDTO": {
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_code",
+          "product_name",
+          "count",
+          "amount"
+        ],
+        "title": "ProductCountDTO"
       },
       "ProductCreate": {
         "properties": {

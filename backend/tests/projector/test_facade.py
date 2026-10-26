@@ -63,6 +63,45 @@ async def test_list_applications_newest_first_with_pages_and_status(
     assert item.amount == Decimal("3000000") and item.updated_at.tzinfo is not None
 
 
+async def test_application_stats_group_every_company_in_the_database(
+    store: OpenStore, facade: OpenFacade
+) -> None:
+    rows = [
+        overview(status="draft", amount=None),
+        overview(status="in_review", amount=Decimal("500000")),
+        overview(status="in_review", amount=Decimal("3000000"), organization_id=OTHER),
+        overview(
+            status="disbursed",
+            product_code="SECURED",
+            product_name="Под залог",
+            amount=Decimal("45000000"),
+            updated_at=T0 + timedelta(hours=1),
+        ),
+    ]
+    async with store() as s:
+        for row in rows:
+            await s.save_overview(row)
+
+    async with facade() as projector:
+        stats = await projector.get_application_stats(latest=2)
+
+    groups = {(g.status, g.product_code): (g.count, g.amount) for g in stats.groups}
+    assert groups == {
+        ("draft", "UNSECURED"): (1, Decimal(0)),
+        ("in_review", "UNSECURED"): (2, Decimal("3500000")),
+        ("disbursed", "SECURED"): (1, Decimal("45000000")),
+    }
+    assert [(b.min, b.max, b.count) for b in stats.amount_buckets] == [
+        (Decimal(0), Decimal(1_000_000), 1),
+        (Decimal(1_000_000), Decimal(3_000_000), 0),
+        (Decimal(3_000_000), Decimal(10_000_000), 1),
+        (Decimal(10_000_000), Decimal(30_000_000), 0),
+        (Decimal(30_000_000), None, 1),
+    ]
+    assert [r.application_id for r in stats.latest][0] == rows[3].application_id
+    assert len(stats.latest) == 2 and stats.latest[0].company_name == "ООО «Ромашка»"
+
+
 async def test_dashboard(store: OpenStore, facade: OpenFacade) -> None:
     async with store() as s:
         await s.save_dashboard(

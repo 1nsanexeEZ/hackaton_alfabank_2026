@@ -8,6 +8,7 @@ from src.core.domain.clock import Clock
 from src.core.facades import FacadeRegistry
 from src.core.messaging.subscriber import HandlerContext
 from src.modules.projector.application.use_cases.applications import (
+    GetApplicationStatsUseCase,
     GetOrganizationDashboardUseCase,
     ListApplicationsUseCase,
 )
@@ -40,6 +41,7 @@ def projector_facade(session: AsyncSession, clock: Clock) -> ProjectorFacadeImpl
         GetUnderwritingQueueUseCase(read_models, clock),
         GetTimelineUseCase(read_models),
         GetBackofficeMetricsUseCase(read_models),
+        GetApplicationStatsUseCase(read_models),
     )
 
 

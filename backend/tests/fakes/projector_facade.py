@@ -4,6 +4,7 @@ from uuid import UUID
 from src.modules.projector.facade import (
     ApplicationOverviewDTO,
     ApplicationPageDTO,
+    ApplicationStatsDTO,
     Audience,
     BackofficeMetricsDTO,
     OrganizationDashboardDTO,
@@ -22,6 +23,7 @@ class FakeProjectorFacade:
         self.queue: dict[UUID, QueueItemDTO] = {}
         self.timeline: list[TimelineEntryDTO] = []
         self.metrics: BackofficeMetricsDTO | None = None
+        self.application_stats = ApplicationStatsDTO((), (), ())
 
     def add_overview(self, row: ApplicationOverviewDTO) -> ApplicationOverviewDTO:
         self.overviews[row.application_id] = row
@@ -57,6 +59,9 @@ class FakeProjectorFacade:
         self, organization_id: UUID
     ) -> OrganizationDashboardDTO | None:
         return self.dashboards.get(organization_id)
+
+    async def get_application_stats(self, latest: int = 10) -> ApplicationStatsDTO:
+        return self.application_stats
 
     async def get_underwriting_queue(
         self,

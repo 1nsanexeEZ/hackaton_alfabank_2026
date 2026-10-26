@@ -1,10 +1,12 @@
 """Reads behind the facade (ReadModelQueries): filters, sorts and pages."""
 
+from collections.abc import Sequence
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.projector.application.interfaces.repositories import ReadModelQueries
@@ -61,6 +63,44 @@ class SqlAlchemyReadModelQueries(ReadModelQueries):
         )
         rows = (await self._session.scalars(stmt)).all()
         return [to_record(ApplicationOverview, row) for row in rows], total or 0
+
+    async def application_groups(self) -> list[tuple[str, str, str, int, Decimal]]:
+        row = ApplicationOverviewRow
+        stmt = (
+            select(
+                row.status,
+                row.product_code,
+                func.max(row.product_name),
+                func.count(),
+                func.coalesce(func.sum(row.amount), 0),
+            )
+            .group_by(row.status, row.product_code)
+            .order_by(row.status, row.product_code)
+        )
+        return [
+            (status, code, name, int(count), Decimal(str(amount)))
+            for status, code, name, count, amount in (await self._session.execute(stmt)).all()
+        ]
+
+    async def amount_buckets(self, edges: Sequence[Decimal]) -> list[int]:
+        amount = ApplicationOverviewRow.amount
+        bucket = case(
+            *((amount < edge, index) for index, edge in enumerate(edges)), else_=len(edges)
+        ).label("bucket")
+        stmt = select(bucket, func.count()).where(amount.is_not(None), amount > 0).group_by(bucket)
+        counts: dict[int, int] = dict((await self._session.execute(stmt)).tuples().all())
+        return [int(counts.get(index, 0)) for index in range(len(edges) + 1)]
+
+    async def latest_overviews(self, limit: int) -> list[ApplicationOverview]:
+        stmt = (
+            select(ApplicationOverviewRow)
+            .order_by(
+                ApplicationOverviewRow.updated_at.desc(), ApplicationOverviewRow.application_id
+            )
+            .limit(limit)
+        )
+        rows = (await self._session.scalars(stmt)).all()
+        return [to_record(ApplicationOverview, row) for row in rows]
 
     async def get_dashboard(self, organization_id: UUID) -> OrganizationDashboard | None:
         row = await self._session.get(OrganizationDashboardRow, organization_id)

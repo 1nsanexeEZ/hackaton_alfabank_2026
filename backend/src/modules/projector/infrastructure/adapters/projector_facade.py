@@ -6,12 +6,14 @@ from uuid import UUID
 
 from src.modules.projector.application.dto.applications import (
     ApplicationPageDTO,
+    ApplicationStatsDTO,
     OrganizationDashboardDTO,
 )
 from src.modules.projector.application.dto.metrics import BackofficeMetricsDTO
 from src.modules.projector.application.dto.queue import QueuePageDTO
 from src.modules.projector.application.dto.timeline import TimelineEntryDTO
 from src.modules.projector.application.use_cases.applications import (
+    GetApplicationStatsUseCase,
     GetOrganizationDashboardUseCase,
     ListApplicationsUseCase,
 )
@@ -30,12 +32,14 @@ class ProjectorFacadeImpl(ProjectorFacade):
         get_underwriting_queue: GetUnderwritingQueueUseCase,
         get_timeline: GetTimelineUseCase,
         get_backoffice_metrics: GetBackofficeMetricsUseCase,
+        get_application_stats: GetApplicationStatsUseCase,
     ) -> None:
         self._list_applications = list_applications
         self._get_organization_dashboard = get_organization_dashboard
         self._get_underwriting_queue = get_underwriting_queue
         self._get_timeline = get_timeline
         self._get_backoffice_metrics = get_backoffice_metrics
+        self._get_application_stats = get_application_stats
 
     async def list_applications(
         self,
@@ -50,6 +54,9 @@ class ProjectorFacadeImpl(ProjectorFacade):
         self, organization_id: UUID
     ) -> OrganizationDashboardDTO | None:
         return await self._get_organization_dashboard.execute(organization_id)
+
+    async def get_application_stats(self, latest: int = 10) -> ApplicationStatsDTO:
+        return await self._get_application_stats.execute(latest)
 
     async def get_underwriting_queue(
         self,

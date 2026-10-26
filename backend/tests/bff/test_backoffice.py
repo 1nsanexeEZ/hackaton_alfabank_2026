@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from src.core.access.permissions import Permissions
 from src.modules.products.facade import EligibilityCheckDTO, EligibilityReasonDTO
+from src.modules.projector.facade import AmountBucketDTO, ApplicationGroupDTO, ApplicationStatsDTO
 from src.modules.scoring.facade import MlScoreDTO
 from tests.bff import factories
 from tests.bff.conftest import World
@@ -229,3 +230,41 @@ def test_scoring_overview_needs_scoring_read(world: World) -> None:
         world.as_underwriter(without=(Permissions.SCORING_READ,)),
     )
     assert response.status_code == 403
+
+
+# --- applications overview -------------------------------------------------------------
+
+
+def test_applications_overview_in_one_call(world: World) -> None:
+    world.projector.application_stats = ApplicationStatsDTO(
+        groups=(
+            ApplicationGroupDTO("draft", "UNSECURED", "Без залога", 2, Decimal(0)),
+            ApplicationGroupDTO("in_review", "UNSECURED", "Без залога", 3, Decimal("9000000")),
+            ApplicationGroupDTO("rejected", "SECURED", "Под залог", 1, Decimal("5000000")),
+            ApplicationGroupDTO("offer_declined", "SECURED", "Под залог", 1, Decimal("2000000")),
+            ApplicationGroupDTO("disbursed", "UNSECURED", "Без залога", 2, Decimal("6000000")),
+        ),
+        amount_buckets=(AmountBucketDTO(Decimal(0), None, 8),),
+        latest=(),
+    )
+
+    response = world.get("/bff/backoffice/applications-overview", world.as_underwriter())
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (body["total"], body["submitted"], body["decided"], body["approved"]) == (9, 7, 4, 3)
+    assert Decimal(body["requested_amount"]) == Decimal("22000000")
+    assert [(f["key"], f["count"]) for f in body["funnel"]] == [
+        ("started", 9),
+        ("submitted", 7),
+        ("decided", 4),
+        ("approved", 3),
+        ("signed", 2),
+        ("disbursed", 2),
+    ]
+    assert [(p["product_code"], p["count"]) for p in body["products"]] == [
+        ("UNSECURED", 7),
+        ("SECURED", 2),
+    ]
+    assert {s["key"]: s["count"] for s in body["statuses"]}["in_review"] == 3
+    assert body["amount_buckets"] == [{"min": "0", "max": None, "count": 8}]

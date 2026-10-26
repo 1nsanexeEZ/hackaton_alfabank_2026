@@ -6,8 +6,10 @@ from fastapi import APIRouter, Depends, Query
 
 from src.core.access.dependencies import require_permissions
 from src.core.access.permissions import Permissions
+from src.modules.bff.application.dto.applications_overview import ApplicationsOverviewDTO
 from src.modules.bff.application.dto.scoring_overview import ScoringOverviewDTO
 from src.modules.bff.presentation.dependencies import (
+    ApplicationsOverviewDep,
     BackofficeMetricsDep,
     CanReadBackoffice,
     ScoringOverviewDep,
@@ -87,3 +89,20 @@ async def scoring_overview(
     matrix, model and policy versions; and the latest `limit` applications with both grades
     and the decision."""
     return await use_case.execute(limit)
+
+
+@router.get(
+    "/applications-overview",
+    response_model=ApplicationsOverviewDTO,
+    dependencies=[Depends(require_permissions(Permissions.REQUESTS_READ))],
+)
+async def applications_overview(
+    _: CanReadBackoffice,
+    use_case: ApplicationsOverviewDep,
+    latest: Annotated[int, Query(ge=0, le=50, description="How many latest applications")] = 10,
+) -> ApplicationsOverviewDTO:
+    """Every company's applications in one call, counted by the database: the funnel (how far
+    they got: started, submitted, decided, approved, signed, disbursed), statuses, products
+    and requested amounts, amount buckets (up to 1, 1–3, 3–10, 10–30, 30+ mln) and the latest
+    `latest` applications with the company name."""
+    return await use_case.execute(latest)
