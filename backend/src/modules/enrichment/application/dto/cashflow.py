@@ -6,6 +6,16 @@ from uuid import UUID
 
 
 @dataclass(frozen=True, slots=True)
+class StatementCheckDTO:
+    """Разберётся ли файл выписки: те же правила, что у прогноза кассового разрыва."""
+
+    valid: bool
+    operations: int  # сколько операций в файле
+    line: int | None = None  # строка с ошибкой (1 — заголовок); None — файл целиком
+    message: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CashflowMonthDTO:
     month: str  # YYYY-MM
     inflow: Decimal

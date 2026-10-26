@@ -9,6 +9,7 @@ from src.modules.enrichment.facade import (
     EnrichmentSnapshotDTO,
     PersonDTO,
     RegistryExtractDTO,
+    StatementCheckDTO,
 )
 
 
@@ -20,6 +21,7 @@ class FakeEnrichmentFacade:
         self.people: dict[tuple[str, str], CreditHistoryDTO] = {}
         self.person_bureau_down = False
         self.person_requests: list[tuple[PersonDTO, datetime]] = []
+        self.statement_check: StatementCheckDTO | None = None
         # organization_id -> the latest cash flow forecast (by a bank statement).
         self.cashflows: dict[UUID, CashflowForecastDTO] = {}
         # INN -> the company before any application (registry, tax, Kontur, stop list).
@@ -57,6 +59,10 @@ class FakeEnrichmentFacade:
         if self.registry_down:
             raise InfrastructureError("Реестр временно недоступен")
         return self.companies.get(inn)
+
+    def check_statement(self, content: bytes) -> StatementCheckDTO:
+        """Valid unless set otherwise (`statement_check`)."""
+        return self.statement_check or StatementCheckDTO(True, 1)
 
     async def lookup_person_bureau(
         self, person: PersonDTO, consent_at: datetime

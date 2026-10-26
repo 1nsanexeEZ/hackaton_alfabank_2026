@@ -22,4 +22,10 @@ class SourceUnavailable(SourceFetchError):
 
 
 class StatementParseError(Exception):
-    """Выписка в неверном формате — показываем понятную ошибку, не роняем обогащение."""
+    """Выписка в неверном формате — показываем понятную ошибку, не роняем обогащение. `line` —
+    номер строки файла (1 — заголовок), None — файл целиком."""
+
+    def __init__(self, message: str, line: int | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.line = line

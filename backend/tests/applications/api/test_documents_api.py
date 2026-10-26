@@ -1,4 +1,8 @@
+import pytest
+
 from tests.applications.api.conftest import World
+
+STATEMENT = b"date;amount\n2026-01-05;150000.00\n"
 
 
 def test_presigned_upload_and_confirm(world: World) -> None:
@@ -10,7 +14,7 @@ def test_presigned_upload_and_confirm(world: World) -> None:
             "type": "bank_statement",
             "filename": "выписка.csv",
             "content_type": "text/csv",
-            "size_bytes": 12,
+            "size_bytes": len(STATEMENT),
         },
         headers=headers,
     )
@@ -27,7 +31,7 @@ def test_presigned_upload_and_confirm(world: World) -> None:
     assert not_yet.status_code == 422
     assert not_yet.json()["details"]["code"] == "upload_missing"
 
-    world.storage.put(f"applications/{application['id']}/{document['id']}", b"x" * 12, "text/csv")
+    world.storage.put(f"applications/{application['id']}/{document['id']}", STATEMENT, "text/csv")
     confirmed = world.client.post(confirm_url, headers=headers)
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "uploaded"
@@ -138,3 +142,46 @@ def test_no_document_changes_after_submit(world: World) -> None:
         headers=headers,
     )
     assert announce.status_code == 409
+
+
+def _announce(world: World, application: dict, content: bytes) -> str:
+    document = world.client.post(
+        f"/applications/{application['id']}/documents",
+        json={
+            "type": "bank_statement",
+            "filename": "s.csv",
+            "content_type": "text/csv",
+            "size_bytes": len(content),
+        },
+        headers=world.headers(world.director),
+    ).json()["document"]
+    world.storage.put(f"applications/{application['id']}/{document['id']}", content, "text/csv")
+    return f"/applications/{application['id']}/documents/{document['id']}/confirm"
+
+
+@pytest.mark.parametrize(
+    "content,line",
+    [
+        (b"date;amount\n2026-01-05;150000.00\n05.01.2026;1 500,00\n", 3),
+        (b"date,amount\n2026-01-05,150000.00\n", 1),
+        (b"day;sum\n2026-01-05;150000.00\n", 1),
+        (b"date;amount\n", None),
+    ],
+)
+def test_broken_statement_is_refused_with_the_line(
+    world: World, content: bytes, line: int | None
+) -> None:
+    """The parser of the cash flow forecast reads the file on confirm: a file it cannot read
+    is 422, the document still waits for a file."""
+    application = world.create()
+    response = world.client.post(
+        _announce(world, application, content), headers=world.headers(world.director)
+    )
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["details"] == {"code": "statement_invalid", "line": line}
+    assert body["message"]
+    documents = world.client.get(
+        f"/applications/{application['id']}", headers=world.headers(world.director)
+    ).json()["documents"]
+    assert [d["status"] for d in documents] == ["pending_upload"]
