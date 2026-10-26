@@ -170,6 +170,7 @@ NAMES: dict[str, str] = {
     "GET /bff/backoffice/applications/{application_id}": "Карточка андеррайтера",
     "GET /bff/backoffice/metrics": "Метрики бэк-офиса",
     "GET /bff/backoffice/scoring-overview": "Сводка скоринга для админки",
+    "GET /bff/backoffice/applications-overview": "Сводка заявок для админки",
     "GET /scoring/models": "Версии PD-модели",
     "GET /scoring/models/catalog": "Из чего собирается модель",
     "GET /scoring/models/{version}": "Версия модели с документом",

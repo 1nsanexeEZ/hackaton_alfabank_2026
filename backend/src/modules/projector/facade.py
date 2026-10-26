@@ -9,8 +9,12 @@ from typing import Protocol
 from uuid import UUID
 
 from src.modules.projector.application.dto.applications import (
+    AmountBucketDTO,
+    ApplicationGroupDTO,
     ApplicationOverviewDTO,
     ApplicationPageDTO,
+    ApplicationStatsDTO,
+    LatestApplicationDTO,
     OrganizationDashboardDTO,
 )
 from src.modules.projector.application.dto.metrics import BackofficeMetricsDTO, DailyMetricsDTO
@@ -21,7 +25,11 @@ from src.modules.projector.domain.enums import ActionRequired, Audience, QueueSo
 __all__ = [
     "ActionRequired",
     "ApplicationOverviewDTO",
+    "AmountBucketDTO",
+    "ApplicationGroupDTO",
     "ApplicationPageDTO",
+    "ApplicationStatsDTO",
+    "LatestApplicationDTO",
     "Audience",
     "BackofficeMetricsDTO",
     "DailyMetricsDTO",
@@ -47,6 +55,11 @@ class ProjectorFacade(Protocol):
     async def get_organization_dashboard(
         self, organization_id: UUID
     ) -> OrganizationDashboardDTO | None: ...
+
+    async def get_application_stats(self, latest: int = 10) -> ApplicationStatsDTO:
+        """Every company's applications for the bank's overview: groups by status and
+        product, amount buckets, the latest `latest` rows."""
+        ...
 
     async def get_underwriting_queue(
         self,

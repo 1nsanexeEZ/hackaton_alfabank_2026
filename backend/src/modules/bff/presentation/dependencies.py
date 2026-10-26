@@ -15,6 +15,9 @@ from src.modules.bff.application.use_cases.applications import (
     ApplicationCardUseCase,
     ListApplicationsUseCase,
 )
+from src.modules.bff.application.use_cases.applications_overview import (
+    ApplicationsOverviewUseCase,
+)
 from src.modules.bff.application.use_cases.backoffice import (
     BackofficeMetricsUseCase,
     UnderwriterCardUseCase,
@@ -74,6 +77,10 @@ def get_backoffice_metrics(
     return BackofficeMetricsUseCase(neighbours, clock)
 
 
+def get_applications_overview(neighbours: NeighboursDep) -> ApplicationsOverviewUseCase:
+    return ApplicationsOverviewUseCase(neighbours)
+
+
 def get_scoring_overview(neighbours: NeighboursDep) -> ScoringOverviewUseCase:
     return ScoringOverviewUseCase(neighbours)
 
@@ -87,6 +94,7 @@ UnderwritingQueueDep = Annotated[UnderwritingQueueUseCase, Depends(get_underwrit
 UnderwriterCardDep = Annotated[UnderwriterCardUseCase, Depends(get_underwriter_card)]
 BackofficeMetricsDep = Annotated[BackofficeMetricsUseCase, Depends(get_backoffice_metrics)]
 ScoringOverviewDep = Annotated[ScoringOverviewUseCase, Depends(get_scoring_overview)]
+ApplicationsOverviewDep = Annotated[ApplicationsOverviewUseCase, Depends(get_applications_overview)]
 
 # Clients get these with the `org_member` policy: organization_ids is the list
 # of their companies; rights inside the company are checked by clients.ensure_can.
