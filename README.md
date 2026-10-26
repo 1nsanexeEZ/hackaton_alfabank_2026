@@ -151,7 +151,8 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 | Что видите | Что сделать |
 |---|---|
-| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория с двумя строками: `HTTP_PORT=8081` и `MINIO_PUBLIC_ENDPOINT=http://localhost:8081` (порт — любой свободный, в обеих строках одинаковый), затем `docker compose up -d --wait` и откройте http://localhost:8081. Без второй строки сайт откроется, но не загрузятся документы. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| `Bind for 0.0.0.0:8080 failed: port is already allocated` или `ports are not available … 8080` — **порт 8080 занят** другой программой | Создайте `.env` в корне репозитория со строкой `HTTP_PORT=8081` (любой свободный порт), затем `docker compose up -d --wait` и откройте http://localhost:8081. Загрузка документов и QR-код договора возьмут тот же порт сами. Кто занял порт: `netstat -ano \| findstr :8080` (Windows) или `lsof -i :8080` (macOS, Linux) |
+| Стенд открыт не по `localhost` (с другого компьютера по IP): не загружаются документы, QR в договоре ведёт на `localhost` | Добавьте в `.env` адрес из строки браузера, например `MINIO_PUBLIC_ENDPOINT=http://192.168.1.10:8080`, и выполните `docker compose up -d --wait`. Договоры, подписанные раньше, сохранят старый адрес: подписанный PDF в архиве не меняется |
 | `Cannot connect to the Docker daemon`, `dockerDesktopLinuxEngine: The system cannot find the file specified` | Не запущен Docker Desktop: запустите и дождитесь Engine running |
 | `no space left on device` или окно Docker Desktop «There was a problem with WSL» | Кончилось место на диске с данными Docker. Нужно около 6 ГБ, с локальной моделью — ещё около 7 ГБ. Освободите место или перенесите данные Docker на другой диск: Docker Desktop → Settings → Resources → Advanced → Disk image location |
 | `--wait` закончился ошибкой `container … is unhealthy` или по таймауту | Чаще всего машина медленная и сервис не успел подняться. Повторите ту же команду `docker compose up -d --build --wait --wait-timeout 600` — она продолжит с того места. Не помогло — `docker compose logs --tail=100 <сервис>` |
@@ -206,16 +207,18 @@ curl http://localhost:8080/api/assistant/status      # PowerShell: curl.exe …
 
 **Офлайн.** Зависимости ставятся при сборке образов (`uv sync --frozen`, `npm ci`), в рантайме ничего не скачивается: ключи JWT и демо-УЦ генерируются при первом старте, демо-данные лежат в репозитории. Один раз с интернетом: `docker compose pull`, `docker compose build`. Для ИИ — ещё `backend/scripts/ai-pull-model.sh`.
 
-**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик выключен ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`; нужен Compose 2.24.4+ из-за тега `!override`).
+**Публичный стенд** (https://alfa-hack.ru) поднимается тем же `docker-compose.yml` с добавкой [`docker-compose.prod.yml`](docker-compose.prod.yml): HTTPS, Basic Auth, порты 80 и 443, вход в один клик доступен только после Basic Auth ([`docker/deploy.sh`](docker/deploy.sh), по тегу `v*.*.*`; нужен Compose 2.24.4+ из-за тега `!override`).
 
 ## Онлайн-стенд
 
 https://alfa-hack.ru — та же версия, что в `main`, ничего ставить не нужно.
 
 1. **Вход на сайт.** Сайт закрыт HTTP Basic Auth: браузер покажет окно входа — **логин `admin`, пароль `cc0290a34743ad7cdc1ebb59fdc7e728bc72b92b668d9102f4eb7e8f8293f9eb`**.
-2. **Вход в кабинет.** Кнопки «войти в один клик» на стенде нет — входите по паролю. Пароль всех демо-учёток — **`Demo-2026!`**, логины — в [таблице демо-учёток](#демо-данные-и-учётные-записи):
-   - клиент: на главной «Войти», например `owner@romashka.test`;
-   - сотрудник банка: https://alfa-hack.ru/admin/login, `underwriter@bank.test`.
+2. **Вход в кабинет — одной кнопкой, как локально:**
+   - клиент: на главной «Войти» → выберите компанию и человека из списка;
+   - сотрудник банка: https://alfa-hack.ru/admin/login → кнопка демо-учётки сотрудника под формой.
+
+   Можно и по паролю: пароль всех демо-учёток — **`Demo-2026!`**, логины — в [таблице демо-учёток](#демо-данные-и-учётные-записи). Подпись договора пароль спрашивает всегда.
 3. **API и Swagger** Basic Auth не требуют: https://alfa-hack.ru/api/docs, коллекция Yaak — окружение `stand`.
 
 Умный помощник на стенде отвечает через внешнюю модель с открытыми весами (DeepSeek V4.1 Flash у провайдера ranvik), на локальном стенде — по [Быстрому старту](#с-ии-локальная-модель).
@@ -275,12 +278,12 @@ Compose читает `.env` из корня репозитория. В конт�
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | учётка MinIO, общая для MinIO и backend |
 | `MINIO_BUCKET_NAME` | `credit-documents` | бакет документов заявок; договоры — в отдельном бакете `credit-contracts` с Object Lock |
 | `HTTP_PORT` | `8080` | порт сайта на этой машине |
-| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:8080` | адрес presigned URL и QR-кода договора (то, что видит браузер); порт должен совпадать с `HTTP_PORT` |
+| `MINIO_PUBLIC_ENDPOINT` | `http://localhost:${HTTP_PORT}` | адрес сайта, который видит браузер: на него подписаны presigned URL, на его `/verify` ведёт QR-код договора. Задавать, только если сайт открывают не по `localhost`: публичный домен или IP машины в сети |
 | `MESSAGING_MODE` | `kafka` | `kafka` — брокер из compose; `in_process` — без брокера (локальный запуск); `manual` — тесты |
 | `KAFKA_TOPIC_PARTITIONS` | `3` | число партиций при создании топиков |
 | `SEED_DEMO_DATA` | `true` | демо-компании, учётки, продукты и новости при старте (идемпотентно) |
 | `DEMO_PASSWORD` | `Demo-2026!` | пароль всех демо-учёток |
-| `DEMO_LOGIN_ENABLED` | `true` (с `docker-compose.prod.yml` — `false`) | вход в демо-учётку без пароля (`POST /auth/demo-login`, список — `GET /auth/demo-accounts`; при `false` оба отвечают 404); на публичном стенде выключен. В списке последним идёт администратор из `BOOTSTRAP_ADMIN_EMAIL` |
+| `DEMO_LOGIN_ENABLED` | `true` | вход в демо-учётку без пароля (`POST /auth/demo-login`, список — `GET /auth/demo-accounts`; при `false` оба отвечают 404); на публичном стенде включён, но оба пути закрыты Basic Auth сайта (`nginx.prod.conf`). В списке последним идёт администратор из `BOOTSTRAP_ADMIN_EMAIL` |
 | `APPLICATIONS_EXTERNAL_MOCKS_URL` | `http://external-mocks:8100` | моки подписания (ЭДО) и выдачи (АБС); без переменной оба шага моделируются внутри backend |
 | `ENRICHMENT_MOCKS_BASE_URL`, `ENRICHMENT_SOURCE_TIMEOUT_SECONDS`, `ENRICHMENT_RETRIES` | `http://external-mocks:8100`, `3`, `3` | адрес моков внешних источников, таймаут и число повторов |
 | `KEY_RATE` | `14.00` | ключевая ставка Банка России, % годовых (решение от 23.10.2026, сверять с cbr.ru), если в истории ключевой ничего не действует: историю ведёт админ (`/market/key-rates`, [market](docs/modules/market.md)); от ключевой считается фондирование в ставке предложения |

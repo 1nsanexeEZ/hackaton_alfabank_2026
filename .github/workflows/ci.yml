@@ -152,6 +152,39 @@ jobs:
       - name: Typecheck and build
         run: npm run build
 
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    # в PR находка валит проверку; в деплое по тегу (workflow_call) только предупреждает,
+    # чтобы свежая уязвимость в базе не блокировала выкатку уже проверенной версии
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python dependencies (backend, external-mocks)
+        run: |
+          set -e
+          for project in backend external-mocks; do
+            echo "== $project"
+            (cd "$project" && uv export --frozen --no-dev --no-hashes --no-emit-project -q -o "$RUNNER_TEMP/$project.txt")
+            uvx pip-audit==2.10.1 -r "$RUNNER_TEMP/$project.txt" --no-deps --disable-pip --progress-spinner off
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Frontend dependencies
+        working-directory: ./frontend
+        run: npm audit --audit-level=high
+
   stand:
     name: Stand starts like the jury runs it
     runs-on: ubuntu-latest

@@ -115,8 +115,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-credit-documents}
-      # Host the browser uses for presigned URLs (nginx proxies /credit-documents/ to MinIO).
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:8080}
+      # Address of the site the browser sees: presigned URLs are signed for it (nginx proxies
+      # /credit-documents/ to MinIO) and the contract QR code leads to its /verify page.
+      # Follows HTTP_PORT, so changing the port takes one variable.
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:${HTTP_PORT:-8080}}
       # Signing (EDO) and payout (ABS) go through the external mocks (simulated, marked in API answers).
       APPLICATIONS_EXTERNAL_MOCKS_URL: ${APPLICATIONS_EXTERNAL_MOCKS_URL:-http://external-mocks:8100}
       ENRICHMENT_MOCKS_BASE_URL: ${ENRICHMENT_MOCKS_BASE_URL:-http://external-mocks:8100}
