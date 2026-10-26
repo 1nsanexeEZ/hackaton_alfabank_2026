@@ -1168,7 +1168,10 @@ export interface ClientApi {
   preApprovedOffers(organizationId: string): Promise<PreApprovedOfferDto[]>
   members(organizationId: string): Promise<MemberDto[]>
   addMember(organizationId: string, login: string, role: MemberRole): Promise<MemberDto>
+  /** Номер — по формату, уникален в компании (422 invalid_format, 409 number_taken); одна на участника — 409 power_of_attorney_exists */
   grantPowerOfAttorney(organizationId: string, accountId: string, input: PowerOfAttorneyInput): Promise<MemberDto>
+  /** Отозвать доверенность: отзывает тот, кто выдаёт; нет доверенности — 404 power_of_attorney_not_found */
+  revokePowerOfAttorney(organizationId: string, accountId: string): Promise<MemberDto>
   changeMemberRole(organizationId: string, accountId: string, role: MemberRole): Promise<MemberDto>
   removeMember(organizationId: string, accountId: string): Promise<void>
   /** Сверить с ЕГРЮЛ/ЕГРИП мимо кэша и подкачать изменения */

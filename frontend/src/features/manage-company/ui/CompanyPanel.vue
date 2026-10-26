@@ -88,8 +88,11 @@ const productTitle = (code: string) => props.products?.find((product) => product
         :members="members"
         :can-manage="canManageMembers"
         :busy="busy"
+        :poa-error="company.poaError.value"
+        :member-error="company.memberError.value"
         @add="async (login, role, done) => (await company.addMember(login, role)) && done()"
         @grant="async (accountId, input, done) => (await company.grantPowerOfAttorney(accountId, input)) && done()"
+        @revoke="async (accountId, done) => (await company.revokePowerOfAttorney(accountId)) && done()"
         @change-role="company.changeMemberRole"
         @remove="company.removeMember"
       />
