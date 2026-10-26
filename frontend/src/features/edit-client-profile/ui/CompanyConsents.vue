@@ -68,6 +68,7 @@ async function revoke(organizationId: string) {
           type="credit_bureau_company"
           :organization-id="company.organizationId"
           action="Дать согласие"
+          :with-text="false"
         />
         <p v-else class="text-xs text-ink-secondary">Даёт представитель компании с правом подавать заявки.</p>
       </ConsentCard>
