@@ -18,7 +18,9 @@ from src.core.config import Settings
 from src.core.domain.clock import FrozenClock
 from src.core.messaging.contracts.applications import ApplicationSubmitted
 from src.core.messaging.contracts.base import IntegrationMessage
+from src.core.messaging.contracts.clients import MemberRemoved, OrganizationVerified
 from src.core.messaging.contracts.process import UserTaskCreated
+from src.core.messaging.contracts.support import SupportMessagePosted
 from src.core.messaging.outbox import SqlAlchemyOutboxWriter
 from src.main import create_app
 from src.modules.notifications.application.use_cases import stream
@@ -164,6 +166,52 @@ def test_read_marks(api: Api) -> None:
     assert api.client.get("/feed/unread-count", headers=accountant).json() == {"count": 1}
     assert api.client.post("/feed/read-all", headers=accountant).json() == {"updated": 1}
     assert api.client.get("/feed/unread-count", headers=accountant).json() == {"count": 0}
+
+
+def test_former_member_no_longer_sees_the_company_feed(api: Api) -> None:
+    """The feed is copied to the members when an event happens, so a former member
+    still holds the company's records: they are hidden, own support tickets and the
+    records of the other company stay."""
+    world = api.world
+    reply = SupportMessagePosted(
+        ticket_id=uuid4(),
+        number="ОБ-000001",
+        subject="Вопрос по заявке",
+        client_id=world.accountant,
+        organization_id=world.romashka.id,
+        message_id=uuid4(),
+        side="staff",
+        author_id=uuid4(),
+        preview="Ответили",
+    )
+    api.publish(submitted(world), reply, OrganizationVerified(organization_id=world.ivanov.id))
+    accountant = api.token(world.accountant)
+    before = api.client.get("/feed", headers=accountant).json()["items"]
+    [company_item] = [i for i in before if i["application_id"] == str(world.card.id)]
+
+    del world.clients.members[(world.accountant, world.romashka.id)]
+    api.publish(MemberRemoved(organization_id=world.romashka.id, account_id=world.accountant))
+
+    items = api.client.get("/feed", headers=accountant).json()["items"]
+    assert {i["title"] for i in items} >= {
+        "Доступ к компании ООО «Ромашка» закрыт",
+        "Данные компании подтверждены",
+    }
+    assert {i["type"] for i in items} == {"status_changed", "support"} and len(items) == 3
+    assert all(i["application_id"] != str(world.card.id) for i in items)
+    removed = items[0]
+    assert removed["organization_id"] is None and removed["link"] is None
+    assert api.client.get("/feed/unread-count", headers=accountant).json() == {"count": 3}
+    by_application = api.client.get(
+        "/feed", params={"application_id": str(world.card.id)}, headers=accountant
+    )
+    assert by_application.json()["total"] == 0
+    response = api.client.post(f"/feed/{company_item['id']}/read", headers=accountant)
+    assert response.status_code == 404
+    assert api.client.post("/feed/read-all", headers=accountant).json() == {"updated": 3}
+
+    director = api.token(world.director)
+    assert api.client.get("/feed/unread-count", headers=director).json() == {"count": 1}
 
 
 def test_underwriter_reads_the_back_office_feed(api: Api) -> None:

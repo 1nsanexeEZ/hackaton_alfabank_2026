@@ -28,6 +28,10 @@ class Recipient:
 
 UNDERWRITERS = Recipient.role(UNDERWRITER_ROLE)
 
+# Records of these types belong to the recipient, not to the company: a support
+# ticket is its author's (`own_only`) and stays theirs after they leave the company.
+PERSONAL_TYPES: tuple[FeedItemType, ...] = ("support",)
+
 
 @dataclass(frozen=True, slots=True)
 class FeedEntry:

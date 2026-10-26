@@ -19,6 +19,7 @@ from src.modules.notifications.presentation.dependencies import (
     OrganizationVisibilityDep,
     RedeemStreamTicketDep,
     StreamFeedDep,
+    ViewerOrganizationsDep,
 )
 from src.modules.notifications.presentation.schemas.feed import (
     ApplicationUpdated,
@@ -40,6 +41,7 @@ ApplicationFilter = Annotated[UUID | None, Query()]
 async def list_feed(
     viewer: CurrentViewer,
     visibility: OrganizationVisibilityDep,
+    organizations: ViewerOrganizationsDep,
     feed: ListFeedDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
@@ -48,9 +50,12 @@ async def list_feed(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> FeedPage:
     """The viewer's feed, newest first: own records and, for bank staff, the
-    back office records (`role:underwriter`)."""
+    back office records (`role:underwriter`). A client sees the records of the
+    companies where they are a member now: after leaving a company its records
+    are gone (own support tickets stay)."""
     await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
-    flt = FeedFilter(organization_id, application_id, unread_only)
+    scope = await organizations.execute(viewer.account_id, viewer.bank_staff)
+    flt = FeedFilter(organization_id, application_id, unread_only, scope)
     records, total = await feed.execute(viewer.recipients, flt, limit, offset)
     return FeedPage(
         items=[FeedItemRead.from_record(r) for r in records],
@@ -64,13 +69,15 @@ async def list_feed(
 async def unread_count(
     viewer: CurrentViewer,
     visibility: OrganizationVisibilityDep,
+    organizations: ViewerOrganizationsDep,
     count_unread: CountUnreadDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
 ) -> UnreadCount:
     await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
+    scope = await organizations.execute(viewer.account_id, viewer.bank_staff)
     count = await count_unread.execute(
-        viewer.recipients, FeedFilter(organization_id, application_id)
+        viewer.recipients, FeedFilter(organization_id, application_id, organizations=scope)
     )
     return UnreadCount(count=count)
 
@@ -79,13 +86,15 @@ async def unread_count(
 async def read_all(
     viewer: CurrentViewer,
     visibility: OrganizationVisibilityDep,
+    organizations: ViewerOrganizationsDep,
     mark_all_read: MarkAllFeedReadDep,
     organization_id: OrganizationFilter = None,
     application_id: ApplicationFilter = None,
 ) -> ReadAllResult:
     await visibility.execute(viewer.account_id, viewer.bank_staff, organization_id)
+    scope = await organizations.execute(viewer.account_id, viewer.bank_staff)
     updated = await mark_all_read.execute(
-        viewer.recipients, FeedFilter(organization_id, application_id)
+        viewer.recipients, FeedFilter(organization_id, application_id, organizations=scope)
     )
     return ReadAllResult(updated=updated)
 
@@ -148,7 +157,13 @@ async def feed_stream(
 
 @router.post("/{item_id}/read", response_model=FeedItemRead)
 async def read_item(
-    item_id: UUID, viewer: CurrentViewer, mark_read: MarkFeedItemReadDep
+    item_id: UUID,
+    viewer: CurrentViewer,
+    organizations: ViewerOrganizationsDep,
+    mark_read: MarkFeedItemReadDep,
 ) -> FeedItemRead:
-    """Someone else's record is 404, as if it did not exist."""
-    return FeedItemRead.from_record(await mark_read.execute(viewer.recipients, item_id))
+    """Someone else's record, or one of a company the viewer has left, is 404,
+    as if it did not exist."""
+    scope = await organizations.execute(viewer.account_id, viewer.bank_staff)
+    record = await mark_read.execute(viewer.recipients, item_id, FeedFilter(organizations=scope))
+    return FeedItemRead.from_record(record)

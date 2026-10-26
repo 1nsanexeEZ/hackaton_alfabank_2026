@@ -527,6 +527,9 @@ async def test_member_events_go_to_that_member_only(feed: FeedHarness, world: Wo
         "Доступ к компании ООО «Ромашка» закрыт",
     ]
     assert rows[1].body == "Новая роль: бухгалтер."
+    assert rows[1].organization_id == org and rows[1].link == f"/organizations/{org}"
+    # the former member can no longer open the company: the record is not bound to it
+    assert rows[2].organization_id is None and rows[2].link is None
 
 
 # --- idempotency, escaping, degradation ----------------------------------------
