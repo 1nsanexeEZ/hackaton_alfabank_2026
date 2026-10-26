@@ -25,12 +25,14 @@ function versions<Catalog, Preview>(base: string): VersionsApi<Catalog, Preview>
 export const backofficeApi: BackofficeApi = {
   queue: (query = {}) =>
     http('/bff/backoffice/queue', {
-      query: { status: query.status, sort: query.sort, limit: query.limit, offset: query.offset },
+      query: { status: query.status, sort: query.sort, review: query.review, limit: query.limit, offset: query.offset },
     }),
   card: (applicationId) => http(`/bff/backoffice/applications/${applicationId}`),
   claim: (taskId) => http(`/tasks/${taskId}/claim`, { method: 'POST' }),
   complete: (taskId, input) => http(`/tasks/${taskId}/complete`, { method: 'POST', body: input }),
   metrics: (query = {}) => http('/bff/backoffice/metrics', { query: { date_from: query.dateFrom, date_to: query.dateTo } }),
+  scoringOverview: (limit) => http('/bff/backoffice/scoring-overview', { query: { limit } }),
+  applicationsOverview: (latest) => http('/bff/backoffice/applications-overview', { query: { latest } }),
   downloadDocument: (applicationId, documentId) => http(`/applications/${applicationId}/documents/${documentId}/download`),
   contractDocument: (applicationId, kind) => httpFile(`/applications/${applicationId}/contract/document`, { query: { kind } }),
   process: (applicationId) => http(`/processes/${applicationId}`),

@@ -647,18 +647,100 @@ export interface InnCheckDto {
   organization_id: string | null
 }
 
+/** GET /bff/backoffice/scoring-overview: счётчики — по considered последним поданным заявкам */
+export interface ScoringOverviewDto {
+  considered: number
+  scored: number
+  /** Стоп-фактор до моделей: решение есть, скоринга нет */
+  stopped_before_models: number
+  with_ml: number
+  /** Обе модели в одной зоне — из with_ml */
+  models_agree: number
+  /** Неполные данные: решает человек */
+  degraded: number
+  manual_review: number
+  /** Итоговое решение: одобрение, контрпредложение или отказ */
+  decided: number
+  decided_auto: number
+  by_grade: { grade: Grade; pd: number; ml: number }[]
+  /** Пары зон двух моделей, по заявкам, где посчитали обе */
+  zones: { pd_zone: 'green' | 'yellow' | 'red'; ml_zone: 'green' | 'yellow' | 'red'; count: number }[]
+  versions: { kind: 'pd' | 'ml' | 'policy'; version: string; count: number }[]
+  items: ScoredApplicationDto[]
+}
+
+export interface ScoredApplicationDto {
+  application_id: string
+  number: string
+  company_name: string | null
+  product_code: string
+  amount: string | null
+  status: ApplicationStatusCode
+  submitted_at: string | null
+  /** PD-модель; null — не считали (стоп-фактор до моделей или ещё не дошли) */
+  score: number | null
+  grade: Grade | null
+  pd_12m: string | null
+  ml_score: number | null
+  ml_grade: Grade | null
+  ml_pd_12m: string | null
+  ml_not_applicable: string | null
+  quality: string | null
+  /** Посчитали обе модели, и зоны разные */
+  models_disagree: boolean
+  outcome: string | null
+  decided_by_type: string | null
+  reason_codes: string[]
+}
+
+/** GET /bff/backoffice/applications-overview: по всем заявкам всех компаний, считает база */
+export interface ApplicationsOverviewDto {
+  total: number
+  submitted: number
+  /** Сумма запросов по поданным, строкой */
+  requested_amount: string
+  approved: number
+  decided: number
+  /** Воронка: докуда дошли — started, submitted, decided, approved, signed, disbursed */
+  funnel: { key: string; count: number; amount: string }[]
+  statuses: { key: ApplicationStatusCode; count: number; amount: string }[]
+  products: { product_code: string; product_name: string; count: number; amount: string }[]
+  /** Корзины суммы: до 1, 1–3, 3–10, 10–30, от 30 млн; max null — без верхней границы */
+  amount_buckets: { min: string; max: string | null; count: number }[]
+  latest: OverviewApplicationDto[]
+}
+
+export interface OverviewApplicationDto {
+  application_id: string
+  organization_id: string
+  number: string
+  company_name: string
+  inn: string
+  product_code: string
+  product_name: string
+  amount: string | null
+  status: ApplicationStatusCode
+  client_stage: string | null
+  submitted_at: string | null
+  updated_at: string
+}
+
 /** Порядок очереди: срок по SLA, сумма, балл скоринга, создана */
 export type QueueSort = 'due_at' | 'amount' | 'score' | 'created_at'
 
 export interface BackofficeApi {
-  /** limit до 100; total — сколько задач всего с этим статусом */
-  queue(query?: { status?: string; sort?: QueueSort; limit?: number; offset?: number }): Promise<QueuePageDto>
+  /** limit до 100; review — вид проверки; total — сколько задач всего по тому же фильтру */
+  queue(query?: { status?: string; sort?: QueueSort; review?: ReviewKind; limit?: number; offset?: number }): Promise<QueuePageDto>
   card(applicationId: string): Promise<UnderwriterCardDto>
   /** Взять задачу на себя */
   claim(taskId: string): Promise<UnderwriterTaskDto>
   /** Решение по задаче: одобрить, контрпредложение, отказ, запрос информации */
   complete(taskId: string, input: TaskResultInput): Promise<UnderwriterTaskDto>
   metrics(query?: { dateFrom?: string; dateTo?: string }): Promise<MetricsDto>
+  /** Сводка скоринга по последним поданным заявкам (до 1000); items — последние limit, до 200 */
+  scoringOverview(limit?: number): Promise<ScoringOverviewDto>
+  /** Сводка по всем заявкам для панели обзора; latest — сколько последних заявок, до 50 */
+  applicationsOverview(latest?: number): Promise<ApplicationsOverviewDto>
   downloadDocument(applicationId: string, documentId: string): Promise<{ url: string }>
   /** PDF договора — банк видит договоры всех заявок; kind не задан — последний готовый */
   contractDocument(applicationId: string, kind?: 'draft' | 'signed'): Promise<DownloadedFile>
