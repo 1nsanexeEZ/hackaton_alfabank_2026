@@ -12,6 +12,9 @@ import { AsyncState, BaseButton } from '@/shared/ui'
  */
 const props = defineProps<{ applicationId: string }>()
 
+/** Сервер записал прочтение — карточке пора пересчитать непрочитанные на вкладке */
+const emit = defineEmits<{ read: [] }>()
+
 const PAGE = 20
 
 const items = ref<FeedItemDto[]>([])
@@ -56,6 +59,7 @@ async function markRead(item: FeedItemDto) {
   liveFeed.markedRead()
   try {
     await clientApi.readFeedItem(item.id)
+    emit('read')
   } catch {
     // Не отметилось — при следующем открытии запись снова будет непрочитанной
   }
@@ -68,6 +72,7 @@ async function markAllRead() {
     await clientApi.readAllFeed({ applicationId: props.applicationId })
     // Прочитана только эта заявка — общий счётчик пересчитывает бэкенд
     await liveFeed.refreshUnread()
+    emit('read')
     if (unreadOnly.value) await load()
   } catch (caught) {
     error.value = errorMessage(caught)
