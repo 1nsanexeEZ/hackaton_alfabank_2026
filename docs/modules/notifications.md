@@ -214,7 +214,7 @@ EventSource не умеет слать заголовок `Authorization`, по�
 | `notifications_news_reads` | `(news_id, account_id)` — прочитанные новости |
 | `notifications_stream_tickets` | одноразовые тикеты SSE (sha256, роли, срок, `used_at`); старше часа удаляются при выдаче нового |
 
-Миграция — `migrations/versions/20261022_1200_notifications_feed.py` (`notifications_0001`, после `products_0001`).
+Миграции — `migrations/versions/20261022_1200_notifications_feed.py` (`notifications_0001`, после `products_0001`) и `20261114_1000_notifications_member_removed.py` (`notifications_0002`, после `process_0003`, только данные): у уже записанных «Доступ к компании закрыт» (`MemberRemoved`) снимает `organization_id` и ссылку, как теперь пишет код.
 
 ## Упрощения
 

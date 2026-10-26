@@ -1,6 +1,6 @@
 # Модель данных
 
-Какие таблицы есть в Postgres, кому они принадлежат и как связаны. Схема собрана по ORM-моделям (`backend/src/modules/*/infrastructure/database/models.py`, в `products`, `scoring`, `decision` — `infrastructure/models.py`; все они импортируются в `backend/src/models.py`). Всего 46 таблиц и две последовательности для номеров (`applications_number_seq` — «КР-<год>-<NNNNNN>», `support_ticket_number_seq`). На диаграммах показаны ключевые поля, полный список колонок — в моделях. Миграции — Alembic: одна цепочка ревизий с именем модуля (`applications_0006`, `decision_0006`, `process_0003`…) и одна голова (сейчас `process_0003`); CI проверяет upgrade → downgrade → upgrade и `alembic check`.
+Какие таблицы есть в Postgres, кому они принадлежат и как связаны. Схема собрана по ORM-моделям (`backend/src/modules/*/infrastructure/database/models.py`, в `products`, `scoring`, `decision` — `infrastructure/models.py`; все они импортируются в `backend/src/models.py`). Всего 46 таблиц и две последовательности для номеров (`applications_number_seq` — «КР-<год>-<NNNNNN>», `support_ticket_number_seq`). На диаграммах показаны ключевые поля, полный список колонок — в моделях. Миграции — Alembic: одна цепочка ревизий с именем модуля (`applications_0006`, `decision_0006`, `process_0003`…) и одна голова (сейчас `notifications_0002`); CI проверяет upgrade → downgrade → upgrade и `alembic check`.
 
 ## Правила
 
