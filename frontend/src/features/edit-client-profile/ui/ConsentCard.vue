@@ -19,7 +19,7 @@ const props = defineProps<{
   /** Полный текст согласия — раскрывается по ссылке */
   body: string
   active: boolean
-  /** Подпись статуса, когда согласие не действует: «Отозвано 24 окт.», «Не давали» */
+  /** Подпись статуса, когда согласие не действует: «Отозвано 24 окт.», «Не дано» */
   inactiveLabel: string
   givenAt?: string | null
   validUntil?: string | null
